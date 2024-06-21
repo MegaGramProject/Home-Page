@@ -7,6 +7,7 @@
 
 body {
     font-family: 'Arial';
+    text-align: center;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,3 +32,53 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
+.footnote {
+    color: #bfbebb;
+    font-size: 1em;
+}
+
+.dropbtn {
+    background-color: white;
+    color: gray;
+    font-size: 14px;
+    border: none;
+    margin-top: 8px;
+    width: 4em;
+}
+
+
+.dropdown-content {
+    display: none;
+    margin-top: -280px;
+    background-color: #e2e8ed;
+    width: 10em;
+    padding-top:0px;
+
+}
+
+  /* Links inside the dropdown */
+.dropdown-content p {
+    color: black;
+    padding: 6px 10px;
+    text-decoration: none;
+    display: block;
+    font-size:small;
+}
+
+.dropdown {
+    width: 5%;
+    align-items: center;
+}
+
+
+.dropdown-content p:hover {background-color: #ddd;}
+
+.dropdown:hover .dropdown-content {display: block;}
+
+.dropdown:hover .dropbtn {display: none;}
+
+
+.dropdownV {
+    width: 35%;
+    height: 35%;
+}

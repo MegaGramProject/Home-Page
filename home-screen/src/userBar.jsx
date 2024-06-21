@@ -1,31 +1,16 @@
 import React, { Component } from 'react';
-import Footer from "./footer";
-import LeftSidebar from "./leftSidebar";
-import StoryIcon from "./storyIcon";
+import profileIcon from './images/profileIcon.png';
 import './styles.css';
-import UserBar from "./userBar";
 
-
-class App extends Component {
+class UserBar extends Component {
     constructor(props) {
         super(props);
         this.state = {
-        showPopup: false,
-        language: 'English',
-        suggestedForYouText: 'Suggested for you',
-        seeAllText: 'See all'
+            switchText: "Switch",
+            suggestedForYouText: "Suggested for you",
+            followText: "Follow",
         };
-        this.togglePopup = this.togglePopup.bind(this);
     };
-
-    togglePopup = () => {
-        this.setState({showPopup: !this.state.showPopup});
-    };
-
-    changeLanguage = (newLanguage) => {
-        this.setState({language: newLanguage});
-    }
-
 
     translateTextPromise = async function(text, language1, language2){
         let language1Code;
@@ -130,13 +115,25 @@ class App extends Component {
         }
     }
 
+    async updateFollowText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.followText,
+                currLang,
+                this.props.language
+            );
+            this.setState({followText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
 
     async updateSuggestedForYouText(currLang) {
         try {
             const translatedText = await this.translateTextPromise(
                 this.state.suggestedForYouText,
                 currLang,
-                this.state.language
+                this.props.language
             );
             this.setState({suggestedForYouText: translatedText });
         } catch (error) {
@@ -144,67 +141,65 @@ class App extends Component {
         }
     }
 
-    async updateSeeAllText(currLang) {
+    async updateSwitchText(currLang) {
         try {
             const translatedText = await this.translateTextPromise(
-                this.state.seeAllText,
+                this.state.switchText,
                 currLang,
-                this.state.language
+                this.props.language
             );
-            this.setState({seeAllText: translatedText });
+            this.setState({switchText: translatedText });
         } catch (error) {
             console.error("Translation failed", error);
         }
     }
 
     async componentDidMount() {
-        await this.updateSeeAllText("English");
+        await this.updateFollowText("English");
         await this.updateSuggestedForYouText("English");
+        await this.updateSwitchText("English");
     }
 
     async componentDidUpdate(prevProps, prevState) {
-        if (prevState.language !== this.state.language) {
-            await this.updateSeeAllText(prevState.language);
-            await this.updateSuggestedForYouText(prevState.language);
+        if (prevProps.language !== this.props.language) {
+            await this.updateFollowText(prevProps.language);
+            await this.updateSuggestedForYouText(prevProps.language);
+            await this.updateSwitchText(prevProps.language);
         }
     }
+
+
+    takeUserToLogin() {
+        window.location.href = "http://localhost:8000/login";
+    }
+
+    toggleFollowText = () => {
+        if (this.state.followText==="Follow") {
+            this.setState({followText: "Following"});
+        }
+        else {
+            this.setState({followText: "Follow"});
+        }
+        
+    }
+
+
 
     render() {
         return (
         <React.Fragment>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-        <LeftSidebar language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
-        <div style={{display:'flex', justifyContent: 'start', alignItems: 'start', position: 'absolute',
-        left:'27%', marginTop:'2.3em', width:'45em', height:'50em', gap:'1em'}}>
-        <StoryIcon username='rishavry' ownAccount={true} unseenStory={false}/>
-        <StoryIcon username='rishavry2' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry3' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry4' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry5' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry6' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry7' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry8' ownAccount={false} unseenStory={true}/>
+        <div style={{display:'flex', width:'20em', marginTop:'-2em', alignItems:'center'}}>
+        <img src={profileIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>
+        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'0.7em'}}>
+        <p style={{fontWeight:'bold', fontSize:'0.85em', cursor:'pointer'}}>{this.props.username}</p>
+        <p style={{display: this.props.ownAccount ? 'inline-block' : 'none', fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.props.fullName}</p>
+        <p style={{display: this.props.ownAccount ? 'none' : 'inline-block',  fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.state.suggestedForYouText}</p>
         </div>
+        <p onClick={this.props.ownAccount ? this.takeUserToLogin : this.toggleFollowText} style={{color: this.state.followText==="Follow" ? '#348feb' : 'gray', cursor:'pointer', fontSize:'0.85em', fontWeight:'bold', position:'absolute', left:'82%', marginTop:'1.5em'}}>  {this.props.ownAccount ? this.state.switchText : this.state.followText}</p>
         </div>
-        <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
-        left:'76%', marginTop:'4em'}}>
-        <UserBar language={this.state.language} username='rishavry' fullName='rishav ' ownAccount={true}/>
-        <div style={{marginTop:'-1em'}}>
-        <span style={{color:'gray', fontWeight:'600', fontSize:'0.9em'}}>{this.state.suggestedForYouText}</span>
-        <span style={{fontSize:'0.77em', marginLeft:'10em', cursor:'pointer'}}>{this.state.seeAllText}</span>
-        </div>
-        <br/>
-        <br/>
-        <br/>
-        <UserBar language={this.state.language} username='rishavry2' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry3' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry5' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry6' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry7' fullName='' ownAccount={false}/>
-        <Footer language={this.state.language} changeLanguage={this.changeLanguage}/>
-        </div>
+        <br/><br/>
         </React.Fragment>);
     };
 }
 
-export default App;
+export default UserBar;

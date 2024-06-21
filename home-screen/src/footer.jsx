@@ -1,31 +1,18 @@
 import React, { Component } from 'react';
-import Footer from "./footer";
-import LeftSidebar from "./leftSidebar";
-import StoryIcon from "./storyIcon";
+import dropdownV from './images/dropdownV.png';
 import './styles.css';
-import UserBar from "./userBar";
 
-
-class App extends Component {
+class Footer extends Component {
     constructor(props) {
         super(props);
         this.state = {
-        showPopup: false,
-        language: 'English',
-        suggestedForYouText: 'Suggested for you',
-        seeAllText: 'See all'
-        };
-        this.togglePopup = this.togglePopup.bind(this);
-    };
-
-    togglePopup = () => {
-        this.setState({showPopup: !this.state.showPopup});
+            footnoteText: "An enhanced version of Instagram, created as a personal project and powered by Rishav Ray"
+        }
     };
 
     changeLanguage = (newLanguage) => {
-        this.setState({language: newLanguage});
+        this.props.changeLanguage(newLanguage);
     }
-
 
     translateTextPromise = async function(text, language1, language2){
         let language1Code;
@@ -130,81 +117,60 @@ class App extends Component {
         }
     }
 
-
-    async updateSuggestedForYouText(currLang) {
+    async updateFootnoteText(currLang) {
         try {
             const translatedText = await this.translateTextPromise(
-                this.state.suggestedForYouText,
+                this.state.footnoteText,
                 currLang,
-                this.state.language
+                this.props.language
             );
-            this.setState({suggestedForYouText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateSeeAllText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.seeAllText,
-                currLang,
-                this.state.language
-            );
-            this.setState({seeAllText: translatedText });
+            this.setState({ footnoteText: translatedText });
         } catch (error) {
             console.error("Translation failed", error);
         }
     }
 
     async componentDidMount() {
-        await this.updateSeeAllText("English");
-        await this.updateSuggestedForYouText("English");
+        await this.updateFootnoteText("English");
     }
-
+    
     async componentDidUpdate(prevProps, prevState) {
-        if (prevState.language !== this.state.language) {
-            await this.updateSeeAllText(prevState.language);
-            await this.updateSuggestedForYouText(prevState.language);
+        if (prevProps.language !== this.props.language) {
+            await this.updateFootnoteText(prevProps.language);
         }
     }
+
 
     render() {
         return (
         <React.Fragment>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-        <LeftSidebar language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
-        <div style={{display:'flex', justifyContent: 'start', alignItems: 'start', position: 'absolute',
-        left:'27%', marginTop:'2.3em', width:'45em', height:'50em', gap:'1em'}}>
-        <StoryIcon username='rishavry' ownAccount={true} unseenStory={false}/>
-        <StoryIcon username='rishavry2' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry3' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry4' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry5' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry6' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry7' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry8' ownAccount={false} unseenStory={true}/>
+        <div style={{marginLeft:'0em', marginTop: '0em', width:'20em'}}>
+        <footer id="footnote" className="footnote">{this.state.footnoteText}</footer>
+        <div className="dropdown">
+        <button className="dropbtn">
+                <div style={{ display: 'flex', gap: '0.1em'}}>
+                    <span id="language" class="footnote">{this.props.language}</span>
+                    <img className="dropdownV" src={dropdownV} alt="Dropdown"/>
+                </div>
+        </button>
+        <div id="languageList" className="dropdown-content" style={{marginTop:'1em'}}>
+                <p onClick={() => this.changeLanguage('العربية')}>العربية</p>
+                <p onClick={() => this.changeLanguage('বাংলা')}>বাংলা</p>
+                <p onClick={() => this.changeLanguage('Deutsch')}>Deutsch</p>
+                <p onClick={() => this.changeLanguage('English')}>English</p>
+                <p onClick={() => this.changeLanguage('Español')}>Español</p>
+                <p onClick={() => this.changeLanguage('Français')}>Français</p>
+                <p onClick={() => this.changeLanguage('हिंदी')}>हिंदी</p>
+                <p onClick={() => this.changeLanguage('Bahasa Indonesia')}>Bahasa Indonesia</p>
+                <p onClick={() => this.changeLanguage('Italiano')}>Italiano</p>
+                <p onClick={() => this.changeLanguage('日本語')}>日本語</p>
+                <p onClick={() => this.changeLanguage('Русский')}>Русский</p>
+                <p onClick={() => this.changeLanguage('中国人')}>中国人</p>
         </div>
         </div>
-        <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
-        left:'76%', marginTop:'4em'}}>
-        <UserBar language={this.state.language} username='rishavry' fullName='rishav ' ownAccount={true}/>
-        <div style={{marginTop:'-1em'}}>
-        <span style={{color:'gray', fontWeight:'600', fontSize:'0.9em'}}>{this.state.suggestedForYouText}</span>
-        <span style={{fontSize:'0.77em', marginLeft:'10em', cursor:'pointer'}}>{this.state.seeAllText}</span>
-        </div>
-        <br/>
-        <br/>
-        <br/>
-        <UserBar language={this.state.language} username='rishavry2' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry3' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry5' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry6' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry7' fullName='' ownAccount={false}/>
-        <Footer language={this.state.language} changeLanguage={this.changeLanguage}/>
         </div>
         </React.Fragment>);
     };
 }
 
-export default App;
+export default Footer;
