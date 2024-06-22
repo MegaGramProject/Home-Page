@@ -82,3 +82,18 @@ body {
     width: 35%;
     height: 35%;
 }
+
+.blueButton {
+    background-color: #82bbf5;
+    color: white;
+    width: 295px;
+    height: 34px;
+    border-radius: 7px;
+    border: none;
+    font-weight: bold;
+    padding-top:10px;
+    padding-bottom: 10px;
+    font-size: 12.5px;
+    margin-top: 18px;
+}
+

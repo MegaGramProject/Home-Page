@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import profileIcon from './images/profileIcon.png';
+import AccountPreview from './accountPreview';
 import './styles.css';
 
 class UserBar extends Component {
@@ -9,6 +10,7 @@ class UserBar extends Component {
             switchText: "Switch",
             suggestedForYouText: "Suggested for you",
             followText: "Follow",
+            showAccountPreview: false
         };
     };
 
@@ -183,19 +185,32 @@ class UserBar extends Component {
         
     }
 
+    toggleAccountPreview = () => {
+        this.setState({showAccountPreview: !this.state.showAccountPreview});
+    }
+
+    showAccountPreview = () => {
+        this.setState({showAccountPreview: true});
+    }
+
 
 
     render() {
         return (
         <React.Fragment>
-        <div style={{display:'flex', width:'20em', marginTop:'-2em', alignItems:'center'}}>
-        <img src={profileIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>
+        <div style={{display:'flex', width:'20em', marginTop:'-2em', alignItems:'center', position:'relative'}}>
+        <img onMouseEnter={this.props.ownAccount ? null : this.toggleAccountPreview} onMouseLeave={this.props.ownAccount ? null : this.toggleAccountPreview} src={profileIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'0.7em'}}>
-        <p style={{fontWeight:'bold', fontSize:'0.85em', cursor:'pointer'}}>{this.props.username}</p>
+        <p onMouseEnter={this.props.ownAccount ? null : this.toggleAccountPreview} onMouseLeave={this.props.ownAccount ? null : this.toggleAccountPreview} style={{fontWeight:'bold', fontSize:'0.85em', cursor:'pointer'}}>{this.props.username}</p>
         <p style={{display: this.props.ownAccount ? 'inline-block' : 'none', fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.props.fullName}</p>
         <p style={{display: this.props.ownAccount ? 'none' : 'inline-block',  fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.state.suggestedForYouText}</p>
         </div>
         <p onClick={this.props.ownAccount ? this.takeUserToLogin : this.toggleFollowText} style={{color: this.state.followText==="Follow" ? '#348feb' : 'gray', cursor:'pointer', fontSize:'0.85em', fontWeight:'bold', position:'absolute', left:'82%', marginTop:'1.5em'}}>  {this.props.ownAccount ? this.state.switchText : this.state.followText}</p>
+        <div class="accountPreview" style={{display: this.state.showAccountPreview ? 'inline-block' : 'none',
+        position:'absolute', top:'55%'}} onMouseEnter={this.showAccountPreview} onMouseLeave={this.toggleAccountPreview}>
+        <AccountPreview username={this.props.username} fullName={"R R"} isPrivate={true} numPosts={5}
+        numFollowers={836} numFollowing={500}/>
+        </div>
         </div>
         <br/><br/>
         </React.Fragment>);

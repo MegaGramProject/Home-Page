@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import reportAProblemIcon from './images/reportAProblemIcon.png';
-import savedIcon from './images/savedIcon.png';
+import savedIcon from './images/saveIcon.png';
 import settingsIcon from './images/settingsIcon.png';
 import yourActivityIcon from './images/yourActivityIcon.png';
 import './styles.css';

@@ -4,6 +4,9 @@ import LeftSidebar from "./leftSidebar";
 import StoryIcon from "./storyIcon";
 import './styles.css';
 import UserBar from "./userBar";
+import rightArrow from "./images/nextArrow.png";
+import backArrow from "./images/backArrow.png";
+import ImagePost from "./imagePost";
 
 
 class App extends Component {
@@ -13,7 +16,7 @@ class App extends Component {
         showPopup: false,
         language: 'English',
         suggestedForYouText: 'Suggested for you',
-        seeAllText: 'See all'
+        seeAllText: 'See all',
         };
         this.togglePopup = this.togglePopup.bind(this);
     };
@@ -25,6 +28,9 @@ class App extends Component {
     changeLanguage = (newLanguage) => {
         this.setState({language: newLanguage});
     }
+
+
+
 
 
     translateTextPromise = async function(text, language1, language2){
@@ -174,8 +180,8 @@ class App extends Component {
         <React.Fragment>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
         <LeftSidebar language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
-        <div style={{display:'flex', justifyContent: 'start', alignItems: 'start', position: 'absolute',
-        left:'27%', marginTop:'2.3em', width:'45em', height:'50em', gap:'1em'}}>
+        <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
+        <div style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
         <StoryIcon username='rishavry' ownAccount={true} unseenStory={false}/>
         <StoryIcon username='rishavry2' ownAccount={false} unseenStory={true}/>
         <StoryIcon username='rishavry3' ownAccount={false} unseenStory={true}/>
@@ -183,7 +189,15 @@ class App extends Component {
         <StoryIcon username='rishavry5' ownAccount={false} unseenStory={true}/>
         <StoryIcon username='rishavry6' ownAccount={false} unseenStory={true}/>
         <StoryIcon username='rishavry7' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry8' ownAccount={false} unseenStory={true}/>
+        </div>
+        <img src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
+        left:'88%', top:'3%', cursor:'pointer'}}/>
+        <img src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
+        left:'-7.5%', top:'3%', cursor:'pointer'}}/>
+        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
+        marginLeft:'-5em', marginTop: '2em'}}>
+        <ImagePost language={this.state.language} username={'rishavry2'} time={'5h'} location={'Da Nang, Vietnam'}/>
+        </div>
         </div>
         </div>
         <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
@@ -198,9 +212,9 @@ class App extends Component {
         <br/>
         <UserBar language={this.state.language} username='rishavry2' fullName='' ownAccount={false}/>
         <UserBar language={this.state.language} username='rishavry3' fullName='' ownAccount={false}/>
+        <UserBar language={this.state.language} username='rishavry4' fullName='' ownAccount={false}/>
         <UserBar language={this.state.language} username='rishavry5' fullName='' ownAccount={false}/>
         <UserBar language={this.state.language} username='rishavry6' fullName='' ownAccount={false}/>
-        <UserBar language={this.state.language} username='rishavry7' fullName='' ownAccount={false}/>
         <Footer language={this.state.language} changeLanguage={this.changeLanguage}/>
         </div>
         </React.Fragment>);
