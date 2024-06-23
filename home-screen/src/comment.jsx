@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
-import profileIcon from './images/profileIcon.png';
 import blankHeart from './images/blankHeartIcon.png';
+import profileIcon from './images/profileIcon.png';
 import redHeart from './images/redHeartIcon.png';
 import './styles.css';
 
@@ -9,7 +9,9 @@ class Comment extends Component {
         super(props);
         this.state = {
             isLiked: false,
-            numLikes: this.props.numLikes
+            numLikes: this.props.numLikes,
+            replies: this.props.replies || [],
+            showReplies: false,
         };
     };
 
@@ -31,9 +33,24 @@ class Comment extends Component {
         }
     }
 
+    toggleReplies = () => {
+        this.setState({showReplies: !this.state.showReplies});
+    }
+
 
 
     render() {
+        const repliesToComment = [];
+        if (this.state.showReplies) {
+            for (let i = this.state.replies.length-1; i > -1; i--) {
+                repliesToComment.push(
+                <Comment username={'rishavry3'} time={'15s'} comment={this.state.replies[i]}
+                numLikes={13} isCaption={false}/>
+                );
+                repliesToComment.push(<br/>);
+            }
+        }
+
         return (
         <React.Fragment>
         <div style={{display:'flex', alignItems:'start', justifyContent:'center'}}>
@@ -51,6 +68,20 @@ class Comment extends Component {
         {this.props.isCaption && (
             <p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>{this.props.time}</p>
         )}
+        {this.state.replies.length > 0 && !this.state.showReplies && (
+        <div onClick={this.toggleReplies} style={{cursor:'pointer'}}>
+        <p style={{ color: 'gray', fontSize: '0.88em', marginTop: '0.7em', fontWeight: 'bold' }}>
+        <span style={{letterSpacing:'-0.1em', marginRight:'1em'}}>-------</span>View replies ({this.state.replies.length})
+        </p>
+        </div>
+        )}
+        {this.state.showReplies && (
+        <div onClick={this.toggleReplies} style={{cursor:'pointer', position:'relative'}}>
+        <p style={{ color: 'gray', fontSize: '0.88em', marginTop: '0.7em', fontWeight: 'bold' }}>
+        <span style={{letterSpacing:'-0.1em', marginRight:'1em'}}>-------</span>Hide replies ({this.state.replies.length})
+        </p>
+        </div>
+        )}
         </div>
         {!this.props.isCaption && !this.state.isLiked && (
             <img onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>)
@@ -59,6 +90,12 @@ class Comment extends Component {
             <img onClick={this.toggleLike} src={redHeart} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>)
         }
         </div>
+        {this.state.showReplies &&
+        <div style={{ marginRight:'-3em'}}>
+        {repliesToComment}
+        </div>
+        }
+
         </React.Fragment>);
     };
 }

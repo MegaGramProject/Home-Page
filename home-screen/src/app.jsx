@@ -1,14 +1,15 @@
 import React, { Component } from 'react';
+import CommentsPopup from './commentsPopup';
 import Footer from "./footer";
 import ImagePost from "./imagePost";
 import backArrow from "./images/backArrow.png";
 import rightArrow from "./images/nextArrow.png";
 import LeftSidebar from "./leftSidebar";
+import SendPostPopup from './sendPostPopup';
 import StoryIcon from "./storyIcon";
 import './styles.css';
-import UserBar from "./userBar";
 import ThreeDotsPopup from './threeDotsPopup';
-import CommentsPopup from './commentsPopup';
+import UserBar from "./userBar";
 
 
 class App extends Component {
@@ -31,7 +32,8 @@ class App extends Component {
         commentsPopupCurrSlide: '',
         commentsPopupIsLiked: '',
         commentsPopupIsAd: '',
-        commentsPopupIsSaved: ''
+        commentsPopupIsSaved: '',
+        showSendPostPopup: false,
         };
     };
 
@@ -72,6 +74,24 @@ class App extends Component {
             commentsPopupIsSaved: isSaved
         });
     };
+
+    hideCommentsPopup = () => {
+        this.setState({
+            showCommentsPopup:false
+        });
+    };
+
+    showSendPostPopup = () => {
+        this.setState({
+            showSendPostPopup: true
+        });
+    };
+
+    closeSendPostPopup = () => {
+        this.setState({
+            showSendPostPopup: false
+        });
+    }
 
 
 
@@ -218,11 +238,12 @@ class App extends Component {
     }
 
 
+
     render() {
         return (
         <React.Fragment>
-        <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
-        this.state.showCommentsPopup ? 'none' : 'auto'}}>
+        <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup || this.state.showSendPostPopup ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
+        this.state.showCommentsPopup || this.state.showSendPostPopup ? 'none' : 'auto'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
         <LeftSidebar language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
@@ -242,13 +263,17 @@ class App extends Component {
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'5em'}}>
         <ImagePost language={this.state.language} username={'rishavry2'} time={'5h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.togglePostPopup} numSlides={1} showCommentsPopup={this.showCommentsPopup} isAd={false}/>
+        togglePopup={this.togglePostPopup} numSlides={1} showCommentsPopup={this.showCommentsPopup} isAd={false}
+        showSendPostPopup={this.showSendPostPopup}/>
         <ImagePost language={this.state.language} username={'rishavry3'} time={'4h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.togglePostPopup} numSlides={4} showCommentsPopup={this.showCommentsPopup} isAd={false}/>
+        togglePopup={this.togglePostPopup} numSlides={4} showCommentsPopup={this.showCommentsPopup} isAd={false}
+        showSendPostPopup={this.showSendPostPopup}/>
         <ImagePost language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.toggleAdPopup} numSlides={5} showCommentsPopup={this.showCommentsPopup} isAd={true}/>
+        togglePopup={this.toggleAdPopup} numSlides={5} showCommentsPopup={this.showCommentsPopup} isAd={true}
+        showSendPostPopup={this.showSendPostPopup}/>
         <ImagePost language={this.state.language} username={'rishavry5'} time={'2h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.toggleAdPopup} numSlides={3} showCommentsPopup={this.showCommentsPopup} isAd={true}/>
+        togglePopup={this.toggleAdPopup} numSlides={3} showCommentsPopup={this.showCommentsPopup} isAd={true}
+        showSendPostPopup={this.showSendPostPopup}/>
         </div>
         </div>
         <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
@@ -280,7 +305,11 @@ class App extends Component {
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         numSlides={this.state.commentsPopupNumSlides} currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  togglePopup={this.state.commentsPopupIsAd ? this.toggleAdPopup : this.togglePostPopup}
-        isSaved={this.state.commentsPopupIsSaved}/>
+        isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup}/>
+        </div>
+
+        <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>
+        <SendPostPopup closePopup={this.closeSendPostPopup}/>
         </div>
 
 

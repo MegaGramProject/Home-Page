@@ -13,6 +13,7 @@ import taggedAccountsIcon from './images/taggedAccountsIcon.png';
 import threeHorizontalDots from './images/threeHorizontalDots.png';
 import PostDots from './postDots';
 import StoryIcon from './storyIcon';
+import closePopupIcon from './images/closePopupIcon.png';
 import './styles.css';
 
 class CommentsPopup extends Component {
@@ -24,7 +25,8 @@ class CommentsPopup extends Component {
             isLiked: this.props.isLiked,
             numLikes: this.props.numLikes,
             currSlide: this.props.currSlide,
-            isSaved: this.props.isSaved
+            isSaved: this.props.isSaved,
+            commentsSent: []
         };
         this.textInput = React.createRef();
     };
@@ -93,7 +95,27 @@ class CommentsPopup extends Component {
         this.textInput.current.focus();
     };
 
+    postComment = () => {
+        this.setState({
+        commentsSent: [...this.state.commentsSent, this.state.comment],
+        comment: "",
+        sendComment: false,
+        });
+    }
+
+    handleKeyDown = (event) => {
+        if (event.key === 'Enter') {
+            this.postComment();
+        }
+    }
+
     render() {
+        const commentsByUser = [];
+        for (let i = this.state.commentsSent.length-1; i > -1; i--) {
+                commentsByUser.push(<Comment username={'rishavry3'} time={'15s'} comment={this.state.commentsSent[i]}
+                numLikes={13} isCaption={false}/>);
+                commentsByUser.push(<br/>);
+        }
         return (
         <React.Fragment>
         <div style={{background:'white', width:'82em', height:'54em', borderStyle:'solid', borderColor:'lightgray', borderRadius:'0.5%',
@@ -120,21 +142,22 @@ class CommentsPopup extends Component {
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
-        <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflow:'scroll'}}>
-        <Comment username={'rishavry6'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
+        <Comment username={'rishavry1'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
         numLikes={0} isCaption={true}/>
         <br/>
-        <Comment username={'rishavry6'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={70} isCaption={false}/>
+        {commentsByUser}
+        <Comment username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={70} isCaption={false} replies={["A", "B", "C"]}/>
         <br/>
-        <Comment username={'rishavry6'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false}/>
+        <Comment username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]}/>
         <br/>
-        <Comment username={'rishavry6'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false}/>
+        <Comment username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]}/>
         <br/>
-        <Comment username={'rishavry6'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false}/>
+        <Comment username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]}/>
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
@@ -150,15 +173,16 @@ class CommentsPopup extends Component {
         <b style={{marginTop:'0.5em', marginLeft:'0.6em'}}>{this.state.numLikes} likes</b>
         <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.props.time}</p>
         <div style={{display:'flex', justifyItems: 'center'}}>
-        <textarea type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
+        <textarea  type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
         marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
-        placeholder={"Add a comment..."}/>
-        {this.state.sendComment && <span style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
+        placeholder={"Add a comment..."} onKeyDown={this.handleKeyDown}/>
+        {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
         fontSize:'1.1em', marginLeft:'1.7em'}}>Post</span>}
         </div>
         </div>
         </div>
         </div>
+        <img onClick={this.props.hideCommentsPopup} src={closePopupIcon} style={{height:'2em', width:'2em', position:'absolute', left:'110%', top:'2%', cursor:'pointer'}}/>
         </React.Fragment>);
     };
 }

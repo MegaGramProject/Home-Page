@@ -320,7 +320,7 @@ class ImagePost extends Component {
         <img onClick = {() => this.props.showCommentsPopup(this.props.username, this.props.location, this.props.time, this.state.numLikes,
         this.props.numComments, this.props.numSlides, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
         src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>
-        <img src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
+        <img onClick = {this.props.showSendPostPopup} src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
         <img onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
         display: this.state.isSaved ? 'none' : 'inline-block'}}/>
         <img onClick={this.toggleSave} src={blackSaveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
