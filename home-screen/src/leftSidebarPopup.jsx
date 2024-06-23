@@ -224,7 +224,7 @@ class LeftSidebarPopup extends Component {
     render() {
         return (
         <React.Fragment>
-        <div className="popup" style={{width: '15em', height:'20em', backgroundColor:'white', borderRadius:'0.4em', paddingTop: '1em'}}>
+        <div className="popup" style={{width: '15em', height:'20em', borderRadius:'0.4em', paddingTop: '1em'}}>
             <div class="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em', width:'14em'}}>
             <img src={settingsIcon} style={{height:'2em', width:'2em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'0.89em', marginLeft:'0.4em'}}>{this.state.settingsText}</p>

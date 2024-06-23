@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
-import profileIcon from "./images/profileIcon.png";
 import privateAccount from "./images/privateAccount.png";
+import profileIcon from "./images/profileIcon.png";
 import './styles.css';
 
 
@@ -8,6 +8,12 @@ class AccountPreview extends Component {
     constructor(props) {
         super(props);
         this.state = {
+            postsText: "posts",
+            followersText: "followers",
+            followingText: "following",
+            accountIsPrivateText: "This account is private",
+            followText: "Follow",
+            followLongerText: "Follow this account to see their photos and videos."
         }
     };
 
@@ -115,12 +121,109 @@ class AccountPreview extends Component {
         }
     }
 
+    async updatePostsText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.postsText,
+                currLang,
+                this.props.language
+            );
+            this.setState({postsText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateFollowersText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.followersText,
+                currLang,
+                this.props.language
+            );
+            this.setState({followersText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateFollowingText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.followingText,
+                currLang,
+                this.props.language
+            );
+            this.setState({followingText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateAccountIsPrivateText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.accountIsPrivateText,
+                currLang,
+                this.props.language
+            );
+            this.setState({accountIsPrivateText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateFollowText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.followText,
+                currLang,
+                this.props.language
+            );
+            this.setState({followText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateFollowLongerText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.followLongerText,
+                currLang,
+                this.props.language
+            );
+            this.setState({followLongerText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async componentDidMount() {
+        await this.updatePostsText("English");
+        await this.updateFollowersText("English");
+        await this.updateFollowingText("English");
+        await this.updateAccountIsPrivateText("English");
+        await this.updateFollowText("English");
+        await this.updateFollowLongerText("English");
+    }
+
+    async componentDidUpdate(prevProps, prevState) {
+        if (prevProps.language !== this.props.language) {
+            await this.updatePostsText(prevProps.language);
+            await this.updateFollowersText(prevProps.language);
+            await this.updateFollowingText(prevProps.language);
+            await this.updateAccountIsPrivateText(prevProps.language);
+            await this.updateFollowText(prevProps.language);
+            await this.updateFollowLongerText(prevProps.language);
+        }
+    }
 
 
     render() {
         return (
         <React.Fragment>
-        <div class="popup" style={{backgroundColor:"white", width:'22em', height:'22em', position:'absolute', zIndex:'3',
+        <div className="popup" style={{width:'22em', height:'22em', position:'absolute', zIndex:'3',
         paddingTop:'2em', paddingLeft:'2em', borderRadius:'2%'}}>
         <div style={{display:'flex', justifyContent:'start', alignItems:'start'}}>
         <img src={profileIcon} style={{width:'3em', height:'3em'}}/>
@@ -136,16 +239,16 @@ class AccountPreview extends Component {
         </div>
         <div style={{position:'absolute', top:'40%', display:'flex', gap:'6em', marginLeft:'0.5em', marginTop:'-0.3em',
         fontSize:'0.9em'}}>
-        <span>posts</span>
-        <span>followers</span>
-        <span>following</span>
+        <span>{this.state.postsText}</span>
+        <span>{this.state.followersText}</span>
+        <span>{this.state.followingText}</span>
         </div>
         {this.props.isPrivate && (<div style={{position:'absolute', top:'45%', display:'flex', flexDirection: 'column'}}>
         <img src={privateAccount} style={{height:'7em', width:'7em', objectFit:'contain', marginLeft:'6.4em'}}/>
-        <b style={{marginLeft:'0.4em'}}>This account is private</b>
-        <p style={{color:'gray', fontSize:'0.8em', marginLeft:'0.4em', marginTop:'0.1em'}}>Follow this account to see their photos and videos.</p>
+        <b style={{marginLeft:'0.4em'}}>{this.state.accountIsPrivateText}</b>
+        <p style={{color:'gray', fontSize:'0.8em', marginLeft:'0.4em', marginTop:'0.1em'}}>{this.state.followLongerText}</p>
         </div>)}
-        <button className="blueButton" style={{width:'27em', backgroundColor:'#327bf0', position:'absolute', top:'81.5%', marginLeft:'-15em', cursor:'pointer'}}>Follow</button>
+        <button className="blueButton" style={{width:'27em', backgroundColor:'#327bf0', position:'absolute', top:'81.5%', marginLeft:'-15em', cursor:'pointer'}}>{this.state.followText}</button>
         </div>
         </React.Fragment>);
     };

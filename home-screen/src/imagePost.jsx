@@ -1,15 +1,18 @@
 import React, { Component } from 'react';
-import StoryIcon from './storyIcon';
-import threeHorizontalDots from './images/threeHorizontalDots.png';
-import imagePost from './images/imagePost.jpg';
-import blankHeart from './images/blankHeartIcon.png';
-import redHeart from './images/redHeartIcon.png';
-import commentIcon from './images/commentIcon.png';
-import sendIcon from './images/sendIcon.png';
-import saveIcon from './images/saveIcon.png';
+import backArrow from "./images/backArrow.png";
 import blackSaveIcon from './images/blackSaveIcon.png';
+import blankHeart from './images/blankHeartIcon.png';
+import commentIcon from './images/commentIcon.png';
+import imagePost from './images/imagePost.jpg';
+import rightArrow from "./images/nextArrow.png";
+import redHeart from './images/redHeartIcon.png';
+import saveIcon from './images/saveIcon.png';
+import sendIcon from './images/sendIcon.png';
+import taggedAccountsIcon from "./images/taggedAccountsIcon.png";
+import threeHorizontalDots from './images/threeHorizontalDots.png';
+import PostDots from "./postDots";
+import StoryIcon from './storyIcon';
 import './styles.css';
-import { toHaveAccessibleDescription } from '@testing-library/jest-dom/matchers';
 
 class ImagePost extends Component {
     constructor(props) {
@@ -20,9 +23,17 @@ class ImagePost extends Component {
             numLikes: 314,
             originalLikes: 314,
             caption: "What a wonderful time to be alive, init?",
-            numComments: 24,
-            comment: ""
+            comment: "",
+            sendComment: false,
+            timeText: this.props.time,
+            locationText: this.props.location,
+            likesText: this.props.numLikes + ' likes',
+            viewAllCommentsText: 'View all ' + this.props.numComments + ' comments',
+            addACommentText: 'Add a comment...',
+            postText: 'Post',
+            currSlide: 0
         }
+
     };
 
     translateTextPromise = async function(text, language1, language2){
@@ -128,16 +139,118 @@ class ImagePost extends Component {
         }
     }
 
+    async updateTimeText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.timeText,
+                currLang,
+                this.props.language
+            );
+            this.setState({timeText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateLocationText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.locationText,
+                currLang,
+                this.props.language
+            );
+            this.setState({locationText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateLikesText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.likesText,
+                currLang,
+                this.props.language
+            );
+            this.setState({likesText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateViewAllCommentsText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.viewAllCommentsText,
+                currLang,
+                this.props.language
+            );
+            this.setState({viewAllCommentsText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateAddACommentText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.addACommentText,
+                currLang,
+                this.props.language
+            );
+            this.setState({addACommentText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updatePostText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.postText,
+                currLang,
+                this.props.language
+            );
+            this.setState({postText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async componentDidMount() {
+        await this.updatePostText("English");
+        await this.updateAddACommentText("English");
+        await this.updateViewAllCommentsText("English");
+        await this.updateLikesText("English");
+        await this.updateLocationText("English");
+        await this.updateTimeText("English");
+    }
+
+    async componentDidUpdate(prevProps, prevState) {
+        if (prevProps.language !== this.props.language) {
+            await this.updatePostText(prevProps.language);
+            await this.updateAddACommentText(prevProps.language);
+            await this.updateViewAllCommentsText(prevProps.language);
+            await this.updateLikesText(prevProps.language);
+            await this.updateLocationText(prevProps.language);
+            await this.updateTimeText(prevProps.language);
+            }
+    }
+
+
+
     toggleHeart = () => {
         if (this.state.isLiked) {
             this.setState(
                 {isLiked: false,
+                likesText: (this.state.numLikes-1) + ' likes',
                 numLikes: this.state.numLikes-1,
             });
         }
         else {
             this.setState(
                 {isLiked: true,
+                likesText: (this.state.numLikes+1) + ' likes',
                 numLikes: this.state.numLikes+1,
             });
 
@@ -151,54 +264,83 @@ class ImagePost extends Component {
     likePost = () => {
         this.setState(
             {isLiked: true,
+            likesText: (this.state.originalLikes+1) + ' likes',
             numLikes: this.state.originalLikes+1});
     }
     
     handleCommentChange = (event) => {
-        this.setState({comment: event.target.value});
+        if (event.target.value.length > 0) {
+            this.setState({comment: event.target.value,
+            sendComment:true});
+        }
+        else {
+            this.setState({comment: event.target.value,
+            sendComment:false});
+        }
+    };
+
+    showNextSlide = () => {
+        this.setState({currSlide: this.state.currSlide+1});
+    };
+
+    showPreviousSlide = () => {
+        this.setState({currSlide: this.state.currSlide-1});
     };
 
 
     render() {
         return (
         <React.Fragment>
-        <div style={{borderStyle:'solid', width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em'}}>
+        <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
         <StoryIcon unseenStory={true}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
         marginTop:'-1em'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.username}</b> <span style={{color:'gray'}}>• {this.props.time}</span></span>
-        <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.props.location}</span>
+        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.username}</b> <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
+        <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
+        <img onClick = {this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>
         </div>
-        <div onDoubleClick={this.likePost} style={{position:'absolute', top:'32%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
-        <img src={imagePost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
+        <div style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
+        <img onDoubleClick={this.likePost} src={imagePost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0,}}/>
+        <img onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
+        display: this.state.currSlide < this.props.numSlides-1 ? 'inline-block' : 'none'}}/>
+        <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
+        display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
+        <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
+        <PostDots numSlides={this.props.numSlides} currSlide={this.state.currSlide}/>
         </div>
-        <div style={{display:'flex', position:'absolute', top:'125%', alignItems:'center'}}>
+        <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
         <img onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'none' : 'inline-block'}}/>
         <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'inline-block' : 'none'}}/>
-        <img src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>
+        <img onClick = {() => this.props.showCommentsPopup(this.props.username, this.props.location, this.props.time, this.state.numLikes,
+        this.props.numComments, this.props.numSlides, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>
         <img src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
         <img onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
         display: this.state.isSaved ? 'none' : 'inline-block'}}/>
         <img onClick={this.toggleSave} src={blackSaveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
         display: !this.state.isSaved ? 'none' : 'inline-block'}}/>
         </div>
-        <div style={{position:'absolute', top:'133%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
-        <b style={{fontSize:'1.25em', cursor:'pointer'}}>{this.state.numLikes} likes</b>
-        <b style={{fontSize:'1.2em'}}>{this.props.username}</b>
-        <span style={{fontSize:'1.2em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
-        <p style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em'}}>View all {this.state.numComments} comments</p>
+        <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
+        <b style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
+        <b style={{fontSize:'1.1em'}}>{this.props.username}</b>
+        <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
+        <p onClick={() => this.props.showCommentsPopup(this.props.username, this.props.location, this.props.time, this.state.numLikes,
+        this.props.numComments, this.props.numSlides, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>
         <br/>
-        <input type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.2em', marginTop:'-1.2em', width:'27em', 
-        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black'}}
-        placeholder="Add a comment..."/>
-
+        <div>
+        <textarea type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
+        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
+        placeholder={this.state.addACommentText}/>
+        <span style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
+        fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
+        </div>
         </div>
 
         </div>

@@ -208,7 +208,7 @@ class UserBar extends Component {
         <p onClick={this.props.ownAccount ? this.takeUserToLogin : this.toggleFollowText} style={{color: this.state.followText==="Follow" ? '#348feb' : 'gray', cursor:'pointer', fontSize:'0.85em', fontWeight:'bold', position:'absolute', left:'82%', marginTop:'1.5em'}}>  {this.props.ownAccount ? this.state.switchText : this.state.followText}</p>
         <div class="accountPreview" style={{display: this.state.showAccountPreview ? 'inline-block' : 'none',
         position:'absolute', top:'55%'}} onMouseEnter={this.showAccountPreview} onMouseLeave={this.toggleAccountPreview}>
-        <AccountPreview username={this.props.username} fullName={"R R"} isPrivate={true} numPosts={5}
+        <AccountPreview language={this.props.language} username={this.props.username} fullName={"R R"} isPrivate={true} numPosts={5}
         numFollowers={836} numFollowing={500}/>
         </div>
         </div>
