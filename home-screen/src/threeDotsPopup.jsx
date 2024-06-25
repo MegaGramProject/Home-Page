@@ -4,6 +4,19 @@ import './styles.css';
 class ThreeDotsPopup extends Component {
     constructor(props) {
         super(props);
+        this.state = {
+            reportText: "Report",
+            unfollowText: "Unfollow",
+            goToPostText: "Go to post",
+            shareToText: "Share to...",
+            copyLinkText: "Copy link",
+            editText: "Edit",
+            aboutThisAccountText: "About this account",
+            cancelText: "Cancel",
+            hideAdText: "Hide ad",
+            reportAdText: "Report ad",
+            whyAdText: "Why are you seeing this ad?",
+        };
     };
 
 
@@ -110,6 +123,178 @@ class ThreeDotsPopup extends Component {
         }
     }
 
+    async updateReportText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.reportText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ reportText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateUnfollowText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.unfollowText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ unfollowText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateGoToPostText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.goToPostText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ goToPostText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateShareToText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.shareToText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ shareToText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateCopyLinkText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.copyLinkText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ copyLinkText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateEditText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.editText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ editText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateAboutAccountText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.aboutThisAccountText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ aboutThisAccountText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateCancelText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.cancelText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ cancelText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateHideAdText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.hideAdText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ hideAdText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateReportAdText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.reportAdText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ reportAdText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async updateWhyAdText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.whyAdText,
+                currLang,
+                this.props.language
+            );
+            this.setState({ whyAdText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+
+    async componentDidMount() {
+        await this.updateWhyAdText("English");
+        await this.updateReportAdText("English");
+        await this.updateHideAdText("English");
+        await this.updateCancelText("English");
+        await this.updateAboutAccountText("English");
+        await this.updateEditText("English");
+        await this.updateCopyLinkText("English");
+        await this.updateShareToText("English");
+        await this.updateGoToPostText("English");
+        await this.updateUnfollowText("English");
+        await this.updateReportText("English");
+    }
+    
+    async componentDidUpdate(prevProps, prevState) {
+        if (prevProps.language !== this.props.language) {
+            await this.updateWhyAdText(prevProps.language);
+            await this.updateReportAdText(prevProps.language);
+            await this.updateHideAdText(prevProps.language);
+            await this.updateCancelText(prevProps.language);
+            await this.updateAboutAccountText(prevProps.language);
+            await this.updateEditText(prevProps.language);
+            await this.updateCopyLinkText(prevProps.language);
+            await this.updateShareToText(prevProps.language);
+            await this.updateGoToPostText(prevProps.language);
+            await this.updateUnfollowText(prevProps.language);
+            await this.updateReportText(prevProps.language);
+        }
+    }
 
 
     render() {
@@ -117,33 +302,33 @@ class ThreeDotsPopup extends Component {
         <React.Fragment>
         {!this.props.isAd &&  (<div style={{height:'35em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
         display:'flex', flexDirection:'column', alignItems:'center'}}>
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>Report</b>
+        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.reportText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>Unfollow</b>
+        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.unfollowText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Go to post</p>
+        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.goToPostText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Share to...</p>
+        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.shareToText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Copy link</p>
+        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.copyLinkText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Edit</p>
+        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.editText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>About this account</p>
+        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.aboutThisAccountText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Cancel</p>
+        <p onClick={this.props.closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.cancelText}</p>
         </div>)
         }
 
         {this.props.isAd &&  (<div style={{height:'16em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
         display:'flex', flexDirection:'column', alignItems:'center'}}>
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>Hide ad</b>
+        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hideAdText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>Report ad</b>
+        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.reportAdText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Why you're seeing this ad?</p>
+        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.whyAdText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>Cancel</p>
+        <p onClick={this.props.closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.cancelText}</p>
         </div>)
         }
 

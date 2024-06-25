@@ -10,6 +10,8 @@ import StoryIcon from "./storyIcon";
 import './styles.css';
 import ThreeDotsPopup from './threeDotsPopup';
 import UserBar from "./userBar";
+import VideoPost from "./videoPost";
+
 
 
 class App extends Component {
@@ -75,6 +77,7 @@ class App extends Component {
         });
     };
 
+
     hideCommentsPopup = () => {
         this.setState({
             showCommentsPopup:false
@@ -91,7 +94,13 @@ class App extends Component {
         this.setState({
             showSendPostPopup: false
         });
-    }
+    };
+
+    closeThreeDotsPopup = () => {
+        this.setState({
+            showThreeDotsPopup: false
+        });
+    };
 
 
 
@@ -261,17 +270,17 @@ class App extends Component {
         <img src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
         left:'-7.5%', top:'3%', cursor:'pointer'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
-        marginLeft:'-5em', marginTop: '2em', gap:'5em'}}>
+        marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
         <ImagePost language={this.state.language} username={'rishavry2'} time={'5h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} numSlides={1} showCommentsPopup={this.showCommentsPopup} isAd={false}
         showSendPostPopup={this.showSendPostPopup}/>
         <ImagePost language={this.state.language} username={'rishavry3'} time={'4h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} numSlides={4} showCommentsPopup={this.showCommentsPopup} isAd={false}
         showSendPostPopup={this.showSendPostPopup}/>
-        <ImagePost language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
+        <VideoPost language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} numSlides={5} showCommentsPopup={this.showCommentsPopup} isAd={true}
         showSendPostPopup={this.showSendPostPopup}/>
-        <ImagePost language={this.state.language} username={'rishavry5'} time={'2h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
+        <VideoPost language={this.state.language} username={'rishavry5'} time={'2h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} numSlides={3} showCommentsPopup={this.showCommentsPopup} isAd={true}
         showSendPostPopup={this.showSendPostPopup}/>
         </div>
@@ -297,19 +306,21 @@ class App extends Component {
         </div>
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showThreeDotsPopup ? 'inline-block' : 'none'}}>
-        <ThreeDotsPopup isAd={this.state.threeDotsPopupIsAd}/>
+        <ThreeDotsPopup closePopup = {this.closeThreeDotsPopup} language={this.state.language} isAd={this.state.threeDotsPopupIsAd}/>
         </div>
 
-        <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none'}}>
+        <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
+        opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
+        this.state.showSendPostPopup ? 'none' : 'auto'}}>
         <CommentsPopup language={this.state.language} username={this.state.commentsPopupUsername} time={this.state.commentsPopupTime} location={this.state.commentsPopupLocation}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         numSlides={this.state.commentsPopupNumSlides} currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  togglePopup={this.state.commentsPopupIsAd ? this.toggleAdPopup : this.togglePostPopup}
-        isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup}/>
+        isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}/>
         </div>
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>
-        <SendPostPopup closePopup={this.closeSendPostPopup}/>
+        <SendPostPopup language={this.state.language} closePopup={this.closeSendPostPopup}/>
         </div>
 
 

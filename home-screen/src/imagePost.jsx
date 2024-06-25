@@ -31,10 +31,29 @@ class ImagePost extends Component {
             viewAllCommentsText: 'View all ' + this.props.numComments + ' comments',
             addACommentText: 'Add a comment...',
             postText: 'Post',
-            currSlide: 0
+            currSlide: 0,
+            isFocused: false
         }
 
     };
+
+    handleClick = () => {
+        this.setState({ isFocused: true });
+    }
+
+    handleKeyDown = (event) => {
+        if (this.state.isFocused && event.key === 'ArrowRight') {
+            if(this.state.currSlide < this.props.numSlides-1) {
+                this.showNextSlide();
+            }
+        }
+        else if(this.state.isFocused && event.key=== 'ArrowLeft') {
+            if(this.state.currSlide>0) {
+                this.showPreviousSlide();
+            }
+        }
+
+        }
 
     translateTextPromise = async function(text, language1, language2){
         let language1Code;
@@ -224,6 +243,7 @@ class ImagePost extends Component {
         await this.updateLikesText("English");
         await this.updateLocationText("English");
         await this.updateTimeText("English");
+        window.addEventListener('keydown', this.handleKeyDown);
     }
 
     async componentDidUpdate(prevProps, prevState) {
@@ -235,6 +255,13 @@ class ImagePost extends Component {
             await this.updateLocationText(prevProps.language);
             await this.updateTimeText(prevProps.language);
             }
+        else if(prevState.likesText !== this.state.likesText) {
+            await this.updateLikesText("English");
+        }
+    }
+
+    componentWillUnmount() {
+        window.removeEventListener('keydown', this.handleKeyDown);
     }
 
 
@@ -303,7 +330,7 @@ class ImagePost extends Component {
         cursor:'pointer'}}/>
         </div>
         <div style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
-        <img onDoubleClick={this.likePost} src={imagePost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
+        <img onDoubleClick={this.likePost} onClick={this.handleClick} src={imagePost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0,}}/>
         <img onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
         display: this.state.currSlide < this.props.numSlides-1 ? 'inline-block' : 'none'}}/>
@@ -342,7 +369,6 @@ class ImagePost extends Component {
         fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
         </div>
         </div>
-
         </div>
         </React.Fragment>);
     };

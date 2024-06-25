@@ -1,3 +1,4 @@
+
 @font-face {
     font-family: Billabong;
     src: url('fonts/billabong_regular.otf');
@@ -105,4 +106,105 @@ body {
     font-size: 12.5px;
     margin-top: 18px;
 }
+
+.custom-settings-icon {
+    width: 35px;
+    height: 35px;
+    object-fit: contain;
+    display: inline-block;
+    margin-top: -3px;
+    cursor: pointer;
+}
+
+
+.video-js .vjs-progress-control .vjs-progress-holder {
+    background-color: rgba(157, 154, 154, 0);
+    width: 100% !important;
+}
+
+.video-js .vjs-progress-control .vjs-play-progress {
+    background-color: #f00;
+}
+
+.video-js .vjs-progress-control {
+    top: -55%;
+}
+
+
+
+.video-js .vjs-time-divider,
+.video-js .vjs-duration,
+.video-js .vjs-current-time {
+    display: inline-block !important;
+    color: white;
+    font-size: 19px;
+}
+
+.video-js .vjs-current-time {
+    left:-0.7%;
+}
+
+.video-js .vjs-duration {
+    left:-2.2%;
+}
+
+.video-js .vjs-time-divider {
+    position: absolute;
+    left:16.7%;
+
+}
+
+.video-js .vjs-playback-rate .vjs-menu .vjs-menu-item {
+    color: white;
+    background-color: black;
+    width: 60px;
+    padding-right: 15px;
+}
+
+.video-js .vjs-control-bar {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+    color: white !important;
+}
+
+.video-js .vjs-subtitles-button {
+    display: inline-block !important;
+}
+
+
+.video-js .vjs-subtitles-button .vjs-menu-content {
+    background-color: #333 !important;
+    color: #fff !important;
+
+}
+.video-js .vjs-subtitles-button .vjs-menu-content li.vjs-selected {
+    background-color: lightgray !important;
+}
+
+
+.video-js .vjs-text-track-display div {
+    color: white !important;
+    font-size: 16px !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    text-shadow: 2px 2px 4px #000 !important;
+}
+
+:focus { outline: none !important; }
+
+.vjs-big-play-button {
+    background-color: rgba(0, 0, 0, 0.3) !important; /* Semi-transparent black */
+    border: none !important; /* Remove border */
+    border-radius: 50% !important; /* Make it circular */
+    width: 100px !important; /* Set a specific width */
+    height: 100px !important; /* Set a specific height */
+    color: white !important; /* Change the icon color */
+    font-size: 8em !important; /* Increase the icon size */
+    left: 59% !important;
+    transition: background-color 0.3s ease !important; /* Smooth transition */
+}
+
+.vjs-menu-item-text::first-letter {
+    text-transform: capitalize !important;
+}
+
+
 
