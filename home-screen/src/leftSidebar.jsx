@@ -37,9 +37,14 @@ class LeftSidebar extends Component {
             timeCapsuleText: 'Time Capsule',
             predictText: 'Predict',
             listenText: 'Listen',
-            moreText: 'More'
+            moreText: 'More',
+            profilePhotoLoading: true,
+            profilePhoto: null,
+            error: null,
         };
     };
+
+
 
     translateTextPromise = async function(text, language1, language2){
         let language1Code;
@@ -352,7 +357,46 @@ class LeftSidebar extends Component {
         }
     }
 
+    fetchProfilePhoto(username) {
+        fetch(`http://localhost:8003/getProfilePhoto/${username}`)
+            .then(response => {
+                if (!response.ok) {
+                    this.setState({
+                        error: true,
+                        profilePhotoLoading: false
+                    });
+                    throw new Error('Network response was not ok');
+                }
+                return response.arrayBuffer();
+            })
+            .then(buffer => {
+                const base64Flag = 'data:image/jpeg;base64,';
+                const imageStr = this.arrayBufferToBase64(buffer);
+                this.setState({
+                    profilePhoto: base64Flag + imageStr,
+                    profilePhotoLoading: false
+                });
+            })
+            .catch(error => {
+                this.setState({
+                    error: true,
+                    profilePhotoLoading: false
+                });
+            });
+    }
+
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
     async componentDidMount() {
+        this.fetchProfilePhoto(this.props.username);
         await this.updateHomeText("English");
         await this.updateSearchText("English");
         await this.updateExploreText("English");
@@ -394,7 +438,6 @@ class LeftSidebar extends Component {
     }
 
 
-
     
 
 
@@ -434,7 +477,10 @@ class LeftSidebar extends Component {
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.createText}</p>
             </div>
             <div className="sidebarElement"  style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={profileIcon} style={{height:'2.2em', width:'2.2em', pointerEvents:'none', objectFit:'contain'}}/>
+            {!(this.state.profilePhotoLoading || this.state.error) &&
+            (<img src={this.state.profilePhoto} style={{height:'2.2em', width:'2.2em', pointerEvents:'none', objectFit:'contain'}}/>)}
+            {(this.state.profilePhotoLoading || this.state.error) &&
+            (<img src={moreIcon} style={{height:'2.2em', width:'2.2em', pointerEvents:'none', objectFit:'contain'}}/>)}
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.profileText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>

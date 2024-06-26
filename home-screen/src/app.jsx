@@ -254,7 +254,7 @@ class App extends Component {
         <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup || this.state.showSendPostPopup ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showCommentsPopup || this.state.showSendPostPopup ? 'none' : 'auto'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-        <LeftSidebar language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
+        <LeftSidebar username={"rishavry"} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
         <div style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
         <StoryIcon username='rishavry' ownAccount={true} unseenStory={false}/>
