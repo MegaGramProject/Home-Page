@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import profileIcon from './images/profileIcon.png';
+import moreIcon from './images/moreIcon.png';
 import AccountPreview from './accountPreview';
 import './styles.css';
 
@@ -10,7 +10,10 @@ class UserBar extends Component {
             switchText: "Switch",
             suggestedForYouText: "Suggested for you",
             followText: "Follow",
-            showAccountPreview: false
+            showAccountPreview: false,
+            error: null,
+            profilePhotoLoading: true,
+            profilePhoto: null
         };
     };
 
@@ -156,7 +159,47 @@ class UserBar extends Component {
         }
     }
 
+    fetchProfilePhoto(username) {
+        fetch(`http://localhost:8003/getProfilePhoto/${username}`)
+            .then(response => {
+                if (!response.ok) {
+                    this.setState({
+                        error: true,
+                        profilePhotoLoading: false
+                    });
+                    throw new Error('Network response was not ok');
+                }
+                return response.arrayBuffer();
+            })
+            .then(buffer => {
+                const base64Flag = 'data:image/jpeg;base64,';
+                const imageStr = this.arrayBufferToBase64(buffer);
+                this.setState({
+                    profilePhoto: base64Flag + imageStr,
+                    profilePhotoLoading: false
+                });
+            })
+            .catch(error => {
+                this.setState({
+                    error: true,
+                    profilePhotoLoading: false
+                });
+            });
+    }
+
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+
     async componentDidMount() {
+        this.fetchProfilePhoto(this.props.username);
         await this.updateFollowText("English");
         await this.updateSuggestedForYouText("English");
         await this.updateSwitchText("English");
@@ -199,7 +242,10 @@ class UserBar extends Component {
         return (
         <React.Fragment>
         <div style={{display:'flex', width:'20em', marginTop:'-2em', alignItems:'center', position:'relative'}}>
-        <img onMouseEnter={this.props.ownAccount ? null : this.toggleAccountPreview} onMouseLeave={this.props.ownAccount ? null : this.toggleAccountPreview} src={profileIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>
+        {!(this.state.profilePhotoLoading || this.state.error) &&
+            (<img onMouseEnter={this.props.ownAccount ? null : this.toggleAccountPreview} onMouseLeave={this.props.ownAccount ? null : this.toggleAccountPreview} src={this.state.profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
+        {(this.state.profilePhotoLoading || this.state.error) &&
+            (<img onMouseEnter={this.props.ownAccount ? null : this.toggleAccountPreview} onMouseLeave={this.props.ownAccount ? null : this.toggleAccountPreview} src={moreIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'0.7em'}}>
         <p onMouseEnter={this.props.ownAccount ? null : this.toggleAccountPreview} onMouseLeave={this.props.ownAccount ? null : this.toggleAccountPreview} style={{fontWeight:'bold', fontSize:'0.85em', cursor:'pointer'}}>{this.props.username}</p>
         <p style={{display: this.props.ownAccount ? 'inline-block' : 'none', fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.props.fullName}</p>

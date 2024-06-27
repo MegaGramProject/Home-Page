@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import blankHeart from './images/blankHeartIcon.png';
 import profileIcon from './images/profileIcon.png';
+import moreIcon from './images/moreIcon.png';
 import redHeart from './images/redHeartIcon.png';
 import './styles.css';
 
@@ -18,7 +19,10 @@ class Comment extends Component {
             viewRepliesText: "View replies",
             hideRepliesText: "Hide replies",
             editText: "Edit",
-            deleteText: "Delete"
+            deleteText: "Delete",
+            error: null,
+            profilePhoto: null,
+            profilePhotoLoading: true
 
         };
     };
@@ -230,11 +234,50 @@ class Comment extends Component {
         }
     }
 
+    fetchProfilePhoto(username) {
+        fetch(`http://localhost:8003/getProfilePhoto/${username}`)
+            .then(response => {
+                if (!response.ok) {
+                    this.setState({
+                        error: true,
+                        profilePhotoLoading: false
+                    });
+                    throw new Error('Network response was not ok');
+                }
+                return response.arrayBuffer();
+            })
+            .then(buffer => {
+                const base64Flag = 'data:image/jpeg;base64,';
+                const imageStr = this.arrayBufferToBase64(buffer);
+                this.setState({
+                    profilePhoto: base64Flag + imageStr,
+                    profilePhotoLoading: false
+                });
+            })
+            .catch(error => {
+                this.setState({
+                    error: true,
+                    profilePhotoLoading: false
+                });
+            });
+    }
+
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
     async componentDidMount() {
         this.setState({
             viewRepliesText: "View replies (" + this.state.replies.length + ")",
             hideRepliesText: "Hide replies (" + this.state.replies.length + ")",
         });
+        this.fetchProfilePhoto(this.props.username);
         await this.updateReplyText("English");
         await this.updateTimeText("English");
         await this.updateLikesText("English");
@@ -320,7 +363,8 @@ class Comment extends Component {
         return (
         <React.Fragment>
         <div style={{display:'flex', alignItems:'start', justifyContent:'center'}}>
-        <img src={profileIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>
+        {!(this.state.profilePhotoLoading || this.state.error) && (  <img src={this.state.profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
+        {(this.state.profilePhotoLoading || this.state.error) && (  <img src={moreIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         <div onDoubleClick={this.likeComment} style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
         <b>{this.props.username}</b>
         <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{this.props.comment}</p>

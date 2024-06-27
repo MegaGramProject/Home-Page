@@ -10,7 +10,6 @@ import moreIcon from './images/moreIcon.png';
 import newsIcon from './images/newsIcon.jpg';
 import notifsIcon from './images/notificationsIcon.png';
 import predictIcon from './images/predictIcon.png';
-import profileIcon from './images/profileIcon.png';
 import reelsIcon from './images/reelsIcon.png';
 import searchIcon from './images/searchIcon.png';
 import shopIcon from './images/shopIcon.jpg';

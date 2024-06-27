@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import privateAccount from "./images/privateAccount.png";
-import profileIcon from "./images/profileIcon.png";
+import moreIcon from './images/moreIcon.png';
 import './styles.css';
 
 
@@ -13,7 +13,10 @@ class AccountPreview extends Component {
             followingText: "following",
             accountIsPrivateText: "This account is private",
             followText: "Follow",
-            followLongerText: "Follow this account to see their photos and videos."
+            followLongerText: "Follow this account to see their photos and videos.",
+            error: null,
+            profilePhotoLoading: true,
+            profilePhoto: null
         }
     };
 
@@ -199,7 +202,46 @@ class AccountPreview extends Component {
         }
     }
 
+    fetchProfilePhoto(username) {
+        fetch(`http://localhost:8003/getProfilePhoto/${username}`)
+            .then(response => {
+                if (!response.ok) {
+                    this.setState({
+                        error: true,
+                        profilePhotoLoading: false
+                    });
+                    throw new Error('Network response was not ok');
+                }
+                return response.arrayBuffer();
+            })
+            .then(buffer => {
+                const base64Flag = 'data:image/jpeg;base64,';
+                const imageStr = this.arrayBufferToBase64(buffer);
+                this.setState({
+                    profilePhoto: base64Flag + imageStr,
+                    profilePhotoLoading: false
+                });
+            })
+            .catch(error => {
+                this.setState({
+                    error: true,
+                    profilePhotoLoading: false
+                });
+            });
+    }
+
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
     async componentDidMount() {
+        this.fetchProfilePhoto(this.props.username);
         await this.updatePostsText("English");
         await this.updateFollowersText("English");
         await this.updateFollowingText("English");
@@ -226,7 +268,10 @@ class AccountPreview extends Component {
         <div className="popup" style={{width:'22em', height:'22em', position:'absolute', zIndex:'3',
         paddingTop:'2em', paddingLeft:'2em', borderRadius:'2%'}}>
         <div style={{display:'flex', justifyContent:'start', alignItems:'start'}}>
-        <img src={profileIcon} style={{width:'3em', height:'3em'}}/>
+        {!(this.state.profilePhotoLoading || this.state.error) &&
+            (<img src={this.state.profilePhoto} style={{width:'3em', height:'3em'}}/>)}
+        {(this.state.profilePhotoLoading || this.state.error) &&
+            (<img src={moreIcon} style={{width:'3em', height:'3em'}}/>)}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'0.7em'}}>
         <p style={{fontWeight:'bold', fontSize:'0.85em', cursor:'pointer'}}>{this.props.username}</p>
         <p style={{fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.props.fullName}</p>

@@ -522,7 +522,7 @@ class VideoPost extends Component {
         <React.Fragment>
         <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
-        <StoryIcon unseenStory={true}/>
+        <StoryIcon unseenStory={true} username={this.props.username} isStory={false}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
         marginTop:'-1em'}}>
         <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.username}</b> <span style={{color:'gray'}}>• {this.state.timeText}</span></span>

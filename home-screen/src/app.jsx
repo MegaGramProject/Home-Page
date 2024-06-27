@@ -25,18 +25,20 @@ class App extends Component {
         showThreeDotsPopup: false,
         threeDotsPopupIsAd: false,
         showCommentsPopup: false,
-        commentsPopupUsername: '',
+        commentsPopupPostDetails: null,
         commentsPopupTime: '',
         commentsPopupLocation: '',
         commentsPopupNumLikes: '',
         commentsPopupNumComments: '',
-        commentsPopupNumSlides: '',
         commentsPopupCurrSlide: '',
         commentsPopupIsLiked: '',
         commentsPopupIsAd: '',
         commentsPopupIsSaved: '',
         showSendPostPopup: false,
+        post1Details: null,
+        post2Details: null,
         };
+
     };
 
     togglePopup = () => {
@@ -61,15 +63,14 @@ class App extends Component {
         });
     };
 
-    showCommentsPopup = (username, location, time, numLikes, numComments, numSlides, currSlide, isLiked, isAd, isSaved) => {
+
+
+    showCommentsPopup = (postDetails, numLikes, numComments, currSlide, isLiked, isAd, isSaved) => {
         this.setState({
             showCommentsPopup: true,
-            commentsPopupUsername: username,
-            commentsPopupLocation: location,
-            commentsPopupTime: time,
-            commentsPopupNumComments: numComments,
+            commentsPopupPostDetails: postDetails,
             commentsPopupNumLikes: numLikes,
-            commentsPopupNumSlides: numSlides,
+            commentsPopupNumComments: numComments,
             commentsPopupCurrSlide: currSlide,
             commentsPopupIsLiked: isLiked,
             commentsPopupIsAd: isAd,
@@ -234,7 +235,33 @@ class App extends Component {
         }
     }
 
+    fetchPosts(username) {
+        fetch(`http://localhost:8003/getPosts/${username}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if(username==="rishavry2") {
+                    this.setState({
+                        post1Details: data[0]
+                    });
+                }
+                else if(username==="rishavry3") {
+                    this.setState({post2Details: data[0]})
+                }
+            })
+            .catch(error => {
+                throw new Error('Trouble connecting to server');
+            });
+
+    }
+
     async componentDidMount() {
+        this.fetchPosts("rishavry2");
+        this.fetchPosts("rishavry3");
         await this.updateSeeAllText("English");
         await this.updateSuggestedForYouText("English");
     }
@@ -257,13 +284,13 @@ class App extends Component {
         <LeftSidebar username={"rishavry"} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
         <div style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
-        <StoryIcon username='rishavry' ownAccount={true} unseenStory={false}/>
-        <StoryIcon username='rishavry2' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry3' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry4' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry5' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry6' ownAccount={false} unseenStory={true}/>
-        <StoryIcon username='rishavry7' ownAccount={false} unseenStory={true}/>
+        <StoryIcon username='rishavry' ownAccount={true} unseenStory={false} isStory={true}/>
+        <StoryIcon username='rishavry2' ownAccount={false} unseenStory={true} isStory={true}/>
+        <StoryIcon username='rishavry3' ownAccount={false} unseenStory={true} isStory={true}/>
+        <StoryIcon username='rishavry4' ownAccount={false} unseenStory={true} isStory={true}/>
+        <StoryIcon username='rishavry5' ownAccount={false} unseenStory={true} isStory={true}/>
+        <StoryIcon username='rishavry6' ownAccount={false} unseenStory={true} isStory={true}/>
+        <StoryIcon username='rishavry7' ownAccount={false} unseenStory={true} isStory={true}/>
         </div>
         <img src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
         left:'88%', top:'3%', cursor:'pointer'}}/>
@@ -271,11 +298,11 @@ class App extends Component {
         left:'-7.5%', top:'3%', cursor:'pointer'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
-        <ImagePost language={this.state.language} username={'rishavry2'} time={'5h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.togglePostPopup} numSlides={1} showCommentsPopup={this.showCommentsPopup} isAd={false}
+        <ImagePost postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
         showSendPostPopup={this.showSendPostPopup}/>
-        <ImagePost language={this.state.language} username={'rishavry3'} time={'4h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.togglePostPopup} numSlides={4} showCommentsPopup={this.showCommentsPopup} isAd={false}
+        <ImagePost  postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
         showSendPostPopup={this.showSendPostPopup}/>
         <VideoPost language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} numSlides={5} showCommentsPopup={this.showCommentsPopup} isAd={true}
@@ -312,9 +339,9 @@ class App extends Component {
         <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
         opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showSendPostPopup ? 'none' : 'auto'}}>
-        <CommentsPopup language={this.state.language} username={this.state.commentsPopupUsername} time={this.state.commentsPopupTime} location={this.state.commentsPopupLocation}
+        <CommentsPopup language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
-        numSlides={this.state.commentsPopupNumSlides} currSlide={this.state.commentsPopupCurrSlide}
+        currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  togglePopup={this.state.commentsPopupIsAd ? this.toggleAdPopup : this.togglePostPopup}
         isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}/>
         </div>

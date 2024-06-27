@@ -5,7 +5,6 @@ import blackSaveIcon from './images/blackSaveIcon.png';
 import blankHeart from './images/blankHeartIcon.png';
 import closePopupIcon from './images/closePopupIcon.png';
 import commentIcon from './images/commentIcon.png';
-import imagePost from './images/imagePost.jpg';
 import nextArrow from './images/nextArrow.png';
 import redHeart from './images/redHeartIcon.png';
 import saveIcon from './images/saveIcon.png';
@@ -31,8 +30,8 @@ class CommentsPopup extends Component {
             timeText: this.props.time,
             addCommentText: "Add a comment...",
             postText: "Post",
-            locationText: this.props.location,
-            isFocused: false
+            locationText: '',
+            isFocused: false,
 
         };
         this.textInput = React.createRef();
@@ -206,6 +205,7 @@ class CommentsPopup extends Component {
         }
     }
 
+
     async componentDidMount() {
         await this.updateAddCommentText("English");
         await this.updateTimeText("English");
@@ -220,16 +220,16 @@ class CommentsPopup extends Component {
     }
 
     async componentDidUpdate(prevProps, prevState) {
-        if (prevProps.isLiked !== this.props.isLiked || prevProps.numLikes !== this.props.numLikes
-            || prevProps.currSlide !== this.props.currSlide || prevProps.isSaved !== this.props.isSaved ||
-            prevProps.time != this.props.time) {
+        if (prevProps.postDetails != this.props.postDetails || prevProps.currSlide !== this.props.currSlide ||
+            prevProps.isLiked != this.props.isLiked || prevProps.isSaved != this.props.isSaved) {
             this.setState({
                 isLiked: this.props.isLiked,
                 numLikes: this.props.numLikes,
                 currSlide: this.props.currSlide,
                 isSaved: this.props.isSaved,
-                timeText: this.props.time,
-                likesText: this.props.numLikes + " likes"
+                timeText: this.formatDate(this.props.postDetails.dateTimeOfPost),
+                likesText: this.props.numLikes + " likes",
+                locationText: this.props.postDetails.locationOfPost,
             });
         }
         else if(prevProps.language != this.props.language) {
@@ -244,6 +244,16 @@ class CommentsPopup extends Component {
                 await this.updateLikesText("English");
             }
         }
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString)
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const month = months[date.getUTCMonth()];
+        const day = date.getUTCDate();
+        const year = date.getUTCFullYear();
+        
+        return `${month} ${day}, ${year}`;
     }
 
     handleCommentChange = (event) => {
@@ -341,30 +351,35 @@ class CommentsPopup extends Component {
     render() {
         const commentsByUser = [];
         for (let i = this.state.commentsSent.length-1; i > -1; i--) {
-                commentsByUser.push(<Comment username={'rishavry3'} time={'15s'} comment={this.state.commentsSent[i]}
+                commentsByUser.push(<Comment username={'rishavry7'} time={'15s'} comment={this.state.commentsSent[i]}
                 numLikes={13} isCaption={false} language={this.props.language} isOwn={true}/>);
                 commentsByUser.push(<br/>);
         }
+        let currPost = "";
+        if (this.props.postDetails !== null) {
+                currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[this.state.currSlide];
+        }
+
         return (
         <React.Fragment>
         <div style={{background:'white', width:'82em', height:'54em', borderStyle:'solid', borderColor:'lightgray', borderRadius:'0.5%',
         display:'flex'}}>
         <div style={{position:'absolute', top:'0%', left:'0%', width:'65%', height:'100%'}}>
-        <img onClick={this.handleClick} onDoubleClick={this.likePost} src={imagePost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
-        left: 0,}}/>
-        <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'99%', cursor:'pointer',
-        display: this.state.currSlide < this.props.numSlides-1 ? 'inline-block' : 'none'}}/>
+        {currPost!=="" && <img onClick={this.handleClick} onDoubleClick={this.likePost} src={currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
+        left: 0,}}/>}
+        {this.props.postDetails!==null && <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'99%', cursor:'pointer',
+        display: this.state.currSlide < this.props.postDetails.posts.length-1 ? 'inline-block' : 'none'}}/>}
         <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-3%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
         <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
-        <PostDots numSlides={this.props.numSlides} currSlide={this.state.currSlide}/>
+        {this.props.postDetails!==null && <PostDots numSlides={this.props.postDetails.posts.length} currSlide={this.state.currSlide}/>}
         </div>
         <div style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'35%', height:'100%'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
-        <StoryIcon unseenStory={true}/>
+        {this.props.postDetails!==null && <StoryIcon username={this.props.postDetails.usernames[0]} ownAccount={false} unseenStory={true} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', gap:'0.2em',
-        marginTop:'-1em', marginLeft:'0.5em'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.username}</b></span>
+        marginTop:'-1em', marginLeft:'0.5em', textAlign:"left"}}>
+        {this.props.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails.usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
         <img onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
@@ -372,13 +387,13 @@ class CommentsPopup extends Component {
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
-        <Comment username={'rishavry1'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        <Comment username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
         numLikes={0} isCaption={true} language={this.props.language} isOwn={false}/>
         <br/>
         {commentsByUser}
         <Comment username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
         numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false}/>
-        <br/>
+        <b/>
         <Comment username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
         numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
         <br/>
