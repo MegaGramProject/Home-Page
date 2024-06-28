@@ -37,6 +37,8 @@ class App extends Component {
         showSendPostPopup: false,
         post1Details: null,
         post2Details: null,
+        post3Details: null,
+        post4Details: null,
         focusedComponent: null,
         };
 
@@ -246,7 +248,6 @@ class App extends Component {
             })
             .then(data => {
                 if(username==="rishavry2") {
-                    console.log(data[0]);
                     this.setState({
                         post1Details: data[0]
                     });
@@ -261,9 +262,34 @@ class App extends Component {
 
     }
 
+    fetchVidPosts(username) {
+        fetch(`http://localhost:8004/getVideos/${username}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                let postsToSend = data.filter(x => x['overallPostId']==='683d0792-8f29-487d-bbf9-fc5dffeba864');
+                if(username==="rishavry5") {
+                    this.setState({post3Details: postsToSend});
+                }
+                else if(username==="rishavry6") {
+                    this.setState({post4Details: data[0]});
+                }
+
+            })
+            .catch(error => {
+                throw new Error('Trouble connecting to server');
+            });
+
+    }
+
     async componentDidMount() {
         this.fetchPosts("rishavry2");
         this.fetchPosts("rishavry3");
+        this.fetchVidPosts("rishavry5")
         await this.updateSeeAllText("English");
         await this.updateSuggestedForYouText("English");
     }
@@ -310,12 +336,9 @@ class App extends Component {
         <ImagePost id={2} postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}/>
-        <VideoPost id={3} language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.toggleAdPopup} numSlides={5} showCommentsPopup={this.showCommentsPopup} isAd={true}
+        <VideoPost id={3} postDetails={this.state.post3Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup} isAd={true}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}/>
-        <VideoPost id={4} language={this.state.language} username={'rishavry5'} time={'2h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
-        togglePopup={this.toggleAdPopup} numSlides={3} showCommentsPopup={this.showCommentsPopup} isAd={true}
-        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}/>
         </div>
         </div>
         <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',

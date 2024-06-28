@@ -1,5 +1,6 @@
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
 const express = require('express');
+const cors = require('cors');
 const app = express();
 
 const uri = 'mongodb://localhost:27017';
@@ -8,6 +9,13 @@ const bucketName = 'videos';
 let db;
 let client;
 let collection;
+
+const corsOptions = {
+    origin: 'http://localhost:3100',
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 
 async function connectToMongo() {

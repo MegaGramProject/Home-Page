@@ -32,8 +32,6 @@ class VideoPost extends Component {
             caption: "What a wonderful time to be alive, init?",
             comment: "",
             sendComment: false,
-            timeText: this.props.time,
-            locationText: this.props.location,
             likesText: this.props.numLikes + ' likes',
             viewAllCommentsText: 'View all ' + this.props.numComments + ' comments',
             addACommentText: 'Add a comment...',
@@ -45,10 +43,12 @@ class VideoPost extends Component {
             showPauseSymbol: false,
             showSettingsPopup: false,
             showQualityOptions: false,
+            videoUrl: "",
         }
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
         this.spaceKeyPressed = false;
+        this.slideToVideoUrlMapping = {};
     };
 
 
@@ -350,6 +350,15 @@ class VideoPost extends Component {
 
 
     async componentDidUpdate(prevProps, prevState) {
+        if(prevProps.postDetails !== this.props.postDetails) {
+            await this.fetchVideos();
+            this.setState({
+                videoUrl: this.slideToVideoUrlMapping[0],
+                locationText:this.props.postDetails[0]['locationOfPost'],
+                timeText: this.formatDate(this.props.postDetails[0]['dateTimeOfPost'])
+            });
+        }
+
         if (prevProps.language !== this.props.language) {
             await this.updatePostText(prevProps.language);
             await this.updateAddACommentText(prevProps.language);
@@ -370,6 +379,16 @@ class VideoPost extends Component {
         window.removeEventListener('keydown', this.handleKeyDown);
         window.addEventListener('keyup', this.handleKeyUp);
     }
+
+    formatDate(dateString) {
+        const date = new Date(dateString)
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const month = months[date.getUTCMonth()];
+        const day = date.getUTCDate();
+        const year = date.getUTCFullYear();
+        return `${month} ${day}, ${year}`;
+    }
+
 
 
     handleKeyDown = (event) => {
@@ -500,11 +519,17 @@ class VideoPost extends Component {
     };
 
     showNextSlide = () => {
-        this.setState({currSlide: this.state.currSlide+1});
+        this.setState({
+            videoUrl: this.slideToVideoUrlMapping[this.state.currSlide+1],
+            currSlide: this.state.currSlide+1,
+        });
     };
 
     showPreviousSlide = () => {
-        this.setState({currSlide: this.state.currSlide-1});
+        this.setState({
+            videoUrl: this.slideToVideoUrlMapping[this.state.currSlide-1],
+            currSlide: this.state.currSlide-1
+        });
     };
 
     setFocus = () => {
@@ -515,16 +540,37 @@ class VideoPost extends Component {
         this.setState({showSettingsPopup: false, showQualityOptions: true});
     }
 
+    async fetchVideos() {
+        for(let i of this.props.postDetails) {
+            try {
+                let videoId = i['videoId'];
+                let slideNumber = i['slideNumber'];
+                const response = await fetch(`http://localhost:8004/getVideo/${videoId}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const videoBlob = await response.blob();
+                const videoUrl = URL.createObjectURL(videoBlob);
+                this.slideToVideoUrlMapping[slideNumber] = videoUrl;
+            } catch (error) {
+                console.error('Trouble connecting to server:', error);
+            }
+        }
+    
+    }
+
+
+
 
     render() {
         return (
         <React.Fragment>
         <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
-        <StoryIcon unseenStory={true} username={this.props.username} isStory={false}/>
+        {this.props.postDetails && <StoryIcon unseenStory={true} username={this.props.postDetails[0]['usernames'][0]} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
-        marginTop:'-1em'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.username}</b> <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
+        marginTop:'-1em', textAlign:'left'}}>
+        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[0]['usernames'][0]}</b> <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
         <img onClick = {this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
@@ -532,7 +578,7 @@ class VideoPost extends Component {
         </div>
         <div onClick={this.setFocus} onDoubleClick = {this.likePost} style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em', backgroundColor:'black'}}>
         <div style={{position:'absolute', position:'relative', top:'20%', left:'0%'}} data-vjs-player>
-        <video src={videoPost} ref={this.videoNode} className="video-js vjs-default-skin" width="600" height="800">
+        <video src={this.state.videoUrl} ref={this.videoNode} className="video-js vjs-default-skin" width="600" height="800">
         <track kind="subtitles" src={frenchSubtitles} srclang="fr" label="French" />
         </video>
         {this.state.showLeftBanner && (<img src={rewind5Seconds} style={{height:'30%', width:'30%', objectFit:'contain', position:'absolute', top: '35%', left: '0%'}}/>)}
@@ -556,20 +602,20 @@ class VideoPost extends Component {
         </div>
         )}
         </div>
-        <img onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
-        display: this.state.currSlide < this.props.numSlides-1 ? 'inline-block' : 'none'}}/>
+        {this.props.postDetails && <img onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
+        display: this.state.currSlide < this.props.postDetails.length-1 ? 'inline-block' : 'none'}}/>}
         <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
         <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
-        <PostDots numSlides={this.props.numSlides} currSlide={this.state.currSlide}/>
+        {this.props.postDetails && <PostDots numSlides={this.props.postDetails.length} currSlide={this.state.currSlide}/>}
         </div>
         <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
         <img onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'none' : 'inline-block'}}/>
         <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'inline-block' : 'none'}}/>
-        <img onClick = {() => this.props.showCommentsPopup(this.props.username, this.props.location, this.props.time, this.state.numLikes,
-        this.props.numComments, this.props.numSlides, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        <img onClick = {() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
+        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
         src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>
         <img onClick = {this.props.showSendPostPopup} src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
         <img onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
@@ -579,10 +625,10 @@ class VideoPost extends Component {
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        <b style={{fontSize:'1.1em'}}>{this.props.username}</b>
+        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[0]['usernames'][0]}</b>}
         <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
-        <p onClick={() => this.props.showCommentsPopup(this.props.username, this.props.location, this.props.time, this.state.numLikes,
-        this.props.numComments, this.props.numSlides, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
+        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
         style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>
         <br/>
         <div>
