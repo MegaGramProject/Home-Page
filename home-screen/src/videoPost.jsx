@@ -40,7 +40,6 @@ class VideoPost extends Component {
             postText: 'Post',
             currSlide: 0,
             playbackRate: 1,
-            isFocused: false,
             showRightBanner: false,
             showLeftBanner: false,
             showPauseSymbol: false,
@@ -374,7 +373,7 @@ class VideoPost extends Component {
 
 
     handleKeyDown = (event) => {
-        if (this.state.isFocused) {
+        if (this.props.isFocused) {
             const player = this.player;
             if (!player) return;
             switch(event.key) {
@@ -439,7 +438,7 @@ class VideoPost extends Component {
         }
 
     handleKeyUp = (event) => {
-        if (this.state.isFocused  && event.key === ' ') {
+        if (this.props.isFocused  && event.key === ' ') {
             event.preventDefault();
             clearTimeout(this.spaceKeyTimer);
             this.spaceKeyPressed = false;
@@ -509,7 +508,7 @@ class VideoPost extends Component {
     };
 
     setFocus = () => {
-        this.setState({isFocused: true});
+        this.props.onFocus(this.props.id);
     }
 
     showQuality = () => {

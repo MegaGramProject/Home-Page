@@ -37,6 +37,7 @@ class App extends Component {
         showSendPostPopup: false,
         post1Details: null,
         post2Details: null,
+        focusedComponent: null,
         };
 
     };
@@ -245,12 +246,13 @@ class App extends Component {
             })
             .then(data => {
                 if(username==="rishavry2") {
+                    console.log(data[0]);
                     this.setState({
                         post1Details: data[0]
                     });
                 }
                 else if(username==="rishavry3") {
-                    this.setState({post2Details: data[0]})
+                    this.setState({post2Details: data[0]});
                 }
             })
             .catch(error => {
@@ -272,6 +274,10 @@ class App extends Component {
             await this.updateSuggestedForYouText(prevState.language);
         }
     }
+
+    handleFocus = (id) => {
+        this.setState({focusedComponent: id });
+    };
 
 
 
@@ -298,18 +304,18 @@ class App extends Component {
         left:'-7.5%', top:'3%', cursor:'pointer'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
-        <ImagePost postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
+        <ImagePost id={1} postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
-        showSendPostPopup={this.showSendPostPopup}/>
-        <ImagePost  postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}/>
+        <ImagePost id={2} postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
-        showSendPostPopup={this.showSendPostPopup}/>
-        <VideoPost language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}/>
+        <VideoPost id={3} language={this.state.language} username={'rishavry4'} time={'3h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} numSlides={5} showCommentsPopup={this.showCommentsPopup} isAd={true}
-        showSendPostPopup={this.showSendPostPopup}/>
-        <VideoPost language={this.state.language} username={'rishavry5'} time={'2h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}/>
+        <VideoPost id={4} language={this.state.language} username={'rishavry5'} time={'2h'} location={'Da Nang, Vietnam'} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} numSlides={3} showCommentsPopup={this.showCommentsPopup} isAd={true}
-        showSendPostPopup={this.showSendPostPopup}/>
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}/>
         </div>
         </div>
         <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
@@ -339,11 +345,12 @@ class App extends Component {
         <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
         opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showSendPostPopup ? 'none' : 'auto'}}>
-        <CommentsPopup language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
+        <CommentsPopup id={5} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  togglePopup={this.state.commentsPopupIsAd ? this.toggleAdPopup : this.togglePostPopup}
-        isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}/>
+        isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}
+        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}/>
         </div>
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>

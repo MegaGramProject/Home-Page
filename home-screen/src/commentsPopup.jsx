@@ -31,7 +31,7 @@ class CommentsPopup extends Component {
             addCommentText: "Add a comment...",
             postText: "Post",
             locationText: '',
-            isFocused: false,
+            showTags: false,
 
         };
         this.textInput = React.createRef();
@@ -296,11 +296,17 @@ class CommentsPopup extends Component {
     }
 
     showNextSlide = () => {
-        this.setState({currSlide: this.state.currSlide+1});
+        this.setState({
+            currSlide: this.state.currSlide+1,
+            showTags: false
+        });
     };
 
     showPreviousSlide = () => {
-        this.setState({currSlide: this.state.currSlide-1});
+        this.setState({
+            currSlide: this.state.currSlide-1,
+            showTags: false
+        });
     };
 
     toggleSave = () => {
@@ -325,17 +331,14 @@ class CommentsPopup extends Component {
         }
     }
 
-    handleClick = () => {
-        this.setState({ isFocused: true });
-    }
 
     handleKeyDown2 = (event) => {
-        if (this.state.isFocused && event.key === 'ArrowRight') {
-            if(this.state.currSlide < this.props.numSlides-1) {
+        if (this.props.isFocused && event.key === 'ArrowRight') {
+            if(this.props.postDetails && this.state.currSlide < this.props.postDetails.posts.length-1) {
                 this.showNextSlide();
             }
         }
-        else if(this.state.isFocused && event.key=== 'ArrowLeft') {
+        else if(this.props.isFocused && event.key=== 'ArrowLeft') {
             if(this.state.currSlide>0) {
                 this.showPreviousSlide();
             }
@@ -343,9 +346,12 @@ class CommentsPopup extends Component {
         }
 
     handleClick = () => {
-        this.setState({ isFocused: true });
+        this.props.onFocus(this.props.id);
     }
-
+    
+    toggleTags = () => {
+        this.setState({showTags: !this.state.showTags});
+    }
 
 
     render() {
@@ -360,6 +366,31 @@ class CommentsPopup extends Component {
                 currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[this.state.currSlide];
         }
 
+        let shownTags = [];
+        if (this.props.postDetails!==null && this.state.showTags) {
+            for (let i of this.props.postDetails.taggedAccounts[this.state.currSlide]) {
+                shownTags.push(
+                    <p style={{
+                        position: 'absolute',
+                        left: i[0].toString() + "%",
+                        top: i[1].toString() + "%",
+                        backgroundColor: 'rgba(0,0,0,0.75)',
+                        color: 'white',
+                        textAlign: 'left',
+                        borderRadius: '10%',
+                        paddingLeft: '0.8em',
+                        paddingTop: '0.8em',
+                        paddingBottom: '0.8em',
+                        paddingRight: '0.8em',
+                        cursor: 'pointer',
+                        fontSize: '0.94em'
+                    }}>
+                        {i[2]}
+                    </p>
+                );
+            }
+        }
+
         return (
         <React.Fragment>
         <div style={{background:'white', width:'82em', height:'54em', borderStyle:'solid', borderColor:'lightgray', borderRadius:'0.5%',
@@ -371,8 +402,12 @@ class CommentsPopup extends Component {
         display: this.state.currSlide < this.props.postDetails.posts.length-1 ? 'inline-block' : 'none'}}/>}
         <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-3%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
-        <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
+        {this.props.postDetails!==null &&
+        <img onClick={this.toggleTags} src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>}
         {this.props.postDetails!==null && <PostDots numSlides={this.props.postDetails.posts.length} currSlide={this.state.currSlide}/>}
+        {this.props.postDetails !== null && this.state.showTags &&
+        shownTags
+        }
         </div>
         <div style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'35%', height:'100%'}}>
         <div style={{display:'flex', justifyContent:'start'}}>

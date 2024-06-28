@@ -3,7 +3,6 @@ import backArrow from "./images/backArrow.png";
 import blackSaveIcon from './images/blackSaveIcon.png';
 import blankHeart from './images/blankHeartIcon.png';
 import commentIcon from './images/commentIcon.png';
-import imagePost from './images/imagePost.jpg';
 import rightArrow from "./images/nextArrow.png";
 import redHeart from './images/redHeartIcon.png';
 import saveIcon from './images/saveIcon.png';
@@ -32,22 +31,22 @@ class ImagePost extends Component {
             addACommentText: 'Add a comment...',
             postText: 'Post',
             currSlide: 0,
-            isFocused: false,
+            showTags: false
         }
 
     };
 
     handleClick = () => {
-        this.setState({ isFocused: true });
+        this.props.onFocus(this.props.id);
     }
 
     handleKeyDown = (event) => {
-        if (this.state.isFocused && event.key === 'ArrowRight') {
+        if (this.props.isFocused && event.key === 'ArrowRight') {
             if(this.state.currSlide < this.props.postDetails.posts.length-1) {
                 this.showNextSlide();
             }
         }
-        else if(this.state.isFocused && event.key=== 'ArrowLeft') {
+        else if(this.props.isFocused && event.key=== 'ArrowLeft') {
             if(this.state.currSlide>0) {
                 this.showPreviousSlide();
             }
@@ -326,12 +325,14 @@ class ImagePost extends Component {
     showNextSlide = () => {
         this.setState({
             currSlide: this.state.currSlide+1,
+            showTags: false
             });
     }
 
     showPreviousSlide = () => {
         this.setState({
             currSlide: this.state.currSlide-1,
+            showTags: false
             });
     };
 
@@ -345,12 +346,43 @@ class ImagePost extends Component {
         return window.btoa(binary);
     }
 
+    toggleTags = () => {
+        this.setState({showTags: !this.state.showTags});
+    }
+
 
     render() {
         let currPost = "";
         if (this.props.postDetails !== null) {
                 currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[this.state.currSlide];
         }
+
+        let shownTags = [];
+        if (this.props.postDetails!==null && this.state.showTags) {
+            for (let i of this.props.postDetails.taggedAccounts[this.state.currSlide]) {
+                shownTags.push(
+                    <p style={{
+                        position: 'absolute',
+                        left: i[0].toString() + "%",
+                        top: i[1].toString() + "%",
+                        backgroundColor: 'rgba(0,0,0,0.75)',
+                        color: 'white',
+                        textAlign: 'left',
+                        borderRadius: '10%',
+                        paddingLeft: '0.8em',
+                        paddingTop: '0.8em',
+                        paddingBottom: '0.8em',
+                        paddingRight: '0.8em',
+                        cursor: 'pointer',
+                        fontSize: '0.94em'
+                    }}>
+                        {i[2]}
+                    </p>
+                );
+            }
+        }
+        
+
         return (
         <React.Fragment>
         <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
@@ -367,12 +399,17 @@ class ImagePost extends Component {
         <div style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
         {currPost!=="" && <img onDoubleClick={this.likePost} onClick={this.handleClick} src={currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0,}}/>}
-        {this.props.postDetails && <img onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
+        {this.props.postDetails!==null && <img onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
         display: this.state.currSlide < this.props.postDetails.posts.length-1 ? 'inline-block' : 'none'}}/>}
         <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
-        <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
-        {this.props.postDetails && <PostDots numSlides={this.props.postDetails.posts.length} currSlide={this.state.currSlide}/>}
+        {this.props.postDetails!==null && this.props.postDetails.taggedAccounts[this.state.currSlide].length > 0 &&
+        <img src={taggedAccountsIcon} onClick={this.toggleTags} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%',
+        cursor:'pointer'}}/>}
+        {this.props.postDetails!==null && <PostDots numSlides={this.props.postDetails.posts.length} currSlide={this.state.currSlide}/>}
+        {this.props.postDetails !== null && this.state.showTags &&
+        shownTags
+        }
         </div>
         <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
         <img onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
