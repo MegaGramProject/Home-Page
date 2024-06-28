@@ -361,10 +361,15 @@ class CommentsPopup extends Component {
                 numLikes={13} isCaption={false} language={this.props.language} isOwn={true}/>);
                 commentsByUser.push(<br/>);
         }
+
         let currPost = "";
         if (this.props.postDetails !== null) {
-                currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[this.state.currSlide];
+                if (this.props.postDetails.slides.includes(this.state.currSlide)) {
+                    const x = this.props.postDetails.slides.indexOf(this.state.currSlide);
+                    currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[x];
+                }
         }
+
 
         let shownTags = [];
         if (this.props.postDetails!==null && this.state.showTags) {

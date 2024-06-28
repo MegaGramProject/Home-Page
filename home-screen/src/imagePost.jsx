@@ -354,7 +354,10 @@ class ImagePost extends Component {
     render() {
         let currPost = "";
         if (this.props.postDetails !== null) {
-                currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[this.state.currSlide];
+                if (this.props.postDetails.slides.includes(this.state.currSlide)) {
+                    const x = this.props.postDetails.slides.indexOf(this.state.currSlide);
+                    currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[x];
+                }
         }
 
         let shownTags = [];
