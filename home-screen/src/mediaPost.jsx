@@ -5,20 +5,20 @@ import backArrow from "./images/backArrow.png";
 import blackSaveIcon from './images/blackSaveIcon.png';
 import blankHeart from './images/blankHeartIcon.png';
 import commentIcon from './images/commentIcon.png';
+import fastForward5Seconds from './images/fastForward5Seconds.png';
 import rightArrow from "./images/nextArrow.png";
+import pauseIcon from './images/pauseIcon.png';
 import redHeart from './images/redHeartIcon.png';
+import rewind5Seconds from './images/rewind5Seconds.png';
 import saveIcon from './images/saveIcon.png';
 import sendIcon from './images/sendIcon.png';
 import taggedAccountsIcon from "./images/taggedAccountsIcon.png";
 import threeHorizontalDots from './images/threeHorizontalDots.png';
+import videoSettingsIcon from './images/videoSettingsIcon.png';
 import PostDots from "./postDots";
 import StoryIcon from './storyIcon';
-import frenchSubtitles from './subtitles_fr.vtt';
-import fastForward5Seconds from './images/fastForward5Seconds.png';
-import rewind5Seconds from './images/rewind5Seconds.png';
-import pauseIcon from './images/pauseIcon.png';
-import videoSettingsIcon from './images/videoSettingsIcon.png';
 import './styles.css';
+import frenchSubtitles from './subtitles_fr.vtt';
 
 class MediaPost extends Component {
     constructor(props) {
@@ -663,7 +663,34 @@ class MediaPost extends Component {
                 }
             }
             else {
-                //pass
+                let taggedAccounts = [];
+                for (let i of this.props.postDetails[1]) {
+                    if (i['slideNumber'] == this.state.currSlide) {
+                        taggedAccounts = i['taggedAccounts'];
+                        break;
+                    }
+                }
+                for (let i of taggedAccounts) {
+                    console.log(i)
+                    shownTags.push(
+                        <div style={{
+                            width:'90%',
+                            height:'5%',
+                            backgroundColor: 'white',
+                            color: 'black',
+                            textAlign: 'left',
+                            paddingLeft: '0.8em',
+                            paddingTop: '0.8em',
+                            paddingBottom: '0.8em',
+                            paddingRight: '0.8em',
+                            cursor: 'pointer',
+                            fontSize: '0.94em'
+                        }}>
+                            {i}
+                        </div>
+                    );
+                }
+
             }
         }
         
@@ -772,8 +799,15 @@ class MediaPost extends Component {
         display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
         <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
-        <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
+        <img src={taggedAccountsIcon} onClick={this.toggleTags} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
         {this.props.postDetails && <PostDots numSlides={this.state.numPosts} currSlide={this.state.currSlide}/>}
+        {this.props.postDetails !== null && this.state.showTags && shownTags.length > 0 &&
+        <div style={{position:'absolute', top:'72%', left:'25%', width:'50%', height:'20%', display:'flex',
+        flexDirection:'column', alignItems:'start', backgroundColor:'white', overflow:'scroll', borderRadius:'5%', paddingTop:'1%'}}>
+        <b style={{marginLeft:'30%'}}>Tagged Accounts</b>
+        {shownTags}
+        </div>
+        }
         </div>
         <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
         <img onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
