@@ -11,7 +11,7 @@ async function run() {
         const bucket = new GridFSBucket(database, { bucketName: 'videos' });
 
         // Replace with the actual ObjectId of the video you want to retrieve
-        const videoId = new ObjectId('667ec25b11dfd49ab61fe796');
+        const videoId = new ObjectId('667f538bc5f8f42e09b4c6f9');
         
         // Create a writable stream to save the retrieved video
         const downloadStream = bucket.openDownloadStream(videoId);

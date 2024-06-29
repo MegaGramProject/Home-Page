@@ -1,17 +1,15 @@
 import React, { Component } from 'react';
 import CommentsPopup from './commentsPopup';
 import Footer from "./footer";
-import ImagePost from "./imagePost";
 import backArrow from "./images/backArrow.png";
 import rightArrow from "./images/nextArrow.png";
 import LeftSidebar from "./leftSidebar";
+import MediaPost from "./mediaPost";
 import SendPostPopup from './sendPostPopup';
 import StoryIcon from "./storyIcon";
 import './styles.css';
 import ThreeDotsPopup from './threeDotsPopup';
 import UserBar from "./userBar";
-import VideoPost from "./videoPost";
-
 
 
 class App extends Component {
@@ -39,6 +37,7 @@ class App extends Component {
         post2Details: null,
         post3Details: null,
         post4Details: null,
+        post5Details: null,
         focusedComponent: null,
         };
 
@@ -238,58 +237,86 @@ class App extends Component {
         }
     }
 
-    fetchPosts(username) {
-        fetch(`http://localhost:8003/getPosts/${username}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if(username==="rishavry2") {
-                    this.setState({
-                        post1Details: data[0]
-                    });
-                }
-                else if(username==="rishavry3") {
-                    this.setState({post2Details: data[0]});
-                }
-            })
-            .catch(error => {
-                throw new Error('Trouble connecting to server');
-            });
+    async fetchPosts(username) {
+        try {
+            let postDetails = [];
+    
+            // Fetch posts
+            let postsResponse = await fetch(`http://localhost:8003/getPosts/${username}`);
+            if (!postsResponse.ok) {
+                throw new Error('Network response was not ok');
+            }
+            let postsData = await postsResponse.json();
+    
+            if (postsData.length > 0) {
+                postDetails.push([postsData[0]]); // Assuming you want to push the first item
+            } else {
+                postDetails.push([]);
+            }
+    
+            // Fetch videos
+            let videosResponse = await fetch(`http://localhost:8004/getVideos/${username}`);
+            if (!videosResponse.ok) {
+                throw new Error('Network response was not ok');
+            }
+            let videosData = await videosResponse.json();
 
+            // Process videos based on username
+            if (username === "rishavry2") {
+                if (postDetails[0].length > 0) {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
+                    postDetails.push(postsToSend);
+                    this.setState({ post1Details: postDetails });
+                }
+            } else if (username === "rishavry3") {
+                if (postDetails[0].length > 0) {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
+                    postDetails.push(postsToSend);
+                    this.setState({ post2Details: postDetails });
+                }
+            } else if (username === "rishavry5") {
+                if (postDetails[0].length > 0) {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
+                    postDetails.push(postsToSend);
+                    this.setState({ post3Details: postDetails });
+                } else {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === '683d0792-8f29-487d-bbf9-fc5dffeba864');
+                    postDetails.push(postsToSend);
+                    this.setState({ post3Details: postDetails });
+                }
+            } else if (username === "rishavry6") {
+                if (postDetails[0].length > 0) {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
+                    postDetails.push(postsToSend);
+                    this.setState({ post4Details: postDetails });
+                } else {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === '953c1754-bd3a-40d6-82c1-91b1d943de98');
+                    postDetails.push(postsToSend);
+                    this.setState({ post4Details: postDetails });
+                }
+            } else if (username === "rishavry7") {
+                if (postDetails[0].length > 0) {
+                    let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
+                    postDetails.push(postsToSend);
+                    console.log(postDetails);
+                    this.setState({ post5Details: postDetails });
+                }
+            }
+    
+        } catch (error) {
+            console.error('Error fetching or processing data:', error);
+            // Handle error appropriately (e.g., show error message)
+        }
     }
+    
 
-    fetchVidPosts(username) {
-        fetch(`http://localhost:8004/getVideos/${username}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                let postsToSend = data.filter(x => x['overallPostId']==='683d0792-8f29-487d-bbf9-fc5dffeba864');
-                if(username==="rishavry5") {
-                    this.setState({post3Details: postsToSend});
-                }
-                else if(username==="rishavry6") {
-                    this.setState({post4Details: data[0]});
-                }
-
-            })
-            .catch(error => {
-                throw new Error('Trouble connecting to server');
-            });
-
-    }
 
     async componentDidMount() {
         this.fetchPosts("rishavry2");
         this.fetchPosts("rishavry3");
-        this.fetchVidPosts("rishavry5")
+        this.fetchPosts("rishavry5");
+        this.fetchPosts("rishavry6");
+        this.fetchPosts("rishavry7");
         await this.updateSeeAllText("English");
         await this.updateSuggestedForYouText("English");
     }
@@ -330,15 +357,21 @@ class App extends Component {
         left:'-7.5%', top:'3%', cursor:'pointer'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
-        <ImagePost id={1} postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
-        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
+        <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}/>
-        <ImagePost id={2} postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
-        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup} isAd={false}
+        <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}/>
-        <VideoPost id={3} postDetails={this.state.post3Details} language={this.state.language} numLikes={314} numComments={24}
-        togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup} isAd={true}
+        <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}/>
+        <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}/>
+        <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language} numLikes={314} numComments={24}
+        togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}/>
         </div>
         </div>
         <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',

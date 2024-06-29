@@ -11,7 +11,7 @@ async function main() {
 
     const bucket = new GridFSBucket(db, { bucketName: 'videos' });
 
-    const videoFilePath = '/Users/rishavr/Home-Screen/home-screen/src/images/videoPost.mp4';
+    const videoFilePath = '/Users/rishavr/Downloads/fakePilot.mp4';
     
 
     const uploadStream = bucket.openUploadStream('video');
@@ -24,15 +24,15 @@ async function main() {
 
 
             const metadataCollection = db.collection('videosMetadata');
-            const randomId = uuidv4();
+            const randomId = '667f7011daf309f4dc197044';
             await metadataCollection.insertOne({
-                usernames: ['rishavry5'],
-                locationOfPost: 'Dubai, UAE',
-                dateTimeOfPost: new Date("2020-12-16T11:45:00Z"),
-                taggedAccounts: [[[30, 60, 'bonjovi'], [20, 20, 'alanSchmidt'], [15, 78, 'charlieChelsea']]],
+                usernames: ['rishavry7'],
+                locationOfPost: 'Bangalore Karnataka, India',
+                dateTimeOfPost: new Date("2024-07-04T08:45:13Z"),
+                taggedAccounts: ['fakePilot'],
                 videoId: uploadStream.id,
                 overallPostId: randomId,
-                slideNumber: 0,
+                slideNumber: 5,
             });
 
             console.log('Metadata stored successfully');

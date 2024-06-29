@@ -176,17 +176,10 @@ body {
     color: #fff !important;
 
 }
-.video-js .vjs-subtitles-button .vjs-menu-content li.vjs-selected {
+.video-js .vjs-subtitles-button .vjs-menu-content .vjs-selected {
     background-color: lightgray !important;
 }
 
-
-.video-js .vjs-text-track-display div {
-    color: white !important;
-    font-size: 16px !important;
-    background-color: rgba(0, 0, 0, 0.5) !important;
-    text-shadow: 2px 2px 4px #000 !important;
-}
 
 :focus { outline: none !important; }
 
