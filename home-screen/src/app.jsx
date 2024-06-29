@@ -28,7 +28,7 @@ class App extends Component {
         commentsPopupLocation: '',
         commentsPopupNumLikes: '',
         commentsPopupNumComments: '',
-        commentsPopupCurrSlide: '',
+        commentsPopupCurrSlide: 0,
         commentsPopupIsLiked: '',
         commentsPopupIsAd: '',
         commentsPopupIsSaved: '',
@@ -298,7 +298,6 @@ class App extends Component {
                 if (postDetails[0].length > 0) {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
                     postDetails.push(postsToSend);
-                    console.log(postDetails);
                     this.setState({ post5Details: postDetails });
                 }
             }
@@ -370,7 +369,7 @@ class App extends Component {
         togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}/>
         <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language} numLikes={314} numComments={24}
-        togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
+        togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}/>
         </div>
         </div>
@@ -401,12 +400,12 @@ class App extends Component {
         <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
         opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showSendPostPopup ? 'none' : 'auto'}}>
-        <CommentsPopup id={5} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
+        <CommentsPopup id={6} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  togglePopup={this.state.commentsPopupIsAd ? this.toggleAdPopup : this.togglePostPopup}
         isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}
-        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}/>
+        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==6}/>
         </div>
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>

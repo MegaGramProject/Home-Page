@@ -1,19 +1,26 @@
 import React, { Component } from 'react';
+import videojs from 'video.js';
+import 'video.js/dist/video-js.css';
 import Comment from './comment';
 import backArrow from './images/backArrow.png';
 import blackSaveIcon from './images/blackSaveIcon.png';
 import blankHeart from './images/blankHeartIcon.png';
 import closePopupIcon from './images/closePopupIcon.png';
 import commentIcon from './images/commentIcon.png';
+import fastForward5Seconds from './images/fastForward5Seconds.png';
 import nextArrow from './images/nextArrow.png';
+import pauseIcon from './images/pauseIcon.png';
 import redHeart from './images/redHeartIcon.png';
+import rewind5Seconds from './images/rewind5Seconds.png';
 import saveIcon from './images/saveIcon.png';
 import sendIcon from './images/sendIcon.png';
 import taggedAccountsIcon from './images/taggedAccountsIcon.png';
 import threeHorizontalDots from './images/threeHorizontalDots.png';
+import videoSettingsIcon from './images/videoSettingsIcon.png';
 import PostDots from './postDots';
 import StoryIcon from './storyIcon';
 import './styles.css';
+import frenchSubtitles from './subtitles_fr.vtt';
 
 class CommentsPopup extends Component {
     constructor(props) {
@@ -21,20 +28,33 @@ class CommentsPopup extends Component {
         this.state = {
             comment: "",
             sendComment: false,
-            isLiked: this.props.isLiked,
-            numLikes: this.props.numLikes,
-            currSlide: this.props.currSlide,
-            isSaved: this.props.isSaved,
+            isLiked: false,
+            numLikes: 0,
+            currSlide: 0,
+            isSaved: false,
             commentsSent: [],
             likesText: this.props.numLikes + " likes",
-            timeText: this.props.time,
+            timeText: "",
             addCommentText: "Add a comment...",
             postText: "Post",
-            locationText: '',
+            locationText: "",
             showTags: false,
+            currSlideIsVid: null,
+            videoUrl: "",
+            numPosts: 0,
+            showQualityOptions: false,
+            showSettingsPopup: false,
+            showRightBanner: false,
+            showLeftBanner: false,
+            postDetails: null,
+            playerInitialized: false,
 
         };
         this.textInput = React.createRef();
+        this.videoNode = React.createRef();
+        this.spaceKeyTimer = null;
+        this.spaceKeyPressed = false;
+        this.slideToVideoUrlMapping = {};
     };
 
     translateTextPromise = async function(text, language1, language2){
@@ -212,27 +232,65 @@ class CommentsPopup extends Component {
         await this.updateLikesText("English");
         await this.updateLocationText("English");
         await this.updatePostText("English");
-        window.addEventListener('keydown', this.handleKeyDown2);
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
     }
 
-    async componentWillUnmount () {
-        window.removeEventListener('keydown', this.handleKeyDown2);
+    async componentWillUnmount() {
+        if (this.player) {
+            this.player.dispose();
+        }
+        window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('keyup', this.handleKeyUp);
     }
+
 
     async componentDidUpdate(prevProps, prevState) {
-        if (prevProps.postDetails != this.props.postDetails || prevProps.currSlide !== this.props.currSlide ||
-            prevProps.isLiked != this.props.isLiked || prevProps.isSaved != this.props.isSaved) {
-            this.setState({
-                isLiked: this.props.isLiked,
-                numLikes: this.props.numLikes,
-                currSlide: this.props.currSlide,
-                isSaved: this.props.isSaved,
-                timeText: this.formatDate(this.props.postDetails.dateTimeOfPost),
-                likesText: this.props.numLikes + " likes",
-                locationText: this.props.postDetails.locationOfPost,
-            });
+        if(prevProps.currSlide !== this.props.currSlide) {
+                this.setState({currSlide: this.props.currSlide});
         }
-        else if(prevProps.language != this.props.language) {
+        if(prevProps.isSaved !== this.props.isSaved) {
+            this.setState({isSaved: this.props.isSaved});
+        }
+        if(prevProps.isLiked !== this.props.isLiked) {
+            this.setState({isLiked: this.props.isLiked});
+        }
+        if (prevProps.postDetails != this.props.postDetails || prevState.postDetails==null && this.props.postDetails!==null) {
+            if(this.props.postDetails[1].length>0) {
+                    await this.fetchVideos();
+            }
+            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.props.currSlide));
+            if(currSlideIsVid) {
+                this.setState({
+                    currSlideIsVid: currSlideIsVid,
+                    locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
+                    timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
+                    numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
+                    likesText: this.props.numLikes + ' likes',
+                    numLikes: this.props.numLikes,
+                    currSlide: this.props.currSlide,
+                    postDetails: this.props.postDetails,
+                    videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
+                });
+            }
+            else {
+                const x = this.props.postDetails[0][0].slides.indexOf(this.props.currSlide);
+                const currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
+                this.setState({
+                    currSlideIsVid: currSlideIsVid,
+                    locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
+                    timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
+                    numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
+                    likesText: this.props.numLikes + ' likes',
+                    numLikes: this.props.numLikes,
+                    currSlide: this.props.currSlide,
+                    postDetails: this.props.postDetails,
+                    currPost: currPost
+                });
+
+            }
+        }
+        if(prevProps.language != this.props.language) {
             await this.updateAddCommentText(prevProps.language);
             await this.updateTimeText(prevProps.language);
             await this.updateLikesText(prevProps.language);
@@ -244,6 +302,100 @@ class CommentsPopup extends Component {
                 await this.updateLikesText("English");
             }
         }
+        if(!prevState.currSlideIsVid && this.state.currSlideIsVid && !this.state.playerInitialized) {
+            const Button = videojs.getComponent('Button');
+                    class SettingsButton extends Button {
+                    constructor(player, options) {
+                        super(player, options);
+                        this.controlText('Settings (s)');
+                    }
+                    handleClick = () => {
+                        if (this.options_.toggleSettings) {
+                            this.options_.toggleSettings();
+                        }
+                    }
+                    createEl() {
+                        let el = super.createEl('button', {
+                            className: 'vjs-settings-button vjs-control vjs-button'
+                        });
+                
+                        let icon = videojs.dom.createEl('img', {
+                            src: videoSettingsIcon,
+                            alt: 'Settings Icon',
+                            className: 'custom-settings-icon'
+                        });
+                
+                        el.appendChild(icon);
+                
+                        return el;
+                    }
+                    }
+                    videojs.registerComponent('SettingsButton', SettingsButton);
+
+                    this.player = videojs(this.videoNode.current , {
+                        controls: true,
+                        autoplay: false,
+                        preload: 'auto',
+                        fluid: true,
+                        playbackRates: [0.125, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.25, 2.5, 3, 4, 6, 8],
+                        controlBar: {
+                        children: [
+                            'playToggle',
+                            'volumePanel',
+                            'CurrentTimeDisplay',
+                            'TimeDivider',
+                            'DurationDisplay',
+                            'progressControl',
+                        ]
+                        }
+                    });
+                
+                    this.player.src({ src: this.state.videoUrl, type: 'video/mp4' });
+                    class ThumbnailPreview extends videojs.getComponent('Component') {
+                        constructor(player, options) {
+                            super(player, options);
+                            this.thumbnailImg = videojs.dom.createEl('img', {
+                                className: 'vjs-thumbnail-preview',
+                                style: 'position: absolute; bottom: -90% height: 10% width: 10%;'
+                            });
+                    
+                    
+                            this.thumbnailImg.style.display = 'none';
+                            this.el().appendChild(this.thumbnailImg);
+                    
+
+                            if (this.options_.player) {
+                                const progressControl = this.options_.player.getChild('controlBar').getChild('progressControl');
+                                progressControl.on('mousemove', this.handleMouseMove.bind(this));
+                                progressControl.on('mouseout', () => { this.thumbnailImg.style.display = 'none';});
+                            }
+                        }
+                    
+                        handleMouseMove(event) {
+                            if (this.options_.player) {
+                                const progressControl = this.options_.player.getChild('controlBar').getChild('progressControl');
+                                const rect = progressControl.el().getBoundingClientRect();
+                                const mouseX = event.clientX - rect.left;
+                                this.thumbnailImg.src = redHeart;
+                                this.thumbnailImg.style.left = `${mouseX+125}px`;
+                                this.thumbnailImg.style.display = 'inline-block';
+                            }
+                        }
+                    }
+                    
+                    videojs.registerComponent('thumbnailPreview', ThumbnailPreview);
+                    this.player.getChild('controlBar').addChild('thumbnailPreview', {
+                        player: this.player,
+                    });
+                    this.player.getChild('controlBar').addChild('SubtitlesButton');
+                    this.player.getChild('controlBar').addChild('SettingsButton', {
+                        toggleSettings: this.toggleSettings,
+                    });
+                    this.player.getChild('controlBar').addChild('playbackRateMenuButton');
+                    this.player.getChild('controlBar').addChild('fullscreenToggle');
+                    this.setState({playerInitialized: true});
+        }
+
     }
 
     formatDate(dateString) {
@@ -252,7 +404,6 @@ class CommentsPopup extends Component {
         const month = months[date.getUTCMonth()];
         const day = date.getUTCDate();
         const year = date.getUTCFullYear();
-        
         return `${month} ${day}, ${year}`;
     }
 
@@ -296,17 +447,51 @@ class CommentsPopup extends Component {
     }
 
     showNextSlide = () => {
-        this.setState({
-            currSlide: this.state.currSlide+1,
-            showTags: false
-        });
-    };
+        let nextSlideIsVid = !(this.state.postDetails[0].length > 0 && this.state.postDetails[0][0].slides.includes(this.state.currSlide+1));
+        if (nextSlideIsVid) {
+            this.setState({
+                videoUrl: this.slideToVideoUrlMapping[this.state.currSlide+1],
+                currPost: "",
+                currSlide: this.state.currSlide+1,
+                currSlideIsVid: nextSlideIsVid,
+                showTags: false,
+                });
+        }
+        else {
+            const x = this.state.postDetails[0][0].slides.indexOf(this.state.currSlide+1);
+            const currPost = 'data:image/jpeg;base64,' + this.state.postDetails[0][0].posts[x];
+            this.setState({
+                videoUrl: "",
+                currPost: currPost,
+                currSlide: this.state.currSlide+1,
+                currSlideIsVid: nextSlideIsVid,
+                showTags: false
+                });
+        }
+    }
 
     showPreviousSlide = () => {
-        this.setState({
-            currSlide: this.state.currSlide-1,
-            showTags: false
-        });
+        let prevSlideIsVid = !(this.state.postDetails[0].length > 0 && this.state.postDetails[0][0].slides.includes(this.state.currSlide-1));
+        if (prevSlideIsVid) {
+            this.setState({
+                videoUrl: this.slideToVideoUrlMapping[this.state.currSlide-1],
+                currPost: "",
+                currSlide: this.state.currSlide-1,
+                currSlideIsVid: prevSlideIsVid,
+                showTags: false,
+                });
+        }
+        else {
+            const x = this.state.postDetails[0][0].slides.indexOf(this.state.currSlide-1);
+            const currPost = 'data:image/jpeg;base64,' + this.state.postDetails[0][0].posts[x];
+            this.setState({
+                videoUrl: "",
+                currPost: currPost,
+                currSlide: this.state.currSlide-1,
+                currSlideIsVid: prevSlideIsVid,
+                showTags: false
+                });
+        }
     };
 
     toggleSave = () => {
@@ -326,24 +511,85 @@ class CommentsPopup extends Component {
     }
 
     handleKeyDown = (event) => {
-        if (event.key === 'Enter') {
-            this.postComment();
-        }
-    }
-
-
-    handleKeyDown2 = (event) => {
-        if (this.props.isFocused && event.key === 'ArrowRight') {
-            if(this.props.postDetails && this.state.currSlide < this.props.postDetails.posts.length-1) {
-                this.showNextSlide();
+        if(!this.state.currSlideIsVid) {
+            if (this.props.isFocused && event.key === 'ArrowRight') {
+                if(this.state.currSlide < this.state.numPosts-1) {
+                    this.showNextSlide();
+                }
+            }
+            else if(this.props.isFocused && event.key=== 'ArrowLeft') {
+                if(this.state.currSlide>0) {
+                    this.showPreviousSlide();
+                }
             }
         }
-        else if(this.props.isFocused && event.key=== 'ArrowLeft') {
-            if(this.state.currSlide>0) {
-                this.showPreviousSlide();
-            }
+        else {
+            if (this.props.isFocused) {
+                const player = this.player;
+                if (!player) return;
+                switch(event.key) {
+                    case 'ArrowRight':
+                        player.currentTime(Math.min(player.duration(), player.currentTime() + 5));
+                        this.setState({showRightBanner: true });
+                        setTimeout(() => {
+                        this.setState({showRightBanner: false });
+                        }, 250);
+                        break;
+                    case 'ArrowLeft':
+                        player.currentTime(Math.max(0, player.currentTime() - 5));
+                        this.setState({showLeftBanner: true});
+                        this.timer = setTimeout(() => {
+                            this.setState({showLeftBanner: false});
+                        }, 250);
+                        break;
+                    case ' ':
+                        event.preventDefault();
+                        if (!this.Pressed) {
+                            this.spaceKeyPressed = true;
+                            this.spaceKeyTimer = setTimeout(() => {
+                                player.playbackRate(2);
+                            }, 500);
+                        }
+                        break;
+                    case 'k':
+                    case 'K':
+                        event.preventDefault();
+                        if (player.paused()) {
+                            this.setState({showPauseSymbol: false});
+                            player.play();
+                        } else {
+                            player.pause();
+                            this.setState({showPauseSymbol: true});
+                        }
+                        break;
+                    case 'F':
+                    case 'f':
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        } else {
+                            if (this.videoNode.current.requestFullscreen) {
+                                this.videoNode.current.requestFullscreen();
+                            } else if (this.videoNode.current.mozRequestFullScreen) {
+                                this.videoNode.current.mozRequestFullScreen();
+                            } else if (this.videoNode.current.webkitRequestFullscreen) {
+                                this.videoNode.current.webkitRequestFullscreen();
+                            } else if (this.videoNode.current.msRequestFullscreen) {
+                                this.videoNode.current.msRequestFullscreen();
+                            }
+                        }
+                        break;
+                    case 'm':
+                    case 'M':
+                        player.muted(!player.muted());
+                        break;
+                    default:
+                        break;
+                    }
+                }
         }
+
         }
+
 
     handleClick = () => {
         this.props.onFocus(this.props.id);
@@ -352,6 +598,37 @@ class CommentsPopup extends Component {
     toggleTags = () => {
         this.setState({showTags: !this.state.showTags});
     }
+
+    hideCommentsPopup = () => {
+        this.setState({postDetails: null, videoUrl: "", currPost: ""});
+        this.props.hideCommentsPopup();
+    }
+
+
+
+    async fetchVideos() {
+        for(let i of this.props.postDetails[1]) {
+            try {
+                let videoId = i['videoId'];
+                let slideNumber = i['slideNumber'];
+                const response = await fetch(`http://localhost:8004/getVideo/${videoId}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const videoBlob = await response.blob();
+                const videoUrl = URL.createObjectURL(videoBlob);
+                this.slideToVideoUrlMapping[slideNumber] = videoUrl;
+            } catch (error) {
+                console.error('Trouble connecting to server:', error);
+            }
+        }
+        if(this.slideToVideoUrlMapping[this.props.currSlide]) {
+            this.setState({videoUrl: this.slideToVideoUrlMapping[this.props.currSlide]});
+        }
+    
+    }
+
+
 
 
     render() {
@@ -362,64 +639,65 @@ class CommentsPopup extends Component {
                 commentsByUser.push(<br/>);
         }
 
-        let currPost = "";
-        if (this.props.postDetails !== null) {
-                if (this.props.postDetails.slides.includes(this.state.currSlide)) {
-                    const x = this.props.postDetails.slides.indexOf(this.state.currSlide);
-                    currPost = 'data:image/jpeg;base64,' + this.props.postDetails.posts[x];
-                }
-        }
-
 
         let shownTags = [];
-        if (this.props.postDetails!==null && this.state.showTags) {
-            for (let i of this.props.postDetails.taggedAccounts[this.state.currSlide]) {
-                shownTags.push(
-                    <p style={{
-                        position: 'absolute',
-                        left: i[0].toString() + "%",
-                        top: i[1].toString() + "%",
-                        backgroundColor: 'rgba(0,0,0,0.75)',
-                        color: 'white',
-                        textAlign: 'left',
-                        borderRadius: '10%',
-                        paddingLeft: '0.8em',
-                        paddingTop: '0.8em',
-                        paddingBottom: '0.8em',
-                        paddingRight: '0.8em',
-                        cursor: 'pointer',
-                        fontSize: '0.94em'
-                    }}>
-                        {i[2]}
-                    </p>
-                );
+        if (this.state.postDetails!==null && this.state.showTags) {
+            if(!this.state.currSlideIsVid) {
+                let x = this.state.postDetails[0][0].slides.indexOf(this.state.currSlide);
+                for (let i of this.state.postDetails[0][0].taggedAccounts[x]) {
+                    shownTags.push(
+                        <p style={{
+                            position: 'absolute',
+                            left: i[0].toString() + "%",
+                            top: i[1].toString() + "%",
+                            backgroundColor: 'rgba(0,0,0,0.75)',
+                            color: 'white',
+                            textAlign: 'left',
+                            borderRadius: '10%',
+                            paddingLeft: '0.8em',
+                            paddingTop: '0.8em',
+                            paddingBottom: '0.8em',
+                            paddingRight: '0.8em',
+                            cursor: 'pointer',
+                            fontSize: '0.94em'
+                        }}>
+                            {i[2]}
+                        </p>
+                    );
+                }
+            }
+            else {
+                //pass
             }
         }
 
+
         return (
         <React.Fragment>
+        {!this.state.currSlideIsVid && this.state.currSlideIsVid!==null && (
+        <div>
         <div style={{background:'white', width:'82em', height:'54em', borderStyle:'solid', borderColor:'lightgray', borderRadius:'0.5%',
         display:'flex'}}>
         <div style={{position:'absolute', top:'0%', left:'0%', width:'65%', height:'100%'}}>
-        {currPost!=="" && <img onClick={this.handleClick} onDoubleClick={this.likePost} src={currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
+        {this.state.currPost!=="" && <img onClick={this.handleClick} onDoubleClick={this.likePost} src={this.state.currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0,}}/>}
-        {this.props.postDetails!==null && <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'99%', cursor:'pointer',
-        display: this.state.currSlide < this.props.postDetails.posts.length-1 ? 'inline-block' : 'none'}}/>}
+        {this.state.postDetails!==null && <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'99%', cursor:'pointer',
+        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
         <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-3%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
-        {this.props.postDetails!==null &&
+        {this.state.postDetails!==null &&
         <img onClick={this.toggleTags} src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>}
-        {this.props.postDetails!==null && <PostDots numSlides={this.props.postDetails.posts.length} currSlide={this.state.currSlide}/>}
-        {this.props.postDetails !== null && this.state.showTags &&
+        {this.state.postDetails!==null && <PostDots numSlides={this.state.numPosts} currSlide={this.state.currSlide}/>}
+        {this.state.postDetails !== null && this.state.showTags &&
         shownTags
         }
         </div>
         <div style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'35%', height:'100%'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
-        {this.props.postDetails!==null && <StoryIcon username={this.props.postDetails.usernames[0]} ownAccount={false} unseenStory={true} isStory={false}/>}
+        {this.state.postDetails!==null && <StoryIcon username={this.state.postDetails[0][0].usernames[0]} ownAccount={false} unseenStory={true} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', gap:'0.2em',
         marginTop:'-1em', marginLeft:'0.5em', textAlign:"left"}}>
-        {this.props.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails.usernames[0]}</b></span>}
+        {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[0][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
         <img onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
@@ -466,7 +744,103 @@ class CommentsPopup extends Component {
         </div>
         </div>
         </div>
-        <img onClick={this.props.hideCommentsPopup} src={closePopupIcon} style={{height:'2em', width:'2em', position:'absolute', left:'110%', top:'2%', cursor:'pointer'}}/>
+        <img onClick={this.hideCommentsPopup} src={closePopupIcon} style={{height:'2em', width:'2em', position:'absolute', left:'110%', top:'2%', cursor:'pointer'}}/>
+        </div>
+    )}
+
+    {this.state.currSlideIsVid && this.state.currSlideIsVid!== null && (
+        <div>
+        <div style={{background:'white', width:'82em', height:'54em', borderStyle:'solid', borderColor:'lightgray', borderRadius:'0.5%',
+        display:'flex'}}>
+        <div onClick={this.handleClick} onDoubleClick = {this.likePost} style={{position:'absolute', top:'0%', left:'0%', width:'65%', height:'100%', backgroundColor:'black'}}>
+        <div style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
+        left: 0,}} data-vjs-player>
+        <video id="videoPlayer" src={this.state.videoUrl} ref={this.videoNode} className="video-js" width="800" height="1000">
+        <track kind="subtitles" src={frenchSubtitles} srclang="fr" label="French" />
+        </video>
+        {this.state.showLeftBanner && (<img src={rewind5Seconds} style={{height:'30%', width:'30%', objectFit:'contain', position:'absolute', top: '35%', left: '0%'}}/>)}
+        {this.state.showRightBanner && (<img src={fastForward5Seconds} style={{height:'33%', width:'33%', objectFit: 'contain', position:'absolute', top: '35%', left: '73%'}}/>)}
+        {this.state.showPauseSymbol && (<img src={pauseIcon} style={{height:'20%', width:'20%', objectFit: 'contain', position:'absolute', top: '35%', left: '38%'}}/>)}
+        {this.state.showSettingsPopup && (
+        <div style={{borderStyle: 'solid', borderWidth: '0.0001px', backgroundColor: 'rgb(0,0,0,0.2)', color: 'white', position:'absolute', top:'77%', left:'77%', width:'10%', height: '10%'}}>
+        <p onClick={this.showQuality} style={{cursor:'pointer'}}> Quality </p>
+        </div>
+        )}
+        {this.state.showQualityOptions && (
+        <div style={{borderStyle: 'solid',  borderWidth: '0.0001px', backgroundColor: 'rgb(0,0,0,0.2)', color: 'white', position:'absolute', top:'20%', left:'77%', width:'10%',
+        display: 'flex', flexDirection:'column', alignItems:'center', justifyContent:'enter'}}>
+        <p style={{cursor:'pointer'}}>8k</p>
+        <p style={{cursor:'pointer'}}>4k</p>
+        <p style={{cursor:'pointer'}}>1080p</p>
+        <p style={{cursor:'pointer'}}>720p</p>
+        <p style={{cursor:'pointer'}}>360p</p>
+        <p style={{cursor:'pointer'}}>144p</p>
+        <p style={{cursor:'pointer'}}>Auto</p>
+        </div>
+        )}
+        </div>
+        {this.state.postDetails && <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
+        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
+        <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
+        display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
+        <img src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
+        {this.state.postDetails && <PostDots numSlides={this.state.numPosts} currSlide={this.state.currSlide}/>}
+        </div>
+        <div style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'35%', height:'100%'}}>
+        <div style={{display:'flex', justifyContent:'start'}}>
+        {this.state.postDetails!==null && <StoryIcon username={this.state.postDetails[1][0].usernames[0]} ownAccount={false} unseenStory={true} isStory={false}/>}
+        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', gap:'0.2em',
+        marginTop:'-1em', marginLeft:'0.5em', textAlign:"left"}}>
+        {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[1][0].usernames[0]}</b></span>}
+        <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
+        </div>
+        <img onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        cursor:'pointer'}}/>
+        </div>
+        <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
+        <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
+        <Comment username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={0} isCaption={true} language={this.props.language} isOwn={false}/>
+        <br/>
+        {commentsByUser}
+        <Comment username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false}/>
+        <b/>
+        <Comment username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <br/>
+        <Comment username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <br/>
+        <Comment username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        </div>
+        <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
+        flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
+        <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em', marginTop:'-0.3em'}} />
+        <div style={{display:'flex'}}>
+        {!this.state.isLiked && <img onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
+        {this.state.isLiked && <img onClick={this.toggleLike} src={redHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
+        <img onClick={this.focusTextInput} src={commentIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
+        <img onClick={this.props.showSendPostPopup} src={sendIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
+        {!this.state.isSaved && <img onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
+        {this.state.isSaved && <img onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
+        </div>
+        <b style={{marginTop:'0.5em', marginLeft:'0.6em'}}>{this.state.likesText}</b>
+        <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.state.timeText}</p>
+        <div style={{display:'flex', justifyItems: 'center'}}>
+        <textarea  type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
+        marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
+        placeholder={this.state.addCommentText} onKeyDown={this.handleKeyDown}/>
+        {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
+        fontSize:'1.1em', marginLeft:'1.7em'}}>{this.state.postText}</span>}
+        </div>
+        </div>
+        </div>
+        </div>
+        <img onClick={this.hideCommentsPopup} src={closePopupIcon} style={{height:'2em', width:'2em', position:'absolute', left:'110%', top:'2%', cursor:'pointer'}}/>
+        </div>
+    )}
         </React.Fragment>);
     };
 }

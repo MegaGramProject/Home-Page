@@ -563,7 +563,6 @@ class MediaPost extends Component {
 
     showNextSlide = () => {
         let nextSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide+1));
-        console.log(nextSlideIsVid);
         if (nextSlideIsVid) {
             this.setState({
                 videoUrl: this.slideToVideoUrlMapping[this.state.currSlide+1],
@@ -600,15 +599,6 @@ class MediaPost extends Component {
         }
     };
 
-    arrayBufferToBase64(buffer) {
-        let binary = '';
-        let bytes = new Uint8Array(buffer);
-        let len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return window.btoa(binary);
-    }
 
     toggleTags = () => {
         this.setState({showTags: !this.state.showTags});
