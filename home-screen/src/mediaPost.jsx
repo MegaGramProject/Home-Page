@@ -45,6 +45,7 @@ class MediaPost extends Component {
             showSettingsPopup: false,
             showRightBanner: false,
             showLeftBanner: false,
+            postId: "",
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
@@ -370,7 +371,8 @@ class MediaPost extends Component {
                 currSlideIsVid: currSlideIsVid,
                 locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
                 timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
-                numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length
+                numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
+                postId: currSlideIsVid ? this.props.postDetails[1][0].overallPostId : this.props.postDetails[0][0].id
 
             });
         }
@@ -915,7 +917,7 @@ class MediaPost extends Component {
         display: !this.state.isSaved ? 'none' : 'inline-block'}}/>
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
-        <b style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
+        <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
         {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[0][0].usernames[0]}</b>}
         <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
         {this.props.postDetails && <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
@@ -1001,7 +1003,7 @@ class MediaPost extends Component {
         display: !this.state.isSaved ? 'none' : 'inline-block'}}/>
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
-        <b style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
+        <b onClick={()=>{this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
         {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[1][0]['usernames'][0]}</b>}
         <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
         <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,

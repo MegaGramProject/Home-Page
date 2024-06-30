@@ -9,6 +9,7 @@ import SendPostPopup from './sendPostPopup';
 import StoryIcon from "./storyIcon";
 import './styles.css';
 import ThreeDotsPopup from './threeDotsPopup';
+import PostLikersPopup from './postLikersPopup';
 import UserBar from "./userBar";
 
 
@@ -39,6 +40,8 @@ class App extends Component {
         post4Details: null,
         post5Details: null,
         focusedComponent: null,
+        showPostLikersPopup: false,
+        postLikersPopupPostId: ''
         };
 
     };
@@ -331,13 +334,27 @@ class App extends Component {
         this.setState({focusedComponent: id });
     };
 
+    closePostLikersPopup = () => {
+        this.setState({
+            showPostLikersPopup: false
+        });
+    }
+
+    showPostLikersPopup = (postId) => {
+        this.setState({
+            showPostLikersPopup: true,
+            postLikersPopupPostId: postId,
+        });
+    }
+
+
 
 
     render() {
         return (
         <React.Fragment>
-        <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup || this.state.showSendPostPopup ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
-        this.state.showCommentsPopup || this.state.showSendPostPopup ? 'none' : 'auto'}}>
+        <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
+        this.state.showCommentsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup ? 'none' : 'auto'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
         <LeftSidebar username={"rishavry"} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
@@ -358,19 +375,24 @@ class App extends Component {
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
         <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
-        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}/>
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}
+        showPostLikersPopup={this.showPostLikersPopup}/>
         <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
-        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}/>
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}
+        showPostLikersPopup={this.showPostLikersPopup}/>
         <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
-        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}/>
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}
+        showPostLikersPopup={this.showPostLikersPopup}/>
         <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
-        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}/>
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}
+        showPostLikersPopup={this.showPostLikersPopup}/>
         <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language} numLikes={314} numComments={24}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
-        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}/>
+        showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}
+        showPostLikersPopup={this.showPostLikersPopup}/>
         </div>
         </div>
         <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
@@ -398,19 +420,24 @@ class App extends Component {
         </div>
 
         <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
-        opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
-        this.state.showSendPostPopup ? 'none' : 'auto'}}>
+        opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
+        this.state.showSendPostPopup || this.state.showPostLikersPopup ? 'none' : 'auto'}}>
         <CommentsPopup id={6} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  togglePopup={this.state.commentsPopupIsAd ? this.toggleAdPopup : this.togglePostPopup}
         isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}
-        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==6}/>
+        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==6}  showPostLikersPopup={this.showPostLikersPopup}/>
         </div>
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>
         <SendPostPopup language={this.state.language} closePopup={this.closeSendPostPopup}/>
         </div>
+
+        <div style={{position:'fixed', left:'30%', top:'8%', display:this.state.showPostLikersPopup ? 'inline-block' : 'none'}}>
+        <PostLikersPopup language={this.state.language} closePopup={this.closePostLikersPopup} postId={this.state.postLikersPopupPostId}/>
+        </div>
+
 
 
         </React.Fragment>);
