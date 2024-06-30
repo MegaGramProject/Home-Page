@@ -806,6 +806,13 @@ class MediaPost extends Component {
     }
 
 
+    postComment = () => {
+        this.setState({comment: "", sendComment: false});
+        //TODO
+
+    }
+
+
     render() {
         let currPost = "";
         if (this.props.postDetails !== null) {
@@ -928,7 +935,7 @@ class MediaPost extends Component {
         <textarea type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
         borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
         placeholder={this.state.addACommentText}/>
-        <span style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
+        <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
         fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
         </div>
         </div>
@@ -1014,7 +1021,7 @@ class MediaPost extends Component {
         <textarea type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
         borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
         placeholder={this.state.addACommentText}/>
-        <span style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
+        <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
         fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
         </div>
         </div>

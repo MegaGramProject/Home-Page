@@ -79,7 +79,7 @@ class App extends Component {
             commentsPopupCurrSlide: currSlide,
             commentsPopupIsLiked: isLiked,
             commentsPopupIsAd: isAd,
-            commentsPopupIsSaved: isSaved
+            commentsPopupIsSaved: isSaved,
         });
     };
 

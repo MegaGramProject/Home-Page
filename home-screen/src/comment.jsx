@@ -22,9 +22,14 @@ class Comment extends Component {
             deleteText: "Delete",
             error: null,
             profilePhoto: null,
-            profilePhotoLoading: true
-
+            profilePhotoLoading: true,
+            editMode: false,
+            commentText: this.props.comment,
+            showSave: true,
+            commentText2: "",
+            isEdited: false,
         };
+        this.textInput = React.createRef();
     };
 
     translateTextPromise = async function(text, language1, language2){
@@ -346,6 +351,54 @@ class Comment extends Component {
         }
     }
 
+    turnOnEditMode = () => {
+        this.setState({
+            editMode: true,
+            commentText2: this.state.commentText
+        });
+    }
+
+    saveEditedComment = () => {
+        if(!this.state.isEdited) {
+            if(this.state.commentText2!== this.state.commentText) {
+                this.setState({
+                    isEdited: true,
+                    editMode: false,
+                    commentText: this.state.commentText2,
+                    commentText2: "",
+                });
+            }
+            else {
+                this.setState({
+                    editMode: false,
+                    commentText: this.state.commentText2,
+                    commentText2: "",
+                });
+            }
+        }
+        else {
+            this.setState({
+                editMode: false,
+                commentText: this.state.commentText2,
+                commentText2: "",
+            });
+        }
+    }
+
+    handleCommentChange = (event) => {
+        if (event.target.value.length > 0) {
+            this.setState({
+                commentText2: event.target.value,
+                showSave: true
+            });
+        }
+        else {
+            this.setState({
+                commentText2: event.target.value,
+                showSave: false
+            });
+        }
+    };
 
 
     render() {
@@ -367,25 +420,33 @@ class Comment extends Component {
         {(this.state.profilePhotoLoading || this.state.error) && (  <img src={moreIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         <div onDoubleClick={this.likeComment} style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
         <b>{this.props.username}</b>
-        <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{this.props.comment}</p>
+        {!this.state.editMode && <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{this.state.commentText}</p>}
+        {this.state.editMode &&  <textarea type="text" ref={this.textInput} value={this.state.commentText2} onChange={this.handleCommentChange} style={{paddingTop: '0.3em', fontSize: '1em',
+        marginTop:'0em', width:'21em', marginLeft:'0em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial', resize:'true'}}
+        placeholder={'Edit comment...'}/>}
         {this.props.isOwn && this.props.isCaption && (
         <p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
         {this.state.timeText}
         <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Edit</span>
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Delete</span>
+        <span onClick={() => {this.props.deleteComment(this.props.id)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Delete</span>
         </p>)}
         {this.props.isOwn && !this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
         {this.state.timeText}
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em'}}>{this.state.likesText}</span>
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.editText}</span>
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.deleteText}</span>
+        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em', cursor:'pointer'}}>{this.state.likesText}</span>
+        {!this.state.editMode && <span onClick={this.turnOnEditMode} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.editText}</span>}
+        {this.state.editMode && this.state.showSave && <span onClick={this.saveEditedComment} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Save</span>}
+        <span onClick={() => {this.props.deleteComment(this.props.id)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.deleteText}</span>
         </p>)}
         {!this.props.isOwn && this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
         {this.state.timeText}</p>)}
         {!this.props.isOwn && !this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
         {this.state.timeText}
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em'}}>{this.state.likesText}</span>
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold'}}>{this.state.replyText}</span>
+        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em', cursor:'pointer'}}>{this.state.likesText}</span>
+        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', cursor:'pointer'}}>{this.state.replyText}</span>
         </p>)}
 
         {this.state.replies.length > 0 && !this.state.showReplies && (

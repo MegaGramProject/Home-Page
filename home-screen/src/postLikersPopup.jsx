@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
-import closePopupIcon from './images/closePopupIcon.png';
 import FollowUser from './followUser';
+import closePopupIcon from './images/closePopupIcon.png';
 import './styles.css';
 
 class PostLikersPopup extends Component {

@@ -21,6 +21,7 @@ import PostDots from './postDots';
 import StoryIcon from './storyIcon';
 import './styles.css';
 import frenchSubtitles from './subtitles_fr.vtt';
+import { v4 as uuidv4 } from 'uuid';
 
 class CommentsPopup extends Component {
     constructor(props) {
@@ -48,6 +49,7 @@ class CommentsPopup extends Component {
             showLeftBanner: false,
             postDetails: null,
             playerInitialized: false,
+            postId: "",
 
         };
         this.textInput = React.createRef();
@@ -268,6 +270,7 @@ class CommentsPopup extends Component {
                     currSlide: this.props.currSlide,
                     postDetails: this.props.postDetails,
                     videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
+                    postId: this.props.postDetails[1][0].overallPostId,
                 });
             }
             else {
@@ -282,7 +285,8 @@ class CommentsPopup extends Component {
                     numLikes: this.props.numLikes,
                     currSlide: this.props.currSlide,
                     postDetails: this.props.postDetails,
-                    currPost: currPost
+                    currPost: currPost,
+                    postId: this.props.postDetails[0][0].id,
                 });
 
             }
@@ -647,9 +651,15 @@ class CommentsPopup extends Component {
 
     postComment = () => {
         this.setState({
-        commentsSent: [...this.state.commentsSent, this.state.comment],
+        commentsSent: [...this.state.commentsSent, [uuidv4(), this.state.comment]],
         comment: "",
         sendComment: false,
+        });
+    }
+
+    deleteComment = (id) => {
+        this.setState({
+            commentsSent: this.state.commentsSent.filter(x => x[0]!==id)
         });
     }
 
@@ -744,7 +754,7 @@ class CommentsPopup extends Component {
 
     hideCommentsPopup = () => {
         this.slideToVideoUrlMapping = {};
-        this.setState({postDetails: null, videoUrl: "", currPost: ""});
+        this.setState({postDetails: null, videoUrl: "", currPost: "", postId: ""});
         this.props.hideCommentsPopup();
     }
 
@@ -778,8 +788,8 @@ class CommentsPopup extends Component {
     render() {
         const commentsByUser = [];
         for (let i = this.state.commentsSent.length-1; i > -1; i--) {
-                commentsByUser.push(<Comment username={'rishavry7'} time={'15s'} comment={this.state.commentsSent[i]}
-                numLikes={13} isCaption={false} language={this.props.language} isOwn={true}/>);
+                commentsByUser.push(<Comment username={'rishavry'} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
+                numLikes={0} isCaption={false} language={this.props.language} isOwn={true} deleteComment={this.deleteComment}/>);
                 commentsByUser.push(<br/>);
         }
 
@@ -902,7 +912,7 @@ class CommentsPopup extends Component {
         {!this.state.isSaved && <img onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
         {this.state.isSaved && <img onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
         </div>
-        <b onClick={this.props.showPostLikersPopup} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
+        <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
         <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.state.timeText}</p>
         <div style={{display:'flex', justifyItems: 'center'}}>
         <textarea  type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
@@ -1003,12 +1013,12 @@ class CommentsPopup extends Component {
         {!this.state.isSaved && <img onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
         {this.state.isSaved && <img onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
         </div>
-        <b onClick={this.props.showPostLikersPopup} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
+        <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
         <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.state.timeText}</p>
         <div style={{display:'flex', justifyItems: 'center'}}>
         <textarea  type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
         marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
-        placeholder={this.state.addCommentText} onKeyDown={this.handleKeyDown}/>
+        placeholder={this.state.addCommentText}/>
         {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
         fontSize:'1.1em', marginLeft:'1.7em'}}>{this.state.postText}</span>}
         </div>
