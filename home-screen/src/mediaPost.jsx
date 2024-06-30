@@ -26,8 +26,7 @@ class MediaPost extends Component {
         this.state = {
             isLiked: false,
             isSaved: false,
-            numLikes: 314,
-            originalLikes: 314,
+            numLikes: 0,
             caption: "What a wonderful time to be alive, init?",
             comment: "",
             sendComment: false,
@@ -359,6 +358,14 @@ class MediaPost extends Component {
                     this.fetchVideos();
             }
             let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide));
+            if(!currSlideIsVid) {
+                this.fetchLikes(this.props.postDetails[0][0].id);
+                this.checkIfSaved(this.props.postDetails[0][0].id);
+            }
+            else {
+                this.fetchLikes(this.props.postDetails[1][0].overallPostId);
+                this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
+            }
             this.setState({
                 currSlideIsVid: currSlideIsVid,
                 locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
@@ -521,34 +528,166 @@ class MediaPost extends Component {
 
 
 
-    toggleHeart = () => {
+    toggleHeart = async () => {
         if (this.state.isLiked) {
-            this.setState(
-                {isLiked: false,
-                likesText: (this.state.numLikes-1) + ' likes',
-                numLikes: this.state.numLikes-1,
-            });
+            try {
+                if(!this.state.currSlideIsVid) {
+                    const response = await fetch('http://localhost:8004/removeLike/'+this.props.postDetails[0][0].id, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                }
+                else {
+                    const response = await fetch('http://localhost:8004/removeLike/'+this.props.postDetails[1][0].overallPostId, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                }
+                
+                this.setState(
+                    {isLiked: false,
+                    likesText: (this.state.numLikes-1) + ' likes',
+                    numLikes: this.state.numLikes-1,
+                });
+            }
+            catch (error) {
+                console.error('Error:', error);
+            }
         }
         else {
-            this.setState(
-                {isLiked: true,
-                likesText: (this.state.numLikes+1) + ' likes',
-                numLikes: this.state.numLikes+1,
-            });
-
+            this.likePost();
         }
     }
 
-    toggleSave = () => {
-        this.setState({isSaved: !this.state.isSaved});
+    toggleSave = async () => {
+        if(!this.state.isSaved) {
+            try {
+                if(!this.state.currSlideIsVid) {
+                    const response = await fetch('http://localhost:8004/addSave/'+this.props.postDetails[0][0].id, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                
+                }
+                else {
+                    const response = await fetch('http://localhost:8004/addSave/'+this.props.postDetails[1][0].overallPostId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                }
+                this.setState({
+                    isSaved: true
+                });
+            }
+            catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        else {
+            try {
+                if(!this.state.currSlideIsVid) {
+                    const response = await fetch('http://localhost:8004/removeSave/'+this.props.postDetails[0][0].id, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                }
+                else {
+                    const response = await fetch('http://localhost:8004/removeSave/'+this.props.postDetails[1][0].overallPostId, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                }
+                this.setState({isSaved: false});
+            }
+            catch (error) {
+                console.error('Error:', error);
+            }
+        }
     }
     
-    likePost = () => {
-        this.setState(
-            {isLiked: true,
-            likesText: (this.state.originalLikes+1) + ' likes',
-            numLikes: this.state.originalLikes+1});
+    likePost = async () => {
+        if(!this.state.isLiked) {
+            try {
+                if(!this.state.currSlideIsVid) {
+                    const response = await fetch('http://localhost:8004/addLike/'+this.props.postDetails[0][0].id, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                
+                }
+                else {
+                    const response = await fetch('http://localhost:8004/addLike/'+this.props.postDetails[1][0].overallPostId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username: 'rishavry' }),
+                    });
+                    if(!response.ok) {
+                        console.error('Network response was not ok');
+                    }
+                    const output = await response.json();
+                }
+                this.setState(
+                    {isLiked: true,
+                    likesText: (this.state.numLikes+1) + ' likes',
+                    numLikes: this.state.numLikes+1});
+            }
+            catch (error) {
+                console.error('Error:', error);
+            }
+        }
     }
+    
     
     handleCommentChange = (event) => {
         if (event.target.value.length > 0) {
@@ -626,6 +765,44 @@ class MediaPost extends Component {
     
     }
 
+    async fetchLikes(postId) {
+        const response = await fetch(`http://localhost:8004/getLikes/${postId}`);
+        if(!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const usersThatLiked = await response.json();
+        let isLiked = false;
+        for(let i of usersThatLiked) {
+            if(i['username']==="rishavry") {
+                isLiked = true;
+                break;
+            }
+        }
+        this.setState({
+            numLikes: usersThatLiked.length,
+            likesText:  usersThatLiked.length + " likes",
+            isLiked: isLiked
+        });
+    }
+
+    async checkIfSaved(postId) {
+        const response = await fetch(`http://localhost:8004/getSaves/${postId}`);
+        if(!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const usersThatSaved = await response.json();
+        let isSaved = false;
+        for(let i of usersThatSaved) {
+            if(i['username']==="rishavry") {
+                isSaved = true;
+                break;
+            }
+        }
+        this.setState({
+            isSaved: isSaved
+        });
+    }
+
 
     render() {
         let currPost = "";
@@ -671,7 +848,6 @@ class MediaPost extends Component {
                     }
                 }
                 for (let i of taggedAccounts) {
-                    console.log(i)
                     shownTags.push(
                         <div style={{
                             width:'90%',
@@ -805,6 +981,7 @@ class MediaPost extends Component {
         <div style={{position:'absolute', top:'72%', left:'25%', width:'50%', height:'20%', display:'flex',
         flexDirection:'column', alignItems:'start', backgroundColor:'white', overflow:'scroll', borderRadius:'5%', paddingTop:'1%'}}>
         <b style={{marginLeft:'30%'}}>Tagged Accounts</b>
+        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
         {shownTags}
         </div>
         }
