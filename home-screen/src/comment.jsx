@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import blankHeart from './images/blankHeartIcon.png';
-import profileIcon from './images/profileIcon.png';
 import moreIcon from './images/moreIcon.png';
 import redHeart from './images/redHeartIcon.png';
 import './styles.css';
@@ -446,7 +445,7 @@ class Comment extends Component {
         {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
         {this.state.timeText}
         <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em', cursor:'pointer'}}>{this.state.likesText}</span>
-        <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', cursor:'pointer'}}>{this.state.replyText}</span>
+        <span onClick={()=>{this.props.toggleReply(this.props.id, this.props.comment, this.props.username)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', cursor:'pointer'}}>{this.state.replyText}</span>
         </p>)}
 
         {this.state.replies.length > 0 && !this.state.showReplies && (

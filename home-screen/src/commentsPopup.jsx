@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import Comment from './comment';
@@ -21,7 +22,6 @@ import PostDots from './postDots';
 import StoryIcon from './storyIcon';
 import './styles.css';
 import frenchSubtitles from './subtitles_fr.vtt';
-import { v4 as uuidv4 } from 'uuid';
 
 class CommentsPopup extends Component {
     constructor(props) {
@@ -34,6 +34,7 @@ class CommentsPopup extends Component {
             currSlide: 0,
             isSaved: false,
             commentsSent: [],
+            repliesSent: [],
             likesText: "",
             timeText: "",
             addCommentText: "Add a comment...",
@@ -50,7 +51,10 @@ class CommentsPopup extends Component {
             postDetails: null,
             playerInitialized: false,
             postId: "",
-
+            replyToUsername: "",
+            replyToCommentId: "",
+            replyToComment: "",
+            focusedOnComment: false
         };
         this.textInput = React.createRef();
         this.videoNode = React.createRef();
@@ -271,6 +275,8 @@ class CommentsPopup extends Component {
                     postDetails: this.props.postDetails,
                     videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
                     postId: this.props.postDetails[1][0].overallPostId,
+                    commentsSent: [],
+                    repliesSent: [],
                 });
             }
             else {
@@ -287,6 +293,8 @@ class CommentsPopup extends Component {
                     postDetails: this.props.postDetails,
                     currPost: currPost,
                     postId: this.props.postDetails[0][0].id,
+                    commentsSent: [],
+                    repliesSent: [],
                 });
 
             }
@@ -650,17 +658,36 @@ class CommentsPopup extends Component {
     };
 
     postComment = () => {
-        this.setState({
-        commentsSent: [...this.state.commentsSent, [uuidv4(), this.state.comment]],
-        comment: "",
-        sendComment: false,
-        });
+        if(this.state.replyToCommentId.length==0) {
+            this.setState({
+                commentsSent: [...this.state.commentsSent, [uuidv4(), this.state.comment]],
+                comment: "",
+                sendComment: false,
+                });
+        }
+        else {
+            this.setState({
+                repliesSent: [...this.state.repliesSent, [uuidv4(), this.state.comment, this.state.replyToUsername, this.state.replyToComment]],
+                comment: "",
+                sendComment: false,
+                addCommentText: "Add a comment...",
+                replyToCommentId: "",
+                replyToComment: "",
+                replyToUsername: "",
+            })
+        }
     }
 
     deleteComment = (id) => {
         this.setState({
             commentsSent: this.state.commentsSent.filter(x => x[0]!==id)
         });
+    }
+
+    deleteReply = (id) => {
+        this.setState({
+            repliesSent: this.state.repliesSent.filter(x=> x[0]!==id)
+        })
     }
 
     handleKeyDown = (event) => {
@@ -677,7 +704,7 @@ class CommentsPopup extends Component {
             }
         }
         else {
-            if (this.props.isFocused) {
+            if (this.props.isFocused && !this.state.focusedOnComment) {
                 const player = this.player;
                 if (!player) return;
                 switch(event.key) {
@@ -745,6 +772,7 @@ class CommentsPopup extends Component {
 
 
     handleClick = () => {
+        this.setState({focusedOnComment: false});
         this.props.onFocus(this.props.id);
     }
     
@@ -782,17 +810,61 @@ class CommentsPopup extends Component {
     
     }
 
+    toggleReply = (commentId, comment, username) => {
+        if(this.state.replyToCommentId.length==0) {
+            this.setState({
+                replyToCommentId: commentId,
+                replyToComment: comment,
+                replyToUsername: username,
+                addCommentText: "Replying to " + username + "..."
+            });
+        }
+        else{
+            if(commentId!==this.state.replyToCommentId) {
+                this.setState({
+                    replyToCommentId: commentId,
+                    replyToComment: comment,
+                    replyToUsername: username,
+                    addCommentText: "Replying to " + username + "..."
+                });
+            }
+            else {
+                this.setState({
+                    replyToCommentId: "",
+                    replyToComment: "",
+                    replyToUsername: "",
+                    addCommentText: "Add a comment..."
+                });
+            }
+        }
+    }
+
+    setCommentFocus = () => {
+        this.setState({
+            focusedOnComment: true
+        });
+    }
+
 
 
 
     render() {
         const commentsByUser = [];
-        for (let i = this.state.commentsSent.length-1; i > -1; i--) {
+        for (let i = 0; i < this.state.commentsSent.length; i++) {
                 commentsByUser.push(<Comment username={'rishavry'} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
                 numLikes={0} isCaption={false} language={this.props.language} isOwn={true} deleteComment={this.deleteComment}/>);
                 commentsByUser.push(<br/>);
         }
 
+
+        const repliesByUser = [];
+        for (let j = 0; j < this.state.repliesSent.length; j++) {
+            repliesByUser.push(<Comment username={'rishavry'} id={this.state.repliesSent[j][0]} time={'1s'}
+            comment={"(Your reply to @" + this.state.repliesSent[j][2] + ", who commented: '" + this.state.repliesSent[j][3] + "')\n" +
+            this.state.repliesSent[j][1]}
+            numLikes={0} isCaption={false} language={this.props.language} isOwn={true} deleteComment={this.deleteReply}/>);
+            repliesByUser.push(<br/>);
+        }
 
         let shownTags = [];
         if (this.state.postDetails!==null && this.state.showTags) {
@@ -885,21 +957,22 @@ class CommentsPopup extends Component {
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
-        <Comment username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={0} isCaption={true} language={this.props.language} isOwn={false}/>
+        <Comment id={1} username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={0} isCaption={true} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <br/>
         {commentsByUser}
-        <Comment username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false}/>
+        {repliesByUser}
+        <Comment id={2} username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <b/>
-        <Comment username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <Comment id={3} username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <br/>
-        <Comment username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <Comment id={4} username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <br/>
-        <Comment username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <Comment id={5} username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
@@ -986,21 +1059,22 @@ class CommentsPopup extends Component {
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
-        <Comment username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        <Comment id={1} username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
         numLikes={0} isCaption={true} language={this.props.language} isOwn={false}/>
         <br/>
         {commentsByUser}
-        <Comment username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false}/>
+        {repliesByUser}
+        <Comment id={2} username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <b/>
-        <Comment username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <Comment id={3} username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <br/>
-        <Comment username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <Comment id={4} username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         <br/>
-        <Comment username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false}/>
+        <Comment id={5} username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
@@ -1016,7 +1090,7 @@ class CommentsPopup extends Component {
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
         <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.state.timeText}</p>
         <div style={{display:'flex', justifyItems: 'center'}}>
-        <textarea  type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
+        <textarea onClick={this.setCommentFocus} type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
         marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
         placeholder={this.state.addCommentText}/>
         {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
