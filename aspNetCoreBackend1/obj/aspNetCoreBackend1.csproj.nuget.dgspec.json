@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/rishavr/aspNetCoreBackend1/aspNetCoreBackend1.csproj": {}
+    "/Users/rishavr/Home-Screen/aspNetCoreBackend1/aspNetCoreBackend1.csproj": {}
   },
   "projects": {
-    "/Users/rishavr/aspNetCoreBackend1/aspNetCoreBackend1.csproj": {
+    "/Users/rishavr/Home-Screen/aspNetCoreBackend1/aspNetCoreBackend1.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/rishavr/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
+        "projectUniqueName": "/Users/rishavr/Home-Screen/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
         "projectName": "aspNetCoreBackend1",
-        "projectPath": "/Users/rishavr/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
+        "projectPath": "/Users/rishavr/Home-Screen/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
         "packagesPath": "/Users/rishavr/.nuget/packages/",
-        "outputPath": "/Users/rishavr/aspNetCoreBackend1/obj/",
+        "outputPath": "/Users/rishavr/Home-Screen/aspNetCoreBackend1/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/rishavr/.nuget/NuGet/NuGet.Config"

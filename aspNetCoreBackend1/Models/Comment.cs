@@ -5,11 +5,11 @@ namespace Megagram.Models;
 public class Comment
 {
     [Key]
-    public string commentId { get; set; }
+    public string commentid { get; set; }
     public string username { get; set; }
-    public DateTime dateTime { get; set; }
-    public Boolean isEdited { get; set; }
+    public DateTime datetime { get; set; }
+    public Boolean isedited { get; set; }
     public string comment { get; set; }
-    public string postId { get; set; }
+    public string postid { get; set; }
 
 }

@@ -13,6 +13,7 @@ builder.Services.AddDbContext<MegaDbContext>(options =>
 
 builder.Services.AddGraphQLServer()
     .AddQueryType<QueryProvider>()
+    .AddMutationType<MutationProvider>()
     .AddProjections()
     .AddFiltering()
     .AddSorting();
