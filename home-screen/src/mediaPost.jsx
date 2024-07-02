@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import backArrow from "./images/backArrow.png";
@@ -33,7 +34,7 @@ class MediaPost extends Component {
             timeText: '',
             locationText: '',
             likesText: this.props.numLikes + ' likes',
-            viewAllCommentsText: 'View all ' + this.props.numComments + ' comments',
+            viewAllCommentsText: 'View all comments',
             addACommentText: 'Add a comment...',
             postText: 'Post',
             currSlide: 0,
@@ -806,9 +807,40 @@ class MediaPost extends Component {
     }
 
 
-    postComment = () => {
-        this.setState({comment: "", sendComment: false});
-        //TODO
+    postComment = async () => {
+        try {
+            let currentDate = new Date();
+            const data = `
+            mutation {
+                addComment(
+                commentid: "${uuidv4()}"
+                comment: "${this.state.comment}"
+                datetime: "${currentDate.toISOString()}"
+                isedited: false
+                postid: "${this.state.postId}"
+                username: "rishavry"
+                ) {
+                commentid
+                }
+            }`;
+
+            const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: data })
+            };
+            const response = await fetch('http://localhost:5022/graphql', options);
+            if (!response.ok) {
+                throw new Error("Error sending comment");
+            }
+            const responseData = await response.json();
+            this.setState({comment: "", sendComment: false});
+        }
+        catch (error) {
+            console.error(error);
+        }
 
     }
 

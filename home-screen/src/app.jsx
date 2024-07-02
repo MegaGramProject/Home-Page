@@ -373,23 +373,23 @@ class App extends Component {
         left:'-7.5%', top:'3%', cursor:'pointer'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
-        <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language} numLikes={314} numComments={24}
+        <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}
         showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language} numLikes={314} numComments={24}
+        <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}
         showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language} numLikes={314} numComments={24}
+        <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language}
         togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}
         showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language} numLikes={314} numComments={24}
+        <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language}
         togglePopup={this.toggleAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}
         showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language} numLikes={314} numComments={24}
+        <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language}
         togglePopup={this.togglePostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}
         showPostLikersPopup={this.showPostLikersPopup}/>

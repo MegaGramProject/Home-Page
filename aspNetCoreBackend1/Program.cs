@@ -4,12 +4,22 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
+builder.Services.AddCors(options =>
+        {
+        options.AddPolicy("AllowSpecificOrigin",
+                builder =>
+                {
+                    builder.WithOrigins("http://localhost:3100")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+        });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<MegaDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<MegaDbContext>();
 
 builder.Services.AddGraphQLServer()
     .AddQueryType<QueryProvider>()
@@ -21,6 +31,13 @@ builder.Services.AddGraphQLServer()
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["Cache-Control"] = "no-store";
+    await next();
+});
+app.UseCors("AllowSpecificOrigin");
+
 
 if (app.Environment.IsDevelopment())
 {
@@ -28,7 +45,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseAuthorization();
 //app.MapControllers();
 

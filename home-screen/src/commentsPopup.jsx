@@ -54,7 +54,10 @@ class CommentsPopup extends Component {
             replyToUsername: "",
             replyToCommentId: "",
             replyToComment: "",
-            focusedOnComment: false
+            focusedOnComment: false,
+            comments: [],
+            replies: [],
+            commentLikes: [],
         };
         this.textInput = React.createRef();
         this.videoNode = React.createRef();
@@ -264,6 +267,10 @@ class CommentsPopup extends Component {
             }
             let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.props.currSlide));
             if(currSlideIsVid) {
+                await this.fetchComments(this.props.postDetails[1][0].overallPostId);
+                await this.fetchReplies(this.props.postDetails[1][0].overallPostId);
+                await this.fetchCommentLikes(this.props.postDetails[1][0].overallPostId);
+
                 this.setState({
                     currSlideIsVid: currSlideIsVid,
                     locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
@@ -282,6 +289,9 @@ class CommentsPopup extends Component {
             else {
                 const x = this.props.postDetails[0][0].slides.indexOf(this.props.currSlide);
                 const currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
+                await this.fetchComments(this.props.postDetails[0][0].id);
+                await this.fetchReplies(this.props.postDetails[0][0].id);
+                await this.fetchCommentLikes(this.props.postDetails[0][0].id);
                 this.setState({
                     currSlideIsVid: currSlideIsVid,
                     locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
@@ -657,38 +667,95 @@ class CommentsPopup extends Component {
         this.textInput.current.focus();
     };
 
-    postComment = () => {
+    postComment = async () => {
         if(this.state.replyToCommentId.length==0) {
-            this.setState({
-                commentsSent: [...this.state.commentsSent, [uuidv4(), this.state.comment]],
-                comment: "",
-                sendComment: false,
-                });
+                try {
+                    let currentDate = new Date();
+                    const data = `
+                    mutation {
+                        addComment(
+                        commentid: "${uuidv4()}"
+                        comment: "${this.state.comment}"
+                        datetime: "${currentDate.toISOString()}"
+                        isedited: false
+                        postid: "${this.state.postId}"
+                        username: "rishavry"
+                        ) {
+                        commentid
+                        }
+                    }`;
+        
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    const response = await fetch('http://localhost:5022/graphql', options);
+                    if (!response.ok) {
+                        throw new Error("Error sending comment");
+                    }
+                    const responseData = await response.json();
+                    this.setState({
+                        commentsSent: [...this.state.commentsSent, [uuidv4(), this.state.comment]],
+                        comment: "",
+                        sendComment: false,
+                        });
+                }
+                catch (error) {
+                    console.error(error);
+                }
+
         }
         else {
-            this.setState({
-                repliesSent: [...this.state.repliesSent, [uuidv4(), this.state.comment, this.state.replyToUsername, this.state.replyToComment]],
-                comment: "",
-                sendComment: false,
-                addCommentText: "Add a comment...",
-                replyToCommentId: "",
-                replyToComment: "",
-                replyToUsername: "",
-            })
+            try {
+                let currentDate = new Date();
+                let replyId = uuidv4();
+                const data = `
+                mutation {
+                    addReply(
+                    commentid: "${this.state.replyToCommentId}"
+                    replyid: "${replyId}"
+                    postid: "${this.state.postId}"
+                    comment: "${this.state.comment}"
+                    datetime: "${currentDate.toISOString()}"
+                    isedited: false
+                    username: "rishavry"
+                    ) {
+                    commentid
+                    }
+                }`;
+    
+                const options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: data })
+                };
+                const response = await fetch('http://localhost:5022/graphql', options);
+                if (!response.ok) {
+                    throw new Error("Error sending reply");
+                }
+                const responseData = await response.json();
+                this.setState({
+                    repliesSent: [...this.state.repliesSent, [replyId, this.state.comment, this.state.replyToUsername, this.state.replyToComment]],
+                    comment: "",
+                    sendComment: false,
+                    addCommentText: "Add a comment...",
+                    replyToCommentId: "",
+                    replyToComment: "",
+                    replyToUsername: "",
+                });
+            }
+            catch (error) {
+                console.error(error);
+            }
+            
         }
     }
 
-    deleteComment = (id) => {
-        this.setState({
-            commentsSent: this.state.commentsSent.filter(x => x[0]!==id)
-        });
-    }
-
-    deleteReply = (id) => {
-        this.setState({
-            repliesSent: this.state.repliesSent.filter(x=> x[0]!==id)
-        })
-    }
 
     handleKeyDown = (event) => {
         if(!this.state.currSlideIsVid) {
@@ -782,7 +849,8 @@ class CommentsPopup extends Component {
 
     hideCommentsPopup = () => {
         this.slideToVideoUrlMapping = {};
-        this.setState({postDetails: null, videoUrl: "", currPost: "", postId: ""});
+        this.setState({postDetails: null, videoUrl: "", currPost: "", postId: "", comments: [], replies: [], commentLikes: [],
+        commentsSent:[], repliesSent:[]});
         this.props.hideCommentsPopup();
     }
 
@@ -809,6 +877,107 @@ class CommentsPopup extends Component {
         }
     
     }
+
+    async fetchComments(overallPostId) {
+        const data = `
+        query {
+            comments(where: { postid: { eq: "${overallPostId}" } }) {
+            comment
+            commentid
+            datetime
+            isedited
+            username
+            }
+        }
+        `;
+
+        const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: data })
+        };
+
+        try {
+        const response = await fetch('http://localhost:5022/graphql', options);
+        if (!response.ok) {
+            throw new Error("Error fetching comments");
+        }
+        const responseData = await response.json();
+        this.setState({comments: responseData['data']['comments']});
+        }
+        catch (error) {
+        console.error(error);
+        }
+    }
+
+    async fetchReplies(overallPostId) {
+        const data = `
+        query {
+            replies(where: { postid: { eq: "${overallPostId}" } }) {
+            replyid
+            comment
+            commentid
+            datetime
+            isedited
+            username
+            }
+        }
+        `;
+
+        const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: data })
+        };
+
+        try {
+        const response = await fetch('http://localhost:5022/graphql', options);
+        if (!response.ok) {
+            throw new Error("Error fetching replies");
+        }
+        const responseData = await response.json();
+        this.setState({replies: responseData['data']['replies']});
+        }
+        catch (error) {
+        console.error(error);
+        }
+    }
+
+    async fetchCommentLikes(overallPostId) {
+        const data = `
+        query {
+            commentLikes(where: { postid: { eq: "${overallPostId}" } }) {
+            username
+            commentid
+            }
+        }
+        `;
+
+        const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: data })
+        };
+
+        try {
+        const response = await fetch('http://localhost:5022/graphql', options);
+        if (!response.ok) {
+            throw new Error("Error fetching commentLikes");
+        }
+        const responseData = await response.json();
+        this.setState({commentLikes: responseData['data']['commentLikes']});
+        }
+        catch (error) {
+        console.error(error);
+        }
+    }
+
 
     toggleReply = (commentId, comment, username) => {
         if(this.state.replyToCommentId.length==0) {
@@ -845,25 +1014,115 @@ class CommentsPopup extends Component {
         });
     }
 
+    deleteComment = async (commentId) => {
+        try {
+            const data = `
+            mutation {
+                removeComment (
+                commentid: "${commentId}"
+                ) {
+                }
+            }`;
+            const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: data })
+            };
+            const response = await fetch('http://localhost:5022/graphql', options);
+            if (!response.ok) {
+                throw new Error("Error deleting comment");
+            }
+            const responseData = await response.json();
+            this.setState({
+                comments: this.state.comments.filter(x=>x['commentid']!==commentId),
+                commentsSent: this.state.commentsSent.filter(x=>x[0]!==commentId)
+            });
+        }
+        catch (error) {
+            console.error(error);
+        }
+    };
+
+    deleteReply = async (replyId) => {
+        try {
+            const data = `
+            mutation {
+                removeReply (
+                replyid: "${replyId}"
+                ) {
+                }
+            }`;
+            const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: data })
+            };
+            const response = await fetch('http://localhost:5022/graphql', options);
+            if (!response.ok) {
+                throw new Error("Error deleting reply");
+            }
+            const responseData = await response.json();
+            this.setState({
+                repliesSent: this.state.repliesSent.filter(x=> x[0]!==replyId),
+        });
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
+
 
 
 
     render() {
-        const commentsByUser = [];
+        let commentsByUser = [];
         for (let i = 0; i < this.state.commentsSent.length; i++) {
                 commentsByUser.push(<Comment username={'rishavry'} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
-                numLikes={0} isCaption={false} language={this.props.language} isOwn={true} deleteComment={this.deleteComment}/>);
+                numLikes={0} replies={[]} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
+                isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                 commentsByUser.push(<br/>);
         }
-
 
         const repliesByUser = [];
         for (let j = 0; j < this.state.repliesSent.length; j++) {
             repliesByUser.push(<Comment username={'rishavry'} id={this.state.repliesSent[j][0]} time={'1s'}
             comment={"(Your reply to @" + this.state.repliesSent[j][2] + ", who commented: '" + this.state.repliesSent[j][3] + "')\n" +
-            this.state.repliesSent[j][1]}
-            numLikes={0} isCaption={false} language={this.props.language} isOwn={true} deleteComment={this.deleteReply}/>);
+            this.state.repliesSent[j][1]} replies={[]}
+            numLikes={0} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
+            isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
             repliesByUser.push(<br/>);
+        }
+
+        const commentsInGeneral = [];
+        const commentsInGeneralByUser = [];
+        let currComment;
+        let currCommentId;
+        let currCommentLikes;
+        let currCommentReplies;
+        let currCommentIsEdited;
+        for (let i = 0; i < this.state.comments.length; i++) {
+            currComment = this.state.comments[i];
+            currCommentId = currComment['commentid'];
+            currCommentLikes = this.state.commentLikes.filter(x => x['commentid']===currCommentId)
+            currCommentReplies = this.state.replies.filter(x=>x['commentid']===currCommentId);
+            currCommentIsEdited = currComment['isedited'];
+            if(currComment['username']==='rishavry') {
+                commentsInGeneralByUser.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
+                isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                commentsInGeneralByUser.push(<br/>);
+            }
+            else {
+                commentsInGeneral.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={false} deleteComment={this.deleteComment} toggleReply={this.toggleReply}
+                isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                commentsInGeneral.push(<br/>);
+            }
         }
 
         let shownTags = [];
@@ -901,7 +1160,6 @@ class CommentsPopup extends Component {
                     }
                 }
                 for (let i of taggedAccounts) {
-                    console.log(i)
                     shownTags.push(
                         <div style={{
                             width:'90%',
@@ -958,21 +1216,12 @@ class CommentsPopup extends Component {
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
         <Comment id={1} username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={0} isCaption={true} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
+        numLikes={0} isCaption={true} language={this.props.language} replies={[]} isOwn={false} toggleReply={this.toggleReply}/>
         <br/>
         {commentsByUser}
+        {commentsInGeneralByUser}
         {repliesByUser}
-        <Comment id={2} username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
-        <b/>
-        <Comment id={3} username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
-        <br/>
-        <Comment id={4} username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
-        <br/>
-        <Comment id={5} username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
+        {commentsInGeneral}
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
@@ -1059,22 +1308,13 @@ class CommentsPopup extends Component {
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
-        <Comment id={1} username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
+        <Comment id={1} username={'rishavry'} replies={[]} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
         numLikes={0} isCaption={true} language={this.props.language} isOwn={false}/>
         <br/>
         {commentsByUser}
+        {commentsInGeneralByUser}
         {repliesByUser}
-        <Comment id={2} username={'rishavry2'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={70} isCaption={false} replies={["A", "B", "C"]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
-        <b/>
-        <Comment id={3} username={'rishavry3'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
-        <br/>
-        <Comment id={4} username={'rishavry4'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
-        <br/>
-        <Comment id={5} username={'rishavry5'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={7} isCaption={false} replies={[]} language={this.props.language} isOwn={false} toggleReply={this.toggleReply}/>
+        {commentsInGeneral}
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>

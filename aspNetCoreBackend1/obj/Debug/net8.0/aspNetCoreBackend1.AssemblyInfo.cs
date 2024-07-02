@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("aspNetCoreBackend1")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+da3e83bb634705104c806e6c9e9a79bd125d6504")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0088bbba6b5ff2f38e3ce6d21b53ac73c7b6bd7f")]
 [assembly: System.Reflection.AssemblyProductAttribute("aspNetCoreBackend1")]
 [assembly: System.Reflection.AssemblyTitleAttribute("aspNetCoreBackend1")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

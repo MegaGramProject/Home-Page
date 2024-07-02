@@ -26,7 +26,7 @@ class Comment extends Component {
             commentText: this.props.comment,
             showSave: true,
             commentText2: "",
-            isEdited: false,
+            isEdited: this.props.isEdited,
         };
         this.textInput = React.createRef();
     };
@@ -313,6 +313,12 @@ class Comment extends Component {
             }
             
         }
+        if(prevState.replies.length!==this.state.replies.length) {
+            this.setState({
+                viewRepliesText: "View replies (" + this.state.replies.length + ")",
+                hideRepliesText: "Hide replies (" + this.state.replies.length + ")",
+            });
+        }
         
     }
     
@@ -357,32 +363,168 @@ class Comment extends Component {
         });
     }
 
-    saveEditedComment = () => {
+    saveEditedComment = async () => {
+        let date = new Date();
         if(!this.state.isEdited) {
             if(this.state.commentText2!== this.state.commentText) {
-                this.setState({
-                    isEdited: true,
-                    editMode: false,
-                    commentText: this.state.commentText2,
-                    commentText2: "",
-                });
+                try {
+                    const data = `
+                    mutation {
+                        editComment(commentid: "${this.props.id}", datetime: "${date.toISOString()}", comment: "${this.state.commentText2}") {
+                        commentid
+                        }
+                    }`;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    const response = await fetch('http://localhost:5022/graphql', options);
+                    if (!response.ok) {
+                        throw new Error("Error editing comment");
+                    }
+                    const responseData = await response.json();
+                    this.setState({
+                        isEdited: true,
+                        editMode: false,
+                        commentText: this.state.commentText2,
+                        commentText2: "",
+                    });
+                }
+                catch (error) {
+                    console.error(error);
+                }
             }
             else {
                 this.setState({
                     editMode: false,
-                    commentText: this.state.commentText2,
                     commentText2: "",
                 });
             }
         }
         else {
-            this.setState({
-                editMode: false,
-                commentText: this.state.commentText2,
-                commentText2: "",
-            });
+            if (this.state.commentText2!==this.state.commentText){
+                try {
+                    const data = `
+                    mutation {
+                        editComment(commentid: "${this.props.id}", datetime: "${date.toISOString()}", comment: "${this.state.commentText2}") {
+                        commentid
+                        }
+                    }`;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    const response = await fetch('http://localhost:5022/graphql', options);
+                    if (!response.ok) {
+                        throw new Error("Error editing comment");
+                    }
+                    const responseData = await response.json();
+                    this.setState({
+                        editMode: false,
+                        commentText: this.state.commentText2,
+                        commentText2: "",
+                    });
+                }
+                catch (error) {
+                    console.error(error);
+                }
+            }
+            else {
+                this.setState({
+                    editMode: false,
+                    commentText2: "",
+                });
+            }
         }
     }
+
+    saveEditedReply = async () => {
+        let date = new Date();
+        if(!this.state.isEdited) {
+            if(this.state.commentText2!== this.state.commentText) {
+                try {
+                    const data = `
+                    mutation {
+                        editReply(replyid: "${this.props.id}", datetime: "${date.toISOString()}", comment: "${this.state.commentText2}") {
+                        commentid
+                        }
+                    }`;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    const response = await fetch('http://localhost:5022/graphql', options);
+                    if (!response.ok) {
+                        throw new Error("Error editing reply");
+                    }
+                    const responseData = await response.json();
+                    this.setState({
+                        isEdited: true,
+                        editMode: false,
+                        commentText: this.state.commentText2,
+                        commentText2: "",
+                    });
+                }
+                catch (error) {
+                    console.error(error);
+                }
+            }
+            else {
+                this.setState({
+                    editMode: false,
+                    commentText2: "",
+                });
+            }
+        }
+        else {
+            if (this.state.commentText2!==this.state.commentText){
+                try {
+                    const data = `
+                    mutation {
+                        editReply(replyid: "${this.props.id}", datetime: "${date.toISOString()}", comment: "${this.state.commentText2}") {
+                        commentid
+                        }
+                    }`;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    const response = await fetch('http://localhost:5022/graphql', options);
+                    if (!response.ok) {
+                        throw new Error("Error editing reply");
+                    }
+                    const responseData = await response.json();
+                    this.setState({
+                        editMode: false,
+                        commentText: this.state.commentText2,
+                        commentText2: "",
+                    });
+                }
+                catch (error) {
+                    console.error(error);
+                }
+            }
+            else {
+                this.setState({
+                    editMode: false,
+                    commentText2: "",
+                });
+            }
+        }
+    }
+
 
     handleCommentChange = (event) => {
         if (event.target.value.length > 0) {
@@ -400,15 +542,63 @@ class Comment extends Component {
     };
 
 
+    deleteReply = async (replyId) => {
+        try {
+            const data = `
+            mutation {
+                removeReply (
+                replyid: "${replyId}"
+                ) {
+                }
+            }`;
+            const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: data })
+            };
+            const response = await fetch('http://localhost:5022/graphql', options);
+            if (!response.ok) {
+                throw new Error("Error deleting reply");
+            }
+            const responseData = await response.json();
+            this.setState({
+                replies: this.state.replies.filter(x=>x['replyid']!==replyId),
+            });
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
+
     render() {
         const repliesToComment = [];
         if (this.state.showReplies) {
+            let currReply;
+            let currReplyId;
+            let currReplyLikes;
+            let currReplyReplies;
+            let currReplyIsEdited;
             for (let i = this.state.replies.length-1; i > -1; i--) {
-                repliesToComment.push(
-                <Comment username={'rishavry3'} time={'15s'} comment={this.state.replies[i]}
-                numLikes={13} isCaption={false} language={this.props.language} isOwn={false}/>
-                );
-                repliesToComment.push(<br/>);
+                currReply = this.state.replies[i];
+                currReplyId = currReply['replyid'];
+                currReplyLikes = this.props.allPostCommentLikes.filter(x => x['commentid']===currReplyId)
+                currReplyReplies = this.props.allPostReplies.filter(x=>x['commentid']===currReplyId);
+                currReplyIsEdited = currReply['isedited'];
+                if(currReply['username']==='rishavry') {
+                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={currReply['datetime']} comment={currReply['comment']}
+                    numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.props.toggleReply} deleteComment={this.deleteReply}
+                    isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
+                    repliesToComment.push(<br/>);
+                }
+                else {
+                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={currReply['datetime']} comment={currReply['comment']}
+                    numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={false} toggleReply={this.props.toggleReply} isReply={true} isEdited={currReplyIsEdited}
+                    allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
+                    repliesToComment.push(<br/>);
+                }
             }
         }
 
@@ -435,7 +625,7 @@ class Comment extends Component {
         {this.state.timeText}
         <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em', cursor:'pointer'}}>{this.state.likesText}</span>
         {!this.state.editMode && <span onClick={this.turnOnEditMode} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.editText}</span>}
-        {this.state.editMode && this.state.showSave && <span onClick={this.saveEditedComment} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Save</span>}
+        {this.state.editMode && this.state.showSave && <span onClick={!this.props.isReply ? this.saveEditedComment : this.saveEditedReply} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Save</span>}
         <span onClick={() => {this.props.deleteComment(this.props.id)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.deleteText}</span>
         </p>)}
         {!this.props.isOwn && this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
