@@ -5,11 +5,11 @@ import backArrow from "./images/backArrow.png";
 import rightArrow from "./images/nextArrow.png";
 import LeftSidebar from "./leftSidebar";
 import MediaPost from "./mediaPost";
+import PostLikersPopup from './postLikersPopup';
 import SendPostPopup from './sendPostPopup';
 import StoryIcon from "./storyIcon";
 import './styles.css';
 import ThreeDotsPopup from './threeDotsPopup';
-import PostLikersPopup from './postLikersPopup';
 import UserBar from "./userBar";
 
 
@@ -41,7 +41,9 @@ class App extends Component {
         post5Details: null,
         focusedComponent: null,
         showPostLikersPopup: false,
-        postLikersPopupPostId: ''
+        postLikersPopupPostId: '',
+        availableStories: ["rishavry2", "rishavry3", "rishavry4", "rishavry5", "rishavry6", "rishavry7", "rishavry8"],
+        currStoryLevel: 0
         };
 
     };
@@ -243,7 +245,6 @@ class App extends Component {
     async fetchPosts(username) {
         try {
             let postDetails = [];
-    
             // Fetch posts
             let postsResponse = await fetch(`http://localhost:8003/getPosts/${username}`);
             if (!postsResponse.ok) {
@@ -263,51 +264,197 @@ class App extends Component {
                 throw new Error('Network response was not ok');
             }
             let videosData = await videosResponse.json();
-
+        
             // Process videos based on username
             if (username === "rishavry2") {
                 if (postDetails[0].length > 0) {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "${postDetails[0][0]['id']}" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post1Details: postDetails });
                 }
             } else if (username === "rishavry3") {
                 if (postDetails[0].length > 0) {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "${postDetails[0][0]['id']}" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post2Details: postDetails });
                 }
             } else if (username === "rishavry5") {
                 if (postDetails[0].length > 0) {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "${postDetails[0][0]['id']}" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post3Details: postDetails });
                 } else {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === '683d0792-8f29-487d-bbf9-fc5dffeba864');
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "683d0792-8f29-487d-bbf9-fc5dffeba864" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post3Details: postDetails });
                 }
             } else if (username === "rishavry6") {
                 if (postDetails[0].length > 0) {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "${postDetails[0][0]['id']}" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post4Details: postDetails });
                 } else {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === '953c1754-bd3a-40d6-82c1-91b1d943de98');
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "953c1754-bd3a-40d6-82c1-91b1d943de98" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post4Details: postDetails });
                 }
             } else if (username === "rishavry7") {
                 if (postDetails[0].length > 0) {
                     let postsToSend = videosData.filter(x => x['overallPostId'] === postDetails[0][0]['id']);
                     postDetails.push(postsToSend);
+                    const data = `
+                    query QueryProvider {
+                        comments(where: { postid: { eq: "${postDetails[0][0]['id']}" }, iscaption: { eq: true } }) {
+                        comment
+                        username
+                        }
+                    }
+                    `;
+                    const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: data })
+                    };
+                    let captionResponse = await fetch('http://localhost:5022/graphql/', options);
+                    if (!captionResponse.ok)  {
+                        throw new Error('Network response was not ok');
+                    }
+                    captionResponse = await captionResponse.json();
+                    postDetails.push(captionResponse['data']['comments'][0]);
                     this.setState({ post5Details: postDetails });
                 }
             }
     
         } catch (error) {
             console.error('Error fetching or processing data:', error);
-            // Handle error appropriately (e.g., show error message)
         }
     }
     
@@ -347,10 +494,32 @@ class App extends Component {
         });
     }
 
+    incrementStoryLevel = () => {
+        this.setState({currStoryLevel: this.state.currStoryLevel+1});
+    }
+
+    decrementStoryLevel = () => {
+        this.setState({currStoryLevel: this.state.currStoryLevel-1});
+    }
+
 
 
 
     render() {
+        let storyIcons = [];
+        let showRightArrow = true;
+        let finalStoryOfLevel = this.state.currStoryLevel*6 + 6;
+        for (let i=this.state.currStoryLevel*6; i<finalStoryOfLevel; i++) {
+            if(i>=this.state.availableStories.length) {
+                showRightArrow = false;
+                break;
+            }
+            storyIcons.push(<StoryIcon username={this.state.availableStories[i]} key={i} ownAccount={false} unseenStory={true} isStory={true}/>);
+        }
+        if(this.state.currStoryLevel*6+6==this.state.availableStories.length) {
+            showRightArrow = false;
+        }
+
         return (
         <React.Fragment>
         <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
@@ -359,18 +528,13 @@ class App extends Component {
         <LeftSidebar username={"rishavry"} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
         <div style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
-        <StoryIcon username='rishavry' ownAccount={true} unseenStory={false} isStory={true}/>
-        <StoryIcon username='rishavry2' ownAccount={false} unseenStory={true} isStory={true}/>
-        <StoryIcon username='rishavry3' ownAccount={false} unseenStory={true} isStory={true}/>
-        <StoryIcon username='rishavry4' ownAccount={false} unseenStory={true} isStory={true}/>
-        <StoryIcon username='rishavry5' ownAccount={false} unseenStory={true} isStory={true}/>
-        <StoryIcon username='rishavry6' ownAccount={false} unseenStory={true} isStory={true}/>
-        <StoryIcon username='rishavry7' ownAccount={false} unseenStory={true} isStory={true}/>
+        <StoryIcon username={"rishavry"} ownAccount={true} unseenStory={false} isStory={true}/>
+        {storyIcons}
         </div>
-        <img src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
-        left:'88%', top:'3%', cursor:'pointer'}}/>
-        <img src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
-        left:'-7.5%', top:'3%', cursor:'pointer'}}/>
+        <img onClick={this.incrementStoryLevel} src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
+        left:'88%', top:'3%', cursor:'pointer', display: showRightArrow ? 'inline-block' : 'none'}}/>
+        <img onClick={this.decrementStoryLevel} src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
+        left:'-7.5%', top:'3%', cursor:'pointer', display: this.state.currStoryLevel>0 ? 'inline-block' : 'none'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
         <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language}

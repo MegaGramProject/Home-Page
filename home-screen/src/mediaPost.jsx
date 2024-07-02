@@ -15,6 +15,7 @@ import saveIcon from './images/saveIcon.png';
 import sendIcon from './images/sendIcon.png';
 import taggedAccountsIcon from "./images/taggedAccountsIcon.png";
 import threeHorizontalDots from './images/threeHorizontalDots.png';
+import verifiedAccount from './images/verifiedAccount.png';
 import videoSettingsIcon from './images/videoSettingsIcon.png';
 import PostDots from "./postDots";
 import StoryIcon from './storyIcon';
@@ -28,7 +29,7 @@ class MediaPost extends Component {
             isLiked: false,
             isSaved: false,
             numLikes: 0,
-            caption: "What a wonderful time to be alive, init?",
+            caption: "Caption loading...",
             comment: "",
             sendComment: false,
             timeText: '',
@@ -47,6 +48,7 @@ class MediaPost extends Component {
             showRightBanner: false,
             showLeftBanner: false,
             postId: "",
+            isVerified: true,
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
@@ -369,6 +371,7 @@ class MediaPost extends Component {
                 this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
             }
             this.setState({
+                caption: this.props.postDetails[2]['comment'],
                 currSlideIsVid: currSlideIsVid,
                 locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
                 timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
@@ -919,8 +922,9 @@ class MediaPost extends Component {
         <div style={{display:'flex', justifyContent:'start'}}>
         {this.props.postDetails && <StoryIcon username={this.props.postDetails[0][0].usernames[0]} unseenStory={true} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
-        marginTop:'-1em', textAlign:'left',  textWrap:'wrap',  wordBreak: 'break-word'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[0][0].usernames[0]}</b> <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
+        marginTop:'-1em', textAlign:'left',  textWrap:'wrap',  wordBreak: 'break-word', position:'relative'}}>
+        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[0][0].usernames[0]}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
+        <span style={{color:'gray'}}> • {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
         <img onClick = {this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
@@ -957,7 +961,7 @@ class MediaPost extends Component {
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[0][0].usernames[0]}</b>}
+        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>}
         <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
         {this.props.postDetails && <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
         this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
@@ -980,7 +984,8 @@ class MediaPost extends Component {
         {this.props.postDetails && <StoryIcon unseenStory={true} username={this.props.postDetails[1][0]['usernames'][0]} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
         marginTop:'-1em', textAlign:'left'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[1][0]['usernames'][0]}</b> <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
+        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[1][0]['usernames'][0]}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
+        <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
         <img onClick = {this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
@@ -1043,7 +1048,7 @@ class MediaPost extends Component {
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={()=>{this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[1][0]['usernames'][0]}</b>}
+        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>}
         <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
         <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
         this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}

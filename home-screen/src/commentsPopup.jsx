@@ -887,6 +887,7 @@ class CommentsPopup extends Component {
             datetime
             isedited
             username
+            iscaption
             }
         }
         `;
@@ -905,6 +906,7 @@ class CommentsPopup extends Component {
             throw new Error("Error fetching comments");
         }
         const responseData = await response.json();
+        console.log(responseData['data']['comments']);
         this.setState({comments: responseData['data']['comments']});
         }
         catch (error) {
@@ -1068,6 +1070,7 @@ class CommentsPopup extends Component {
             const responseData = await response.json();
             this.setState({
                 repliesSent: this.state.repliesSent.filter(x=> x[0]!==replyId),
+                replies: this.state.replies.filter(x=>x['replyid']!==replyId)
         });
         }
         catch (error) {
@@ -1098,30 +1101,52 @@ class CommentsPopup extends Component {
             repliesByUser.push(<br/>);
         }
 
+        const caption = [];
         const commentsInGeneral = [];
         const commentsInGeneralByUser = [];
+        const commentsInGeneralRepliesByUser = [];
         let currComment;
         let currCommentId;
         let currCommentLikes;
         let currCommentReplies;
+        let currCommentRepliesByUser;
         let currCommentIsEdited;
         for (let i = 0; i < this.state.comments.length; i++) {
             currComment = this.state.comments[i];
             currCommentId = currComment['commentid'];
-            currCommentLikes = this.state.commentLikes.filter(x => x['commentid']===currCommentId)
-            currCommentReplies = this.state.replies.filter(x=>x['commentid']===currCommentId);
             currCommentIsEdited = currComment['isedited'];
-            if(currComment['username']==='rishavry') {
-                commentsInGeneralByUser.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
-                numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
+            if(currComment['iscaption']) {
+                caption.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                numLikes={0} replies={[]} isCaption={true} language={this.props.language} isOwn={currComment['username']==='rishavry'} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                 isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
-                commentsInGeneralByUser.push(<br/>);
+                caption.push(<br/>);
             }
             else {
-                commentsInGeneral.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
-                numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={false} deleteComment={this.deleteComment} toggleReply={this.toggleReply}
-                isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
-                commentsInGeneral.push(<br/>);
+                currCommentLikes = this.state.commentLikes.filter(x => x['commentid']===currCommentId)
+                currCommentReplies = this.state.replies.filter(x=>x['commentid']===currCommentId);
+                currCommentRepliesByUser = currCommentReplies.filter(x=>x['username']==='rishavry');
+                for(let i of currCommentRepliesByUser) {
+                    let thisReplyLikes = this.state.commentLikes.filter(x=>x['commentid']===i['replyid']);
+                    let thisReplyReplies = this.state.replies.filter(x=>x['commentid']===i['replyid']);
+                    commentsInGeneralRepliesByUser.push(<Comment username={'rishavry'} id={i['replyid']} time={i['datetime']}
+                    comment={"(Your reply to @" + currComment['username'] + ", who commented: '" + currComment['comment'] + "')\n" +
+                    i['comment']} replies={thisReplyReplies}
+                    numLikes={thisReplyLikes.length} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
+                    isReply={false} isEdited={i['isedited']} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                    commentsInGeneralRepliesByUser.push(<br/>);
+                }
+                if(currComment['username']==='rishavry') {
+                    commentsInGeneralByUser.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                    numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
+                    isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                    commentsInGeneralByUser.push(<br/>);
+                }
+                else {
+                    commentsInGeneral.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                    numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={false} deleteComment={this.deleteComment} toggleReply={this.toggleReply}
+                    isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                    commentsInGeneral.push(<br/>);
+                }
             }
         }
 
@@ -1215,12 +1240,11 @@ class CommentsPopup extends Component {
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
-        <Comment id={1} username={'rishavry'} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={0} isCaption={true} language={this.props.language} replies={[]} isOwn={false} toggleReply={this.toggleReply}/>
-        <br/>
+        {caption}
         {commentsByUser}
         {commentsInGeneralByUser}
         {repliesByUser}
+        {commentsInGeneralRepliesByUser}
         {commentsInGeneral}
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',
@@ -1308,12 +1332,11 @@ class CommentsPopup extends Component {
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
         <div style={{position:'absolute', top:'15%', left:'2%', height:'33em', overflowY:'scroll', overflowX: 'scroll'}}>
-        <Comment id={1} username={'rishavry'} replies={[]} time={'10m'} comment={'What a time to be alive, init? Makes you very greatfulsaldmsaldmsakldmsad'}
-        numLikes={0} isCaption={true} language={this.props.language} isOwn={false}/>
-        <br/>
+        {caption}
         {commentsByUser}
         {commentsInGeneralByUser}
         {repliesByUser}
+        {commentsInGeneralRepliesByUser}
         {commentsInGeneral}
         </div>
         <div style={{position:'absolute', top:'80%', left:'-2%', width:'100%', height:'17%', display:'flex',

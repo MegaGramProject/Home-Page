@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Megagram.Models;
 
-public class CommentLike
+public class CommentLiker
 {
     [Key]
     public string commentid { get; set; }

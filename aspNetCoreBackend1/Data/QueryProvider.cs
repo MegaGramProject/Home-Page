@@ -27,9 +27,9 @@ public class QueryProvider
     [UseProjection]
     [UseFiltering]
     [UseSorting]
-    public async Task<IQueryable<CommentLike>> GetCommentLikes([Service] MegaDbContext context)
+    public async Task<IQueryable<CommentLiker>> GetCommentLikes([Service] MegaDbContext context)
     {
-        var commentlikes = await context.commentlikes.ToListAsync();
+        var commentlikes = await context.commentlikers.ToListAsync();
         return commentlikes.AsQueryable();
     }
 }

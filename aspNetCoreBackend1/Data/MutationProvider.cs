@@ -28,17 +28,17 @@ namespace Megagram.Data
             return newComment;
         }
 
-        public async Task<CommentLike> addCommentLike ([Service] MegaDbContext dbContext, string commentid, string postid,
+        public async Task<CommentLiker> addCommentLike ([Service] MegaDbContext dbContext, string commentid, string postid,
         string username)
         {
-            var commentLike = new CommentLike
+            var commentLike = new CommentLiker
             {
                 commentid = commentid,
                 postid = postid,
                 username = username,
 
             };
-            dbContext.commentlikes.Add(commentLike);
+            dbContext.commentlikers.Add(commentLike);
             await dbContext.SaveChangesAsync();
             return commentLike;
         }
@@ -65,12 +65,12 @@ namespace Megagram.Data
         public async Task<Boolean> removeCommentLike ([Service] MegaDbContext dbContext, string commentid,
         string username)
         {
-            var commentLike = await dbContext.commentlikes
+            var commentLike = await dbContext.commentlikers
             .FirstOrDefaultAsync(cl => cl.commentid == commentid && cl.username == username);
 
             if (commentLike != null)
             {
-                dbContext.commentlikes.Remove(commentLike);
+                dbContext.commentlikers.Remove(commentLike);
                 await dbContext.SaveChangesAsync();
                 return true;
             }
@@ -83,13 +83,16 @@ namespace Megagram.Data
             var comment = await dbContext.usercomments
             .FirstOrDefaultAsync(cl => cl.commentid == commentid);
 
-            if (comment != null)
-            {
+            var replies = await dbContext.userreplies
+            .Where(cl => cl.commentid == commentid)
+            .ToListAsync();
+
+            if (comment != null) {
+                dbContext.userreplies.RemoveRange(replies);
                 dbContext.usercomments.Remove(comment);
                 await dbContext.SaveChangesAsync();
                 return true;
             }
-
             return false;
         }
 

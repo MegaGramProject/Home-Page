@@ -627,6 +627,7 @@ class Comment extends Component {
         {!this.state.editMode && <span onClick={this.turnOnEditMode} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.editText}</span>}
         {this.state.editMode && this.state.showSave && <span onClick={!this.props.isReply ? this.saveEditedComment : this.saveEditedReply} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Save</span>}
         <span onClick={() => {this.props.deleteComment(this.props.id)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.deleteText}</span>
+        <span onClick={()=>{this.props.toggleReply(this.props.id, this.props.comment, this.props.username)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', cursor:'pointer'}}>{this.state.replyText}</span>
         </p>)}
         {!this.props.isOwn && this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
         {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}

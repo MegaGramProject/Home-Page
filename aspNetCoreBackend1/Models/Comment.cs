@@ -11,5 +11,5 @@ public class Comment
     public Boolean isedited { get; set; }
     public string comment { get; set; }
     public string postid { get; set; }
-
+    public Boolean iscaption {get; set;}
 }

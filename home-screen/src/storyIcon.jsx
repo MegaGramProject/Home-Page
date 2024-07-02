@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
-import moreIcon from './images/moreIcon.png';
 import bluePlusIcon from "./images/bluePlusIcon.png";
+import moreIcon from './images/moreIcon.png';
 import './styles.css';
 
 class StoryIcon extends Component {
