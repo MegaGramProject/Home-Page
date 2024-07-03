@@ -28,7 +28,9 @@ class Comment extends Component {
             showSave: true,
             commentText2: "",
             isEdited: this.props.isEdited,
-            isVerified: false
+            isVerified: false,
+            editedText: "Edited",
+            saveText: "Save"
         };
         this.textInput = React.createRef();
     };
@@ -227,19 +229,32 @@ class Comment extends Component {
         }
     }
 
-    async updateReplyText(currLang) {
+    async updateEditedText(currLang) {
         try {
             const translatedText = await this.translateTextPromise(
-                this.state.replyText,
+                this.state.editedText,
                 currLang,
                 this.props.language
             );
-            this.setState({replyText: translatedText });
+            this.setState({editedText: translatedText });
         } catch (error) {
             console.error("Translation failed", error);
         }
     }
 
+    async updateSaveText(currLang) {
+        try {
+            const translatedText = await this.translateTextPromise(
+                this.state.saveText,
+                currLang,
+                this.props.language
+            );
+            this.setState({saveText: translatedText });
+        } catch (error) {
+            console.error("Translation failed", error);
+        }
+    }
+    
     fetchProfilePhoto(username) {
         fetch(`http://localhost:8003/getProfilePhoto/${username}`)
             .then(response => {
@@ -292,6 +307,8 @@ class Comment extends Component {
         await this.updateHideRepliesText("English");
         await this.updateDeleteText("English");
         await this.updateEditText("English");
+        await this.updateEditedText("English");
+        await this.updateSaveText("English");
     }
 
     async componentDidUpdate(prevProps, prevState) {
@@ -303,6 +320,8 @@ class Comment extends Component {
             await this.updateHideRepliesText(prevProps.language);
             await this.updateDeleteText(prevProps.language);
             await this.updateEditText(prevProps.language);
+            await this.updateEditedText(prevProps.language);
+            await this.updateSaveText(prevProps.language);
         }
         else {
             if(prevState.likesText !== this.state.likesText) {
@@ -605,20 +624,45 @@ class Comment extends Component {
                 if (hoursDiff < 24) {
                     return `${hoursDiff}h`;
                 } else {
-                    const weeksDiff = Math.floor(hoursDiff / 24 / 7);
-                    if (weeksDiff < 4) {
-                        return `${weeksDiff}w`;
-                    } else {
-                        // If more than 4 weeks, return the actual date in "Month Day, Year" format
-                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                        const month = months[date.getUTCMonth()];
-                        const day = date.getUTCDate();
-                        const year = date.getUTCFullYear();
-                        return `${month} ${day}, ${year}`;
+                    const daysDiff = Math.floor(hoursDiff/24);
+                    if (daysDiff < 7) {
+                        return `${daysDiff}d`;
+                    }
+                    else {
+                        const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                        if (weeksDiff < 4) {
+                            return `${weeksDiff}w`;
+                        } else {
+                            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                            const month = months[date.getUTCMonth()];
+                            const day = date.getUTCDate();
+                            const year = date.getUTCFullYear();
+                            return `${month} ${day}, ${year}`;
+                        }
                     }
                 }
             }
         }
+    }
+
+    formatText(string) {
+        const words = string.split(' ');
+    
+        const formattedWords = words.map((word, index) => {
+            if (word.startsWith('#') || word.startsWith('@')) {
+                return <span key={index} style={{color: '#457aa3', cursor:'pointer'}}>{word}</span>;
+            }
+            return word;
+        });
+    
+        const formattedText = formattedWords.reduce((acc, word, index) => {
+            if (index === 0) {
+                return [word];
+            }
+            return [...acc, ' ', word];
+        }, []);
+    
+        return <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{formattedText}</p>;
     }
 
 
@@ -658,31 +702,31 @@ class Comment extends Component {
         {(this.state.profilePhotoLoading || this.state.error) && (  <img src={moreIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         <div onDoubleClick={this.likeComment} style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
         <b>{this.props.username}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
-        {!this.state.editMode && <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{this.state.commentText}</p>}
+        {!this.state.editMode && this.formatText(this.state.commentText)}
         {this.state.editMode &&  <textarea type="text" ref={this.textInput} value={this.state.commentText2} onChange={this.handleCommentChange} style={{paddingTop: '0.3em', fontSize: '1em',
         marginTop:'0em', width:'21em', marginLeft:'0em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', fontFamily:'Arial', resize:'true'}}
         placeholder={'Edit comment...'}/>}
         {this.props.isOwn && this.props.isCaption && (
         <p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
-        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>{this.state.editedText}</span>}
         {this.state.timeText}
         <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Edit</span>
         <span onClick={() => {this.props.deleteComment(this.props.id)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Delete</span>
         </p>)}
         {this.props.isOwn && !this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
-        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>{this.state.editedText}</span>}
         {this.state.timeText}
         <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em', cursor:'pointer'}}>{this.state.likesText}</span>
         {!this.state.editMode && <span onClick={this.turnOnEditMode} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.editText}</span>}
-        {this.state.editMode && this.state.showSave && <span onClick={!this.props.isReply ? this.saveEditedComment : this.saveEditedReply} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>Save</span>}
+        {this.state.editMode && this.state.showSave && <span onClick={!this.props.isReply ? this.saveEditedComment : this.saveEditedReply} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.saveText}</span>}
         <span onClick={() => {this.props.deleteComment(this.props.id)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1em', cursor:'pointer'}}>{this.state.deleteText}</span>
         <span onClick={()=>{this.props.toggleReply(this.props.id, this.props.comment, this.props.username)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', cursor:'pointer'}}>{this.state.replyText}</span>
         </p>)}
         {!this.props.isOwn && this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
-        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>{this.state.editedText}</span>}
         {this.state.timeText}</p>)}
         {!this.props.isOwn && !this.props.isCaption && (<p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
-        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>Edited</span>}
+        {this.state.isEdited &&  <span style={{marginRight:'1em', color: 'gray', fontSize: '1em'}}>{this.state.editedText}</span>}
         {this.state.timeText}
         <span style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', fontSize: '1.1em', cursor:'pointer'}}>{this.state.likesText}</span>
         <span onClick={()=>{this.props.toggleReply(this.props.id, this.props.comment, this.props.username)}} style={{marginLeft: '1em', color: 'gray', fontWeight: 'bold', cursor:'pointer'}}>{this.state.replyText}</span>

@@ -339,20 +339,45 @@ class MediaPost extends Component {
                 if (hoursDiff < 24) {
                     return `${hoursDiff}h`;
                 } else {
-                    const weeksDiff = Math.floor(hoursDiff / 24 / 7);
-                    if (weeksDiff < 4) {
-                        return `${weeksDiff}w`;
-                    } else {
-                        // If more than 4 weeks, return the actual date in "Month Day, Year" format
-                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                        const month = months[date.getUTCMonth()];
-                        const day = date.getUTCDate();
-                        const year = date.getUTCFullYear();
-                        return `${month} ${day}, ${year}`;
+                    const daysDiff = Math.floor(hoursDiff/24);
+                    if (daysDiff < 7) {
+                        return `${daysDiff}d`;
+                    }
+                    else {
+                        const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                        if (weeksDiff < 4) {
+                            return `${weeksDiff}w`;
+                        } else {
+                            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                            const month = months[date.getUTCMonth()];
+                            const day = date.getUTCDate();
+                            const year = date.getUTCFullYear();
+                            return `${month} ${day}, ${year}`;
+                        }
                     }
                 }
             }
         }
+    }
+
+    formatText(string) {
+        const words = string.split(' ');
+    
+        const formattedWords = words.map((word, index) => {
+            if (word.startsWith('#') || word.startsWith('@')) {
+                return <span key={index} style={{color: '#457aa3', cursor:'pointer'}}>{word}</span>;
+            }
+            return word;
+        });
+    
+        const formattedText = formattedWords.reduce((acc, word, index) => {
+            if (index === 0) {
+                return [word];
+            }
+            return [...acc, ' ', word];
+        }, []);
+    
+        return <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{formattedText}</span>;
     }
     
 
@@ -966,7 +991,7 @@ class MediaPost extends Component {
         <span style={{color:'gray'}}> • {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
+        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>
         </div>
         <div style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
@@ -1001,14 +1026,14 @@ class MediaPost extends Component {
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
         {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>}
-        <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
+        {this.formatText(this.state.caption)}
         {this.props.postDetails && <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
         this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
         style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>}
         <br/>
         <div>
         <textarea className="textArea" type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
-        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
+        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', resize: 'true', fontFamily:'Arial'}}
         placeholder={this.state.addACommentText}/>
         <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
         fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
@@ -1027,7 +1052,7 @@ class MediaPost extends Component {
         <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
+        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>
         </div>
         <div onClick={this.handleClick} onDoubleClick = {this.likePost} style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em', backgroundColor:'black'}}>
@@ -1088,14 +1113,14 @@ class MediaPost extends Component {
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={()=>{this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
         {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>}
-        <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{this.state.caption}</span>
+        {this.formatText(this.state.caption)}
         <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
         this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
         style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>
         <br/>
         <div>
         <textarea className="textArea" type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
-        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', fontFamily:'Arial'}}
+        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', fontFamily:'Arial', resize:'true'}}
         placeholder={this.state.addACommentText}/>
         <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
         fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>

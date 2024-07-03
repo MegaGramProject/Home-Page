@@ -453,6 +453,7 @@ class CommentsPopup extends Component {
 
     }
 
+
     formatDate(dateString) {
         const date = new Date(dateString);
         const currentDate = new Date();
@@ -469,16 +470,21 @@ class CommentsPopup extends Component {
                 if (hoursDiff < 24) {
                     return `${hoursDiff}h`;
                 } else {
-                    const weeksDiff = Math.floor(hoursDiff / 24 / 7);
-                    if (weeksDiff < 4) {
-                        return `${weeksDiff}w`;
-                    } else {
-                        // If more than 4 weeks, return the actual date in "Month Day, Year" format
-                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                        const month = months[date.getUTCMonth()];
-                        const day = date.getUTCDate();
-                        const year = date.getUTCFullYear();
-                        return `${month} ${day}, ${year}`;
+                    const daysDiff = Math.floor(hoursDiff/24);
+                    if (daysDiff < 7) {
+                        return `${daysDiff}d`;
+                    }
+                    else {
+                        const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                        if (weeksDiff < 4) {
+                            return `${weeksDiff}w`;
+                        } else {
+                            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                            const month = months[date.getUTCMonth()];
+                            const day = date.getUTCDate();
+                            const year = date.getUTCFullYear();
+                            return `${month} ${day}, ${year}`;
+                        }
                     }
                 }
             }
@@ -1279,7 +1285,7 @@ class CommentsPopup extends Component {
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[0][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="threeDots" onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
@@ -1373,7 +1379,7 @@ class CommentsPopup extends Component {
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[1][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="threeDots" onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />

@@ -314,7 +314,7 @@ class ThreeDotsPopup extends Component {
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
         <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.editText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.aboutThisAccountText}</p>
+        <p onClick={() => {this.props.showAboutAccountPopup(this.props.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.aboutThisAccountText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
         <p onClick={this.props.closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.cancelText}</p>
         </div>)
