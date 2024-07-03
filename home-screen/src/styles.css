@@ -17,8 +17,37 @@ body {
             color: white;
     }
     .popup {
-        background-color: #232424;
-        color: white;
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    .sidebarElement:hover {
+        color: black !important;
+    }
+
+    #leftSideBarPopupGap {
+        background-color: #232424 !important;
+    }
+
+    .commentPopupBackground {
+        background-color: #232424 !important;
+    }
+
+    .iconToBeAdjustedForDarkMode {
+        filter: brightness(5) contrast(0);
+    }
+
+    .leftArrow {
+        filter: brightness(5) contrast(0);
+    }
+
+    .rightArrow {
+        filter: brightness(5) contrast(0);
+    }
+
+    .textArea {
+        background-color: #232424 !important;
+        color: white !important;
     }
 }
 

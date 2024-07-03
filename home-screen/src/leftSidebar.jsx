@@ -2,18 +2,18 @@ import React, { Component } from 'react';
 import aiIcon from './images/aiIcon.png';
 import createIcon from './images/createIcon.png';
 import exploreIcon from './images/exploreIcon.png';
-import gamesIcon from './images/gamesIcon.jpg';
+import gamesIcon from './images/gamesIcon.png';
 import homeIcon from './images/homeIcon.png';
 import listenIcon from './images/listenIcon.png';
 import messagesIcon from './images/messagesIcon.png';
 import moreIcon from './images/moreIcon.png';
-import newsIcon from './images/newsIcon.jpg';
+import newsIcon from './images/newsIcon.png';
 import notifsIcon from './images/notificationsIcon.png';
 import predictIcon from './images/predictIcon.png';
 import reelsIcon from './images/reelsIcon.png';
 import searchIcon from './images/searchIcon.png';
-import shopIcon from './images/shopIcon.jpg';
-import timeCapsuleIcon from './images/timeCapsuleIcon.jpg';
+import shopIcon from './images/shopIcon.png';
+import timeCapsuleIcon from './images/timeCapsuleIcon.png';
 import LeftSidebarPopup from './leftSidebarPopup';
 import './styles.css';
 
@@ -448,70 +448,70 @@ class LeftSidebar extends Component {
         <div style={{width:'14.5em', height:'54em', borderStyle:'solid', borderColor:'lightgray',  borderWidth: '0px 0.01em 0px 0em', position: 'relative', overflow:'scroll'}}>
             <h1 className="headerMegagram" style={{fontFamily:'Billabong', fontSize:'1.9em', marginLeft:'-3em', marginTop:'1em', fontWeight: '100'}}><span style={{cursor:"pointer"}}>Megagram</span></h1>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={homeIcon} style={{height:'2.3em', width:'2.3em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={homeIcon} style={{height:'2.3em', width:'2.3em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontWeight:'bold', fontSize:'1em', marginLeft:'0.4em'}}>{this.state.homeText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={searchIcon} style={{height:'1.8em', width:'2.3em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={searchIcon} style={{height:'1.8em', width:'2.3em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.searchText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={exploreIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={exploreIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.exploreText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={reelsIcon} style={{height:'2.4em', width:'2.4em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={reelsIcon} style={{height:'2.4em', width:'2.4em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.reelsText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={messagesIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode"  src={messagesIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.messagesText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={notifsIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={notifsIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.notificationsText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={createIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={createIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.createText}</p>
             </div>
             <div className="sidebarElement"  style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
             {!(this.state.profilePhotoLoading || this.state.error) &&
             (<img src={this.state.profilePhoto} style={{height:'2.2em', width:'2.2em', pointerEvents:'none', objectFit:'contain'}}/>)}
             {(this.state.profilePhotoLoading || this.state.error) &&
-            (<img src={moreIcon} style={{height:'2.2em', width:'2.2em', pointerEvents:'none', objectFit:'contain'}}/>)}
+            (<img className="iconToBeAdjustedForDarkMode" src={moreIcon} style={{height:'2.2em', width:'2.2em', pointerEvents:'none', objectFit:'contain'}}/>)}
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.profileText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={shopIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={shopIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.shopText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={newsIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={newsIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.weatherNewsText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={gamesIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={gamesIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.gamesText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={aiIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={aiIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.aiChatText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={timeCapsuleIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={timeCapsuleIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.timeCapsuleText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={predictIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/> 
+            <img className="iconToBeAdjustedForDarkMode" src={predictIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/> 
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.predictText}</p>
             </div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>
-            <img src={listenIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={listenIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em'}}>{this.state.listenText}</p>
             </div>
             <div onClick={this.props.changePopup} className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em', marginTop:'7em'}}>
-            <img src={moreIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
+            <img className="iconToBeAdjustedForDarkMode" src={moreIcon} style={{height:'2.5em', width:'2.5em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'1em', marginLeft:'0.4em', fontWeight: this.props.showPopup ? 'bold' : 'normal'}}>{this.state.moreText}</p>
         </div>
         {this.props.showPopup && (

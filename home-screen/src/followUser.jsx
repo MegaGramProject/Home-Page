@@ -82,8 +82,8 @@ class FollowUser extends Component {
     render() {
         return (
         <React.Fragment>
-        <div onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave} style={{cursor:'pointer', width:'95%', display:'flex', alignItems:'center',
-        backgroundColor: this.state.isHovering ? '#ebedeb' : 'white', justifyContent:'space-between'}}>
+        <div className="popup" onMouseEnter={this.handleMouseEnter} onMouseLeave={this.handleMouseLeave} style={{cursor:'pointer', width:'95%', display:'flex', alignItems:'center',
+        backgroundColor: this.state.isHovering ? '#ebedeb' : 'white', justifyContent:'space-between', boxShadow:'none'}}>
         <div style={{display:'flex', alignItems:'start'}}>
         {!(this.state.profilePhotoLoading || this.state.error) &&
         <img src={this.state.profilePhoto} style={{objectFit:'contain', height:'3em', width:'3em'}}/>}

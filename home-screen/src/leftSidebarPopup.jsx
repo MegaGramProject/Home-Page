@@ -241,7 +241,7 @@ class LeftSidebarPopup extends Component {
             <img src={reportAProblemIcon} style={{height:'2em', width:'2em', pointerEvents:'none', objectFit:'contain'}}/>
             <p style={{fontSize:'0.89em', marginLeft:'0.4em'}}>{this.state.reportProblemText}</p>
             </div>
-            <div style={{width:'15em', height:'0.9em', backgroundColor:'#f7f7f7'}}></div>
+            <div id="leftSideBarPopupGap" style={{width:'15em', height:'0.9em', backgroundColor:'#f7f7f7'}}></div>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em', width:'14em'}}>
             <p style={{fontSize:'0.89em', marginLeft:'0.4em'}}>{this.state.switchAccountsText}</p>
             </div>

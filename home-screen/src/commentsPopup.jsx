@@ -1258,9 +1258,9 @@ class CommentsPopup extends Component {
         <div style={{position:'absolute', top:'0%', left:'0%', width:'65%', height:'100%'}}>
         {this.state.currPost!=="" && <img onClick={this.handleClick} onDoubleClick={this.likePost} src={this.state.currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0,}}/>}
-        {this.state.postDetails!==null && <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'99%', cursor:'pointer',
-        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
-        <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-3%', cursor:'pointer',
+        {this.state.postDetails!==null && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'99%', cursor:'pointer',
+        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none', zIndex:'10'}}/>}
+        <img className="iconToBeAdjustedForDarkMode" onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-3%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
         {this.state.postDetails!==null &&
         <img onClick={this.toggleTags} src={taggedAccountsIcon} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>}
@@ -1269,7 +1269,9 @@ class CommentsPopup extends Component {
         shownTags
         }
         </div>
-        <div style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'35%', height:'100%'}}>
+        <div className="commentPopupBackground" style={{position:'absolute', left:'65%', top:'0%', width:'35%', height:'100%'}}>
+        </div>
+        <div className="popup" style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'33.85%', height:'97.8%', borderStyle:'none', boxShadow:'none'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
         {this.state.postDetails!==null && <StoryIcon username={this.state.postDetails[0][0].usernames[0]} ownAccount={false} unseenStory={true} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', gap:'0.2em',
@@ -1277,7 +1279,7 @@ class CommentsPopup extends Component {
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[0][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        <img className="threeDots" onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
@@ -1293,17 +1295,17 @@ class CommentsPopup extends Component {
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em', marginTop:'-0.3em'}} />
         <div style={{display:'flex'}}>
-        {!this.state.isLiked && <img onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
+        {!this.state.isLiked && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
         {this.state.isLiked && <img onClick={this.toggleLike} src={redHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
-        <img onClick={this.focusTextInput} src={commentIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
-        <img onClick={this.props.showSendPostPopup} src={sendIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
-        {!this.state.isSaved && <img onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
-        {this.state.isSaved && <img onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
+        <img className="iconToBeAdjustedForDarkMode" onClick={this.focusTextInput} src={commentIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
+        <img className="iconToBeAdjustedForDarkMode" onClick={this.props.showSendPostPopup} src={sendIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
+        {!this.state.isSaved && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
+        {this.state.isSaved && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
         </div>
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
         <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.state.timeText}</p>
         <div style={{display:'flex', justifyItems: 'center'}}>
-        <textarea  type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
+        <textarea className="textArea" type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
         marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
         placeholder={this.state.addCommentText} onKeyDown={this.handleKeyDown}/>
         {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
@@ -1347,9 +1349,9 @@ class CommentsPopup extends Component {
         </div>
         )}
         </div>
-        {this.state.postDetails && <img onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
-        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
-        <img onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
+        {this.state.postDetails && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={nextArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
+        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none', zIndex:'10'}}/>}
+        <img className="iconToBeAdjustedForDarkMode" onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
         display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
         <img src={taggedAccountsIcon} onClick={this.toggleTags} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
         {this.state.postDetails && <PostDots numSlides={this.state.numPosts} currSlide={this.state.currSlide}/>}
@@ -1361,6 +1363,8 @@ class CommentsPopup extends Component {
         {shownTags}
         </div>}
         </div>
+        <div className="commentPopupBackground" style={{position:'absolute', left:'65%', top:'0%', width:'35%', height:'100%'}}>
+        </div>
         <div style={{display:'flex', flexDirection:'column', position:'absolute', left:'66%', top:'2%', width:'35%', height:'100%'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
         {this.state.postDetails!==null && <StoryIcon username={this.state.postDetails[1][0].usernames[0]} ownAccount={false} unseenStory={true} isStory={false}/>}
@@ -1369,7 +1373,7 @@ class CommentsPopup extends Component {
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[1][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        <img className="threeDots" onClick={this.props.togglePopup} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
@@ -1385,17 +1389,17 @@ class CommentsPopup extends Component {
         flexDirection:'column', alignItems:'start', paddingLeft:'0.4em'}}>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em', marginTop:'-0.3em'}} />
         <div style={{display:'flex'}}>
-        {!this.state.isLiked && <img onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
+        {!this.state.isLiked && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
         {this.state.isLiked && <img onClick={this.toggleLike} src={redHeart} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>}
-        <img onClick={this.focusTextInput} src={commentIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
-        <img onClick={this.props.showSendPostPopup} src={sendIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
-        {!this.state.isSaved && <img onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
-        {this.state.isSaved && <img onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
+        <img className="iconToBeAdjustedForDarkMode" onClick={this.focusTextInput} src={commentIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
+        <img className="iconToBeAdjustedForDarkMode" onClick={this.props.showSendPostPopup} src={sendIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', cursor:'pointer'}}/>
+        {!this.state.isSaved && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={saveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
+        {this.state.isSaved && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={blackSaveIcon} style={{objectFit:'contain', height:'2.4em', width:'2.4em', marginLeft:'18em', cursor:'pointer'}}/>}
         </div>
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{marginTop:'0.5em', marginLeft:'0.6em', cursor:'pointer'}}>{this.state.likesText}</b>
         <p style={{color:'gray', fontSize:'0.87em', marginLeft:'0.8em'}}>{this.state.timeText}</p>
         <div style={{display:'flex', justifyItems: 'center'}}>
-        <textarea onClick={this.setCommentFocus} type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
+        <textarea className="textArea" onClick={this.setCommentFocus} type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
         marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
         placeholder={this.state.addCommentText}/>
         {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',

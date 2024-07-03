@@ -47,9 +47,9 @@ class PostLikersPopup extends Component {
     render() {
         return (
         <React.Fragment>
-        <div style={{backgroundColor:'white',  boxShadow:'1px 4px 8px 3px rgba(0, 0, 0, 0.2)', width:'40em', height:'40em',
+        <div className="popup" style={{backgroundColor:'white',  boxShadow:'1px 4px 8px 3px rgba(0, 0, 0, 0.2)', width:'40em', height:'40em',
         display:'flex', flexDirection:'column', alignItems:'center', borderRadius:'1.5%', paddingTop:'1em', overflow:'scroll'}}>
-        <div style={{display:'flex'}}>
+        <div className="popup" style={{display:'flex', boxShadow:'none'}}>
         <b style={{position:'absolute', left:'45%'}}>Likes</b>
         <img src={closePopupIcon} onClick={this.closePopup} style={{height:'1.3em', width:'1.3em', cursor:'pointer', marginLeft:'30em'}}/>
         </div>

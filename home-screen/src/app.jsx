@@ -531,9 +531,9 @@ class App extends Component {
         <StoryIcon username={"rishavry"} ownAccount={true} unseenStory={false} isStory={true}/>
         {storyIcons}
         </div>
-        <img onClick={this.incrementStoryLevel} src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
+        <img className="rightArrow" onClick={this.incrementStoryLevel} src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
         left:'88%', top:'3%', cursor:'pointer', display: showRightArrow ? 'inline-block' : 'none'}}/>
-        <img onClick={this.decrementStoryLevel} src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
+        <img className="leftArrow" onClick={this.decrementStoryLevel} src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
         left:'-7.5%', top:'3%', cursor:'pointer', display: this.state.currStoryLevel>0 ? 'inline-block' : 'none'}}/>
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>

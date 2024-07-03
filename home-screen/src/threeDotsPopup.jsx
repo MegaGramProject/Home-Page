@@ -300,7 +300,7 @@ class ThreeDotsPopup extends Component {
     render() {
         return (
         <React.Fragment>
-        {!this.props.isAd &&  (<div style={{height:'35em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
+        {!this.props.isAd &&  (<div className="popup" style={{height:'35em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
         display:'flex', flexDirection:'column', alignItems:'center'}}>
         <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.reportText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
@@ -320,7 +320,7 @@ class ThreeDotsPopup extends Component {
         </div>)
         }
 
-        {this.props.isAd &&  (<div style={{height:'16em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
+        {this.props.isAd &&  (<div className="popup" style={{height:'16em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
         display:'flex', flexDirection:'column', alignItems:'center'}}>
         <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hideAdText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />

@@ -660,7 +660,7 @@ class Comment extends Component {
         <b>{this.props.username}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
         {!this.state.editMode && <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{this.state.commentText}</p>}
         {this.state.editMode &&  <textarea type="text" ref={this.textInput} value={this.state.commentText2} onChange={this.handleCommentChange} style={{paddingTop: '0.3em', fontSize: '1em',
-        marginTop:'0em', width:'21em', marginLeft:'0em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial', resize:'true'}}
+        marginTop:'0em', width:'21em', marginLeft:'0em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', fontFamily:'Arial', resize:'true'}}
         placeholder={'Edit comment...'}/>}
         {this.props.isOwn && this.props.isCaption && (
         <p style={{color:'gray', fontSize:'0.77em', marginTop:'-0.4em'}}>
@@ -704,7 +704,7 @@ class Comment extends Component {
         )}
         </div>
         {!this.props.isCaption && !this.state.isLiked && (
-            <img onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>)
+            <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleLike} src={blankHeart} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>)
         }
         {!this.props.isCaption && this.state.isLiked && (
             <img onClick={this.toggleLike} src={redHeart} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>)
