@@ -253,6 +253,25 @@ class CommentsPopup extends Component {
         window.removeEventListener('keyup', this.handleKeyUp);
     }
 
+    handleKeyUp = (event) => {
+        if (this.props.isFocused  && event.key === ' ') {
+            event.preventDefault();
+            clearTimeout(this.spaceKeyTimer);
+            this.spaceKeyPressed = false;
+            if (this.player.playbackRate() === 2) {
+                this.player.playbackRate(1);
+            } else {
+                if (this.player.paused()) {
+                    this.player.play();
+                    this.setState({showPauseSymbol: false});
+                } else {
+                    this.player.pause();
+                    this.setState({showPauseSymbol: true});
+                }
+            }
+        }
+    }
+
 
     async componentDidUpdate(prevProps, prevState) {
         if(prevProps.isSaved !== this.props.isSaved) {
@@ -435,12 +454,35 @@ class CommentsPopup extends Component {
     }
 
     formatDate(dateString) {
-        const date = new Date(dateString)
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const month = months[date.getUTCMonth()];
-        const day = date.getUTCDate();
-        const year = date.getUTCFullYear();
-        return `${month} ${day}, ${year}`;
+        const date = new Date(dateString);
+        const currentDate = new Date();
+        const secondsDiff = Math.floor((currentDate - date) / 1000);
+    
+        if (secondsDiff < 60) {
+            return `${secondsDiff}s`;
+        } else {
+            const minutesDiff = Math.floor(secondsDiff / 60);
+            if (minutesDiff < 60) {
+                return `${minutesDiff}m`;
+            } else {
+                const hoursDiff = Math.floor(minutesDiff / 60);
+                if (hoursDiff < 24) {
+                    return `${hoursDiff}h`;
+                } else {
+                    const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                    if (weeksDiff < 4) {
+                        return `${weeksDiff}w`;
+                    } else {
+                        // If more than 4 weeks, return the actual date in "Month Day, Year" format
+                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                        const month = months[date.getUTCMonth()];
+                        const day = date.getUTCDate();
+                        const year = date.getUTCFullYear();
+                        return `${month} ${day}, ${year}`;
+                    }
+                }
+            }
+        }
     }
 
     handleCommentChange = (event) => {
@@ -486,7 +528,7 @@ class CommentsPopup extends Component {
                 }
                 this.setState(
                     {isLiked: true,
-                    likesText: (this.state.numLikes+1) + ' likes',
+                    likesText: this.state.numLikes==0 ? '1 like' : (this.state.numLikes+1) + ' likes',
                     numLikes: this.state.numLikes+1});
             }
             catch (error) {
@@ -528,7 +570,7 @@ class CommentsPopup extends Component {
                 
                 this.setState(
                     {isLiked: false,
-                    likesText: (this.state.numLikes-1) + ' likes',
+                    likesText: this.state.numLikes==2 ? '1 like' : (this.state.numLikes-1) + ' likes',
                     numLikes: this.state.numLikes-1,
                 });
             }
@@ -1116,7 +1158,7 @@ class CommentsPopup extends Component {
             currCommentId = currComment['commentid'];
             currCommentIsEdited = currComment['isedited'];
             if(currComment['iscaption']) {
-                caption.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                caption.push(<Comment username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                 numLikes={0} replies={[]} isCaption={true} language={this.props.language} isOwn={currComment['username']==='rishavry'} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                 isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                 caption.push(<br/>);
@@ -1128,7 +1170,7 @@ class CommentsPopup extends Component {
                 for(let i of currCommentRepliesByUser) {
                     let thisReplyLikes = this.state.commentLikes.filter(x=>x['commentid']===i['replyid']);
                     let thisReplyReplies = this.state.replies.filter(x=>x['commentid']===i['replyid']);
-                    commentsInGeneralRepliesByUser.push(<Comment username={'rishavry'} id={i['replyid']} time={i['datetime']}
+                    commentsInGeneralRepliesByUser.push(<Comment username={'rishavry'} id={i['replyid']} time={this.formatDate(i['datetime'])}
                     comment={"(Your reply to @" + currComment['username'] + ", who commented: '" + currComment['comment'] + "')\n" +
                     i['comment']} replies={thisReplyReplies}
                     numLikes={thisReplyLikes.length} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
@@ -1136,13 +1178,13 @@ class CommentsPopup extends Component {
                     commentsInGeneralRepliesByUser.push(<br/>);
                 }
                 if(currComment['username']==='rishavry') {
-                    commentsInGeneralByUser.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                    commentsInGeneralByUser.push(<Comment username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                     isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                     commentsInGeneralByUser.push(<br/>);
                 }
                 else {
-                    commentsInGeneral.push(<Comment username={currComment['username']} id={currCommentId} time={currComment['datetime']} comment={currComment['comment']}
+                    commentsInGeneral.push(<Comment username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={false} deleteComment={this.deleteComment} toggleReply={this.toggleReply}
                     isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                     commentsInGeneral.push(<br/>);

@@ -28,14 +28,12 @@ builder.Services.AddGraphQLServer()
     .AddFiltering()
     .AddSorting();
 
+builder.Services.AddSingleton<MySqlDatabaseService>();
+
 
 var app = builder.Build();
 
-app.Use(async (context, next) =>
-{
-    context.Response.Headers["Cache-Control"] = "no-store";
-    await next();
-});
+
 app.UseCors("AllowSpecificOrigin");
 
 
@@ -46,7 +44,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseAuthorization();
-//app.MapControllers();
+app.MapControllers();
 
 
 

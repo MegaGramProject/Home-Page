@@ -48,7 +48,7 @@ class MediaPost extends Component {
             showRightBanner: false,
             showLeftBanner: false,
             postId: "",
-            isVerified: true,
+            isVerified: false,
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
@@ -324,14 +324,37 @@ class MediaPost extends Component {
     }
 
     formatDate(dateString) {
-        const date = new Date(dateString)
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const month = months[date.getUTCMonth()];
-        const day = date.getUTCDate();
-        const year = date.getUTCFullYear();
-        
-        return `${month} ${day}, ${year}`;
+        const date = new Date(dateString);
+        const currentDate = new Date();
+        const secondsDiff = Math.floor((currentDate - date) / 1000);
+    
+        if (secondsDiff < 60) {
+            return `${secondsDiff}s`;
+        } else {
+            const minutesDiff = Math.floor(secondsDiff / 60);
+            if (minutesDiff < 60) {
+                return `${minutesDiff}m`;
+            } else {
+                const hoursDiff = Math.floor(minutesDiff / 60);
+                if (hoursDiff < 24) {
+                    return `${hoursDiff}h`;
+                } else {
+                    const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                    if (weeksDiff < 4) {
+                        return `${weeksDiff}w`;
+                    } else {
+                        // If more than 4 weeks, return the actual date in "Month Day, Year" format
+                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                        const month = months[date.getUTCMonth()];
+                        const day = date.getUTCDate();
+                        const year = date.getUTCFullYear();
+                        return `${month} ${day}, ${year}`;
+                    }
+                }
+            }
+        }
     }
+    
 
     toggleSettings = () => {
         if(this.state.showQualityOptions) {
@@ -365,10 +388,12 @@ class MediaPost extends Component {
             if(!currSlideIsVid) {
                 this.fetchLikes(this.props.postDetails[0][0].id);
                 this.checkIfSaved(this.props.postDetails[0][0].id);
+                this.checkIfUserVerified(this.props.postDetails[0][0].usernames[0]);
             }
             else {
                 this.fetchLikes(this.props.postDetails[1][0].overallPostId);
                 this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
+                this.checkIfUserVerified(this.props.postDetails[1][0].usernames[0]);
             }
             this.setState({
                 caption: this.props.postDetails[2]['comment'],
@@ -566,7 +591,7 @@ class MediaPost extends Component {
                 
                 this.setState(
                     {isLiked: false,
-                    likesText: (this.state.numLikes-1) + ' likes',
+                    likesText: this.state.numLikes==2 ? '1 like' : (this.state.numLikes-1) + ' likes',
                     numLikes: this.state.numLikes-1,
                 });
             }
@@ -685,7 +710,7 @@ class MediaPost extends Component {
                 }
                 this.setState(
                     {isLiked: true,
-                    likesText: (this.state.numLikes+1) + ' likes',
+                    likesText: this.state.numLikes==0 ? '1 like' : this.state.numLikes+1 + ' likes',
                     numLikes: this.state.numLikes+1});
             }
             catch (error) {
@@ -845,6 +870,20 @@ class MediaPost extends Component {
             console.error(error);
         }
 
+    }
+
+    checkIfUserVerified = async (username) => {
+        try {
+            const response = await fetch('http://localhost:5022/isUserVerified/'+username);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const output = await response.json();
+            this.setState({isVerified: output['isVerified']});
+        }
+        catch (error) {
+            console.error(error);
+        }
     }
 
 

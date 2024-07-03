@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import blankHeart from './images/blankHeartIcon.png';
 import moreIcon from './images/moreIcon.png';
 import redHeart from './images/redHeartIcon.png';
+import verifiedAccount from './images/verifiedAccount.png';
 import './styles.css';
 
 class Comment extends Component {
@@ -27,6 +28,7 @@ class Comment extends Component {
             showSave: true,
             commentText2: "",
             isEdited: this.props.isEdited,
+            isVerified: false
         };
         this.textInput = React.createRef();
     };
@@ -282,6 +284,7 @@ class Comment extends Component {
             hideRepliesText: "Hide replies (" + this.state.replies.length + ")",
         });
         this.fetchProfilePhoto(this.props.username);
+        this.checkIfUserVerified(this.props.username);
         await this.updateReplyText("English");
         await this.updateTimeText("English");
         await this.updateLikesText("English");
@@ -572,6 +575,52 @@ class Comment extends Component {
         }
     }
 
+    checkIfUserVerified = async (username) => {
+        try {
+            const response = await fetch('http://localhost:5022/isUserVerified/'+username);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const output = await response.json();
+            this.setState({isVerified: output['isVerified']});
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        const currentDate = new Date();
+        const secondsDiff = Math.floor((currentDate - date) / 1000);
+    
+        if (secondsDiff < 60) {
+            return `${secondsDiff}s`;
+        } else {
+            const minutesDiff = Math.floor(secondsDiff / 60);
+            if (minutesDiff < 60) {
+                return `${minutesDiff}m`;
+            } else {
+                const hoursDiff = Math.floor(minutesDiff / 60);
+                if (hoursDiff < 24) {
+                    return `${hoursDiff}h`;
+                } else {
+                    const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                    if (weeksDiff < 4) {
+                        return `${weeksDiff}w`;
+                    } else {
+                        // If more than 4 weeks, return the actual date in "Month Day, Year" format
+                        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                        const month = months[date.getUTCMonth()];
+                        const day = date.getUTCDate();
+                        const year = date.getUTCFullYear();
+                        return `${month} ${day}, ${year}`;
+                    }
+                }
+            }
+        }
+    }
+
 
     render() {
         const repliesToComment = [];
@@ -588,13 +637,13 @@ class Comment extends Component {
                 currReplyReplies = this.props.allPostReplies.filter(x=>x['commentid']===currReplyId);
                 currReplyIsEdited = currReply['isedited'];
                 if(currReply['username']==='rishavry') {
-                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={currReply['datetime']} comment={currReply['comment']}
+                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.props.toggleReply} deleteComment={this.deleteReply}
                     isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
                     repliesToComment.push(<br/>);
                 }
                 else {
-                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={currReply['datetime']} comment={currReply['comment']}
+                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={false} toggleReply={this.props.toggleReply} isReply={true} isEdited={currReplyIsEdited}
                     allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
                     repliesToComment.push(<br/>);
@@ -608,7 +657,7 @@ class Comment extends Component {
         {!(this.state.profilePhotoLoading || this.state.error) && (  <img src={this.state.profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         {(this.state.profilePhotoLoading || this.state.error) && (  <img src={moreIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         <div onDoubleClick={this.likeComment} style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
-        <b>{this.props.username}</b>
+        <b>{this.props.username}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
         {!this.state.editMode && <p style={{textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word', marginTop:'0.4em', width:'21em'}}>{this.state.commentText}</p>}
         {this.state.editMode &&  <textarea type="text" ref={this.textInput} value={this.state.commentText2} onChange={this.handleCommentChange} style={{paddingTop: '0.3em', fontSize: '1em',
         marginTop:'0em', width:'21em', marginLeft:'0em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial', resize:'true'}}
