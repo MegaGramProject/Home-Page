@@ -157,10 +157,10 @@ class PostLikersPopup extends Component {
         let accounts = []
         for(let i of usersThatLiked) {
             if(i['username']==='rishavry') {
-                accounts.unshift(<FollowUser language={this.props.language} username={i['username']} isOwn={true} isFollowing={true}/>);
+                accounts.unshift(<FollowUser key={i['username']} language={this.props.language} username={i['username']} isOwn={true} isFollowing={true}/>);
             }
             else {
-                accounts.push(<FollowUser language={this.props.language} username={i['username']} isOwn={false} isFollowing={false}/>);
+                accounts.push(<FollowUser key={i['username']} language={this.props.language} username={i['username']} isOwn={false} isFollowing={false}/>);
             }
         }
         this.setState({accounts: accounts});

@@ -228,5 +228,34 @@ body {
     text-transform: capitalize !important;
 }
 
+.triangle {
+    width: 0;
+    height: 0;
+    border-left: 0.7em solid transparent; /* Adjust the size as needed */
+    border-right: 0.7em solid transparent; /* Adjust the size as needed */
+    border-bottom: 0.7em solid black; /* Adjust the color and size as needed */
+    background-color: rgba(0,0,0,0.75),
+}
 
+.vjs-mouse-display {
+    display: none !important;
+}
 
+@media (max-width: 1450px) {
+    #rightSideOfHomePage {
+        display: none !important;
+    }
+}
+
+@media (max-width: 800px) {
+    #leftSidebar {
+        display: none !important;
+    }
+    #posts {
+        margin-right: 25em;
+    }
+
+    #stories {
+        margin-left: -14em !important;
+    }
+}

@@ -1,3 +1,4 @@
+import getBlobDuration from 'get-blob-duration';
 import React, { Component } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import videojs from 'video.js';
@@ -21,6 +22,7 @@ import PostDots from "./postDots";
 import StoryIcon from './storyIcon';
 import './styles.css';
 import frenchSubtitles from './subtitles_fr.vtt';
+
 
 class MediaPost extends Component {
     constructor(props) {
@@ -49,11 +51,18 @@ class MediaPost extends Component {
             showLeftBanner: false,
             postId: "",
             isVerified: false,
+            hearts:  [],
+            showPreview: false,
+            previewLeft: 30,
+            previewImage: "",
+            previewTime: ""
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
         this.spaceKeyPressed = false;
         this.slideToVideoUrlMapping = {};
+        this.slideToVideoBlobMapping = {};
+        this.timeToVideoFrameMapping = {};
 
     };
 
@@ -393,6 +402,7 @@ class MediaPost extends Component {
         }
     }
 
+
     async componentDidMount() {
         await this.updatePostText("English");
         await this.updateAddACommentText("English");
@@ -405,44 +415,6 @@ class MediaPost extends Component {
     }
 
     async componentDidUpdate(prevProps, prevState) {
-        if (prevProps.postDetails != this.props.postDetails) {
-            if(this.props.postDetails[1].length>0) {
-                    this.fetchVideos();
-            }
-            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide));
-            if(!currSlideIsVid) {
-                this.fetchLikes(this.props.postDetails[0][0].id);
-                this.checkIfSaved(this.props.postDetails[0][0].id);
-                this.checkIfUserVerified(this.props.postDetails[0][0].usernames[0]);
-            }
-            else {
-                this.fetchLikes(this.props.postDetails[1][0].overallPostId);
-                this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
-                this.checkIfUserVerified(this.props.postDetails[1][0].usernames[0]);
-            }
-            this.setState({
-                caption: this.props.postDetails[2]['comment'],
-                currSlideIsVid: currSlideIsVid,
-                locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
-                timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
-                numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
-                postId: currSlideIsVid ? this.props.postDetails[1][0].overallPostId : this.props.postDetails[0][0].id
-
-            });
-        }
-            
-        if (prevProps.language !== this.props.language) {
-            await this.updatePostText(prevProps.language);
-            await this.updateAddACommentText(prevProps.language);
-            await this.updateViewAllCommentsText(prevProps.language);
-            await this.updateLikesText(prevProps.language);
-            await this.updateLocationText(prevProps.language);
-            await this.updateTimeText(prevProps.language);
-            }
-        else if(prevState.likesText !== this.state.likesText) {
-            await this.updateLikesText("English");
-        }
-
         if(!prevState.currSlideIsVid && this.state.currSlideIsVid) {
             const Button = videojs.getComponent('Button');
                     class SettingsButton extends Button {
@@ -491,52 +463,160 @@ class MediaPost extends Component {
                         }
                     });
                 
-                    this.player.src({ src: this.state.videoUrl, type: 'video/mp4' });
-                    class ThumbnailPreview extends videojs.getComponent('Component') {
-                        constructor(player, options) {
-                            super(player, options);
-                            this.thumbnailImg = videojs.dom.createEl('img', {
-                                className: 'vjs-thumbnail-preview',
-                                style: 'position: absolute; bottom: -90% height: 10% width: 10%;'
-                            });
-                    
-                    
-                            this.thumbnailImg.style.display = 'none';
-                            this.el().appendChild(this.thumbnailImg);
-                    
-
-                            if (this.options_.player) {
-                                const progressControl = this.options_.player.getChild('controlBar').getChild('progressControl');
-                                progressControl.on('mousemove', this.handleMouseMove.bind(this));
-                                progressControl.on('mouseout', () => { this.thumbnailImg.style.display = 'none';});
-                            }
-                        }
-                    
-                        handleMouseMove(event) {
-                            if (this.options_.player) {
-                                const progressControl = this.options_.player.getChild('controlBar').getChild('progressControl');
-                                const rect = progressControl.el().getBoundingClientRect();
-                                const mouseX = event.clientX - rect.left;
-                                this.thumbnailImg.src = redHeart;
-                                this.thumbnailImg.style.left = `${mouseX+125}px`;
-                                this.thumbnailImg.style.display = 'inline-block';
-                            }
-                        }
-                    }
-                    
-                    videojs.registerComponent('thumbnailPreview', ThumbnailPreview);
-                    this.player.getChild('controlBar').addChild('thumbnailPreview', {
-                        player: this.player,
-                    });
+                    const progressControl = this.player.getChild('controlBar').getChild('progressControl');
                     this.player.getChild('controlBar').addChild('SubtitlesButton');
                     this.player.getChild('controlBar').addChild('SettingsButton', {
                         toggleSettings: this.toggleSettings,
                     });
                     this.player.getChild('controlBar').addChild('playbackRateMenuButton');
                     this.player.getChild('controlBar').addChild('fullscreenToggle');
+                    progressControl.on('mousemove', this.handleMouseMove);
+                    progressControl.on('mouseout', this.handleMouseLeave);
+                
+        }
+        if (prevProps.postDetails != this.props.postDetails) {
+            if(this.props.postDetails[1].length>0) {
+                    this.fetchVideos();
+            }
+            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide));
+            if(!currSlideIsVid) {
+                this.fetchLikes(this.props.postDetails[0][0].id);
+                this.checkIfSaved(this.props.postDetails[0][0].id);
+                this.checkIfUserVerified(this.props.postDetails[0][0].usernames[0]);
+            }
+            else {
+                this.fetchLikes(this.props.postDetails[1][0].overallPostId);
+                this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
+                this.checkIfUserVerified(this.props.postDetails[1][0].usernames[0]);
+            }
+            this.setState({
+                caption: this.props.postDetails[2]['comment'],
+                currSlideIsVid: currSlideIsVid,
+                locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
+                timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
+                numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
+                postId: currSlideIsVid ? this.props.postDetails[1][0].overallPostId : this.props.postDetails[0][0].id
+
+            });
+        }
+            
+        if (prevProps.language !== this.props.language) {
+            await this.updatePostText(prevProps.language);
+            await this.updateAddACommentText(prevProps.language);
+            await this.updateViewAllCommentsText(prevProps.language);
+            await this.updateLikesText(prevProps.language);
+            await this.updateLocationText(prevProps.language);
+            await this.updateTimeText(prevProps.language);
+            }
+        else if(prevState.likesText !== this.state.likesText) {
+            await this.updateLikesText("English");
         }
 
+    }
+
+    handleMouseMove = (event) => {
+        if (this.player) {
+            const progressControl = this.player.getChild('controlBar').getChild('progressControl');
+            const rect = progressControl.el().getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const timeTooltipElement = this.player.el().querySelector('.vjs-time-tooltip');
+            const timeTooltipElementTimeStr = timeTooltipElement.innerText.trim();
+            const timeInSeconds = this.timeStringToSeconds(timeTooltipElementTimeStr);
+            try {
+            this.setState({
+                showPreview: true,
+                previewImage: this.timeToVideoFrameMapping[this.findTime(timeInSeconds)],
+                previewLeft: (mouseX/rect.width)*45+20,
+                previewTime: timeTooltipElementTimeStr
+            });
+            }
+            catch (error) {
+            console.error(error)
+            }
+        }
+    }
+
+    handleMouseLeave = (event) => {
+        this.setState({
+            showPreview: false,
+            previewLeft: 500,
+            previewImage: ""
+        })
+    }
+
+    timeStringToSeconds(timeString) {
+        const timeParts = timeString.split(':');
+        let hours = 0;
+        let minutes = 0;
+        let seconds = 0;
+        if(timeParts.length==1) {
+            seconds = parseInt(timeParts[0]);
+        }
+        else if(timeParts.length==2) {
+            minutes = parseInt(timeParts[0]);
+            seconds = parseInt(timeParts[1]);
+        }
+        else if(timeParts.length==3) {
+            hours = parseInt(timeParts[0]);
+            minutes = parseInt(timeParts[1])
+            seconds = parseInt(timeParts[2]);
+        }
+        
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
     
+        return totalSeconds;
+    }
+
+    getFramesAtEach5SecondInterval = async (currSlide) => {
+        try {
+            this.timeToVideoFrameMapping = {};
+            const videoBlob = this.slideToVideoBlobMapping[currSlide];
+            const duration = await getBlobDuration(videoBlob);
+            const formData = new FormData();
+            formData.append('video', videoBlob);
+            formData.append('duration', String(duration));
+            const framesResponse = await fetch('http://localhost:8006/getVideoFramesAtIntervals', {
+                method: "POST",
+                body: formData
+            });
+            if (!framesResponse.ok) {
+                throw new Error('Failed to fetch frames');
+            }
+            const framesData = await framesResponse.json();
+            const frames = framesData.frames;
+            for(let i=0; i<=frames.length; i++) {
+                const currFrame = frames[i];
+                this.timeToVideoFrameMapping[i*5] = currFrame;
+            }
+    
+        } catch (error) {
+            console.error('Error fetching or processing video frames:', error);
+        }
+    }
+    
+    
+
+    findTime = (timeInSeconds) => {
+        let val = timeInSeconds;
+        while (val%5!==0 && val > -1) {
+            val-=1
+        }
+        if(val>-1) {
+            return val;
+        }
+        return -1
+    }
+    
+
+
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
     }
 
     componentWillUnmount() {
@@ -625,7 +705,7 @@ class MediaPost extends Component {
             }
         }
         else {
-            this.likePost();
+            this.likePost(null);
         }
     }
 
@@ -702,8 +782,22 @@ class MediaPost extends Component {
             }
         }
     }
+
+    removeHeart = (heartCoordinates) => {
+        const { hearts } = this.state;
+        const index = hearts.findIndex(heart =>
+        heart[0] == heartCoordinates[0] && heart[1] == heartCoordinates[1]
+        );
+
     
-    likePost = async () => {
+        if (index !== -1) {
+            const newHearts = [...hearts];
+            newHearts.splice(index, 1);
+            this.setState({ hearts: newHearts });
+        }
+    }
+    
+    likePost = async (event) => {
         if(!this.state.isLiked) {
             try {
                 if(!this.state.currSlideIsVid) {
@@ -742,6 +836,22 @@ class MediaPost extends Component {
                 console.error('Error:', error);
             }
         }
+        if(event) {
+            const rect = event.target.getBoundingClientRect();
+            const xRelativeToDiv = (event.clientX - rect.left)/rect.width * 100 - 12;
+            const yRelativeToDiv = (event.clientY - rect.top)/rect.height * 100 - 11;
+            const rotation = Math.random() * 20 - 10;
+            const height = Math.random()*5 + 7;
+            const width = Math.random()*5 + 7;
+            const heartCoordinates = [xRelativeToDiv, yRelativeToDiv, rotation, height, width];
+            this.setState({
+                hearts: [...this.state.hearts, heartCoordinates]
+            }, () => {
+                setTimeout(() => {
+                this.removeHeart(heartCoordinates);
+                }, 900);
+            });
+        }
     }
     
     
@@ -756,7 +866,7 @@ class MediaPost extends Component {
         }
     };
 
-    showNextSlide = () => {
+    showNextSlide = async () => {
         let nextSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide+1));
         if (nextSlideIsVid) {
             this.setState({
@@ -764,6 +874,7 @@ class MediaPost extends Component {
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
                 showTags: false,
+                }, () => {//this.getFramesAtEach5SecondInterval(this.state.currSlide);
                 });
         }
         else {
@@ -775,7 +886,7 @@ class MediaPost extends Component {
         }
     }
 
-    showPreviousSlide = () => {
+    showPreviousSlide = async () => {
         let prevSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide-1));
         if (prevSlideIsVid) {
             this.setState({
@@ -783,6 +894,7 @@ class MediaPost extends Component {
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
                 showTags: false,
+                }, () => {//this.getFramesAtEach5SecondInterval(this.state.currSlide);
                 });
         }
         else {
@@ -809,6 +921,7 @@ class MediaPost extends Component {
                     throw new Error('Network response was not ok');
                 }
                 const videoBlob = await response.blob();
+                this.slideToVideoBlobMapping[slideNumber] = videoBlob;
                 const videoUrl = URL.createObjectURL(videoBlob);
                 this.slideToVideoUrlMapping[slideNumber] = videoUrl;
             } catch (error) {
@@ -816,7 +929,10 @@ class MediaPost extends Component {
             }
         }
         if(this.slideToVideoUrlMapping[0]) {
-            this.setState({videoUrl: this.slideToVideoUrlMapping[0]});
+            this.setState({videoUrl: this.slideToVideoUrlMapping[0]},
+            () => {this.getFramesAtEach5SecondInterval(0);
+            });
+        
         }
     
     }
@@ -927,6 +1043,11 @@ class MediaPost extends Component {
                 let x = this.props.postDetails[0][0].slides.indexOf(this.state.currSlide);
                 for (let i of this.props.postDetails[0][0].taggedAccounts[x]) {
                     shownTags.push(
+                        <div>
+                        <div className="triangle" style={{position: 'absolute',
+                        left: (i[0]+4).toString() + "%",
+                        top: (i[1]+0.55).toString() + "%",
+                        cursor:'pointer'}}></div>
                         <p style={{
                             position: 'absolute',
                             left: i[0].toString() + "%",
@@ -944,6 +1065,7 @@ class MediaPost extends Component {
                         }}>
                             {i[2]}
                         </p>
+                        </div>
                     );
                 }
             }
@@ -977,6 +1099,12 @@ class MediaPost extends Component {
 
             }
         }
+
+        const heartsOnPhoto = [];
+        for(let i of this.state.hearts) {
+            heartsOnPhoto.push(<img src={redHeart} style={{height:i[3]+'em', width:i[4]+'em', objectFit:'contain', position:'absolute', top:i[1]+'%',
+            left:i[0]+'%', opacity:'0.8', transform: `rotate(${i[2]}deg)`}}/>)
+        }
         
 
         return (
@@ -987,16 +1115,20 @@ class MediaPost extends Component {
         {this.props.postDetails && <StoryIcon username={this.props.postDetails[0][0].usernames[0]} unseenStory={true} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
         marginTop:'-1em', textAlign:'left',  textWrap:'wrap',  wordBreak: 'break-word', position:'relative'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[0][0].usernames[0]}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
-        <span style={{color:'gray'}}> • {this.state.timeText}</span></span>
+        <span style={{fontSize:'1.1em', cursor:'pointer'}}>
+        <div style={{display:'flex', alignItems:'center'}}>
+        <b>{this.props.postDetails && this.props.postDetails[0][0].usernames[0]}</b>
+        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        </div>
+        <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText} </span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
+        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>
         </div>
         <div style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
         {currPost!=="" && <img onDoubleClick={this.likePost} onClick={this.handleClick} src={currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
-        left: 0,}}/>}
+        left: 0}}/>}
         {this.props.postDetails!==null && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
         display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
         <img className="iconToBeAdjustedForDarkMode" onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
@@ -1008,6 +1140,7 @@ class MediaPost extends Component {
         {this.props.postDetails !== null && this.state.showTags &&
         shownTags
         }
+        {heartsOnPhoto}
         </div>
         <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
         <img className="iconToBeAdjustedForDarkMode" onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
@@ -1015,7 +1148,7 @@ class MediaPost extends Component {
         <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'inline-block' : 'none'}}/>
         {this.props.postDetails && <img className="iconToBeAdjustedForDarkMode" onClick = {() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
         src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>}
         <img className="iconToBeAdjustedForDarkMode" onClick = {this.props.showSendPostPopup} src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
         <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
@@ -1025,10 +1158,15 @@ class MediaPost extends Component {
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>}
+        {this.props.postDetails &&
+        <div style={{display:'flex', alignItems:'center'}}>
+        <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}</b>
+        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        </div>
+        }
         {this.formatText(this.state.caption)}
         {this.props.postDetails && <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
         style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>}
         <br/>
         <div>
@@ -1048,11 +1186,15 @@ class MediaPost extends Component {
         {this.props.postDetails && <StoryIcon unseenStory={true} username={this.props.postDetails[1][0]['usernames'][0]} isStory={false}/>}
         <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
         marginTop:'-1em', textAlign:'left'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.props.postDetails && this.props.postDetails[1][0]['usernames'][0]}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
-        <span style={{color:'gray'}}>• {this.state.timeText}</span></span>
+        <span style={{fontSize:'1.1em', cursor:'pointer'}}>
+        <div style={{display:'flex', alignItems:'center'}}>
+        <b>{this.props.postDetails && this.props.postDetails[1][0]['usernames'][0]}</b>
+        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        </div>
+        <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
+        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>
         </div>
         <div onClick={this.handleClick} onDoubleClick = {this.likePost} style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em', backgroundColor:'black'}}>
@@ -1080,6 +1222,12 @@ class MediaPost extends Component {
         <p style={{cursor:'pointer'}}>Auto</p>
         </div>
         )}
+        {this.state.showPreview &&
+        <div>
+        <img src={this.state.previewImage} style={{height:'7em', width:'7em', objectFit:'contain', position:'absolute', top:'65%', left:this.state.previewLeft+'%'}}/>
+        <p style={{color:'white', position:'absolute', top: '79%', left: (this.state.previewLeft+3.5) + '%'}}>{this.state.previewTime}</p>
+        </div>
+        }
         </div>
         {this.props.postDetails && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
         display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
@@ -1102,7 +1250,7 @@ class MediaPost extends Component {
         <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'inline-block' : 'none'}}/>
         <img className="iconToBeAdjustedForDarkMode" onClick = {() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
         src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>
         <img className="iconToBeAdjustedForDarkMode" onClick = {this.props.showSendPostPopup} src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
         <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
@@ -1112,10 +1260,15 @@ class MediaPost extends Component {
         </div>
         <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={()=>{this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        {this.props.postDetails && <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>}
+        {this.props.postDetails &&
+        <div style={{display:'flex', alignItems:'center'}}>
+        <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}</b>
+        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        </div>
+        }
         {this.formatText(this.state.caption)}
         <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved)}
+        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
         style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>
         <br/>
         <div>

@@ -20,11 +20,11 @@ class FollowUser extends Component {
     };
 
     handleMouseEnter = () => {
-        this.setState({isHovering: true})
+        this.setState({isHovering: true});
     }
 
     handleMouseLeave = () => {
-        this.setState({isHovering: false})
+        this.setState({isHovering: false});
     }
 
 

@@ -58,6 +58,7 @@ class CommentsPopup extends Component {
             comments: [],
             replies: [],
             commentLikes: [],
+            hearts:  []
         };
         this.textInput = React.createRef();
         this.videoNode = React.createRef();
@@ -502,7 +503,20 @@ class CommentsPopup extends Component {
         }
     };
 
-    likePost = async () => {
+    removeHeart = (heartCoordinates) => {
+        const { hearts } = this.state;
+        const index = hearts.findIndex(heart =>
+        heart[0] == heartCoordinates[0] && heart[1] == heartCoordinates[1]
+        );
+    
+        if (index !== -1) {
+            const newHearts = [...hearts];
+            newHearts.splice(index, 1);
+            this.setState({ hearts: newHearts });
+        }
+    }
+
+    likePost = async (event) => {
         if(!this.state.isLiked) {
             try {
                 if(!this.state.currSlideIsVid) {
@@ -540,6 +554,23 @@ class CommentsPopup extends Component {
             catch (error) {
                 console.error('Error:', error);
             }
+        }
+
+        if(event) {
+            const rect = event.target.getBoundingClientRect();
+            const xRelativeToDiv = (event.clientX - rect.left)/rect.width * 100 - 12;
+            const yRelativeToDiv = (event.clientY - rect.top)/rect.height * 100 - 11;
+            const rotation = Math.random() * 20 - 10;
+            const height = Math.random()*5 + 7;
+            const width = Math.random()*5 + 7;
+            const heartCoordinates = [xRelativeToDiv, yRelativeToDiv, rotation, height, width];
+            this.setState({
+                hearts: [...this.state.hearts, heartCoordinates]
+            }, () => {
+                setTimeout(() => {
+                this.removeHeart(heartCoordinates);
+                }, 900);
+            });
         }
     }
 
@@ -585,7 +616,7 @@ class CommentsPopup extends Component {
             }
         }
         else {
-            this.likePost();
+            this.likePost(null);
         }
     }
 
@@ -746,7 +777,7 @@ class CommentsPopup extends Component {
                     }
                     const responseData = await response.json();
                     this.setState({
-                        commentsSent: [...this.state.commentsSent, [uuidv4(), this.state.comment]],
+                        commentsSent: [...this.state.commentsSent, [responseData['data']['addComment']['commentid'], this.state.comment]],
                         comment: "",
                         sendComment: false,
                         });
@@ -954,7 +985,6 @@ class CommentsPopup extends Component {
             throw new Error("Error fetching comments");
         }
         const responseData = await response.json();
-        console.log(responseData['data']['comments']);
         this.setState({comments: responseData['data']['comments']});
         }
         catch (error) {
@@ -1133,7 +1163,7 @@ class CommentsPopup extends Component {
     render() {
         let commentsByUser = [];
         for (let i = 0; i < this.state.commentsSent.length; i++) {
-                commentsByUser.push(<Comment username={'rishavry'} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
+                commentsByUser.push(<Comment key={this.state.commentsSent[i][0]} username={'rishavry'} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
                 numLikes={0} replies={[]} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                 isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                 commentsByUser.push(<br/>);
@@ -1141,7 +1171,7 @@ class CommentsPopup extends Component {
 
         const repliesByUser = [];
         for (let j = 0; j < this.state.repliesSent.length; j++) {
-            repliesByUser.push(<Comment username={'rishavry'} id={this.state.repliesSent[j][0]} time={'1s'}
+            repliesByUser.push(<Comment key={this.state.repliesSent[j][0]} username={'rishavry'} id={this.state.repliesSent[j][0]} time={'1s'}
             comment={"(Your reply to @" + this.state.repliesSent[j][2] + ", who commented: '" + this.state.repliesSent[j][3] + "')\n" +
             this.state.repliesSent[j][1]} replies={[]}
             numLikes={0} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
@@ -1164,7 +1194,7 @@ class CommentsPopup extends Component {
             currCommentId = currComment['commentid'];
             currCommentIsEdited = currComment['isedited'];
             if(currComment['iscaption']) {
-                caption.push(<Comment username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
+                caption.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                 numLikes={0} replies={[]} isCaption={true} language={this.props.language} isOwn={currComment['username']==='rishavry'} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                 isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                 caption.push(<br/>);
@@ -1176,7 +1206,7 @@ class CommentsPopup extends Component {
                 for(let i of currCommentRepliesByUser) {
                     let thisReplyLikes = this.state.commentLikes.filter(x=>x['commentid']===i['replyid']);
                     let thisReplyReplies = this.state.replies.filter(x=>x['commentid']===i['replyid']);
-                    commentsInGeneralRepliesByUser.push(<Comment username={'rishavry'} id={i['replyid']} time={this.formatDate(i['datetime'])}
+                    commentsInGeneralRepliesByUser.push(<Comment key={i['replyid']} username={'rishavry'} id={i['replyid']} time={this.formatDate(i['datetime'])}
                     comment={"(Your reply to @" + currComment['username'] + ", who commented: '" + currComment['comment'] + "')\n" +
                     i['comment']} replies={thisReplyReplies}
                     numLikes={thisReplyLikes.length} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
@@ -1184,13 +1214,13 @@ class CommentsPopup extends Component {
                     commentsInGeneralRepliesByUser.push(<br/>);
                 }
                 if(currComment['username']==='rishavry') {
-                    commentsInGeneralByUser.push(<Comment username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
+                    commentsInGeneralByUser.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                     isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                     commentsInGeneralByUser.push(<br/>);
                 }
                 else {
-                    commentsInGeneral.push(<Comment username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
+                    commentsInGeneral.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={false} deleteComment={this.deleteComment} toggleReply={this.toggleReply}
                     isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                     commentsInGeneral.push(<br/>);
@@ -1204,6 +1234,11 @@ class CommentsPopup extends Component {
                 let x = this.state.postDetails[0][0].slides.indexOf(this.state.currSlide);
                 for (let i of this.state.postDetails[0][0].taggedAccounts[x]) {
                     shownTags.push(
+                        <div>
+                        <div className="triangle" style={{position: 'absolute',
+                        left: (i[0]+4).toString() + "%",
+                        top: (i[1]+0.55).toString() + "%",
+                        cursor:'pointer'}}></div>
                         <p style={{
                             position: 'absolute',
                             left: i[0].toString() + "%",
@@ -1221,6 +1256,7 @@ class CommentsPopup extends Component {
                         }}>
                             {i[2]}
                         </p>
+                        </div>
                     );
                 }
             }
@@ -1254,6 +1290,12 @@ class CommentsPopup extends Component {
             }
         }
 
+        const heartsOnPhoto = [];
+        for(let i of this.state.hearts) {
+            heartsOnPhoto.push(<img src={redHeart} style={{height:i[3]+'em', width:i[4]+'em', objectFit:'contain', position:'absolute', top:i[1]+'%',
+            left:i[0]+'%', opacity:'0.8', transform: `rotate(${i[2]}deg)`}}/>)
+        }
+
 
         return (
         <React.Fragment>
@@ -1274,6 +1316,7 @@ class CommentsPopup extends Component {
         {this.state.postDetails !== null && this.state.showTags &&
         shownTags
         }
+        {heartsOnPhoto}
         </div>
         <div className="commentPopupBackground" style={{position:'absolute', left:'65%', top:'0%', width:'35%', height:'100%'}}>
         </div>
@@ -1285,7 +1328,8 @@ class CommentsPopup extends Component {
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[0][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.postIdInReact); this.hideCommentsPopup();
+        }} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />
@@ -1379,7 +1423,7 @@ class CommentsPopup extends Component {
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.state.postDetails[1][0].usernames[0]}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
+        <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.postIdInReact); this.hideCommentsPopup();}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>
         </div>
         <hr style={{width: '100%', borderTop: '1px solid lightgray', marginLeft:'-0.90em'}} />

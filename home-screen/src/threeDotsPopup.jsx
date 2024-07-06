@@ -5,7 +5,7 @@ class ThreeDotsPopup extends Component {
     constructor(props) {
         super(props);
         this.state = {
-            reportText: "Report",
+            hidePostText: "Hide post",
             unfollowText: "Unfollow",
             goToPostText: "Go to post",
             shareToText: "Share to...",
@@ -14,7 +14,6 @@ class ThreeDotsPopup extends Component {
             aboutThisAccountText: "About this account",
             cancelText: "Cancel",
             hideAdText: "Hide ad",
-            reportAdText: "Report ad",
             whyAdText: "Why are you seeing this ad?",
         };
     };
@@ -302,7 +301,7 @@ class ThreeDotsPopup extends Component {
         <React.Fragment>
         {!this.props.isAd &&  (<div className="popup" style={{height:'35em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
         display:'flex', flexDirection:'column', alignItems:'center'}}>
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.reportText}</b>
+        <b onClick={()=>{this.props.hidePost(this.props.id)}} style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hidePostText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
         <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.unfollowText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
@@ -320,11 +319,9 @@ class ThreeDotsPopup extends Component {
         </div>)
         }
 
-        {this.props.isAd &&  (<div className="popup" style={{height:'16em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
+        {this.props.isAd &&  (<div className="popup" style={{height:'13em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
         display:'flex', flexDirection:'column', alignItems:'center'}}>
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hideAdText}</b>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.reportAdText}</b>
+        <b onClick={()=>{this.props.hidePost(this.props.id)}} style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hideAdText}</b>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
         <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.whyAdText}</p>
         <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />

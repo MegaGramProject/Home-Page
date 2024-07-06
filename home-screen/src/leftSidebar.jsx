@@ -444,7 +444,7 @@ class LeftSidebar extends Component {
     render() {
         return (
         <React.Fragment>
-        <div style={{position: 'fixed'}}>
+        <div id="leftSidebar" style={{position: 'fixed'}}>
         <div style={{width:'14.5em', height:'54em', borderStyle:'solid', borderColor:'lightgray',  borderWidth: '0px 0.01em 0px 0em', position: 'relative', overflow:'scroll'}}>
             <h1 className="headerMegagram" style={{fontFamily:'Billabong', fontSize:'1.9em', marginLeft:'-3em', marginTop:'1em', fontWeight: '100'}}><span style={{cursor:"pointer"}}>Megagram</span></h1>
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em'}}>

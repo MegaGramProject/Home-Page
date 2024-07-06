@@ -681,13 +681,13 @@ class Comment extends Component {
                 currReplyReplies = this.props.allPostReplies.filter(x=>x['commentid']===currReplyId);
                 currReplyIsEdited = currReply['isedited'];
                 if(currReply['username']==='rishavry') {
-                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
+                    repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.props.toggleReply} deleteComment={this.deleteReply}
                     isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
                     repliesToComment.push(<br/>);
                 }
                 else {
-                    repliesToComment.push(<Comment username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
+                    repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={false} toggleReply={this.props.toggleReply} isReply={true} isEdited={currReplyIsEdited}
                     allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
                     repliesToComment.push(<br/>);
@@ -701,7 +701,10 @@ class Comment extends Component {
         {!(this.state.profilePhotoLoading || this.state.error) && (  <img src={this.state.profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         {(this.state.profilePhotoLoading || this.state.error) && (  <img src={moreIcon} style={{height:'2.5em', width:'2.5em', objectFit:'contain', cursor:'pointer'}}/>)}
         <div onDoubleClick={this.likeComment} style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
-        <b>{this.props.username}{this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}</b>
+        <div style={{display:'flex', alignItems:'center'}}>
+        <b>{this.props.username}</b>
+        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        </div>
         {!this.state.editMode && this.formatText(this.state.commentText)}
         {this.state.editMode &&  <textarea type="text" ref={this.textInput} value={this.state.commentText2} onChange={this.handleCommentChange} style={{paddingTop: '0.3em', fontSize: '1em',
         marginTop:'0em', width:'21em', marginLeft:'0em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', fontFamily:'Arial', resize:'true'}}

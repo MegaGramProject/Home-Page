@@ -47,7 +47,10 @@ class App extends Component {
         currStoryLevel: 0,
         showAboutAccountPopup: false,
         aboutAccountPopupPostId: null,
-        threeDotsPopupPostId: null
+        threeDotsPopupPostId: null,
+        threeDotsPopupPostIdInReact: null,
+        hiddenPosts: [],
+        commentsPopupPostIdInReact: ''
         };
 
     };
@@ -60,25 +63,26 @@ class App extends Component {
         this.setState({language: newLanguage});
     };
 
-    showPostPopup = (postId) => {
+    showPostPopup = (postId, idInReact) => {
         this.setState({
             showThreeDotsPopup: true,
             threeDotsPopupIsAd: false,
-            threeDotsPopupPostId: postId
+            threeDotsPopupPostId: postId,
+            threeDotsPopupPostIdInReact: idInReact
         });
     };
 
-    showAdPopup = (postId) => {
+    showAdPopup = (postId, idInReact) => {
         this.setState({
             showThreeDotsPopup: true,
             threeDotsPopupIsAd: true,
             threeDotsPopupPostId: postId,
+            threeDotsPopupPostIdInReact: idInReact
         });
     };
 
 
-
-    showCommentsPopup = (postDetails, numLikes, numComments, currSlide, isLiked, isAd, isSaved) => {
+    showCommentsPopup = (postDetails, numLikes, numComments, currSlide, isLiked, isAd, isSaved, idInReact) => {
         this.setState({
             showCommentsPopup: true,
             commentsPopupPostDetails: postDetails,
@@ -88,6 +92,7 @@ class App extends Component {
             commentsPopupIsLiked: isLiked,
             commentsPopupIsAd: isAd,
             commentsPopupIsSaved: isSaved,
+            commentsPopupPostIdInReact: idInReact
         });
     };
 
@@ -114,11 +119,18 @@ class App extends Component {
         this.setState({
             showThreeDotsPopup: false,
             threeDotsPopupIsAd: false,
-            threeDotsPopupPostId: null
+            threeDotsPopupPostId: null,
+            threeDotsPopupPostIdInReact: null
         });
     };
 
-
+    hidePost = (id) => {
+        this.setState({
+            hiddenPosts: [...this.state.hiddenPosts, id]
+        });
+        this.closeThreeDotsPopup();
+    }
+    
 
     translateTextPromise = async function(text, language1, language2){
         let language1Code;
@@ -552,7 +564,7 @@ class App extends Component {
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
         <LeftSidebar username={"rishavry"} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
-        <div style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
+        <div id="stories" style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
         <StoryIcon username={"rishavry"} ownAccount={true} unseenStory={false} isStory={true}/>
         {storyIcons}
         </div>
@@ -560,31 +572,31 @@ class App extends Component {
         left:'88%', top:'3%', cursor:'pointer', display: showRightArrow ? 'inline-block' : 'none'}}/>
         <img className="leftArrow" onClick={this.decrementStoryLevel} src={backArrow} style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
         left:'-7.5%', top:'3%', cursor:'pointer', display: this.state.currStoryLevel>0 ? 'inline-block' : 'none'}}/>
-        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
+        <div id="posts" style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
-        <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language}
+        {!this.state.hiddenPosts.includes(1) && <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language}
         showThreeDotsPopup={this.showPostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}
-        showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language}
+        showPostLikersPopup={this.showPostLikersPopup} isAd={false}/>}
+        {!this.state.hiddenPosts.includes(2) && <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language}
         showThreeDotsPopup={this.showPostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}
-        showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language}
+        showPostLikersPopup={this.showPostLikersPopup} isAd={false}/>}
+        {!this.state.hiddenPosts.includes(3) && <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language}
         showThreeDotsPopup={this.showAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}
-        showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language}
+        showPostLikersPopup={this.showPostLikersPopup} isAd={true}/>}
+        {!this.state.hiddenPosts.includes(4) && <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language}
         showThreeDotsPopup={this.showAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}
-        showPostLikersPopup={this.showPostLikersPopup}/>
-        <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language}
+        showPostLikersPopup={this.showPostLikersPopup} isAd={true}/>}
+        {!this.state.hiddenPosts.includes(5) && <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language}
         showThreeDotsPopup={this.showPostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}
-        showPostLikersPopup={this.showPostLikersPopup}/>
+        showPostLikersPopup={this.showPostLikersPopup} isAd={false}/>}
         </div>
         </div>
-        <div style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
+        <div id="rightSideOfHomePage" style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
         left:'76%', marginTop:'4em'}}>
         <UserBar language={this.state.language} username='rishavry' fullName='rishav ' ownAccount={true}/>
         <div style={{marginTop:'-1em'}}>
@@ -607,7 +619,8 @@ class App extends Component {
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showThreeDotsPopup ? 'inline-block' : 'none',
         opacity:this.state.showAboutAccountPopup ? '0' : '1', pointerEvents: this.state.showAboutAccountPopup ? 'none' : 'auto'}}>
         <ThreeDotsPopup closePopup = {this.closeThreeDotsPopup} language={this.state.language} isAd={this.state.threeDotsPopupIsAd}
-        showAboutAccountPopup={this.showAboutAccountPopup} postId={this.state.threeDotsPopupPostId}/>
+        showAboutAccountPopup={this.showAboutAccountPopup} postId={this.state.threeDotsPopupPostId} hidePost={this.hidePost}
+        id={this.state.threeDotsPopupPostIdInReact}/>
         </div>
 
         <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
@@ -618,7 +631,9 @@ class App extends Component {
         currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  showThreeDotsPopup={this.state.commentsPopupIsAd ? this.showAdPopup : this.showPostPopup}
         isSaved={this.state.commentsPopupIsSaved} hideCommentsPopup={this.hideCommentsPopup} showSendPostPopup={this.showSendPostPopup}
-        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==6}  showPostLikersPopup={this.showPostLikersPopup}/>
+        onFocus={this.handleFocus} isFocused={this.state.focusedComponent==6}  showPostLikersPopup={this.showPostLikersPopup}
+        postIdInReact={this.state.commentsPopupPostIdInReact}
+        />
         </div>
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>
