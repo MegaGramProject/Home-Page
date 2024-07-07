@@ -15,7 +15,7 @@ class Comment extends Component {
             showReplies: false,
             replyText: "Reply",
             timeText: this.props.time,
-            likesText: this.props.numLikes + " likes",
+            likesText: this.props.numLikes==1 ? "1 like" : this.props.numLikes + " likes",
             viewRepliesText: "View replies",
             hideRepliesText: "Hide replies",
             editText: "Edit",
@@ -293,6 +293,38 @@ class Comment extends Component {
         return window.btoa(binary);
     }
 
+    checkIfLiked = async () => {
+        const data = `
+        query {
+            commentLikes(where: {username: {eq: "rishavry" }, commentid : {eq: "${this.props.id}" }} ) {
+                commentid
+            }
+        }
+        `;
+        const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: data })
+        };
+
+        try {
+            const response = await fetch('http://localhost:5022/graphql', options);
+            if (!response.ok) {
+                let responseData2 = await response.json();
+                throw new Error("Error liking comment");
+            }
+            const responseData = await response.json();
+            this.setState({
+                isLiked: responseData['data']['commentLikes'].length==0 ? false : true
+            });
+            }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
     async componentDidMount() {
         this.setState({
             viewRepliesText: "View replies (" + this.state.replies.length + ")",
@@ -300,6 +332,7 @@ class Comment extends Component {
         });
         this.fetchProfilePhoto(this.props.username);
         this.checkIfUserVerified(this.props.username);
+        this.checkIfLiked();
         await this.updateReplyText("English");
         await this.updateTimeText("English");
         await this.updateLikesText("English");
@@ -345,26 +378,73 @@ class Comment extends Component {
     }
     
 
-    toggleLike = () => {
+    toggleLike = async () => {
         if (this.state.isLiked) {
-            this.setState({isLiked: false,
-            likesText: (this.state.numLikes-1) + ' likes',
-            numLikes: this.state.numLikes-1});
+            const data = `
+            mutation {
+                removeCommentLike(commentid: "${this.props.id}", username: "rishavry") {
+                }
+            }
+            `;
+            const options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: data })
+                };
+    
+            try {
+                const response = await fetch('http://localhost:5022/graphql', options);
+                if (!response.ok) {
+                    throw new Error("Error liking comment");
+                }
+                const responseData = await response.json();
+                this.setState({isLiked: false,
+                likesText: this.state.numLikes==2 ? '1 like' : (this.state.numLikes-1) + ' likes',
+                numLikes: this.state.numLikes-1});
+            }
+            catch (error) {
+                console.error(error);
+            }
         }
         else {
-            this.setState({isLiked: true,
-                likesText: (this.state.numLikes+1) + ' likes',
-                numLikes: this.state.numLikes+1,
-            });
+            this.likeComment();
         }
     }
 
-    likeComment = () => {
+    likeComment =  async () => {
         if (!this.state.isLiked) {
+            const data = `
+            mutation {
+                addCommentLike(commentid: "${this.props.id}", username: "rishavry", postid: "${this.props.postid}") {
+                    commentid
+                }
+            }
+            `;
+
+            const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query: data })
+            };
+
+            try {
+            const response = await fetch('http://localhost:5022/graphql', options);
+            if (!response.ok) {
+                throw new Error("Error liking comment");
+            }
+            const responseData = await response.json();
             this.setState({isLiked: true,
-            likesText: (this.state.numLikes+1) + ' likes',
-            numLikes: this.state.numLikes+1,
-            });
+                likesText: this.state.numLikes==0 ? '1 like' : (this.state.numLikes+1) + ' likes',
+                numLikes: this.state.numLikes+1,
+                });
+            }
+            catch (error) {
+            console.error(error);
+            }
         }
     }
 
@@ -681,13 +761,13 @@ class Comment extends Component {
                 currReplyReplies = this.props.allPostReplies.filter(x=>x['commentid']===currReplyId);
                 currReplyIsEdited = currReply['isedited'];
                 if(currReply['username']==='rishavry') {
-                    repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
+                    repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} postid={this.props.postid} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.props.toggleReply} deleteComment={this.deleteReply}
                     isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
                     repliesToComment.push(<br/>);
                 }
                 else {
-                    repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
+                    repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} postid={this.props.postid} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={false} toggleReply={this.props.toggleReply} isReply={true} isEdited={currReplyIsEdited}
                     allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
                     repliesToComment.push(<br/>);

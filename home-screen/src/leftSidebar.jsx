@@ -516,7 +516,7 @@ class LeftSidebar extends Component {
         </div>
         {this.props.showPopup && (
         <div style={{position: 'absolute', top: '37em'}}>
-            <LeftSidebarPopup language={this.props.language}/>
+            <LeftSidebarPopup username={this.props.username} language={this.props.language}/>
         </div>
         )}
         </div>

@@ -220,6 +220,29 @@ class LeftSidebarPopup extends Component {
         }
     }
 
+    logoutUser = async () => {
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({'username': this.props.username}),
+            credentials: 'include'
+        };
+        const response = await fetch('http://localhost:8003/cookies/removeTokens', options);
+        if(!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const responseData = await response.text();
+        if(responseData === "Successfully logged out") {
+            window.location.href = 'http://localhost:8000/login';
+        }
+        else {
+            console.log(responseData);
+        }
+
+    }
+
 
     render() {
         return (
@@ -245,7 +268,7 @@ class LeftSidebarPopup extends Component {
             <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em', width:'14em'}}>
             <p style={{fontSize:'0.89em', marginLeft:'0.4em'}}>{this.state.switchAccountsText}</p>
             </div>
-            <div className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em', width:'14em'}}>
+            <div onClick={this.logoutUser} className="sidebarElement" style={{display:'flex', justifyContent:'start', alignItems:'center', marginLeft:'0.9em', width:'14em'}}>
             <p style={{fontSize:'0.89em', marginLeft:'0.4em'}}>{this.state.logoutText}</p>
             </div>
 

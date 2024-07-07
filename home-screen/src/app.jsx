@@ -18,6 +18,7 @@ class App extends Component {
     constructor(props) {
         super(props);
         this.state = {
+        username: '',
         showPopup: false,
         language: 'English',
         suggestedForYouText: 'Suggested for you',
@@ -477,17 +478,129 @@ class App extends Component {
             console.error('Error fetching or processing data:', error);
         }
     }
+
+    
+    authenticateUser = async (username) => {
+        const response = await fetch('http://localhost:8003/cookies/authenticateUser/'+username, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+        });
+        if(!response.ok) {
+            throw new Error('Network response not ok');
+        }
+        const isAuth = await response.json();
+        if(isAuth) {
+            localStorage.setItem('defaultUser', username);
+            this.setState({
+                username: username
+            }, async () => {
+                this.fetchPosts("rishavry2");
+                this.fetchPosts("rishavry3");
+                this.fetchPosts("rishavry5");
+                this.fetchPosts("rishavry6");
+                this.fetchPosts("rishavry7");
+                await this.updateSeeAllText("English");
+                await this.updateSuggestedForYouText("English");
+            });
+        }
+        else {
+            const data = {'username':username};
+            const options = {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data),
+                credentials: 'include',
+            }
+            const response2 = await fetch('http://localhost:8003/cookies/updateAuthToken', options);
+            if(!response2.ok) {
+                throw new Error('Network response not ok');
+            }
+            const response2Data = await response2.text();
+            if(response2Data === "Cookie updated successfully") {
+                const response3 = await fetch('http://localhost:8003/cookies/authenticateUser/'+username, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                });
+                if(!response3.ok) {
+                    throw new Error('Network response not ok');
+                }
+                const isAuth = await response.json();
+                if(isAuth) {
+                    localStorage.setItem('defaultUser', username);
+                    this.setState({
+                        username: username
+                    }, async () => {
+                        this.fetchPosts("rishavry2");
+                        this.fetchPosts("rishavry3");
+                        this.fetchPosts("rishavry5");
+                        this.fetchPosts("rishavry6");
+                        this.fetchPosts("rishavry7");
+                        await this.updateSeeAllText("English");
+                        await this.updateSuggestedForYouText("English");
+                    });
+                }
+            }
+            else if(response2Data === "Invalid refresh token for username") {
+                const response4 = await fetch('http://localhost:8003/cookies/updateRefreshToken', options);
+                if(!response4.ok) {
+                    throw new Error('Network response not ok');
+                }
+                const response4Data = await response4.text();
+                if(response4Data === "Cookie updated successfully"){
+                    const response5 = await fetch('http://localhost:8003/cookies/authenticateUser/'+username, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include'
+                    });
+                    if(!response5.ok) {
+                        throw new Error('Network response not ok');
+                    }
+                    const isAuth = await response.json();
+                    if(isAuth) {
+                        localStorage.setItem('defaultUser', username);
+                        this.setState({
+                            username: username
+                        }, async () => {
+                            this.fetchPosts("rishavry2");
+                            this.fetchPosts("rishavry3");
+                            this.fetchPosts("rishavry5");
+                            this.fetchPosts("rishavry6");
+                            this.fetchPosts("rishavry7");
+                            await this.updateSeeAllText("English");
+                            await this.updateSuggestedForYouText("English");
+                        });
+                    }
+                }
+            }
+
+        }
+
+    }
     
 
 
     async componentDidMount() {
-        this.fetchPosts("rishavry2");
-        this.fetchPosts("rishavry3");
-        this.fetchPosts("rishavry5");
-        this.fetchPosts("rishavry6");
-        this.fetchPosts("rishavry7");
-        await this.updateSeeAllText("English");
-        await this.updateSuggestedForYouText("English");
+        if(this.props.params) {
+            this.authenticateUser(this.props.params.username);
+        }
+        else {
+            if(localStorage.getItem("defaultUser")!==null) {
+                this.authenticateUser(localStorage.getItem("defaultUser"));
+            }
+            else {
+                window.location.href = "http://localhost:8000/login"
+            }
+        }
     }
 
     async componentDidUpdate(prevProps, prevState) {
@@ -558,14 +671,16 @@ class App extends Component {
 
         return (
         <React.Fragment>
+        {this.state.username.length>0 &&
+        <div>
         <div style={{opacity:this.state.showThreeDotsPopup || this.state.showCommentsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup || this.state.showAboutAccountPopup
         ? '0.1' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showCommentsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup || this.state.showAboutAccountPopup ? 'none' : 'auto'}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-        <LeftSidebar username={"rishavry"} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
+        <LeftSidebar username={this.state.username} language={this.state.language} showPopup={this.state.showPopup}  changePopup={this.togglePopup}/>
         <div style={{position: 'absolute', left:'28.5%', marginTop:'2.3em', width:'45em', height:'50em'}}>
         <div id="stories" style={{display:'flex', justifyContent:'start', alignItems:'start', gap:'1em'}}>
-        <StoryIcon username={"rishavry"} ownAccount={true} unseenStory={false} isStory={true}/>
+        <StoryIcon username={this.state.username} ownAccount={true} unseenStory={false} isStory={true}/>
         {storyIcons}
         </div>
         <img className="rightArrow" onClick={this.incrementStoryLevel} src={rightArrow} style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
@@ -598,7 +713,7 @@ class App extends Component {
         </div>
         <div id="rightSideOfHomePage" style={{display:'flex', flexDirection:'column', justifyContent: 'center', alignItems: 'center', position: 'absolute',
         left:'76%', marginTop:'4em'}}>
-        <UserBar language={this.state.language} username='rishavry' fullName='rishav ' ownAccount={true}/>
+        <UserBar language={this.state.language} username={this.state.username} fullName='rishav ' ownAccount={true}/>
         <div style={{marginTop:'-1em'}}>
         <span style={{color:'gray', fontWeight:'600', fontSize:'0.9em'}}>{this.state.suggestedForYouText}</span>
         <span style={{fontSize:'0.77em', marginLeft:'10em', cursor:'pointer'}}>{this.state.seeAllText}</span>
@@ -648,6 +763,7 @@ class App extends Component {
         <div style={{position:'fixed', left:'34.5%', top:'15%', display:this.state.showAboutAccountPopup ? 'inline-block' : 'none'}}>
         <AboutAccountPopup language={this.state.language} closePopup={this.closeAboutAccountPopup} postId={this.state.aboutAccountPopupPostId}/>
         </div>
+        </div>}
 
 
         </React.Fragment>);

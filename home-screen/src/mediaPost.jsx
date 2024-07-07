@@ -402,6 +402,20 @@ class MediaPost extends Component {
         }
     }
 
+    formatWithOxfordComma = (arr) => {
+        if (arr.length === 0) {
+            return '';
+        } else if (arr.length === 1) {
+            return arr[0];
+        } else if (arr.length === 2) {
+            return `${arr[0]}, ${arr[1]}`;
+        } else {
+            const lastItem = arr.pop();
+            return `${arr.join(', ')}, ${lastItem}`;
+        }
+    }
+    
+
 
     async componentDidMount() {
         await this.updatePostText("English");
@@ -566,6 +580,7 @@ class MediaPost extends Component {
     
         return totalSeconds;
     }
+
 
     getFramesAtEach5SecondInterval = async (currSlide) => {
         try {
@@ -874,7 +889,7 @@ class MediaPost extends Component {
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
                 showTags: false,
-                }, () => {//this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);
                 });
         }
         else {
@@ -894,7 +909,7 @@ class MediaPost extends Component {
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
                 showTags: false,
-                }, () => {//this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);
                 });
         }
         else {
@@ -1117,7 +1132,7 @@ class MediaPost extends Component {
         marginTop:'-1em', textAlign:'left',  textWrap:'wrap',  wordBreak: 'break-word', position:'relative'}}>
         <span style={{fontSize:'1.1em', cursor:'pointer'}}>
         <div style={{display:'flex', alignItems:'center'}}>
-        <b>{this.props.postDetails && this.props.postDetails[0][0].usernames[0]}</b>
+        <b>{this.props.postDetails && this.formatWithOxfordComma(this.props.postDetails[0][0].usernames)}</b>
         {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText} </span></span>
@@ -1188,7 +1203,7 @@ class MediaPost extends Component {
         marginTop:'-1em', textAlign:'left'}}>
         <span style={{fontSize:'1.1em', cursor:'pointer'}}>
         <div style={{display:'flex', alignItems:'center'}}>
-        <b>{this.props.postDetails && this.props.postDetails[1][0]['usernames'][0]}</b>
+        <b>{this.props.postDetails && this.formatWithOxfordComma(this.props.postDetails[1][0]['usernames'])}</b>
         {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText}</span></span>
@@ -1224,8 +1239,8 @@ class MediaPost extends Component {
         )}
         {this.state.showPreview &&
         <div>
-        <img src={this.state.previewImage} style={{height:'7em', width:'7em', objectFit:'contain', position:'absolute', top:'65%', left:this.state.previewLeft+'%'}}/>
-        <p style={{color:'white', position:'absolute', top: '79%', left: (this.state.previewLeft+3.5) + '%'}}>{this.state.previewTime}</p>
+        <img src={this.state.previewImage} style={{height:'16%', width:'16%', objectFit:'contain', position:'absolute', top:'65%', left:this.state.previewLeft+'%'}}/>
+        <p style={{color:'white', position:'absolute', top: '83%', left: (this.state.previewLeft+6.5) + '%'}}>{this.state.previewTime}</p>
         </div>
         }
         </div>
