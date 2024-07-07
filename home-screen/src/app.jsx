@@ -591,7 +591,10 @@ class App extends Component {
 
     async componentDidMount() {
         if(this.props.params) {
-            this.authenticateUser(this.props.params.username);
+            await this.authenticateUser(this.props.params.username);
+            if(this.state.username==="") {
+                window.location.href = "http://localhost:8000/login";
+            }
         }
         else {
             if(localStorage.getItem("defaultUser")!==null) {
@@ -689,23 +692,23 @@ class App extends Component {
         left:'-7.5%', top:'3%', cursor:'pointer', display: this.state.currStoryLevel>0 ? 'inline-block' : 'none'}}/>
         <div id="posts" style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center',
         marginLeft:'-5em', marginTop: '2em', gap:'1em'}}>
-        {!this.state.hiddenPosts.includes(1) && <MediaPost id={1} postDetails={this.state.post1Details} language={this.state.language}
+        {!this.state.hiddenPosts.includes(1) && <MediaPost id={1} username={this.state.username} postDetails={this.state.post1Details} language={this.state.language}
         showThreeDotsPopup={this.showPostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==1}
         showPostLikersPopup={this.showPostLikersPopup} isAd={false}/>}
-        {!this.state.hiddenPosts.includes(2) && <MediaPost id={2} postDetails={this.state.post2Details} language={this.state.language}
+        {!this.state.hiddenPosts.includes(2) && <MediaPost id={2} username={this.state.username} postDetails={this.state.post2Details} language={this.state.language}
         showThreeDotsPopup={this.showPostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==2}
         showPostLikersPopup={this.showPostLikersPopup} isAd={false}/>}
-        {!this.state.hiddenPosts.includes(3) && <MediaPost id={3} postDetails={this.state.post3Details} language={this.state.language}
+        {!this.state.hiddenPosts.includes(3) && <MediaPost id={3} username={this.state.username} postDetails={this.state.post3Details} language={this.state.language}
         showThreeDotsPopup={this.showAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==3}
         showPostLikersPopup={this.showPostLikersPopup} isAd={true}/>}
-        {!this.state.hiddenPosts.includes(4) && <MediaPost id={4} postDetails={this.state.post4Details} language={this.state.language}
+        {!this.state.hiddenPosts.includes(4) && <MediaPost id={4} username={this.state.username} postDetails={this.state.post4Details} language={this.state.language}
         showThreeDotsPopup={this.showAdPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==4}
         showPostLikersPopup={this.showPostLikersPopup} isAd={true}/>}
-        {!this.state.hiddenPosts.includes(5) && <MediaPost id={5} postDetails={this.state.post5Details} language={this.state.language}
+        {!this.state.hiddenPosts.includes(5) && <MediaPost id={5} username={this.state.username} postDetails={this.state.post5Details} language={this.state.language}
         showThreeDotsPopup={this.showPostPopup} showCommentsPopup={this.showCommentsPopup}
         showSendPostPopup={this.showSendPostPopup} onFocus={this.handleFocus} isFocused={this.state.focusedComponent==5}
         showPostLikersPopup={this.showPostLikersPopup} isAd={false}/>}
@@ -741,7 +744,7 @@ class App extends Component {
         <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
         opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup || this.state.showAboutAccountPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showSendPostPopup || this.state.showPostLikersPopup || this.state.showAboutAccountPopup ? 'none' : 'auto'}}>
-        <CommentsPopup id={6} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
+        <CommentsPopup id={6} username={this.state.username} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  showThreeDotsPopup={this.state.commentsPopupIsAd ? this.showAdPopup : this.showPostPopup}

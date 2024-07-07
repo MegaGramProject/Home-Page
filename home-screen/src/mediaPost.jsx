@@ -22,6 +22,7 @@ import PostDots from "./postDots";
 import StoryIcon from './storyIcon';
 import './styles.css';
 import frenchSubtitles from './subtitles_fr.vtt';
+import closePopupIcon from './images/closePopupIcon.png'
 
 
 class MediaPost extends Component {
@@ -55,7 +56,11 @@ class MediaPost extends Component {
             showPreview: false,
             previewLeft: 30,
             previewImage: "",
-            previewTime: ""
+            previewTime: "",
+            currSection: "",
+            sections: [],
+            showSections: false,
+            showSection: false
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
@@ -63,6 +68,7 @@ class MediaPost extends Component {
         this.slideToVideoUrlMapping = {};
         this.slideToVideoBlobMapping = {};
         this.timeToVideoFrameMapping = {};
+        this.latestTimeString = "00:00";
 
     };
 
@@ -486,8 +492,11 @@ class MediaPost extends Component {
                     this.player.getChild('controlBar').addChild('fullscreenToggle');
                     progressControl.on('mousemove', this.handleMouseMove);
                     progressControl.on('mouseout', this.handleMouseLeave);
-                
+                    this.player.on('timeupdate', this.setSection);
+                    this.player.on('useractive', this.showSection);
+                    this.player.on('userinactive', this.hideSection);
         }
+
         if (prevProps.postDetails != this.props.postDetails) {
             if(this.props.postDetails[1].length>0) {
                     this.fetchVideos();
@@ -528,6 +537,14 @@ class MediaPost extends Component {
 
     }
 
+    showSection = () => {
+        this.setState({showSection:true});
+    }
+
+    hideSection = () => {
+        this.setState({showSection:false});
+    }
+
     handleMouseMove = (event) => {
         if (this.player) {
             const progressControl = this.player.getChild('controlBar').getChild('progressControl');
@@ -556,6 +573,42 @@ class MediaPost extends Component {
             previewLeft: 500,
             previewImage: ""
         })
+    }
+
+    currentlyInSection(currentTimeString, sectionInterval) {
+        let section = sectionInterval.split("-");
+        let startingTimeInSeconds = this.timeStringToSeconds(section[0]);
+        let endingTimeInSeconds = this.timeStringToSeconds(section[1]);
+        let currentTimeInSeconds = this.timeStringToSeconds(currentTimeString);
+        if (startingTimeInSeconds <= currentTimeInSeconds && currentTimeInSeconds <= endingTimeInSeconds) {
+            return true;
+        }
+        return false;
+    }
+
+    setSection = (event) => {
+        const currentTime = this.player.el().querySelector('.vjs-current-time-display');
+        const currentTimeString = currentTime.innerText.trim()
+        let sectionInterval = "";
+        let sectionFound = false;
+        if(currentTimeString!==this.latestTimeString) {
+            this.latestTimeString = currentTimeString;
+            for(let section of this.state.sections) {
+                sectionInterval = Object.keys(section)[0];
+                if(this.currentlyInSection(currentTimeString, sectionInterval)) {
+                    this.setState({
+                        currSection: section[sectionInterval]
+                    });
+                    sectionFound = true;
+                    break;
+                }
+            }
+            if(!sectionFound) {
+                this.setState({
+                    currSection: ""
+                });
+            }
+        }
     }
 
     timeStringToSeconds(timeString) {
@@ -688,7 +741,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -701,7 +754,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -733,7 +786,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -747,7 +800,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -770,7 +823,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -783,7 +836,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -821,7 +874,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -835,7 +888,7 @@ class MediaPost extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -884,8 +937,11 @@ class MediaPost extends Component {
     showNextSlide = async () => {
         let nextSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide+1));
         if (nextSlideIsVid) {
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide+1);
             this.setState({
                 videoUrl: this.slideToVideoUrlMapping[this.state.currSlide+1],
+                sections: x[0]['sections'],
+                currSection: "",
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
                 showTags: false,
@@ -896,7 +952,9 @@ class MediaPost extends Component {
             this.setState({
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
-                showTags: false
+                showTags: false,
+                sections: [],
+                currSection: ""
                 });
         }
     }
@@ -904,8 +962,11 @@ class MediaPost extends Component {
     showPreviousSlide = async () => {
         let prevSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide-1));
         if (prevSlideIsVid) {
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide-1);
             this.setState({
                 videoUrl: this.slideToVideoUrlMapping[this.state.currSlide-1],
+                sections: x[0]['sections'],
+                currSection: "",
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
                 showTags: false,
@@ -916,7 +977,9 @@ class MediaPost extends Component {
             this.setState({
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
-                showTags: false
+                showTags: false,
+                currSection: "",
+                sections: []
                 });
         }
     };
@@ -925,6 +988,7 @@ class MediaPost extends Component {
     toggleTags = () => {
         this.setState({showTags: !this.state.showTags});
     }
+
 
     async fetchVideos() {
         for(let i of this.props.postDetails[1]) {
@@ -944,7 +1008,11 @@ class MediaPost extends Component {
             }
         }
         if(this.slideToVideoUrlMapping[0]) {
-            this.setState({videoUrl: this.slideToVideoUrlMapping[0]},
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==0);
+            this.setState({
+                videoUrl: this.slideToVideoUrlMapping[0],
+                sections: x[0]['sections']
+            },
             () => {this.getFramesAtEach5SecondInterval(0);
             });
         
@@ -960,7 +1028,7 @@ class MediaPost extends Component {
         const usersThatLiked = await response.json();
         let isLiked = false;
         for(let i of usersThatLiked) {
-            if(i['username']==="rishavry") {
+            if(i['username']===this.props.username) {
                 isLiked = true;
                 break;
             }
@@ -980,7 +1048,7 @@ class MediaPost extends Component {
         const usersThatSaved = await response.json();
         let isSaved = false;
         for(let i of usersThatSaved) {
-            if(i['username']==="rishavry") {
+            if(i['username']===this.props.username) {
                 isSaved = true;
                 break;
             }
@@ -1002,7 +1070,7 @@ class MediaPost extends Component {
                 datetime: "${currentDate.toISOString()}"
                 isedited: false
                 postid: "${this.state.postId}"
-                username: "rishavry"
+                username: "${this.props.username}"
                 ) {
                 commentid
                 }
@@ -1040,6 +1108,18 @@ class MediaPost extends Component {
         catch (error) {
             console.error(error);
         }
+    }
+
+    showSections = () => {
+        this.setState({
+            showSections: true
+        });
+    }
+
+    closeSections = () => {
+        this.setState({
+            showSections: false
+        });
     }
 
 
@@ -1120,6 +1200,27 @@ class MediaPost extends Component {
             heartsOnPhoto.push(<img src={redHeart} style={{height:i[3]+'em', width:i[4]+'em', objectFit:'contain', position:'absolute', top:i[1]+'%',
             left:i[0]+'%', opacity:'0.8', transform: `rotate(${i[2]}deg)`}}/>)
         }
+
+        const sections = [];
+        for(let i=0; i<this.state.sections.length; i++) {
+            let sectionInterval = Object.keys(this.state.sections[i])[0];
+            let section = this.state.sections[i][sectionInterval];
+            let sectionStartTimeString = sectionInterval.split("-")[0];
+            sections.push(
+                <div onClick={() => {this.player.currentTime(this.timeStringToSeconds(sectionStartTimeString))}} style={{display:'flex', alignItems:'start', gap:'1.5em',
+                backgroundColor: this.state.currSection===section ? '#f2f2f2' : 'white'}}>
+                <img src={this.timeToVideoFrameMapping[this.findTime(this.timeStringToSeconds(sectionStartTimeString))]}
+                style={{height:'5em', width:'5em', objectFit:'contain', borderRadius:'7px'}}/>
+                <div style={{display:'flex', flexDirection:'column', alignItems: 'start', cursor:'pointer'}}>
+                <b>{i+1}. {section}</b>
+                <b style={{fontSize:'0.8em', color:'#1b5abf', backgroundColor:'#b8d8fc'}}>{sectionStartTimeString}</b>
+                </div>
+                <br/>
+                </div>
+            )
+            sections.push(<hr style={{width: '100%', borderTop: '1px solid lightgray'}} />);
+        }
+
         
 
         return (
@@ -1196,6 +1297,7 @@ class MediaPost extends Component {
 
 
         {this.state.currSlideIsVid && this.state.currSlideIsVid!== null &&  (
+        <div style={{display:'flex', alignItems:'start'}}>
         <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
         <div style={{display:'flex', justifyContent:'start'}}>
         {this.props.postDetails && <StoryIcon unseenStory={true} username={this.props.postDetails[1][0]['usernames'][0]} isStory={false}/>}
@@ -1237,6 +1339,7 @@ class MediaPost extends Component {
         <p style={{cursor:'pointer'}}>Auto</p>
         </div>
         )}
+        {this.state.showSection && <p onClick={this.showSections} style={{position:'absolute', top:'93%', left:'35%', cursor:'pointer', color:'white', fontWeight:'bold', fontSize:'0.94em'}}>{this.state.currSection}</p>}
         {this.state.showPreview &&
         <div>
         <img src={this.state.previewImage} style={{height:'16%', width:'16%', objectFit:'contain', position:'absolute', top:'65%', left:this.state.previewLeft+'%'}}/>
@@ -1294,6 +1397,17 @@ class MediaPost extends Component {
         fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
         </div>
         </div>
+        </div>
+        {this.state.showSections &&
+        <div style={{boxShadow:'0px 0px 10px 0px rgba(0, 0, 0, 0.2)', height:'43em', width:'22em', marginTop:'8em', display:'flex', flexDirection:'column', borderRadius:'8px',
+        borderColor:'lightgray', overflow:'scroll', paddingTop:'1em', paddingLeft:'1em', paddingRight:'1em', paddingBottom:'1em'}}>
+        <div style={{display:'flex', justifyContent:'space-between'}}>
+        <b>Chapters</b>
+        <img onClick={this.closeSections} src={closePopupIcon} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>
+        </div>
+        <hr style={{width:'100%', color:'lightgray', marginTop:'0.7em'}}/>
+        {sections}
+        </div>}
         </div>
         )}
         </React.Fragment>

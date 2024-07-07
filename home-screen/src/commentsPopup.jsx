@@ -63,7 +63,10 @@ class CommentsPopup extends Component {
             showPreview: false,
             previewLeft: 30,
             previewImage: "",
-            previewTime: ""
+            previewTime: "",
+            currSection: "",
+            sections: [],
+            showSection: false
         };
         this.textInput = React.createRef();
         this.videoNode = React.createRef();
@@ -422,9 +425,57 @@ class CommentsPopup extends Component {
                     this.player.getChild('controlBar').addChild('fullscreenToggle');
                     progressControl.on('mousemove', this.handleMouseMove);
                     progressControl.on('mouseout', this.handleMouseLeave);
+                    this.player.on('timeupdate', this.setSection);
+                    this.player.on('useractive', this.showSection);
+                    this.player.on('userinactive', this.hideSection);
                     this.setState({playerInitialized: true});
         }
+    }
 
+
+    currentlyInSection(currentTimeString, sectionInterval) {
+        let section = sectionInterval.split("-");
+        let startingTimeInSeconds = this.timeStringToSeconds(section[0]);
+        let endingTimeInSeconds = this.timeStringToSeconds(section[1]);
+        let currentTimeInSeconds = this.timeStringToSeconds(currentTimeString);
+        if (startingTimeInSeconds <= currentTimeInSeconds && currentTimeInSeconds <= endingTimeInSeconds) {
+            return true;
+        }
+        return false;
+    }
+
+
+    setSection = (event) => {
+        const currentTime = this.player.el().querySelector('.vjs-current-time-display');
+        const currentTimeString = currentTime.innerText.trim()
+        let sectionInterval = "";
+        let sectionFound = false;
+        if(currentTimeString!==this.latestTimeString) {
+            this.latestTimeString = currentTimeString;
+            for(let section of this.state.sections) {
+                sectionInterval = Object.keys(section)[0];
+                if(this.currentlyInSection(currentTimeString, sectionInterval)) {
+                    this.setState({
+                        currSection: section[sectionInterval]
+                    });
+                    sectionFound = true;
+                    break;
+                }
+            }
+            if(!sectionFound) {
+                this.setState({
+                    currSection: ""
+                });
+            }
+        }
+    }
+
+    showSection = () => {
+        this.setState({showSection:true});
+    }
+
+    hideSection = () => {
+        this.setState({showSection:false});
     }
 
 
@@ -498,7 +549,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -512,7 +563,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -557,7 +608,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -570,7 +621,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -689,12 +740,16 @@ class CommentsPopup extends Component {
     showNextSlide = () => {
         let nextSlideIsVid = !(this.state.postDetails[0].length > 0 && this.state.postDetails[0][0].slides.includes(this.state.currSlide+1));
         if (nextSlideIsVid) {
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide+1);
             this.setState({
                 videoUrl: this.slideToVideoUrlMapping[this.state.currSlide+1],
                 currPost: "",
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
                 showTags: false,
+                sections: x[0]['sections'],
+                currSection: "",
+                playerInitialized: false
                 }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);});
         }
         else {
@@ -705,7 +760,10 @@ class CommentsPopup extends Component {
                 currPost: currPost,
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
-                showTags: false
+                showTags: false,
+                sections: [],
+                currSection: "",
+                playerInitialized: false
                 });
         }
     }
@@ -713,12 +771,16 @@ class CommentsPopup extends Component {
     showPreviousSlide = () => {
         let prevSlideIsVid = !(this.state.postDetails[0].length > 0 && this.state.postDetails[0][0].slides.includes(this.state.currSlide-1));
         if (prevSlideIsVid) {
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide-1);
             this.setState({
                 videoUrl: this.slideToVideoUrlMapping[this.state.currSlide-1],
                 currPost: "",
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
                 showTags: false,
+                sections: x[0]['sections'],
+                currSection: "",
+                playerInitialized: false
                 }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);});
         }
         else {
@@ -729,7 +791,10 @@ class CommentsPopup extends Component {
                 currPost: currPost,
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
-                showTags: false
+                showTags: false,
+                sections: [],
+                currSection: "",
+                playerInitialized: false
                 });
         }
     };
@@ -743,7 +808,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -757,7 +822,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -780,7 +845,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -793,7 +858,7 @@ class CommentsPopup extends Component {
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ username: 'rishavry' }),
+                        body: JSON.stringify({ username: this.props.username }),
                     });
                     if(!response.ok) {
                         console.error('Network response was not ok');
@@ -824,7 +889,7 @@ class CommentsPopup extends Component {
                         datetime: "${currentDate.toISOString()}"
                         isedited: false
                         postid: "${this.state.postId}"
-                        username: "rishavry"
+                        username: "${this.props.username}"
                         ) {
                         commentid
                         }
@@ -866,7 +931,7 @@ class CommentsPopup extends Component {
                     comment: "${this.state.comment}"
                     datetime: "${currentDate.toISOString()}"
                     isedited: false
-                    username: "rishavry"
+                    username: "${this.props.username}"
                     ) {
                     commentid
                     }
@@ -1019,7 +1084,12 @@ class CommentsPopup extends Component {
             }
         }
         if(this.slideToVideoUrlMapping[this.props.currSlide]) {
-            this.setState({videoUrl: this.slideToVideoUrlMapping[this.props.currSlide]},
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==0);
+            console.log(x[0]['sections']);
+            this.setState({
+                videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
+                sections: x[0]['sections']
+            },
             () => {this.getFramesAtEach5SecondInterval(0);});
         }
     
@@ -1243,7 +1313,7 @@ class CommentsPopup extends Component {
     render() {
         let commentsByUser = [];
         for (let i = 0; i < this.state.commentsSent.length; i++) {
-                commentsByUser.push(<Comment key={this.state.commentsSent[i][0]} username={'rishavry'} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
+                commentsByUser.push(<Comment key={this.state.commentsSent[i][0]} username={this.props.username} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
                 numLikes={0} replies={[]} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                 isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                 commentsByUser.push(<br/>);
@@ -1251,7 +1321,7 @@ class CommentsPopup extends Component {
 
         const repliesByUser = [];
         for (let j = 0; j < this.state.repliesSent.length; j++) {
-            repliesByUser.push(<Comment key={this.state.repliesSent[j][0]} username={'rishavry'} id={this.state.repliesSent[j][0]} postid={this.state.postId} time={'1s'}
+            repliesByUser.push(<Comment key={this.state.repliesSent[j][0]} username={this.props.username} id={this.state.repliesSent[j][0]} postid={this.state.postId} time={'1s'}
             comment={"(Your reply to @" + this.state.repliesSent[j][2] + ", who commented: '" + this.state.repliesSent[j][3] + "')\n" +
             this.state.repliesSent[j][1]} replies={[]}
             numLikes={0} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
@@ -1275,25 +1345,25 @@ class CommentsPopup extends Component {
             currCommentIsEdited = currComment['isedited'];
             if(currComment['iscaption']) {
                 caption.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} postid={this.state.postId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
-                numLikes={0} replies={[]} isCaption={true} language={this.props.language} isOwn={currComment['username']==='rishavry'} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
+                numLikes={0} replies={[]} isCaption={true} language={this.props.language} isOwn={currComment['username']===this.props.username} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                 isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                 caption.push(<br/>);
             }
             else {
                 currCommentLikes = this.state.commentLikes.filter(x => x['commentid']===currCommentId)
                 currCommentReplies = this.state.replies.filter(x=>x['commentid']===currCommentId);
-                currCommentRepliesByUser = currCommentReplies.filter(x=>x['username']==='rishavry');
+                currCommentRepliesByUser = currCommentReplies.filter(x=>x['username']===this.props.username);
                 for(let i of currCommentRepliesByUser) {
                     let thisReplyLikes = this.state.commentLikes.filter(x=>x['commentid']===i['replyid']);
                     let thisReplyReplies = this.state.replies.filter(x=>x['commentid']===i['replyid']);
-                    commentsInGeneralRepliesByUser.push(<Comment key={i['replyid']} username={'rishavry'} id={i['replyid']} postid={this.state.postId} time={this.formatDate(i['datetime'])}
+                    commentsInGeneralRepliesByUser.push(<Comment key={i['replyid']} username={this.props.username} id={i['replyid']} postid={this.state.postId} time={this.formatDate(i['datetime'])}
                     comment={"(Your reply to @" + currComment['username'] + ", who commented: '" + currComment['comment'] + "')\n" +
                     i['comment']} replies={thisReplyReplies}
                     numLikes={thisReplyLikes.length} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
                     isReply={false} isEdited={i['isedited']} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
                     commentsInGeneralRepliesByUser.push(<br/>);
                 }
-                if(currComment['username']==='rishavry') {
+                if(currComment['username']===this.props.username) {
                     commentsInGeneralByUser.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} postid={this.state.postId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
                     isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
@@ -1478,6 +1548,7 @@ class CommentsPopup extends Component {
         <p style={{cursor:'pointer'}}>Auto</p>
         </div>
         )}
+        {this.state.showSection && <p onClick={this.showSections} style={{position:'absolute', top:'93%', left:'35%', cursor:'pointer', color:'white', fontWeight:'bold', fontSize:'0.94em'}}>{this.state.currSection}</p>}
         {this.state.showPreview &&
         <div>
         <img src={this.state.previewImage} style={{height:'20%', width:'20%', objectFit:'contain', position:'absolute', top:'75%', left:this.state.previewLeft+'%'}}/>

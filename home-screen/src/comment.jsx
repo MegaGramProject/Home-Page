@@ -296,7 +296,7 @@ class Comment extends Component {
     checkIfLiked = async () => {
         const data = `
         query {
-            commentLikes(where: {username: {eq: "rishavry" }, commentid : {eq: "${this.props.id}" }} ) {
+            commentLikes(where: {username: {eq: "${this.props.username}" }, commentid : {eq: "${this.props.id}" }} ) {
                 commentid
             }
         }
@@ -382,7 +382,7 @@ class Comment extends Component {
         if (this.state.isLiked) {
             const data = `
             mutation {
-                removeCommentLike(commentid: "${this.props.id}", username: "rishavry") {
+                removeCommentLike(commentid: "${this.props.id}", username: "${this.props.username}") {
                 }
             }
             `;
@@ -417,7 +417,7 @@ class Comment extends Component {
         if (!this.state.isLiked) {
             const data = `
             mutation {
-                addCommentLike(commentid: "${this.props.id}", username: "rishavry", postid: "${this.props.postid}") {
+                addCommentLike(commentid: "${this.props.id}", username: "${this.props.username}", postid: "${this.props.postid}") {
                     commentid
                 }
             }
@@ -760,7 +760,7 @@ class Comment extends Component {
                 currReplyLikes = this.props.allPostCommentLikes.filter(x => x['commentid']===currReplyId)
                 currReplyReplies = this.props.allPostReplies.filter(x=>x['commentid']===currReplyId);
                 currReplyIsEdited = currReply['isedited'];
-                if(currReply['username']==='rishavry') {
+                if(currReply['username']===this.props.username) {
                     repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} postid={this.props.postid} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.props.toggleReply} deleteComment={this.deleteReply}
                     isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
