@@ -6,10 +6,13 @@ import 'video.js/dist/video-js.css';
 import backArrow from "./images/backArrow.png";
 import blackSaveIcon from './images/blackSaveIcon.png';
 import blankHeart from './images/blankHeartIcon.png';
+import closePopupIcon from './images/closePopupIcon.png';
 import commentIcon from './images/commentIcon.png';
 import fastForward5Seconds from './images/fastForward5Seconds.png';
+import musicIcon from './images/musicIcon.png';
 import rightArrow from "./images/nextArrow.png";
 import pauseIcon from './images/pauseIcon.png';
+import playIcon from './images/playIcon.png';
 import redHeart from './images/redHeartIcon.png';
 import rewind5Seconds from './images/rewind5Seconds.png';
 import saveIcon from './images/saveIcon.png';
@@ -22,7 +25,7 @@ import PostDots from "./postDots";
 import StoryIcon from './storyIcon';
 import './styles.css';
 import frenchSubtitles from './subtitles_fr.vtt';
-import closePopupIcon from './images/closePopupIcon.png'
+import sidewaysTriangle from './images/playIcon.webp';
 
 
 class MediaPost extends Component {
@@ -60,7 +63,10 @@ class MediaPost extends Component {
             currSection: "",
             sections: [],
             showSections: false,
-            showSection: false
+            showSection: false,
+            songName: "",
+            song: null,
+            songIsPaused: true
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
@@ -505,11 +511,13 @@ class MediaPost extends Component {
             if(!currSlideIsVid) {
                 this.fetchLikes(this.props.postDetails[0][0].id);
                 this.checkIfSaved(this.props.postDetails[0][0].id);
+                this.fetchBackgroundMusic(this.props.postDetails[0][0].id);
                 this.checkIfUserVerified(this.props.postDetails[0][0].usernames[0]);
             }
             else {
                 this.fetchLikes(this.props.postDetails[1][0].overallPostId);
                 this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
+                this.fetchBackgroundMusic(this.props.postDetails[1][0].overallPostId);
                 this.checkIfUserVerified(this.props.postDetails[1][0].usernames[0]);
             }
             this.setState({
@@ -1020,6 +1028,23 @@ class MediaPost extends Component {
     
     }
 
+    async fetchBackgroundMusic(postId) {
+        const response = await fetch(`http://localhost:8006/getPostBackgroundMusic/${postId}`);
+        if(!response.ok) {
+            return;
+        }
+        const songName = response.headers.get('songName');
+        console.log(songName);
+        const backgroundMusicBlob = await response.blob();
+        const backgroundMusicURL = URL.createObjectURL(backgroundMusicBlob);
+        const backgroundMusic = new Audio(backgroundMusicURL);
+        backgroundMusic.loop = true;
+        this.setState({
+            song: backgroundMusic,
+            songName: songName
+        })
+    }
+
     async fetchLikes(postId) {
         const response = await fetch(`http://localhost:8004/getLikes/${postId}`);
         if(!response.ok) {
@@ -1120,6 +1145,22 @@ class MediaPost extends Component {
         this.setState({
             showSections: false
         });
+    }
+
+    toggleSongPause = () => {
+        if(this.state.songIsPaused) {
+            this.state.song.play();
+            this.setState({
+                songIsPaused: false
+            });
+        }
+        else {
+            this.state.song.pause();
+            this.setState({
+                songIsPaused: true
+            });
+
+        }
     }
 
 
@@ -1238,11 +1279,18 @@ class MediaPost extends Component {
         </div>
         <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText} </span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
+        {this.state.songName.length>0 &&
+        <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
+        <img src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
+        <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
+        {this.state.songIsPaused && <img onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {!this.state.songIsPaused && <img onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        </div>}
         </div>
         <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>
         </div>
-        <div style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
+        <div style={{position:'absolute', top:'12%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
         {currPost!=="" && <img onDoubleClick={this.likePost} onClick={this.handleClick} src={currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0}}/>}
         {this.props.postDetails!==null && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
@@ -1258,7 +1306,7 @@ class MediaPost extends Component {
         }
         {heartsOnPhoto}
         </div>
-        <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
+        <div style={{display:'flex', position:'absolute', top:'74.5%', alignItems:'center'}}>
         <img className="iconToBeAdjustedForDarkMode" onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
         display: this.state.isLiked ? 'none' : 'inline-block'}}/>
         <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
@@ -1272,7 +1320,7 @@ class MediaPost extends Component {
         <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={blackSaveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
         display: !this.state.isSaved ? 'none' : 'inline-block'}}/>
         </div>
-        <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
+        <div style={{position:'absolute', top:'79%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
         <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
         {this.props.postDetails &&
         <div style={{display:'flex', alignItems:'center'}}>
@@ -1310,6 +1358,13 @@ class MediaPost extends Component {
         </div>
         <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
+        {this.state.songName.length>0 &&
+        <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
+        <img src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
+        <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
+        {this.state.songIsPaused && <img onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {!this.state.songIsPaused && <img onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        </div>}
         </div>
         <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
         cursor:'pointer'}}/>

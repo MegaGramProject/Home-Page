@@ -1084,8 +1084,7 @@ class CommentsPopup extends Component {
             }
         }
         if(this.slideToVideoUrlMapping[this.props.currSlide]) {
-            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==0);
-            console.log(x[0]['sections']);
+            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.props.currSlide);
             this.setState({
                 videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
                 sections: x[0]['sections']

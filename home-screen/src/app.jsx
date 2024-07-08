@@ -588,7 +588,6 @@ class App extends Component {
     }
     
 
-
     async componentDidMount() {
         if(this.props.params) {
             await this.authenticateUser(this.props.params.username);

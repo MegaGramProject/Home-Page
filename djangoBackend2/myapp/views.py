@@ -1,14 +1,13 @@
 import os
 import cv2
 import base64
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.files.temp import NamedTemporaryFile
-from moviepy.editor import VideoFileClip
-import speech_recognition as sr
-import tempfile
+from google.cloud import storage
+import os
 
 @api_view(['POST'])
 def getVideoFramesAtIntervals(request):
@@ -55,3 +54,20 @@ def getVideoFramesAtIntervals(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET'])
+def getPostBackgroundMusic(request, postId):
+    credential_path = "/Users/rishavr/Downloads/megagram-428802-476264306d3b.json"
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("megagram-post-music")
+    for blob in bucket.list_blobs():
+        blob.reload()
+        if blob.metadata and blob.metadata.get('overallPostId') == postId:
+            blob_data = blob.download_as_bytes()
+            content_type = blob.content_type if blob.content_type else 'audio/mpeg'
+            response = HttpResponse(blob_data, content_type=content_type)
+            response['songName'] = blob.metadata.get('songName')
+            response['Access-Control-Expose-Headers'] = 'songName'
+            return response
+            
+    return Response("audio not found for that postId", status=status.HTTP_404_NOT_FOUND)
