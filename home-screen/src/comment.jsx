@@ -760,16 +760,16 @@ class Comment extends Component {
                 currReplyLikes = this.props.allPostCommentLikes.filter(x => x['commentid']===currReplyId)
                 currReplyReplies = this.props.allPostReplies.filter(x=>x['commentid']===currReplyId);
                 currReplyIsEdited = currReply['isedited'];
-                if(currReply['username']===this.props.username) {
+                if(currReply['username']===this.props.loggedInUser) {
                     repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} postid={this.props.postid} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.props.toggleReply} deleteComment={this.deleteReply}
-                    isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
+                    isReply={true} isEdited={currReplyIsEdited} allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies} loggedInUser={this.props.loggedInUser}/>);
                     repliesToComment.push(<br/>);
                 }
                 else {
                     repliesToComment.push(<Comment key={currReplyId} username={currReply['username']} id={currReplyId} postid={this.props.postid} time={this.formatDate(currReply['datetime'])} comment={currReply['comment']}
                     numLikes={currReplyLikes.length} replies={currReplyReplies} isCaption={false} language={this.props.language} isOwn={false} toggleReply={this.props.toggleReply} isReply={true} isEdited={currReplyIsEdited}
-                    allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies}/>);
+                    allPostCommentLikes={this.props.allPostCommentLikes} allPostReplies={this.props.allPostReplies} loggedInUser={this.props.loggedInUser}/>);
                     repliesToComment.push(<br/>);
                 }
             }

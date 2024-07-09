@@ -10,8 +10,11 @@ import blankHeart from './images/blankHeartIcon.png';
 import closePopupIcon from './images/closePopupIcon.png';
 import commentIcon from './images/commentIcon.png';
 import fastForward5Seconds from './images/fastForward5Seconds.png';
+import musicIcon from './images/musicIcon.png';
 import nextArrow from './images/nextArrow.png';
 import pauseIcon from './images/pauseIcon.png';
+import playIcon from './images/playIcon.png';
+import sidewaysTriangle from './images/playIcon.webp';
 import redHeart from './images/redHeartIcon.png';
 import rewind5Seconds from './images/rewind5Seconds.png';
 import saveIcon from './images/saveIcon.png';
@@ -22,7 +25,8 @@ import videoSettingsIcon from './images/videoSettingsIcon.png';
 import PostDots from './postDots';
 import StoryIcon from './storyIcon';
 import './styles.css';
-import frenchSubtitles from './subtitles_fr.vtt';
+
+
 
 class CommentsPopup extends Component {
     constructor(props) {
@@ -66,7 +70,10 @@ class CommentsPopup extends Component {
             previewTime: "",
             currSection: "",
             sections: [],
-            showSection: false
+            showSection: false,
+            songName: "",
+            song: null,
+            songIsPaused: true,
         };
         this.textInput = React.createRef();
         this.videoNode = React.createRef();
@@ -252,122 +259,12 @@ class CommentsPopup extends Component {
         await this.updateLikesText("English");
         await this.updateLocationText("English");
         await this.updatePostText("English");
-        window.addEventListener('keydown', this.handleKeyDown);
-        window.addEventListener('keyup', this.handleKeyUp);
-    }
-
-    async componentWillUnmount() {
-        if (this.player) {
-            this.player.dispose();
-        }
-        window.removeEventListener('keydown', this.handleKeyDown);
-        window.removeEventListener('keyup', this.handleKeyUp);
-    }
-
-    handleKeyUp = (event) => {
-        if (this.props.isFocused  && event.key === ' ') {
-            event.preventDefault();
-            clearTimeout(this.spaceKeyTimer);
-            this.spaceKeyPressed = false;
-            if (this.player.playbackRate() === 2) {
-                this.player.playbackRate(1);
-            } else {
-                if (this.player.paused()) {
-                    this.player.play();
-                    this.setState({showPauseSymbol: false});
-                } else {
-                    this.player.pause();
-                    this.setState({showPauseSymbol: true});
-                }
-            }
-        }
     }
 
 
-    async componentDidUpdate(prevProps, prevState) {
-        if(prevProps.isSaved !== this.props.isSaved) {
-            this.setState({isSaved: this.props.isSaved});
-        }
-        if(prevProps.isLiked !== this.props.isLiked) {
-            this.setState({isLiked: this.props.isLiked});
-        }
-        if (prevProps.postDetails != this.props.postDetails || (prevState.postDetails==null && this.props.postDetails!==null)) {
-            if(this.props.postDetails[1].length>0) {
-                    await this.fetchVideos();
-            }
-            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.props.currSlide));
-            if(currSlideIsVid) {
-                await this.fetchComments(this.props.postDetails[1][0].overallPostId);
-                await this.fetchReplies(this.props.postDetails[1][0].overallPostId);
-                await this.fetchCommentLikes(this.props.postDetails[1][0].overallPostId);
 
-                this.setState({
-                    currSlideIsVid: currSlideIsVid,
-                    locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
-                    timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
-                    numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
-                    likesText: this.props.numLikes + ' likes',
-                    numLikes: this.props.numLikes,
-                    currSlide: this.props.currSlide,
-                    postDetails: this.props.postDetails,
-                    videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
-                    postId: this.props.postDetails[1][0].overallPostId,
-                    commentsSent: [],
-                    repliesSent: [],
-                });
-            }
-            else {
-                const x = this.props.postDetails[0][0].slides.indexOf(this.props.currSlide);
-                const currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
-                await this.fetchComments(this.props.postDetails[0][0].id);
-                await this.fetchReplies(this.props.postDetails[0][0].id);
-                await this.fetchCommentLikes(this.props.postDetails[0][0].id);
-                this.setState({
-                    currSlideIsVid: currSlideIsVid,
-                    locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
-                    timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
-                    numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
-                    likesText: this.props.numLikes + ' likes',
-                    numLikes: this.props.numLikes,
-                    currSlide: this.props.currSlide,
-                    postDetails: this.props.postDetails,
-                    currPost: currPost,
-                    postId: this.props.postDetails[0][0].id,
-                    commentsSent: [],
-                    repliesSent: [],
-                });
 
-            }
-        }
-        if(prevProps.currSlide !== this.props.currSlide) {
-            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.props.currSlide));
-            if(currSlideIsVid) {
-                this.setState({
-                    currSlide: this.props.currSlide,
-                    videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
-                });
-            }
-            else {
-                const x = this.props.postDetails[0][0].slides.indexOf(this.props.currSlide);
-                const currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
-                this.setState({
-                    currSlide: this.props.currSlide,
-                    currPost: currPost
-                })
-            }
-        }
-        if(prevProps.language != this.props.language) {
-            await this.updateAddCommentText(prevProps.language);
-            await this.updateTimeText(prevProps.language);
-            await this.updateLikesText(prevProps.language);
-            await this.updateLocationText(prevProps.language);
-            await this.updatePostText(prevProps.language);
-        }
-        else {
-            if(prevState.likesText !== this.state.likesText) {
-                await this.updateLikesText("English");
-            }
-        }
+    componentDidUpdate = async (prevProps, prevState) => {
         if(!prevState.currSlideIsVid && this.state.currSlideIsVid && !this.state.playerInitialized) {
             const Button = videojs.getComponent('Button');
                     class SettingsButton extends Button {
@@ -429,6 +326,91 @@ class CommentsPopup extends Component {
                     this.player.on('useractive', this.showSection);
                     this.player.on('userinactive', this.hideSection);
                     this.setState({playerInitialized: true});
+        }
+        if(prevProps.isSaved !== this.props.isSaved) {
+            this.setState({isSaved: this.props.isSaved});
+        }
+        if(prevProps.isLiked !== this.props.isLiked) {
+            this.setState({isLiked: this.props.isLiked});
+        }
+        if (prevProps.postDetails != this.props.postDetails || (prevState.postDetails==null && this.props.postDetails!==null)) {
+            if(this.props.postDetails[1].length>0) {
+                    await this.fetchVideos();
+            }
+            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.props.currSlide));
+            if(currSlideIsVid) {
+                this.fetchComments(this.props.postDetails[1][0].overallPostId);
+                this.fetchReplies(this.props.postDetails[1][0].overallPostId);
+                this.fetchCommentLikes(this.props.postDetails[1][0].overallPostId);
+                this.fetchBackgroundMusic(this.props.postDetails[1][0].overallPostId);
+
+                this.setState({
+                    currSlideIsVid: currSlideIsVid,
+                    locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
+                    timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
+                    numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
+                    likesText: this.props.numLikes==1 ? '1 like' : this.props.numLikes + ' likes',
+                    numLikes: this.props.numLikes,
+                    currSlide: this.props.currSlide,
+                    postDetails: this.props.postDetails,
+                    videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
+                    postId: this.props.postDetails[1][0].overallPostId,
+                    commentsSent: [],
+                    repliesSent: [],
+                });
+            }
+            else {
+                const x = this.props.postDetails[0][0].slides.indexOf(this.props.currSlide);
+                const currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
+                this.fetchComments(this.props.postDetails[0][0].id);
+                this.fetchReplies(this.props.postDetails[0][0].id);
+                this.fetchCommentLikes(this.props.postDetails[0][0].id);
+                this.fetchBackgroundMusic(this.props.postDetails[0][0].id);
+                this.setState({
+                    currSlideIsVid: currSlideIsVid,
+                    locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
+                    timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
+                    numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
+                    likesText: this.props.numLikes== 1 ? '1 like' : this.props.numLikes + ' likes',
+                    numLikes: this.props.numLikes,
+                    currSlide: this.props.currSlide,
+                    postDetails: this.props.postDetails,
+                    currPost: currPost,
+                    postId: this.props.postDetails[0][0].id,
+                    commentsSent: [],
+                    repliesSent: [],
+                });
+
+            }
+        }
+        if(prevProps.currSlide !== this.props.currSlide) {
+            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.props.currSlide));
+            if(currSlideIsVid) {
+                this.setState({
+                    currSlide: this.props.currSlide,
+                    videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
+                });
+            }
+            else {
+                const x = this.props.postDetails[0][0].slides.indexOf(this.props.currSlide);
+                const currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
+                this.setState({
+                    currSlide: this.props.currSlide,
+                    currPost: currPost
+                })
+            }
+        }
+        if(prevProps.language != this.props.language) {
+            await this.updateAddCommentText(prevProps.language);
+            await this.updateTimeText(prevProps.language);
+            await this.updateLikesText(prevProps.language);
+            await this.updateLocationText(prevProps.language);
+            await this.updatePostText(prevProps.language);
+        }
+        else {
+            if(prevState.likesText !== this.state.likesText) {
+                await this.updateLikesText("English");
+            }
         }
     }
 
@@ -527,6 +509,16 @@ class CommentsPopup extends Component {
         }
     };
 
+    handleClick = () => {
+        /*
+        this.setState({
+            focusedOnComment: false
+        }, () => {
+            this.props.onFocus(this.props.id);
+        });
+        */
+    }
+
     removeHeart = (heartCoordinates) => {
         const { hearts } = this.state;
         const index = hearts.findIndex(heart =>
@@ -539,6 +531,24 @@ class CommentsPopup extends Component {
             this.setState({ hearts: newHearts });
         }
     }
+
+    fetchSubtitles = async (videoId) => {
+            const response = await fetch(`http://localhost:8006/getVideoSubtitles/${videoId}`);
+            if(!response.ok) {
+                throw new Error('Network response not ok');
+            }
+            const subtitlesList = await response.json();
+            for(let i=0; i<subtitlesList.length; i++) {
+                const encodedVTT = encodeURIComponent(subtitlesList[i].subtitleFile);
+                const dataURI = `data:text/vtt;charset=utf-8,${encodedVTT}`;
+                this.player.addRemoteTextTrack({
+                    kind: 'subtitles',
+                    src: dataURI,
+                    label: subtitlesList[i].language,
+                }, false);
+            }
+        }
+
 
     likePost = async (event) => {
         if(!this.state.isLiked) {
@@ -737,8 +747,34 @@ class CommentsPopup extends Component {
         })
     }
 
+    async fetchBackgroundMusic(postId) {
+        const response = await fetch(`http://localhost:8006/getPostBackgroundMusic/${postId}`);
+        if(!response.ok) {
+            return;
+        }
+        const songName = response.headers.get('songName');
+        const backgroundMusicBlob = await response.blob();
+        const backgroundMusicURL = URL.createObjectURL(backgroundMusicBlob);
+        const backgroundMusic = new Audio(backgroundMusicURL);
+        backgroundMusic.loop = true;
+        this.setState({
+            song: backgroundMusic,
+            songName: songName
+        })
+    }
+
+    removeAllTextTracks = () => {
+        if(this.player) {
+            let remoteTracks = this.player.remoteTextTracks();
+            while (remoteTracks.length > 0) {
+            this.player.removeRemoteTextTrack(remoteTracks[0]);
+            }
+        }
+    }
+
     showNextSlide = () => {
         let nextSlideIsVid = !(this.state.postDetails[0].length > 0 && this.state.postDetails[0][0].slides.includes(this.state.currSlide+1));
+        this.removeAllTextTracks();
         if (nextSlideIsVid) {
             let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide+1);
             this.setState({
@@ -749,8 +785,11 @@ class CommentsPopup extends Component {
                 showTags: false,
                 sections: x[0]['sections'],
                 currSection: "",
-                playerInitialized: false
-                }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);});
+                playerInitialized: false,
+                }, () => {
+                    this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                    this.fetchSubtitles(x[0]['videoId']);
+                });
         }
         else {
             const x = this.state.postDetails[0][0].slides.indexOf(this.state.currSlide+1);
@@ -763,13 +802,14 @@ class CommentsPopup extends Component {
                 showTags: false,
                 sections: [],
                 currSection: "",
-                playerInitialized: false
+                playerInitialized: false,
                 });
         }
     }
 
     showPreviousSlide = () => {
         let prevSlideIsVid = !(this.state.postDetails[0].length > 0 && this.state.postDetails[0][0].slides.includes(this.state.currSlide-1));
+        this.removeAllTextTracks();
         if (prevSlideIsVid) {
             let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide-1);
             this.setState({
@@ -781,7 +821,10 @@ class CommentsPopup extends Component {
                 sections: x[0]['sections'],
                 currSection: "",
                 playerInitialized: false
-                }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);});
+                }, () => {
+                    this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                    this.fetchSubtitles(x[0]['videoId']);
+                });
         }
         else {
             const x = this.state.postDetails[0][0].slides.indexOf(this.state.currSlide-1);
@@ -966,101 +1009,84 @@ class CommentsPopup extends Component {
         }
     }
 
-
-    handleKeyDown = (event) => {
-        if(!this.state.currSlideIsVid) {
-            if (this.props.isFocused && event.key === 'ArrowRight') {
-                if(this.state.currSlide < this.state.numPosts-1) {
-                    this.showNextSlide();
-                }
-            }
-            else if(this.props.isFocused && event.key=== 'ArrowLeft') {
-                if(this.state.currSlide>0) {
-                    this.showPreviousSlide();
-                }
-            }
+    toggleSongPause = () => {
+        if(this.state.songIsPaused) {
+            this.state.song.play();
+            this.setState({
+                songIsPaused: false
+            }, ()=>{});
         }
         else {
-            if (this.props.isFocused && !this.state.focusedOnComment) {
-                const player = this.player;
-                if (!player) return;
-                switch(event.key) {
-                    case 'ArrowRight':
-                        player.currentTime(Math.min(player.duration(), player.currentTime() + 5));
-                        this.setState({showRightBanner: true });
-                        setTimeout(() => {
-                        this.setState({showRightBanner: false });
-                        }, 250);
-                        break;
-                    case 'ArrowLeft':
-                        player.currentTime(Math.max(0, player.currentTime() - 5));
-                        this.setState({showLeftBanner: true});
-                        this.timer = setTimeout(() => {
-                            this.setState({showLeftBanner: false});
-                        }, 250);
-                        break;
-                    case ' ':
-                        event.preventDefault();
-                        if (!this.Pressed) {
-                            this.spaceKeyPressed = true;
-                            this.spaceKeyTimer = setTimeout(() => {
-                                player.playbackRate(2);
-                            }, 500);
-                        }
-                        break;
-                    case 'k':
-                    case 'K':
-                        event.preventDefault();
-                        if (player.paused()) {
-                            this.setState({showPauseSymbol: false});
-                            player.play();
-                        } else {
-                            player.pause();
-                            this.setState({showPauseSymbol: true});
-                        }
-                        break;
-                    case 'F':
-                    case 'f':
-                        if (document.fullscreenElement) {
-                            document.exitFullscreen();
-                        } else {
-                            if (this.videoNode.current.requestFullscreen) {
-                                this.videoNode.current.requestFullscreen();
-                            } else if (this.videoNode.current.mozRequestFullScreen) {
-                                this.videoNode.current.mozRequestFullScreen();
-                            } else if (this.videoNode.current.webkitRequestFullscreen) {
-                                this.videoNode.current.webkitRequestFullscreen();
-                            } else if (this.videoNode.current.msRequestFullscreen) {
-                                this.videoNode.current.msRequestFullscreen();
-                            }
-                        }
-                        break;
-                    case 'm':
-                    case 'M':
-                        player.muted(!player.muted());
-                        break;
-                    default:
-                        break;
-                    }
-                }
-        }
+            this.state.song.pause();
+            this.setState({
+                songIsPaused: true
+            }, ()=>{});
 
         }
-
-
-    handleClick = () => {
-        this.setState({focusedOnComment: false});
-        this.props.onFocus(this.props.id);
     }
+
+
+
     
     toggleTags = () => {
         this.setState({showTags: !this.state.showTags});
     }
 
     hideCommentsPopup = () => {
+        this.textInput = React.createRef();
+        this.videoNode = React.createRef();
+        this.spaceKeyTimer = null;
+        this.spaceKeyPressed = false;
         this.slideToVideoUrlMapping = {};
-        this.setState({postDetails: null, videoUrl: "", currPost: "", postId: "", comments: [], replies: [], commentLikes: [],
-        commentsSent:[], repliesSent:[]});
+        this.slideToVideoBlobMapping = {};
+        this.timeToVideoFrameMapping = {};
+        if(this.state.song!==null) {
+            this.state.song.pause();
+        }
+        this.state = {
+            comment: "",
+            sendComment: false,
+            isLiked: false,
+            numLikes: 0,
+            currSlide: 0,
+            isSaved: false,
+            commentsSent: [],
+            repliesSent: [],
+            likesText: "",
+            timeText: "",
+            addCommentText: "Add a comment...",
+            postText: "Post",
+            locationText: "",
+            showTags: false,
+            currSlideIsVid: null,
+            videoUrl: "",
+            numPosts: 0,
+            showQualityOptions: false,
+            showSettingsPopup: false,
+            showRightBanner: false,
+            showLeftBanner: false,
+            postDetails: null,
+            playerInitialized: false,
+            postId: "",
+            replyToUsername: "",
+            replyToCommentId: "",
+            replyToComment: "",
+            focusedOnComment: false,
+            comments: [],
+            replies: [],
+            commentLikes: [],
+            hearts:  [],
+            showPreview: false,
+            previewLeft: 30,
+            previewImage: "",
+            previewTime: "",
+            currSection: "",
+            sections: [],
+            showSection: false,
+            songName: "",
+            song: null,
+            songIsPaused: true,
+        };
         this.props.hideCommentsPopup();
     }
 
@@ -1089,7 +1115,10 @@ class CommentsPopup extends Component {
                 videoUrl: this.slideToVideoUrlMapping[this.props.currSlide],
                 sections: x[0]['sections']
             },
-            () => {this.getFramesAtEach5SecondInterval(0);});
+            () => {
+                this.getFramesAtEach5SecondInterval(0);
+                this.fetchSubtitles(this.props.postDetails[1][0].videoId);
+            });
         }
     
     }
@@ -1314,7 +1343,7 @@ class CommentsPopup extends Component {
         for (let i = 0; i < this.state.commentsSent.length; i++) {
                 commentsByUser.push(<Comment key={this.state.commentsSent[i][0]} username={this.props.username} id={this.state.commentsSent[i][0]} time={'1s'} comment={this.state.commentsSent[i][1]}
                 numLikes={0} replies={[]} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
-                isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes} loggedInUser={this.props.username}/>);
                 commentsByUser.push(<br/>);
         }
 
@@ -1324,7 +1353,7 @@ class CommentsPopup extends Component {
             comment={"(Your reply to @" + this.state.repliesSent[j][2] + ", who commented: '" + this.state.repliesSent[j][3] + "')\n" +
             this.state.repliesSent[j][1]} replies={[]}
             numLikes={0} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
-            isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+            isReply={false} isEdited={false} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes} loggedInUser={this.props.username}/>);
             repliesByUser.push(<br/>);
         }
 
@@ -1336,8 +1365,28 @@ class CommentsPopup extends Component {
         let currCommentId;
         let currCommentLikes;
         let currCommentReplies;
-        let currCommentRepliesByUser;
         let currCommentIsEdited;
+        for (let i of this.state.replies) {
+            if(i['username']===this.props.username) {
+                console.log(i['comment']);
+                let thisReplyLikes = this.state.commentLikes.filter(x=>x['commentid']===i['replyid']);
+                let thisReplyReplies = this.state.replies.filter(x=>x['commentid']===i['replyid']);
+                let originalComment = this.state.comments.filter(x=>x['commentid']===i['commentid']);
+                console.log(this.state.comments);
+                if(originalComment.length==0) {
+                    originalComment = this.state.replies.filter(x=>x['replyid']==i['commentid'])[0];
+                }
+                else {
+                    originalComment = originalComment[0];
+                }
+                commentsInGeneralRepliesByUser.push(<Comment key={i['replyid']} username={this.props.username} id={i['replyid']} postid={this.state.postId} time={this.formatDate(i['datetime'])}
+                comment={"(Your reply to @" + originalComment['username'] + ", who commented: '" + originalComment['comment'] + "')\n" +
+                i['comment']} replies={thisReplyReplies}
+                numLikes={thisReplyLikes.length} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
+                isReply={false} isEdited={i['isedited']} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes} loggedInUser={this.props.username}/>);
+                commentsInGeneralRepliesByUser.push(<br/>);
+            }
+        }
         for (let i = 0; i < this.state.comments.length; i++) {
             currComment = this.state.comments[i];
             currCommentId = currComment['commentid'];
@@ -1345,33 +1394,22 @@ class CommentsPopup extends Component {
             if(currComment['iscaption']) {
                 caption.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} postid={this.state.postId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                 numLikes={0} replies={[]} isCaption={true} language={this.props.language} isOwn={currComment['username']===this.props.username} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
-                isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes} loggedInUser={this.props.username}/>);
                 caption.push(<br/>);
             }
             else {
                 currCommentLikes = this.state.commentLikes.filter(x => x['commentid']===currCommentId)
                 currCommentReplies = this.state.replies.filter(x=>x['commentid']===currCommentId);
-                currCommentRepliesByUser = currCommentReplies.filter(x=>x['username']===this.props.username);
-                for(let i of currCommentRepliesByUser) {
-                    let thisReplyLikes = this.state.commentLikes.filter(x=>x['commentid']===i['replyid']);
-                    let thisReplyReplies = this.state.replies.filter(x=>x['commentid']===i['replyid']);
-                    commentsInGeneralRepliesByUser.push(<Comment key={i['replyid']} username={this.props.username} id={i['replyid']} postid={this.state.postId} time={this.formatDate(i['datetime'])}
-                    comment={"(Your reply to @" + currComment['username'] + ", who commented: '" + currComment['comment'] + "')\n" +
-                    i['comment']} replies={thisReplyReplies}
-                    numLikes={thisReplyLikes.length} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteReply}
-                    isReply={false} isEdited={i['isedited']} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
-                    commentsInGeneralRepliesByUser.push(<br/>);
-                }
                 if(currComment['username']===this.props.username) {
                     commentsInGeneralByUser.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} postid={this.state.postId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={true} toggleReply={this.toggleReply} deleteComment={this.deleteComment}
-                    isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                    isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes} loggedInUser={this.props.username}/>);
                     commentsInGeneralByUser.push(<br/>);
                 }
                 else {
                     commentsInGeneral.push(<Comment key={currCommentId} username={currComment['username']} id={currCommentId} postid={this.state.postId} time={this.formatDate(currComment['datetime'])} comment={currComment['comment']}
                     numLikes={currCommentLikes.length} replies={currCommentReplies} isCaption={false} language={this.props.language} isOwn={false} deleteComment={this.deleteComment} toggleReply={this.toggleReply}
-                    isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes}/>);
+                    isReply={false} isEdited={currCommentIsEdited} allPostReplies={this.state.replies} allPostCommentLikes={this.state.commentLikes} loggedInUser={this.props.username}/>);
                     commentsInGeneral.push(<br/>);
                 }
             }
@@ -1476,6 +1514,13 @@ class CommentsPopup extends Component {
         marginTop:'-1em', marginLeft:'0.5em', textAlign:"left"}}>
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.formatWithOxfordComma(this.state.postDetails[0][0].usernames)}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
+        {this.state.songName.length>0 &&
+        <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
+        <img className="iconToBeAdjustedForDarkMode" src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
+        <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
+        {this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {!this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        </div>}
         </div>
         <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.postIdInReact); this.hideCommentsPopup();
         }} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
@@ -1506,7 +1551,7 @@ class CommentsPopup extends Component {
         <div style={{display:'flex', justifyItems: 'center'}}>
         <textarea className="textArea" type="text" ref={this.textInput} value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0em', fontSize: '1em',
         marginTop:'0em', width:'19em', marginLeft:'0.6em', borderWidth: '0px 0px 0px 0px', outline:'none', color:'black', resize: 'none', fontFamily:'Arial'}}
-        placeholder={this.state.addCommentText} onKeyDown={this.handleKeyDown}/>
+        placeholder={this.state.addCommentText}/>
         {this.state.sendComment && <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer',
         fontSize:'1.1em', marginLeft:'1.7em'}}>{this.state.postText}</span>}
         </div>
@@ -1524,9 +1569,8 @@ class CommentsPopup extends Component {
         <div onClick={this.handleClick} onDoubleClick = {this.likePost} style={{position:'absolute', top:'0%', left:'0%', width:'65%', height:'100%', backgroundColor:'black'}}>
         <div style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
         left: 0,}} data-vjs-player>
-        <video id="videoPlayer" src={this.state.videoUrl} ref={this.videoNode} className="video-js" width="800" height="1000">
-        <track kind="subtitles" src={frenchSubtitles} srclang="fr" label="French" />
-        </video>
+        {this.state.videoUrl.length>0 && <video id="videoPlayer" src={this.state.videoUrl} ref={this.videoNode} className="video-js" width="800" height="1000">
+        </video>}
         {this.state.showLeftBanner && (<img src={rewind5Seconds} style={{height:'30%', width:'30%', objectFit:'contain', position:'absolute', top: '35%', left: '0%'}}/>)}
         {this.state.showRightBanner && (<img src={fastForward5Seconds} style={{height:'33%', width:'33%', objectFit: 'contain', position:'absolute', top: '35%', left: '73%'}}/>)}
         {this.state.showPauseSymbol && (<img src={pauseIcon} style={{height:'20%', width:'20%', objectFit: 'contain', position:'absolute', top: '35%', left: '38%'}}/>)}
@@ -1578,6 +1622,13 @@ class CommentsPopup extends Component {
         marginTop:'-1em', marginLeft:'0.5em', textAlign:"left"}}>
         {this.state.postDetails!==null && <span style={{fontSize:'1.1em', cursor:'pointer'}}><b>{this.formatWithOxfordComma(this.state.postDetails[1][0].usernames)}</b></span>}
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
+        {this.state.songName.length>0 &&
+        <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
+        <img className="iconToBeAdjustedForDarkMode" src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
+        <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
+        {this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {!this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        </div>}
         </div>
         <img className="iconToBeAdjustedForDarkMode" onClick={()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.postIdInReact); this.hideCommentsPopup();}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'12em',
         cursor:'pointer'}}/>

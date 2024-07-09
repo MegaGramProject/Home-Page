@@ -13,6 +13,7 @@ import musicIcon from './images/musicIcon.png';
 import rightArrow from "./images/nextArrow.png";
 import pauseIcon from './images/pauseIcon.png';
 import playIcon from './images/playIcon.png';
+import sidewaysTriangle from './images/playIcon.webp';
 import redHeart from './images/redHeartIcon.png';
 import rewind5Seconds from './images/rewind5Seconds.png';
 import saveIcon from './images/saveIcon.png';
@@ -24,8 +25,6 @@ import videoSettingsIcon from './images/videoSettingsIcon.png';
 import PostDots from "./postDots";
 import StoryIcon from './storyIcon';
 import './styles.css';
-import frenchSubtitles from './subtitles_fr.vtt';
-import sidewaysTriangle from './images/playIcon.webp';
 
 
 class MediaPost extends Component {
@@ -40,7 +39,7 @@ class MediaPost extends Component {
             sendComment: false,
             timeText: '',
             locationText: '',
-            likesText: this.props.numLikes + ' likes',
+            likesText: this.props.numLikes==1 ? '1 like' : this.props.numLikes + ' likes',
             viewAllCommentsText: 'View all comments',
             addACommentText: 'Add a comment...',
             postText: 'Post',
@@ -66,7 +65,7 @@ class MediaPost extends Component {
             showSection: false,
             songName: "",
             song: null,
-            songIsPaused: true
+            songIsPaused: true,
         };
         this.videoNode = React.createRef();
         this.spaceKeyTimer = null;
@@ -943,6 +942,7 @@ class MediaPost extends Component {
     };
 
     showNextSlide = async () => {
+        this.removeAllTextTracks();
         let nextSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide+1));
         if (nextSlideIsVid) {
             let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide+1);
@@ -953,7 +953,9 @@ class MediaPost extends Component {
                 currSlide: this.state.currSlide+1,
                 currSlideIsVid: nextSlideIsVid,
                 showTags: false,
-                }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                }, () => {
+                    this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                    this.fetchSubtitles(x[0]['videoId']);
                 });
         }
         else {
@@ -968,6 +970,7 @@ class MediaPost extends Component {
     }
 
     showPreviousSlide = async () => {
+        this.removeAllTextTracks();
         let prevSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide-1));
         if (prevSlideIsVid) {
             let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide-1);
@@ -978,7 +981,9 @@ class MediaPost extends Component {
                 currSlide: this.state.currSlide-1,
                 currSlideIsVid: prevSlideIsVid,
                 showTags: false,
-                }, () => {this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                }, () => {
+                    this.getFramesAtEach5SecondInterval(this.state.currSlide);
+                    this.fetchSubtitles(x[0]['videoId']);
                 });
         }
         else {
@@ -1022,11 +1027,22 @@ class MediaPost extends Component {
                 sections: x[0]['sections']
             },
             () => {this.getFramesAtEach5SecondInterval(0);
+                this.fetchSubtitles(this.props.postDetails[1][0].videoId);
             });
         
         }
     
     }
+
+    removeAllTextTracks = () => {
+        if(this.player) {
+            let remoteTracks = this.player.remoteTextTracks();
+            while (remoteTracks.length > 0) {
+            this.player.removeRemoteTextTrack(remoteTracks[0]);
+            }
+        }
+    }
+
 
     async fetchBackgroundMusic(postId) {
         const response = await fetch(`http://localhost:8006/getPostBackgroundMusic/${postId}`);
@@ -1034,7 +1050,6 @@ class MediaPost extends Component {
             return;
         }
         const songName = response.headers.get('songName');
-        console.log(songName);
         const backgroundMusicBlob = await response.blob();
         const backgroundMusicURL = URL.createObjectURL(backgroundMusicBlob);
         const backgroundMusic = new Audio(backgroundMusicURL);
@@ -1044,6 +1059,26 @@ class MediaPost extends Component {
             songName: songName
         })
     }
+
+    async fetchSubtitles(videoId) {
+        const response = await fetch(`http://localhost:8006/getVideoSubtitles/${videoId}`);
+        if(!response.ok) {
+            throw new Error('Network response not ok');
+        }
+        const subtitlesList = await response.json();
+        for(let i=0; i<subtitlesList.length; i++) {
+            const encodedVTT = encodeURIComponent(subtitlesList[i].subtitleFile);
+            const dataURI = `data:text/vtt;charset=utf-8,${encodedVTT}`;
+            this.player.addRemoteTextTrack({
+                kind: 'subtitles',
+                src: dataURI,
+                srclang: "en",
+                label: subtitlesList[i].language,
+            }, false);
+        }
+
+    }
+
 
     async fetchLikes(postId) {
         const response = await fetch(`http://localhost:8004/getLikes/${postId}`);
@@ -1060,7 +1095,7 @@ class MediaPost extends Component {
         }
         this.setState({
             numLikes: usersThatLiked.length,
-            likesText:  usersThatLiked.length + " likes",
+            likesText:  usersThatLiked.length==1 ? '1 like' : usersThatLiked.length + " likes",
             isLiked: isLiked
         });
     }
@@ -1262,6 +1297,9 @@ class MediaPost extends Component {
             sections.push(<hr style={{width: '100%', borderTop: '1px solid lightgray'}} />);
         }
 
+    
+    
+
         
 
         return (
@@ -1281,10 +1319,10 @@ class MediaPost extends Component {
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         {this.state.songName.length>0 &&
         <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
-        <img src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
+        <img className="iconToBeAdjustedForDarkMode" src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
         <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
-        {this.state.songIsPaused && <img onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
-        {!this.state.songIsPaused && <img onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {!this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
         </div>}
         </div>
         <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
@@ -1360,10 +1398,10 @@ class MediaPost extends Component {
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
         {this.state.songName.length>0 &&
         <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
-        <img src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
+        <img className="iconToBeAdjustedForDarkMode" src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
         <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
-        {this.state.songIsPaused && <img onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
-        {!this.state.songIsPaused && <img onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
+        {!this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
         </div>}
         </div>
         <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
@@ -1372,7 +1410,6 @@ class MediaPost extends Component {
         <div onClick={this.handleClick} onDoubleClick = {this.likePost} style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em', backgroundColor:'black'}}>
         <div style={{position:'absolute', position:'relative', top:'20%', left:'0%'}} data-vjs-player>
         <video id="videoPlayer" src={this.state.videoUrl} ref={this.videoNode} className="video-js" width="600" height="800">
-        <track kind="subtitles" src={frenchSubtitles} srclang="fr" label="French" />
         </video>
         {this.state.showLeftBanner && (<img src={rewind5Seconds} style={{height:'30%', width:'30%', objectFit:'contain', position:'absolute', top: '35%', left: '0%'}}/>)}
         {this.state.showRightBanner && (<img src={fastForward5Seconds} style={{height:'33%', width:'33%', objectFit: 'contain', position:'absolute', top: '35%', left: '73%'}}/>)}

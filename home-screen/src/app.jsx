@@ -12,6 +12,7 @@ import StoryIcon from "./storyIcon";
 import './styles.css';
 import ThreeDotsPopup from './threeDotsPopup';
 import UserBar from "./userBar";
+import { v4 as uuidv4 } from 'uuid';
 
 
 class App extends Component {
@@ -597,7 +598,10 @@ class App extends Component {
         }
         else {
             if(localStorage.getItem("defaultUser")!==null) {
-                this.authenticateUser(localStorage.getItem("defaultUser"));
+                await this.authenticateUser(localStorage.getItem("defaultUser"));
+                if(this.state.username==="") {
+                    window.location.href = "http://localhost:8000/login";
+                }
             }
             else {
                 window.location.href = "http://localhost:8000/login"
@@ -740,10 +744,10 @@ class App extends Component {
         id={this.state.threeDotsPopupPostIdInReact}/>
         </div>
 
-        <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
+        {this.state.showCommentsPopup && <div style={{position:'fixed', left:'12%', top:'3%', display:this.state.showCommentsPopup ? 'inline-block' : 'none',
         opacity:this.state.showThreeDotsPopup || this.state.showSendPostPopup || this.state.showPostLikersPopup || this.state.showAboutAccountPopup ? '0' : '1', pointerEvents:this.state.showThreeDotsPopup ||
         this.state.showSendPostPopup || this.state.showPostLikersPopup || this.state.showAboutAccountPopup ? 'none' : 'auto'}}>
-        <CommentsPopup id={6} username={this.state.username} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
+        <CommentsPopup key={uuidv4()} id={6} username={this.state.username} language={this.state.language} postDetails={this.state.commentsPopupPostDetails}
         numLikes={this.state.commentsPopupNumLikes} numComments={this.state.commentsPopupNumComments}
         currSlide={this.state.commentsPopupCurrSlide}
         isLiked={this.state.commentsPopupIsLiked}  showThreeDotsPopup={this.state.commentsPopupIsAd ? this.showAdPopup : this.showPostPopup}
@@ -751,7 +755,7 @@ class App extends Component {
         onFocus={this.handleFocus} isFocused={this.state.focusedComponent==6}  showPostLikersPopup={this.showPostLikersPopup}
         postIdInReact={this.state.commentsPopupPostIdInReact}
         />
-        </div>
+        </div>}
 
         <div style={{position:'fixed', left:'35%', top:'25%', display:this.state.showSendPostPopup ? 'inline-block' : 'none'}}>
         <SendPostPopup language={this.state.language} closePopup={this.closeSendPostPopup}/>

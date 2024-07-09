@@ -71,3 +71,20 @@ def getPostBackgroundMusic(request, postId):
             return response
             
     return Response("audio not found for that postId", status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+def getVideoSubtitles(request, videoId):
+    credential_path = "/Users/rishavr/Downloads/megagram-428802-476264306d3b.json"
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("megagram-video-subtitle-files")
+    output = []
+    for blob in bucket.list_blobs():
+        blob.reload()
+        if blob.metadata and blob.metadata.get('videoId') == videoId:
+            blob_data = blob.download_as_bytes()
+            newElement = {'subtitleFile': blob_data.decode('utf-8'), 'language': blob.metadata.get("language")}
+            output.append(newElement)
+            
+    return Response(output)
