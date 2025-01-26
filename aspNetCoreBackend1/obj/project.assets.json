@@ -7013,11 +7013,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/rishavr/Home-Screen/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
+      "projectUniqueName": "/Users/rishavr/Home-Page/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
       "projectName": "aspNetCoreBackend1",
-      "projectPath": "/Users/rishavr/Home-Screen/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
+      "projectPath": "/Users/rishavr/Home-Page/aspNetCoreBackend1/aspNetCoreBackend1.csproj",
       "packagesPath": "/Users/rishavr/.nuget/packages/",
-      "outputPath": "/Users/rishavr/Home-Screen/aspNetCoreBackend1/obj/",
+      "outputPath": "/Users/rishavr/Home-Page/aspNetCoreBackend1/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/Users/rishavr/.nuget/NuGet/NuGet.Config"

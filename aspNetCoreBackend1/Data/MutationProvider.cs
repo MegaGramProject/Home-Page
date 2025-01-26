@@ -11,7 +11,7 @@ namespace Megagram.Data
     public class MutationProvider
     {
         public async Task<Comment> addComment ([Service] MegaDbContext dbContext, string commentid, string comment,
-        DateTime datetime, Boolean isedited, String postid, String username)
+        DateTime datetime, bool isedited, string postid, string username)
         {
             var newComment = new Comment
             {
@@ -44,7 +44,7 @@ namespace Megagram.Data
         }
 
         public async Task<Reply> addReply ([Service] MegaDbContext dbContext, string commentid, string replyid, string postid, string comment,
-        DateTime datetime, Boolean isedited, String username)
+        DateTime datetime, bool isedited, string username)
         {
             var reply = new Reply
             {
@@ -62,7 +62,7 @@ namespace Megagram.Data
             return reply;
         }
 
-        public async Task<Boolean> removeCommentLike ([Service] MegaDbContext dbContext, string commentid,
+        public async Task<bool> removeCommentLike ([Service] MegaDbContext dbContext, string commentid,
         string username)
         {
             var commentLike = await dbContext.commentlikers
@@ -78,7 +78,7 @@ namespace Megagram.Data
             return false;
         }
 
-        public async Task<Boolean> removeComment ([Service] MegaDbContext dbContext, string commentid)
+        public async Task<bool> removeComment ([Service] MegaDbContext dbContext, string commentid)
         {
             var comment = await dbContext.usercomments
             .FirstOrDefaultAsync(cl => cl.commentid == commentid);
@@ -96,14 +96,19 @@ namespace Megagram.Data
             return false;
         }
 
-        public async Task<Boolean> removeReply ([Service] MegaDbContext dbContext, string replyid)
+        public async Task<bool> removeReply ([Service] MegaDbContext dbContext, string replyid)
         {
             var reply = await dbContext.userreplies
             .FirstOrDefaultAsync(cl => cl.replyid == replyid);
 
+            var repliesOfReply = await dbContext.userreplies
+            .Where(cl => cl.commentid == replyid)
+            .ToListAsync();
+
             if (reply != null)
             {
                 dbContext.userreplies.Remove(reply);
+                dbContext.userreplies.RemoveRange(repliesOfReply);
                 await dbContext.SaveChangesAsync();
                 return true;
             }
@@ -124,7 +129,7 @@ namespace Megagram.Data
                 await dbContext.SaveChangesAsync();
             }
 
-            return editedComment;
+            return editedComment!;
         }
 
         public async Task<Reply> editReply ([Service] MegaDbContext dbContext, string replyid, DateTime datetime, string comment)
@@ -140,7 +145,7 @@ namespace Megagram.Data
                 await dbContext.SaveChangesAsync();
             }
 
-            return editedReply;
+            return editedReply!;
         }
     }
 }

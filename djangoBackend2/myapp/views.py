@@ -7,7 +7,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.files.temp import NamedTemporaryFile
 from google.cloud import storage
-import os
+import psycopg2
+from psycopg2 import sql
+from dotenv import load_dotenv
+from datetime import datetime
+
+load_dotenv()
+
 
 @api_view(['POST'])
 def getVideoFramesAtIntervals(request):
@@ -88,3 +94,143 @@ def getVideoSubtitles(request, videoId):
             output.append(newElement)
             
     return Response(output)
+
+
+@api_view(['GET'])
+def getAIConvos(request, username):
+    try:
+        conn = psycopg2.connect(
+            dbname="Megagram",
+            user="postgres",
+            password=os.getenv('postgresqlPassword'),
+            host="localhost",
+            port="5432"
+        )
+        cursor = conn.cursor()
+        query = sql.SQL("SELECT convoid, convotitle FROM aiconvos WHERE username = %s")
+        cursor.execute(query, (username,))
+        convos = cursor.fetchall()
+        newConvos = []
+        for convo in convos:
+            query = sql.SQL("SELECT * FROM aimessages WHERE convoid = %s ORDER BY sent DESC LIMIT 1")
+            cursor.execute(query, (convo[0],))
+            messages = cursor.fetchall()
+            if messages:
+                newConvos.append((convo[0], convo[1], messages[0][1]))
+            else:
+                now = datetime.now()
+                newConvos.append((convo[0], convo[1], now.strftime("%Y-%m-%d %H:%M:%S")))
+        cursor.close()
+        conn.close()
+        return Response(newConvos)
+    
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+        return Response("")
+    
+
+@api_view(['GET'])
+def getAIMessages(request, convoId):
+    try:
+        conn = psycopg2.connect(
+            dbname="Megagram",
+            user="postgres",
+            password=os.getenv('postgresqlPassword'),
+            host="localhost",
+            port="5432"
+        )
+        cursor = conn.cursor()
+        query = sql.SQL("SELECT username, messageid, message FROM aimessages WHERE convoid = %s ORDER BY sent")
+        cursor.execute(query, (convoId,))
+        messages = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return Response(messages)
+    
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+        return Response("")
+
+
+
+
+@api_view(['GET'])
+def getAIMessagesWithSent(request, convoId):
+    try:
+        conn = psycopg2.connect(
+            dbname="Megagram",
+            user="postgres",
+            password=os.getenv('postgresqlPassword'),
+            host="localhost",
+            port="5432"
+        )
+        cursor = conn.cursor()
+        query = sql.SQL("SELECT username, messageid, message, sent FROM aimessages WHERE convoid = %s ORDER BY sent")
+        cursor.execute(query, (convoId,))
+        messages = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return Response(messages)
+    
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+        return Response("")
+
+@api_view(['GET'])
+def getAllAIConvos(request):
+    try:
+        conn = psycopg2.connect(
+            dbname="Megagram",
+            user="postgres",
+            password=os.getenv('postgresqlPassword'),
+            host="localhost",
+            port="5432"
+        )
+        cursor = conn.cursor()
+        query = sql.SQL("SELECT * FROM aiconvos")
+        cursor.execute(query)
+        convos = cursor.fetchall()
+        newConvos = []
+        for convo in convos:
+            query = sql.SQL("SELECT * FROM aimessages WHERE convoid = %s ORDER BY sent DESC LIMIT 1")
+            cursor.execute(query, (convo[0],))
+            messages = cursor.fetchall()
+            if messages:
+                newConvos.append((convo[0], convo[1], convo[2], messages[0][1]))
+            else:
+                now = datetime.now()
+                newConvos.append((convo[0], convo[1], convo[2], now.strftime("%Y-%m-%d %H:%M:%S")))
+        cursor.close()
+        conn.close()
+        return Response(newConvos)
+    
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+        return Response("")
+
+
+@api_view(['GET'])
+def getAIConvotitle(request, convoId):
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            dbname="Megagram",
+            user="postgres",
+            password=os.getenv('postgresqlPassword'),
+            host="localhost",
+            port="5432"
+        )
+        cursor = conn.cursor()
+        query = sql.SQL("SELECT convotitle FROM aiconvos WHERE convoid = %s")
+        cursor.execute(query, (convoId,))
+        convo = cursor.fetchone()
+        if convo:
+            return Response(convo[0])
+        return Response("")
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+        return Response({"error": "Error while connecting to database"}, status=500)
+    finally:
+        if conn:
+            cursor.close()
+            conn.close()
