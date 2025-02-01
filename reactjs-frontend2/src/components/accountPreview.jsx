@@ -1,301 +1,137 @@
-import React, { Component } from 'react';
-
 import privateAccount from "../assets/images/privateAccount.png";
-import moreIcon from '../assets/images/moreIcon.png';
+import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png'
 
-class AccountPreview extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            postsText: "posts",
-            followersText: "followers",
-            followingText: "following",
-            accountIsPrivateText: "This account is private",
-            followText: "Follow",
-            followLongerText: "Follow this account to see their photos and videos.",
-            error: null,
-            profilePhotoLoading: true,
-            profilePhoto: null
-        }
-    };
+function AccountPreview({authUser, username, profilePhoto, fullName, isPrivate, numPosts, numFollowers,
+numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyParentToShowErrorPopup}) {
 
-
-    translateTextPromise = async function(text, language1, language2){
-        let language1Code;
-        let language2Code;
-        if(language1===language2) {
-            return text;
+    function formatNumber(number) {
+        if(number==='?') {
+            return '?';
         }
-        if (language1==="English"){
-            language1Code = "en";
-        }
-        else if(language1==="Español") {
-            language1Code = "es";
-        }
-        else if(language1==="Français") {
-            language1Code = "fr";
-        }
-        else if(language1==="हिंदी") {
-            language1Code = "hi";
-        }
-        else if(language1==="中国人") {
-            language1Code = "zh-CN";
-        }
-        else if(language1==="বাংলা"){
-            language1Code = "bn";
-        }
-        else if(language1==="العربية") {
-            language1Code = "ar";
-        }
-        else if(language1==="Deutsch") {
-            language1Code = "de";
-        }
-        else if(language1==="Bahasa Indonesia") {
-            language1Code = "id";
-        }
-        else if(language1==="Italiano"){
-            language1Code = "it";
-        }
-        else if(language1==="日本語") {
-            language1Code = "ja";
-        }
-        else if(language1==="Русский") {
-            language1Code = "ru";
-        }
-        if (language2==="English"){
-            language2Code = "en";
-        }
-        else if(language2==="Español") {
-            language2Code = "es";
-        }
-        else if(language2==="Français") {
-            language2Code = "fr";
-        }
-        else if(language2==="हिंदी") {
-            language2Code = "hi";
-        }
-        else if(language2==="中国人") {
-            language2Code = "zh-CN";
-        }
-        else if(language2==="বাংলা"){
-            language2Code = "bn";
-        }
-        else if(language2==="العربية") {
-            language2Code = "ar";
-        }
-        else if(language2==="Deutsch") {
-            language2Code = "de";
-        }
-        else if(language2==="Bahasa Indonesia") {
-            language2Code = "id";
-        }
-        else if(language2==="Italiano"){
-            language2Code = "it";
-        }
-        else if(language2==="日本語") {
-            language2Code = "ja";
-        }
-        else if(language2==="Русский") {
-            language2Code = "ru";
-        }
-        const apiUrl = "https://deep-translate1.p.rapidapi.com/language/translate/v2";
-        const data = {"q":text,"source":language1Code,"target":language2Code};
-        const options = {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            'x-rapidapi-host': 'deep-translate1.p.rapidapi.com',
-            'x-rapidapi-key': '14da2e3b7emsh5cd3496c28a4400p16208cjsn947339fe37a4'
-            },
-            body: JSON.stringify(data)
-        };
-        try {
-            const response = await fetch(apiUrl, options);
-            if (!response.ok) {
-                throw new Error("Network response not ok");
-            }
-            return response.json()['data']['translations']['translatedText'];
-        }
-
-        catch (error) {
-            console.error('Error:', error);
-            return "T";
+        if (number < 10000) {
+            return number.toLocaleString();
+        } else if (number >= 10000 && number < 1000000) {
+            return (number / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+        } else if (number >= 1000000 && number < 1000000000) {
+            return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+        } else if (number >= 1000000000 && number < 1000000000000) {
+            return (number / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+        } else {
+            return (number / 1000000000000).toFixed(1).replace(/\.0$/, '') + 'T';
         }
     }
 
-    async updatePostsText(currLang) {
+    async function toggleFollowUser() {
         try {
-            const translatedText = await this.translateTextPromise(
-                this.state.postsText,
-                currLang,
-                this.props.language
-            );
-            this.setState({postsText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateFollowersText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.followersText,
-                currLang,
-                this.props.language
-            );
-            this.setState({followersText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateFollowingText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.followingText,
-                currLang,
-                this.props.language
-            );
-            this.setState({followingText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateAccountIsPrivateText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.accountIsPrivateText,
-                currLang,
-                this.props.language
-            );
-            this.setState({accountIsPrivateText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateFollowText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.followText,
-                currLang,
-                this.props.language
-            );
-            this.setState({followText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateFollowLongerText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.followLongerText,
-                currLang,
-                this.props.language
-            );
-            this.setState({followLongerText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    fetchProfilePhoto(username) {
-        fetch(`http://localhost:8003/getProfilePhoto/${username}`)
-            .then(response => {
-                if (!response.ok) {
-                    this.setState({
-                        error: true,
-                        profilePhotoLoading: false
-                    });
-                    throw new Error('Network response was not ok');
-                }
-                return response.arrayBuffer();
-            })
-            .then(buffer => {
-                const base64Flag = 'data:image/jpeg;base64,';
-                const imageStr = this.arrayBufferToBase64(buffer);
-                this.setState({
-                    profilePhoto: base64Flag + imageStr,
-                    profilePhotoLoading: false
-                });
-            })
-            .catch(error => {
-                this.setState({
-                    error: true,
-                    profilePhotoLoading: false
-                });
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/toggleFollowUser/${authUser}/${username}`, {
+                method: 'PATCH',
+                credentials: 'include'
             });
-    }
-
-    arrayBufferToBase64(buffer) {
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
+            if(!response.ok) {
+                notifyParentToShowErrorPopup(
+                `The server had trouble toggling your follow-status of ${username}`);
+            }
+            else {
+                const newFollowText = await response.text();
+                notifyParentToUpdateFollowText(newFollowText);
+            }
         }
-        return window.btoa(binary);
-    }
-
-    async componentDidMount() {
-        this.fetchProfilePhoto(this.props.username);
-        await this.updatePostsText("English");
-        await this.updateFollowersText("English");
-        await this.updateFollowingText("English");
-        await this.updateAccountIsPrivateText("English");
-        await this.updateFollowText("English");
-        await this.updateFollowLongerText("English");
-    }
-
-    async componentDidUpdate(prevProps, prevState) {
-        if (prevProps.language !== this.props.language) {
-            await this.updatePostsText(prevProps.language);
-            await this.updateFollowersText(prevProps.language);
-            await this.updateFollowingText(prevProps.language);
-            await this.updateAccountIsPrivateText(prevProps.language);
-            await this.updateFollowText(prevProps.language);
-            await this.updateFollowLongerText(prevProps.language);
+        catch (error) {
+            notifyParentToShowErrorPopup(`There was an error connecting to the server to toggle your follow-status
+            of ${username}`);
         }
     }
 
+    function takeToUsersProfile() {
+        window.location.href = `http://34.111.89.101/profile/${username}`;
+    }
+    
 
-    render() {
-        return (
-        <React.Fragment>
-        <div className="popup" style={{width:'22em', height:'22em', position:'absolute', zIndex:'3',
-        paddingTop:'2em', paddingLeft:'2em', borderRadius:'2%'}}>
-        <div style={{display:'flex', justifyContent:'start', alignItems:'start'}}>
-        {!(this.state.profilePhotoLoading || this.state.error) &&
-            (<img src={this.state.profilePhoto} style={{width:'3em', height:'3em'}}/>)}
-        {(this.state.profilePhotoLoading || this.state.error) &&
-            (<img src={moreIcon} style={{width:'3em', height:'3em'}}/>)}
-        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'0.7em'}}>
-        <p style={{fontWeight:'bold', fontSize:'0.85em', cursor:'pointer'}}>{this.props.username}</p>
-        <p style={{fontSize:'0.7em', marginTop:'-0.7em', color:'#787878'}}>{this.props.fullName}</p>
+    return (
+        <div className="popup" style={{width:'22em', position:'absolute',
+        padding: '1.5em 1.5em', borderRadius:'2%', zIndex: '10'}}>
+            <div style={{display:'flex', justifyContent:'start', alignItems:'start'}}>
+                <img src={profilePhoto} onClick={takeToUsersProfile}
+                style={{width:'3em', height:'3em', cursor: 'pointer'}}/>
+
+                <div style={{display:'flex', flexDirection:'column', marginLeft:'0.7em',
+                alignItems: 'start'}}>
+                    <div style={{display: 'flex', alignItems: 'center'}}>
+                        <b onClick={takeToUsersProfile} style={{fontSize:'0.85em', cursor:'pointer',
+                        maxWidth: '5em', overflowWrap:'break-word'}}>
+                            {username}
+                        </b>
+
+                        {isVerified &&
+                            (
+                                <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
+                                width: '1.5em', objectFit: 'contain'}}/>
+                            )
+                        }
+                    </div>
+        
+                    <p style={{fontSize:'0.8em', color:'#787878', maxWidth: '12em', overflowWrap:'break-word',
+                    textAlign: 'start'}}>
+                        {fullName==='?' ? 'Could not get full name' : fullName}
+                    </p>
+                </div>
+            </div>
+
+            <div style={{display:'flex', width: '100%', justifyContent: 'space-between',
+            alignItems: 'end', marginTop: '1em'}}>
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                    <b style={{maxWidth: '3em', overflowWrap: 'break-word'}}>
+                        {formatNumber(numPosts)}
+                    </b>
+                    <p>posts</p>
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                    <b style={{maxWidth: '3em', overflowWrap: 'break-word'}}>
+                        {formatNumber(numFollowers)}
+                    </b>
+                    <p>followers</p>
+                </div>
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                    <b style={{maxWidth: '3em', overflowWrap: 'break-word'}}>
+                        {formatNumber(numFollowing)}
+                    </b>
+                    <p>following</p>
+                </div>
+            </div>
+
+            {isPrivate==true &&
+                (
+                    <div style={{display:'flex', flexDirection: 'column', alignItems: 'center'}}>
+                        <img src={privateAccount} style={{height:'7em', width:'7em', objectFit:'contain',
+                        pointerEvents: 'none'}}/>
+                        <b>
+                            This account is private
+                        </b>
+                        <p style={{color:'gray', fontSize:'0.8em', marginTop:'0.1em'}}>
+                            Follow this account to see their photos and videos.
+                        </p>
+                    </div>
+                )
+            }
+
+            {(isPrivate==false || isPrivate==='?') && 
+                (
+                    <p onClick={takeToUsersProfile}
+                    style={{fontSize: '0.84em', color: '#666666', cursor: 'pointer',
+                    marginTop: '20%', marginBottom: '20%'}}>
+                        Click here to visit this profile.
+                    </p>
+                )
+            }
+
+            <button onClick={toggleFollowUser}className="blueButton"
+            style={{width:'96%', backgroundColor: followText==='Follow' ? '#327bf0' : '#b3b4b5',
+            cursor:'pointer'}}>
+                {followText}
+            </button>
         </div>
-        </div>
-        <div style={{position:'absolute', top:'30%', display:'flex', gap:'7em', marginLeft:'1.5em', fontWeight:'bold'}}>
-        <span>{this.props.numPosts}</span>
-        <span>{this.props.numFollowers}</span>
-        <span>{this.props.numFollowing}</span>
-        </div>
-        <div style={{position:'absolute', top:'40%', display:'flex', gap:'6em', marginLeft:'0.5em', marginTop:'-0.3em',
-        fontSize:'0.9em'}}>
-        <span>{this.state.postsText}</span>
-        <span>{this.state.followersText}</span>
-        <span>{this.state.followingText}</span>
-        </div>
-        {this.props.isPrivate && (<div style={{position:'absolute', top:'45%', display:'flex', flexDirection: 'column'}}>
-        <img src={privateAccount} style={{height:'7em', width:'7em', objectFit:'contain', marginLeft:'6.4em'}}/>
-        <b style={{marginLeft:'0.4em'}}>{this.state.accountIsPrivateText}</b>
-        <p style={{color:'gray', fontSize:'0.8em', marginLeft:'0.4em', marginTop:'0.1em'}}>{this.state.followLongerText}</p>
-        </div>)}
-        <button className="blueButton" style={{width:'27em', backgroundColor:'#327bf0', position:'absolute', top:'81.5%', marginLeft:'-15em', cursor:'pointer'}}>{this.state.followText}</button>
-        </div>
-        </React.Fragment>);
-    };
+    );
 }
 
 export default AccountPreview;

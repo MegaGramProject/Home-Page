@@ -5,7 +5,7 @@ import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 
 import PostDots from "./postDots";
-import StoryIcon from './storyIcon';
+import StoryIcon from './userIcon';
 
 import backArrow from "../assets/images/backArrow.png";
 import blackSaveIcon from '../assets/images/blackSaveIcon.png';
@@ -24,7 +24,7 @@ import saveIcon from '../assets/images/saveIcon.png';
 import sendIcon from '../assets/images/sendIcon.png';
 import taggedAccountsIcon from "../assets/images/taggedAccountsIcon.png";
 import threeHorizontalDots from '../assets/images/threeHorizontalDots.png';
-import verifiedAccount from '../assets/images/verifiedAccount.png';
+import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 import videoSettingsIcon from '../assets/images/videoSettingsIcon.png';
 
 class MediaPost extends Component {
@@ -1313,7 +1313,7 @@ class MediaPost extends Component {
         <span style={{fontSize:'1.1em', cursor:'pointer'}}>
         <div style={{display:'flex', alignItems:'center'}}>
         <b>{this.props.postDetails && this.formatWithOxfordComma(this.props.postDetails[0][0].usernames)}</b>
-        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText} </span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
@@ -1363,7 +1363,7 @@ class MediaPost extends Component {
         {this.props.postDetails &&
         <div style={{display:'flex', alignItems:'center'}}>
         <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}</b>
-        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         }
         {this.formatText(this.state.caption)}
@@ -1392,7 +1392,7 @@ class MediaPost extends Component {
         <span style={{fontSize:'1.1em', cursor:'pointer'}}>
         <div style={{display:'flex', alignItems:'center'}}>
         <b>{this.props.postDetails && this.formatWithOxfordComma(this.props.postDetails[1][0]['usernames'])}</b>
-        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText}</span></span>
         <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
@@ -1473,7 +1473,7 @@ class MediaPost extends Component {
         {this.props.postDetails &&
         <div style={{display:'flex', alignItems:'center'}}>
         <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}</b>
-        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         }
         {this.formatText(this.state.caption)}

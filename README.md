@@ -1,7 +1,7 @@
 # Home-Page
   This GitHub repository contains code that powers the <b>frontend & backends</b> of the home-page of <b>Megagram</b>. Megagram is a blend of some of the features of <b>Instagram and Amazon</b>, combined into a single website. It was created by me, <b>Rishav Ray</b>, as a personal project to <b>acquire and then showcase</b> my skills.
 
-  Because a major portion of the project depends on <b>the cloud</b>, in order to <b>save costs</b> on that, I <b>only activate</b> my frontend, backend and data/cloud-services for about 1-2 days max upon request, assuming that there aren't too many cloud-services also running at the time(<b>my contact-info is presented in the bottom-section</b>). <b>Once they're activated</b>, you should know that the frontend-urls begin with https://megagram.com/homepage/, and the backend-urls with https://megagram.com/homepage/api/.
+  Because a major portion of the project depends on <b>the cloud</b>, in order to <b>save costs</b> on that, I <b>only activate</b> my frontend, backend and data/cloud-services for about 1-2 days max upon request, assuming that there aren't too many cloud-services also running at the time(<b>my contact-info is presented in the bottom-section</b>). <b>Once they're activated</b>, you should know that the frontend-urls are https://megagram.com/home/{username} and https://megagram.com, and the backend-urls all start with https://megagram.com/Home-Page/api/.
 
   If you so choose, you can use the <b>username 'testuser'</b> and the <b>password 'IamTESTINGMegagram1!!'</b> to login to Megagram as an actual user(although, unlike actual users, <b>you won't be able to edit the username or password</b> of this account).
 
@@ -55,4 +55,4 @@
 
   * Number(texting only): <span style="color:#03b6fc">608-443-7805</span>
 
-  * Linkedin: https://www.fakelink.com
+  * Linkedin: https://fakelink.com

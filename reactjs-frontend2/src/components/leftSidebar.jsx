@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 
 import homeIcon from '../assets/images/homeIcon.png';
 import messagesIcon from '../assets/images/messagesIcon.png';
@@ -6,50 +5,8 @@ import moreIcon from '../assets/images/moreIcon.png';
 import notificationsIcon from '../assets/images/notificationsIcon.png';
 import searchIcon from '../assets/images/searchIcon.png';
 import shopIcon from '../assets/images/shopIcon.png';
-import defaultPfp from '../assets/images/defaultPfp.png';
 
-function LeftSidebar({username, displayPopup, toggleDisplayPopup}) {
-    const [profilePhotoLoading, setProfilePhotoLoading] = useState(true);
-    const [profilePhoto, setProfilePhoto] = useState(null);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        fetchProfilePhoto(username);
-    }, []);
-
-    function fetchProfilePhoto(username) {
-        fetch(`http://34.111.89.101/reset-password/api/getProfilePhoto/${username}`)
-            .then(response => {
-                if (!response.ok) {
-                    setError(true);
-                    setProfilePhotoLoading(false);
-                    console.error("The server had trouble getting your profile-photo.");
-                }
-                return response.arrayBuffer();
-            })
-            .then(buffer => {
-                const base64Flag = 'data:image/jpeg;base64,';
-                const imageStr = arrayBufferToBase64(buffer);
-                setProfilePhoto(base64Flag + imageStr);
-                setProfilePhotoLoading(false);
-            })
-            .catch(_ => {
-                setError(true);
-                setProfilePhotoLoading(false);
-                console.error("There was trouble connecting to the server to get your profile-photo.");
-            });
-    }
-
-    function arrayBufferToBase64(buffer) {
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return window.btoa(binary);
-    }
-
+function LeftSidebar({profilePhoto, displayPopup, toggleDisplayPopup}) {
     function takeUserToSearch() {
         window.location.href = 'http://34.111.89.101/search';
     }
@@ -106,18 +63,8 @@ function LeftSidebar({username, displayPopup, toggleDisplayPopup}) {
 
 
                 <div onClick={takeUserToProfile} className="sidebarElement">
-                    {(profilePhotoLoading || error) &&
-                        (
-                            <img className="iconToBeAdjustedForDarkMode" src={defaultPfp} style={{height:'1.7em',
-                            width:'1.7em', pointerEvents:'none', objectFit:'contain', marginLeft: '0.3em'}}/>
-                        )
-                    }
-                    {!(profilePhotoLoading || error) &&
-                        (
-                            <img src={profilePhoto} style={{height:'2.2em', width:'2.2em', pointerEvents:'none',
-                            objectFit:'contain'}}/>
-                        )
-                    }
+                    <img src={profilePhoto} style={{height:'2.2em', width:'2.2em', pointerEvents:'none',
+                    objectFit:'contain'}}/>
                     <p style={{fontSize:'1em', marginLeft:'0.8em'}}>Profile</p>
                 </div>
 
@@ -126,7 +73,8 @@ function LeftSidebar({username, displayPopup, toggleDisplayPopup}) {
                     <p style={{fontSize:'1em', marginLeft:'0.4em'}}>Shop</p>
                 </div>
 
-                <div onClick={toggleDisplayPopup} className="sidebarElement" style={{position: 'absolute', bottom: '4%'}}>
+                <div onClick={toggleDisplayPopup} className="sidebarElement" style={{position: 'absolute', bottom: '4%',
+                left: '3%'}}>
                     <img className="iconToBeAdjustedForDarkMode" src={moreIcon} style={{height:'1.8em', width:'1.8em',
                     pointerEvents:'none', objectFit:'contain'}}/>
                     <p style={{fontSize:'1em', marginLeft:'0.4em', fontWeight: displayPopup ? 'bold' : 'normal'}}>

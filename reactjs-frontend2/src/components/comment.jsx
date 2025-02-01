@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import blankHeart from '../assets/images/blankHeartIcon.png';
 import moreIcon from '../assets/images/moreIcon.png';
 import redHeart from '../assets/images/redHeartIcon.png';
-import verifiedAccount from '../assets/images/verifiedAccount.png';
+import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 class Comment extends Component {
     constructor(props) {
@@ -783,7 +783,7 @@ class Comment extends Component {
         <div onDoubleClick={this.likeComment} style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
         <div style={{display:'flex', alignItems:'center'}}>
         <b>{this.props.username}</b>
-        {this.state.isVerified && <img src={verifiedAccount} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
         </div>
         {!this.state.editMode && this.formatText(this.state.commentText)}
         {this.state.editMode &&  <textarea type="text" ref={this.textInput} value={this.state.commentText2} onChange={this.handleCommentChange} style={{paddingTop: '0.3em', fontSize: '1em',

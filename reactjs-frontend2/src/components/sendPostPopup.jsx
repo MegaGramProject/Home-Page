@@ -1,265 +1,446 @@
-import React, { Component } from 'react';
+import { useEffect, useState } from 'react';
 
-import SelectUser from './selectUser';
+import SelectUserOrGroupChat from './selectUserOrGroupChat';
 
-import closePopupIcon from '../assets/images/closePopupIcon.png';
+import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
+import defaultPfp from '../assets/images/defaultPfp.png';
 
-class SendPostPopup extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            accountToSend: "",
-            accountsSelected: [],
-            shareText: "Share",
-            toText: "To:",
-            suggestedText: "Suggested",
-            sendText: "Send",
-            searchText: "Search..."
-        }
-    };
+function SendPostPopup({authUser, overallPostId, notifyParentToClosePopup, usersAndTheirRelevantInfo,
+notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
+    const [accountToSendTo, setAccountToSendTo] = useState("");
+    const [suggestedResults, setSuggestedResults] = useState([]);
+    const [selectedUsersAndGroupChats, setSelectedUsersAndGroupChats] = useState(new Set());
+    const [errorMessage, setErrorMessage] = useState("");
+    const [cachedSuggestionResults, setCachedSuggestionResults] = useState({});
+    const [sendPostStatus, setSendPostStatus] = useState("");
 
+    useEffect(() => {
+        fetchUsersToSendPostToGivenTextInput(null);
+    }, []);
 
-    translateTextPromise = async function(text, language1, language2){
-        let language1Code;
-        let language2Code;
-        if(language1===language2) {
-            return text;
+    async function fetchUsersToSendPostToGivenTextInput(event) {
+        /*
+            This is the backend algo: the topmost result will be the exact match if applicable(in this case
+            it is exactly event.target.value'). The next results will be the top 12 user/groups to whom you send the
+            most messages to that start with event.target.value. The rest will be users that you follow that follow
+            you back(i.e 'friends') that start with event.target.value.
+        */
+        let givenTextInput = "";
+        if(event!==null) {
+            givenTextInput = event.target.value;
+            setAccountToSendTo(givenTextInput);
         }
-        if (language1==="English"){
-            language1Code = "en";
+        if(givenTextInput in cachedSuggestionResults) {
+            setErrorMessage("");
+            setSuggestedResults(cachedSuggestionResults[givenTextInput]);
+            return;
         }
-        else if(language1==="Español") {
-            language1Code = "es";
-        }
-        else if(language1==="Français") {
-            language1Code = "fr";
-        }
-        else if(language1==="हिंदी") {
-            language1Code = "hi";
-        }
-        else if(language1==="中国人") {
-            language1Code = "zh-CN";
-        }
-        else if(language1==="বাংলা"){
-            language1Code = "bn";
-        }
-        else if(language1==="العربية") {
-            language1Code = "ar";
-        }
-        else if(language1==="Deutsch") {
-            language1Code = "de";
-        }
-        else if(language1==="Bahasa Indonesia") {
-            language1Code = "id";
-        }
-        else if(language1==="Italiano"){
-            language1Code = "it";
-        }
-        else if(language1==="日本語") {
-            language1Code = "ja";
-        }
-        else if(language1==="Русский") {
-            language1Code = "ru";
-        }
-        if (language2==="English"){
-            language2Code = "en";
-        }
-        else if(language2==="Español") {
-            language2Code = "es";
-        }
-        else if(language2==="Français") {
-            language2Code = "fr";
-        }
-        else if(language2==="हिंदी") {
-            language2Code = "hi";
-        }
-        else if(language2==="中国人") {
-            language2Code = "zh-CN";
-        }
-        else if(language2==="বাংলা"){
-            language2Code = "bn";
-        }
-        else if(language2==="العربية") {
-            language2Code = "ar";
-        }
-        else if(language2==="Deutsch") {
-            language2Code = "de";
-        }
-        else if(language2==="Bahasa Indonesia") {
-            language2Code = "id";
-        }
-        else if(language2==="Italiano"){
-            language2Code = "it";
-        }
-        else if(language2==="日本語") {
-            language2Code = "ja";
-        }
-        else if(language2==="Русский") {
-            language2Code = "ru";
-        }
-        const apiUrl = "https://deep-translate1.p.rapidapi.com/language/translate/v2";
-        const data = {"q":text,"source":language1Code,"target":language2Code};
-        const options = {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            'x-rapidapi-host': 'deep-translate1.p.rapidapi.com',
-            'x-rapidapi-key': '14da2e3b7emsh5cd3496c28a4400p16208cjsn947339fe37a4'
-            },
-            body: JSON.stringify(data)
-        };
         try {
-            const response = await fetch(apiUrl, options);
-            if (!response.ok) {
-                throw new Error("Network response not ok");
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/getPostSendingSuggestions/${authUser}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    usernameOrGroupChatStartsWith: givenTextInput
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                setErrorMessage(`The server had trouble getting the suggested accounts/group-chats for you to send
+                this post.`)
             }
-            return response.json()['data']['translations']['translatedText'];
-        }
+            else {
+                const postSendingSuggestions = await response.json();
+                const suggestedUsernamesAndGroupChatIds = postSendingSuggestions.map(x=> {
+                    if(x.groupChatId==null) {
+                        return x.username;
+                    }
+                    else {
+                        return 'GROUP CHAT ID: ' + x.groupChatId;
+                    }
+                });
+                const newUsersAndTheirRelevantInfo = await fetchAllTheNecessaryInfo(suggestedUsernamesAndGroupChatIds);
+                notifyParentToUpdateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
 
+                const newSuggestedResults = [];
+                const newCachedSuggestedResults = {...cachedSuggestionResults};
+                for(let suggestion of postSendingSuggestions) {
+                    newSuggestedResults.push(
+                        <SelectUserOrGroupChat
+                            groupChatId={suggestion.groupChatId}
+                            usernameOrGroupChatId={
+                                (suggestion.groupChatId!==null) ?
+                                suggestion.groupChatName : suggestion.username
+                            }
+                            fullName={
+                                (suggestion.groupChatId!==null) ?
+                                'Group-chat' : newUsersAndTheirRelevantInfo[suggestion.username].fullName
+                            }
+                            notifyParentToSelect={selectUserOrGroupChat}
+                            notifyParentToUnselect={unselectUserOrGroupChat}
+                            isSelected={
+                                (suggestion.groupChatId!==null) ?
+                                selectedUsersAndGroupChats.has('GROUP CHAT ID: '+suggestion.groupChatId) :
+                                selectedUsersAndGroupChats.has(suggestion.username)
+                            }
+                            profilePhoto={
+                                (suggestion.groupChatId!==null) ?
+                                //yes, the usersAndRelevantInfo dict will contain the profilePhotos of group-chats!
+                                newUsersAndTheirRelevantInfo[suggestion.groupChatId].profilePhoto :
+                                newUsersAndTheirRelevantInfo[suggestion.username].profilePhoto
+                            }
+                            isVerified={
+                                (suggestion.groupChatId!==null) ?
+                                false : newUsersAndTheirRelevantInfo[suggestion.username].isVerified
+                            }
+                        />
+                    );
+                }
+                newCachedSuggestedResults[givenTextInput] = newSuggestedResults;
+                setErrorMessage("");
+                setCachedSuggestionResults(newCachedSuggestedResults);
+                setSuggestedResults(newSuggestedResults);
+            }
+        }
         catch (error) {
-            console.error('Error:', error);
-            return "T";
+            setErrorMessage(`There was trouble connecting to the server to get suggested accounts/group-chats for you
+            to send this post.`)
         }
     }
 
-    async updateShareText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.shareText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ shareText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
+    async function fetchAllTheNecessaryInfo(suggestedUsernamesAndGroupChatIds) {
+        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
+
+        let usersAndTheirFullNames = {};
+        const uniqueListOfUsernamesNeededForFullNames = [];
+        for(let suggestion of suggestedUsernamesAndGroupChatIds) {  
+            if(suggestion.startsWith('GROUP CHAT ID: ')) {
+                continue;
+            }
+            if(!(suggestion in newUsersAndTheirRelevantInfo) ||
+            !('fullName' in newUsersAndTheirRelevantInfo[suggestion])) {
+                uniqueListOfUsernamesNeededForFullNames.push(suggestion);
+            }
         }
+        if (uniqueListOfUsernamesNeededForFullNames.length>0) {
+            try {
+                const response = await fetch(
+                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getFullNamesOfMultipleUsers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        usernames: uniqueListOfUsernamesNeededForFullNames
+                    })
+                });
+                if(!response.ok) {
+                    console.error("The server had trouble fetching all the necessary fullNames");
+                    for(let user_name in uniqueListOfUsernamesNeededForFullNames) {
+                        usersAndTheirFullNames[user_name] = '?';
+                    }
+                }
+                else {
+                    usersAndTheirFullNames = await response.json();
+                }
+            }
+            catch(error) {
+                console.error(
+                    "There was trouble connecting to the server to fetch all the necessary fullNames"
+                );
+                for(let user_name in uniqueListOfUsernamesNeededForFullNames) {
+                    usersAndTheirFullNames[user_name] = '?';
+                }
+            }
+        }
+
+        let usersAndTheirIsVerifiedStatuses = {};
+        const uniqueListOfUsernamesNeededForIsVerifiedStatuses = [];
+        for(let suggestion of suggestedUsernamesAndGroupChatIds) {  
+            if(suggestion.startsWith('GROUP CHAT ID: ')) {
+                continue;
+            }
+            if(!(suggestion in newUsersAndTheirRelevantInfo) ||
+            !('isVerified' in newUsersAndTheirRelevantInfo[suggestion])) {
+                uniqueListOfUsernamesNeededForIsVerifiedStatuses.push(suggestion);
+            }
+        }
+        if (uniqueListOfUsernamesNeededForIsVerifiedStatuses.length>0) {
+            try {
+                const response1 = await fetch(
+                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsVerifiedStatusesOfMultipleUsers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        usernames: uniqueListOfUsernamesNeededForIsVerifiedStatuses
+                    })
+                });
+                if(!response1.ok) {
+                    console.error("The server had trouble fetching all the necessary isVerified statuses");
+                    for(let user_name in uniqueListOfUsernamesNeededForIsVerifiedStatuses) {
+                        usersAndTheirIsVerifiedStatuses[user_name] = false;
+                    }
+                }
+                else {
+                    usersAndTheirIsVerifiedStatuses = await response1.json();
+                }
+            }
+            catch (error) {
+                console.error(
+                    "There was trouble connecting to the server to fetch all the necessary isVerified statuses"
+                );
+                for(let user_name in uniqueListOfUsernamesNeededForIsVerifiedStatuses) {
+                    usersAndTheirIsVerifiedStatuses[user_name] = false;
+                }
+            }
+        }
+
+        let usersAndTheirProfilePhotos = {};
+        const uniqueListOfUsernamesNeededForProfilePhotos= [];
+        for(let suggestion of suggestedUsernamesAndGroupChatIds) {  
+            if(suggestion.startsWith('GROUP CHAT ID: ')) {
+                continue;
+            }
+            if(!(suggestion in newUsersAndTheirRelevantInfo) ||
+            !('profilePhoto' in newUsersAndTheirRelevantInfo[suggestion])) {
+                uniqueListOfUsernamesNeededForProfilePhotos.push(suggestion);
+            }
+        }
+        if (uniqueListOfUsernamesNeededForProfilePhotos.length>0) {
+            try {
+                const response2 = await fetch(
+                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotosOfMultipleUsers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        usernames: uniqueListOfUsernamesNeededForProfilePhotos
+                    })
+                });
+                if(!response2.ok) {
+                    console.error("The server had trouble fetching all the necessary profile-photos");
+                    for(let user_name in uniqueListOfUsernamesNeededForProfilePhotos) {
+                        usersAndTheirProfilePhotos[user_name] = defaultPfp;
+                    }
+                }
+                else {
+                    usersAndTheirProfilePhotos = await response2.json();
+                }
+            }
+            catch (error) {
+                console.error(
+                    "There was trouble connecting to the server to fetch all the necessary profile-photos"
+                );
+                for(let user_name in uniqueListOfUsernamesNeededForProfilePhotos) {
+                    usersAndTheirProfilePhotos[user_name] = defaultPfp;
+                }
+            }
+        }
+
+        let groupChatsAndTheirProfilePhotos = {};
+        const uniqueListOfGroupChatIdsNeededForProfilePhotos= [];
+        for(let suggestion of suggestedUsernamesAndGroupChatIds) {  
+            if(!(suggestion.startsWith('GROUP CHAT ID: '))) {
+                continue;
+            }
+            if(!(suggestion in newUsersAndTheirRelevantInfo) ||
+            !('profilePhoto' in newUsersAndTheirRelevantInfo[suggestion])) {
+                uniqueListOfGroupChatIdsNeededForProfilePhotos.push(suggestion.substring(15));
+            }
+        }
+        if (uniqueListOfGroupChatIdsNeededForProfilePhotos.length>0) {
+            try {
+                const response3 = await fetch(
+                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotosOfMultipleGroupChats', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        groupChatIds: uniqueListOfGroupChatIdsNeededForProfilePhotos
+                    })
+                });
+                if(!response3.ok) {
+                    console.error(`The server had trouble fetching all the necessary profile-photos
+                    for the group-chats`);
+                    for(let groupChatId in uniqueListOfGroupChatIdsNeededForProfilePhotos) {
+                        groupChatsAndTheirProfilePhotos['GROUP CHAT ID: ' + groupChatId] = defaultPfp;
+                    }
+                }
+                else {
+                    groupChatsAndTheirProfilePhotos = await response3.json();
+                    for(let groupChatId of Object.keys(groupChatsAndTheirProfilePhotos)) {
+                        groupChatsAndTheirProfilePhotos['GROUP CHAT ID: ' + groupChatId] =
+                        groupChatsAndTheirProfilePhotos[groupChatId]; 
+                        delete groupChatsAndTheirProfilePhotos[groupChatId];
+                    }
+                }
+            }
+            catch (error) {
+                console.error(
+                    `There was trouble connecting to the server to fetch all the necessary profile-photos
+                    for the group-chats`
+                );
+                for(let groupChatId in uniqueListOfGroupChatIdsNeededForProfilePhotos) {
+                    groupChatsAndTheirProfilePhotos['GROUP CHAT ID: ' + groupChatId] = defaultPfp;
+                }
+            }
+        }
+
+        for(let suggestion of suggestedUsernamesAndGroupChatIds) {
+            if(!(suggestion in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[suggestion] = {};
+            }
+            if (suggestion in usersAndTheirFullNames) {
+                newUsersAndTheirRelevantInfo[suggestion].fullName = usersAndTheirFullNames[suggestion];
+            }
+            if (suggestion in usersAndTheirIsVerifiedStatuses) {
+                newUsersAndTheirRelevantInfo[suggestion].isVerified = usersAndTheirIsVerifiedStatuses[suggestion];
+            }
+            if (suggestion in usersAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[suggestion].profilePhoto = usersAndTheirProfilePhotos[suggestion];
+            }
+            if (suggestion in groupChatsAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[suggestion].profilePhoto = groupChatsAndTheirProfilePhotos[suggestion];
+            }
+        }
+        return newUsersAndTheirRelevantInfo;
     }
 
-    async updateSuggestedText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.suggestedText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ suggestedText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateSendText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.sendText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ sendText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateSearchText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.searchText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ searchText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateToText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.toText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ toText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async componentDidMount() {
-        await this.updateShareText("English");
-        await this.updateSuggestedText("English");
-        await this.updateSendText("English");
-        await this.updateToText("English");
-        await this.updateSearchText("English");
+    function selectUserOrGroupChat(usernameOrGroupChatToBeSelected) {
+        setSelectedUsersAndGroupChats(new Set([...selectedUsersAndGroupChats]).add(usernameOrGroupChatToBeSelected));
     }
     
-    async componentDidUpdate(prevProps, prevState) {
-        if (prevProps.language !== this.props.language) {
-            await this.updateShareText(prevProps.language);
-            await this.updateSuggestedText(prevProps.language);
-            await this.updateToText(prevProps.language);
-            await this.updateSearchText(prevProps.language);
+    function unselectUserOrGroupChat(usernameOrGroupChatToBeUnselected) {
+        const newSelectedUsersAndGroupChats = new Set([...selectedUsersAndGroupChats]);
+        newSelectedUsersAndGroupChats.delete(usernameOrGroupChatToBeUnselected);
+        setSelectedUsersAndGroupChats(newSelectedUsersAndGroupChats);
+    }
+
+    async function sendPost(method) {
+        //method is either 'individually' or 'as a group'
+        //simply send a message that contains the link to the post
+        setSendPostStatus('Loading...');
+        const usersAndGroupChatsToSendTo = selectedUsersAndGroupChats.map(x=> {
+            if(x.startsWith('GROUP CHAT ID: ')) {
+                return x.substring(15);
+            }
+            return x;
+        });
+        try {
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/sendPostToMultipleUsersAndGroups/
+            ${authUser}/${overallPostId}`,
+            {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    method: method,
+                    usersAndGroupsToSendTo: usersAndGroupChatsToSendTo
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                notifyParentToShowErrorPopup(`The server had trouble sending the post to the selected
+                member(s).`);
+            }
+            else {
+                setSendPostStatus('Sent');
+                setTimeout(() => {
+                    setSendPostStatus('');
+                }, 2500);
+            }
+        }
+        catch (error) {
+            notifyParentToShowErrorPopup(`There was trouble connecting to the server for sending the post
+            to the selected member(s).`);
         }
     }
 
-    handleInputChange = (event) => {
-        this.setState({accountToSend: event.target.value});
-    }
-
-    addAccount = (newAccount) => {
-        this.setState({
-            accountsSelected: [...this.state.accountsSelected, newAccount],
-        });
-
-    }
-
-    removeAccount = (deletedAccount) => {
-        const newAccountsSelected = this.state.accountsSelected.filter(x => x!==deletedAccount);
-        this.setState({
-            accountsSelected: newAccountsSelected
-        })
-    }
-
-    sendPost = () => {
-        console.log("SENT TO " + this.state.accountsSelected)
-    };
 
 
+    return (
+        <div className="popup" style={{borderRadius:'2%', width:'35em', height:'35em', paddingTop:'1em',
+        position: 'relative'}}>
+            <b>Share</b>
 
-    render() {
-        return (
-        <React.Fragment>
-        <div style={{backgroundColor:'white', borderRadius:'2%', width:'35em', height:'35em', borderStyle:'solid', borderColor:'lightgray',
-        paddingTop:'1em'}}>
-        <b>{this.state.shareText}</b>
-        <img onClick={this.props.closePopup} src={closePopupIcon} style={{objectFit:'contain', height:'1em', width:'1em', position:'absolute', left:'90%',
-        cursor:'pointer'}}/>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <div style={{display:'flex',  paddingLeft:'1em', alignItems:'center'}}>
-        <b>{this.state.toText}</b>
-        <input type="text" value={this.state.accountToSend} onChange={this.handleInputChange} placeholder={this.state.searchText}
-        style={{width:'35em', marginLeft:'1em', fontSize:'0.9em', borderStyle:'none', outline: 'none'}}/>
+            <img onClick={notifyParentToClosePopup} src={thinGrayXIcon} style={{objectFit:'contain', height:'1.7em',
+            width:'1.6em', position:'absolute', left:'90%', top: '2%', cursor:'pointer'}}/>
+
+            <hr style={{width: '99%', borderTop: '0.1px solid lightgray', marginTop: '1.2em'}} />
+            
+            <div style={{display:'flex',  paddingLeft:'1em', alignItems:'center'}}>
+                <b>To:</b>
+                <input type="text" value={accountToSendTo} onChange={fetchUsersToSendPostToGivenTextInput}
+                placeholder='Search...' style={{width:'35em', marginLeft:'1em', fontSize:'0.9em', borderStyle:'none',
+                outline: 'none'}}/>
+            </div>
+
+            <hr style={{width: '99%', borderTop: '0.1px solid lightgray'}} />
+
+            <div style={{display:'flex', flexDirection:'column', alignItems:'start', height:'26em',
+            overflow:'scroll'}}>
+                {accountToSendTo.length==0 && 
+                    (
+                        <b style={{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}}>
+                            Suggested
+                        </b>
+                    )
+                }
+
+                {errorMessage.length==0 &&
+                    (
+                        suggestedResults
+                    )
+                }
+
+                {errorMessage.length>0 &&
+                    (
+                        <p style={{width: '90%', color: 'gray', fontSize: '0.88em', marginLeft: '2em',
+                        textAlign: 'start'}}>
+                            {errorMessage}
+                        </p>
+                    )
+                }
+            </div>
+
+            {selectedUsersAndGroupChats.size == 0 && 
+                (
+                    <button className="blueButton" style={{width:'42em'}}>
+                        Send
+                    </button>
+                )
+            }
+
+            {(sendPostStatus!=='Loading...' && selectedUsersAndGroupChats.size == 1) && 
+                (
+                    <button onClick={()=>sendPost('individually')} className="blueButton"
+                    style={{width:'42em', cursor:'pointer', backgroundColor:'#347aeb'}}>
+                        Send
+                    </button>
+                )
+            }
+
+            {(sendPostStatus!=='Loading...' && selectedUsersAndGroupChats.size > 1) &&
+                (
+                    <div style={{display: 'flex', gap: '1em', alignItems: 'center', justifyContent: 'center',
+                    width: '100%'}}>
+                        <button onClick={()=>sendPost('individually')} className="blueButton"
+                        style={{width:'19em', cursor:'pointer', backgroundColor:'#347aeb'}}>
+                            Send Individually
+                        </button>
+
+                        <button onClick={()=>sendPost('as a group')} className="blueButton"
+                        style={{width:'19em', cursor:'pointer', backgroundColor:'#347aeb'}}>
+                            Send in Group-Chat
+                        </button>
+                    </div>
+                )
+            }
+
+            {(sendPostStatus==='Sent') &&
+                <p style={{position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)',
+                color: 'white', backgroundColor: 'black', padding: '0.4em 0.8em', borderRadius: '0.3em'}}>
+                    Sent
+                </p>
+            }
         </div>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <div style={{display:'flex', flexDirection:'column', alignItems:'start', height:'26em',
-        paddingLeft:'1em', overflow:'scroll'}}>
-        {this.state.accountToSend==="" && <b>{this.state.suggestedText}</b>}
-        <br/>
-        <SelectUser username={"rishavry2"} fullName={"R R"} addAccount={this.addAccount} removeAccount={this.removeAccount}/>
-        <SelectUser username={"rishavry3"} fullName={"R R"} addAccount={this.addAccount} removeAccount={this.removeAccount}/>
-        <SelectUser username={"rishavry4"} fullName={"R R"} addAccount={this.addAccount} removeAccount={this.removeAccount}/>
-        <SelectUser username={"rishavry5"} fullName={"R R"} addAccount={this.addAccount} removeAccount={this.removeAccount}/>
-        <SelectUser username={"rishavry6"} fullName={"R R"} addAccount={this.addAccount} removeAccount={this.removeAccount}/>
-        <SelectUser username={"rishavry7"} fullName={"R R"} addAccount={this.addAccount} removeAccount={this.removeAccount}/>
-        </div>
-        {this.state.accountsSelected.length == 0 && <button type="button" className="blueButton" style={{width:'42em'}}>{this.state.sendText}</button>}
-        {this.state.accountsSelected.length > 0 && <button onClick={this.sendPost} type="button" className="blueButton"
-        style={{width:'42em', cursor:'pointer', backgroundColor:'#347aeb'}}>{this.state.sendText}</button>}
-        </div>
-        </React.Fragment>);
-    };
-}
+    );
+};
 
 export default SendPostPopup;

@@ -1,335 +1,158 @@
-import React, { Component } from 'react';
+import { useState } from 'react';
 
-class ThreeDotsPopup extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            hidePostText: "Hide post",
-            unfollowText: "Unfollow",
-            goToPostText: "Go to post",
-            shareToText: "Share to...",
-            copyLinkText: "Copy link",
-            editText: "Edit",
-            aboutThisAccountText: "About this account",
-            cancelText: "Cancel",
-            hideAdText: "Hide ad",
-            whyAdText: "Why are you seeing this ad?",
-        };
-    };
+function ThreeDotsPopup({authUser, postDetails, hidePost, notifyParentToShowAboutAccountPopup,
+notifyParentToClosePopup, notifyParentToShowErrorPopup}){
+    const [followText, setFollowText] = useState('Unfollow');
 
+    function copyPostLinkToClipboard() {
+        navigator.clipboard.writeText(
+            `http://34.111.89.101/profile/${postDetails.usernames[0]}?overallPostId=${postDetails.overallPostId}`
+        )
+        .then(() => {
+            console.log('Successfully copied link to post');
+        })
+        .catch(err => {
+            console.error('Failed to copy text to clipboard:', err);
+        });
+    }
+    
 
-    translateTextPromise = async function(text, language1, language2){
-        let language1Code;
-        let language2Code;
-        if(language1===language2) {
-            return text;
-        }
-        if (language1==="English"){
-            language1Code = "en";
-        }
-        else if(language1==="Español") {
-            language1Code = "es";
-        }
-        else if(language1==="Français") {
-            language1Code = "fr";
-        }
-        else if(language1==="हिंदी") {
-            language1Code = "hi";
-        }
-        else if(language1==="中国人") {
-            language1Code = "zh-CN";
-        }
-        else if(language1==="বাংলা"){
-            language1Code = "bn";
-        }
-        else if(language1==="العربية") {
-            language1Code = "ar";
-        }
-        else if(language1==="Deutsch") {
-            language1Code = "de";
-        }
-        else if(language1==="Bahasa Indonesia") {
-            language1Code = "id";
-        }
-        else if(language1==="Italiano"){
-            language1Code = "it";
-        }
-        else if(language1==="日本語") {
-            language1Code = "ja";
-        }
-        else if(language1==="Русский") {
-            language1Code = "ru";
-        }
-        if (language2==="English"){
-            language2Code = "en";
-        }
-        else if(language2==="Español") {
-            language2Code = "es";
-        }
-        else if(language2==="Français") {
-            language2Code = "fr";
-        }
-        else if(language2==="हिंदी") {
-            language2Code = "hi";
-        }
-        else if(language2==="中国人") {
-            language2Code = "zh-CN";
-        }
-        else if(language2==="বাংলা"){
-            language2Code = "bn";
-        }
-        else if(language2==="العربية") {
-            language2Code = "ar";
-        }
-        else if(language2==="Deutsch") {
-            language2Code = "de";
-        }
-        else if(language2==="Bahasa Indonesia") {
-            language2Code = "id";
-        }
-        else if(language2==="Italiano"){
-            language2Code = "it";
-        }
-        else if(language2==="日本語") {
-            language2Code = "ja";
-        }
-        else if(language2==="Русский") {
-            language2Code = "ru";
-        }
-        const apiUrl = "https://deep-translate1.p.rapidapi.com/language/translate/v2";
-        const data = {"q":text,"source":language1Code,"target":language2Code};
-        const options = {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            'x-rapidapi-host': 'deep-translate1.p.rapidapi.com',
-            'x-rapidapi-key': '14da2e3b7emsh5cd3496c28a4400p16208cjsn947339fe37a4'
-            },
-            body: JSON.stringify(data)
-        };
+    function visitAdLink() {
+        window.location.href = postDetails.adLink;
+    }
+
+    async function toggleFollowUser() {
         try {
-            const response = await fetch(apiUrl, options);
-            if (!response.ok) {
-                throw new Error("Network response not ok");
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/
+            ${authUser}/${postDetails.usernames[0]}`, {
+                method: 'PATCH',
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                notifyParentToShowErrorPopup(
+                `The server had trouble toggling your follow-status of ${postDetails.usernames[0]}`);
             }
-            return response.json()['data']['translations']['translatedText'];
+            else {
+                let newFollowText = await response.text(); //either 'Follow', 'Following', or 'Requested'
+                if (newFollowText==='Following') {
+                    newFollowText = 'Unfollow'
+                }
+                else if(newFollowText==='Requested') {
+                    newFollowText='Unrequest';
+                }
+                setFollowText(newFollowText);
+            }
         }
 
         catch (error) {
-            console.error('Error:', error);
-            return "T";
+            notifyParentToShowErrorPopup(`There was trouble connecting to the server to toggle your follow-status
+            of ${postDetails.usernames[0]}`);
         }
-    }
+    } 
 
-    async updateReportText(currLang) {
+    async function markPostAsNotInterested() {
         try {
-            const translatedText = await this.translateTextPromise(
-                this.state.reportText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ reportText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/expressJSBackend1/markPostAsNotInterested/
+            ${authUser}/${postDetails.overallPostId}`, {
+                method: 'PATCH',
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                notifyParentToShowErrorPopup('The server had trouble marking this post as not-interested');
+            }
+            else {
+                hidePost(postDetails.overallPostId);
+            }
+        }
+        catch (error) {
+            notifyParentToShowErrorPopup(`There was trouble connecting to the server for marking this post as
+            not-interested`);
         }
     }
 
-    async updateUnfollowText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.unfollowText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ unfollowText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+    return (
+        <>
+            {postDetails.adLink==null &&  
+                (
+                    <div className="popup" style={{height:'30em', width:'30em', borderRadius:'5%',
+                    display:'flex', flexDirection:'column', alignItems:'center'}}>
+                        
+                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'red',
+                        paddingBottom:'0.7em', paddingTop:'1em', cursor:'pointer'}}>
+                            Hide post
+                        </b>
 
-    async updateGoToPostText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.goToPostText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ goToPostText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-    async updateShareToText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.shareToText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ shareToText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <b onClick={toggleFollowUser} style={{fontSize:'1.1em',
+                        color: followText==='Unfollow' ? 'red' : followText==='Follow' ? '#3db0fc' : '#a2a3a3',
+                        paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
+                            {followText}
+                        </b>
 
-    async updateCopyLinkText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.copyLinkText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ copyLinkText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-    async updateEditText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.editText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ editText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <b onClick={markPostAsNotInterested} style={{fontSize:'1.1em',
+                        color: 'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
+                            Not Interested
+                        </b>
 
-    async updateAboutAccountText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.aboutThisAccountText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ aboutThisAccountText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-    async updateCancelText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.cancelText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ cancelText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <p style={{fontSize:'1.1em', cursor:'pointer'}}>
+                            Go to post
+                        </p>
 
-    async updateHideAdText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.hideAdText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ hideAdText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-    async updateReportAdText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.reportAdText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ reportAdText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <p onClick={copyPostLinkToClipboard}
+                        style={{fontSize:'1.1em', cursor:'pointer'}}>
+                            Copy link
+                        </p>
 
-    async updateWhyAdText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.whyAdText,
-                currLang,
-                this.props.language
-            );
-            this.setState({ whyAdText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-    async componentDidMount() {
-        await this.updateWhyAdText("English");
-        await this.updateReportAdText("English");
-        await this.updateHideAdText("English");
-        await this.updateCancelText("English");
-        await this.updateAboutAccountText("English");
-        await this.updateEditText("English");
-        await this.updateCopyLinkText("English");
-        await this.updateShareToText("English");
-        await this.updateGoToPostText("English");
-        await this.updateUnfollowText("English");
-        await this.updateReportText("English");
-    }
-    
-    async componentDidUpdate(prevProps, prevState) {
-        if (prevProps.language !== this.props.language) {
-            await this.updateWhyAdText(prevProps.language);
-            await this.updateReportAdText(prevProps.language);
-            await this.updateHideAdText(prevProps.language);
-            await this.updateCancelText(prevProps.language);
-            await this.updateAboutAccountText(prevProps.language);
-            await this.updateEditText(prevProps.language);
-            await this.updateCopyLinkText(prevProps.language);
-            await this.updateShareToText(prevProps.language);
-            await this.updateGoToPostText(prevProps.language);
-            await this.updateUnfollowText(prevProps.language);
-            await this.updateReportText(prevProps.language);
-        }
-    }
+                        <p onClick={() => {notifyParentToShowAboutAccountPopup(postDetails.overallPostId)}}
+                        style={{fontSize:'1.1em', cursor:'pointer'}}>
+                            About this account
+                        </p>
 
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-    render() {
-        return (
-        <React.Fragment>
-        {!this.props.isAd &&  (<div className="popup" style={{height:'35em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
-        display:'flex', flexDirection:'column', alignItems:'center'}}>
-        <b onClick={()=>{this.props.hidePost(this.props.id)}} style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hidePostText}</b>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <b style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.unfollowText}</b>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.goToPostText}</p>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.shareToText}</p>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.copyLinkText}</p>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.editText}</p>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p onClick={() => {this.props.showAboutAccountPopup(this.props.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.aboutThisAccountText}</p>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p onClick={this.props.closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.cancelText}</p>
-        </div>)
-        }
+                        <p onClick={notifyParentToClosePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>
+                            Cancel
+                        </p>
+                     </div>
+                )
+            }
 
-        {this.props.isAd &&  (<div className="popup" style={{height:'13em', width:'30em', borderRadius:'5%', boxShadow:'0 4px 8px 0 rgba(0, 0, 0, 0.2)', backgroundColor:'white',
-        display:'flex', flexDirection:'column', alignItems:'center'}}>
-        <b onClick={()=>{this.props.hidePost(this.props.id)}} style={{fontSize:'1.1em', color:'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>{this.state.hideAdText}</b>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.whyAdText}</p>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        <p onClick={this.props.closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.cancelText}</p>
-        </div>)
-        }
+            {postDetails.adLink!==null && 
+                (
+                    <div className="popup" style={{height:'13em', width:'30em', borderRadius:'5%',
+                    display:'flex', flexDirection:'column', alignItems:'center'}}>
+                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'red',
+                        paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
+                            Hide ad
+                        </b>
+                        
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
+                        
+                        <p onClick={visitAdLink} style={{fontSize:'1.1em', cursor:'pointer'}}>
+                            Visit ad-link
+                        </p>
 
-        </React.Fragment>);
-    };
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
+
+                        <p onClick={notifyParentToClosePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>
+                            Cancel
+                        </p>
+                    </div>
+                )
+            }
+        </>
+    );
 }
 
 export default ThreeDotsPopup;

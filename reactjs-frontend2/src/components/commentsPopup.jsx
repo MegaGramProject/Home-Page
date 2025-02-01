@@ -6,7 +6,7 @@ import 'video.js/dist/video-js.css';
 
 import Comment from './comment';
 import PostDots from './postDots';
-import StoryIcon from './storyIcon';
+import StoryIcon from './userIcon';
 
 import backArrow from '../assets/images/backArrow.png';
 import blackSaveIcon from '../assets/images/blackSaveIcon.png';

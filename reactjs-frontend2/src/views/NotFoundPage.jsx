@@ -8,20 +8,18 @@ import megagramLoading from '../assets/images/megagramLoading.png';
 function NotFoundPage() {
     const sceneRef = useRef(null);
 
-
     useEffect(() => {
+        document.title = "Page not Found · 404";
+
         const sceneRefElement = sceneRef.current;
         if (sceneRefElement) {
             new Parallax(sceneRefElement);
         }
-        
-        document.title = "Page not Found · 404";
-
     }, []);
 
 
     const takeUserToHomePage = () => {
-        window.location.href = 'http://34.111.89.101/homepage/';
+        window.location.href = 'http://34.111.89.101/';
     };
 
     const styles = `

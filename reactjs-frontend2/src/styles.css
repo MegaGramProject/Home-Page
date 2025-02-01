@@ -13,8 +13,13 @@ body {
 
 @media (prefers-color-scheme: dark) {
     body {
-            background-color: #232424;
-            color: white;
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    input {
+        background-color: #232424 !important;
+        color: white !important;
     }
     .popup {
         background-color: #232424 !important;
@@ -49,11 +54,21 @@ body {
         background-color: #232424 !important;
         color: white !important;
     }
+
+    #closeAboutAccountSection {
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    .selectUserOrGroupChat:hover {
+        color: black;
+    }
 }
 
 .popup {
     background-color: white;
     color: black;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
 .headerMegagram:active {
@@ -73,60 +88,6 @@ body {
     background-color: #f0f0f0;
 }
 
-.popup {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-}
-
-.footnote {
-    color: #bfbebb;
-    font-size: 1em;
-}
-
-.dropbtn {
-    background-color: white;
-    color: gray;
-    font-size: 14px;
-    border: none;
-    margin-top: 8px;
-    width: 4em;
-}
-
-
-.dropdown-content {
-    display: none;
-    margin-top: -280px;
-    background-color: #e2e8ed;
-    width: 10em;
-    padding-top:0px;
-
-}
-
-.dropdown-content p {
-    color: black;
-    padding: 6px 10px;
-    text-decoration: none;
-    display: block;
-    font-size:small;
-}
-
-.dropdown {
-    width: 5%;
-    align-items: center;
-}
-
-
-.dropdown-content p:hover {background-color: #ddd;}
-
-.dropdown:hover .dropdown-content {display: block;}
-
-.dropdown:hover .dropbtn {display: none;}
-
-
-.dropdownV {
-    width: 35%;
-    height: 35%;
-}
-
 .blueButton {
     background-color: #82bbf5;
     color: white;
@@ -139,6 +100,10 @@ body {
     padding-bottom: 10px;
     font-size: 12.5px;
     margin-top: 18px;
+}
+
+.selectUserOrGroupChat:hover {
+    background-color: #f5f5f5;
 }
 
 .custom-settings-icon {
@@ -163,8 +128,6 @@ body {
 .video-js .vjs-progress-control {
     top: -55%;
 }
-
-
 
 .video-js .vjs-time-divider,
 .video-js .vjs-duration,

@@ -1,192 +1,269 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 
 import FollowUser from './followUser';
 
-import closePopupIcon from '../assets/images/closePopupIcon.png';
+import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
+import defaultPfp from '../assets/images/defaultPfp.png';
 
-class PostLikersPopup extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            postId: '',
-            accounts:  [],
-            likesText: "Likes"
-        };
+function PostLikersPopup({username, overallPostId, notifyParentToClosePopup, notifyParentToShowErrorPopup,
+usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
+    const [likers, setLikers] = useState([]);
+    const [errorMessage, setErrorMessage] = useState("");
+    const [likersToExclude, setLikersToExclude] = useState([]);
 
-    };
+    useEffect(() => {
+        if (overallPostId.length==0) {
+            fetchPostLikers();
+        }
+    }, [overallPostId]);
 
-    translateTextPromise = async function(text, language1, language2){
-        let language1Code;
-        let language2Code;
-        if(language1===language2) {
-            return text;
-        }
-        if (language1==="English"){
-            language1Code = "en";
-        }
-        else if(language1==="Español") {
-            language1Code = "es";
-        }
-        else if(language1==="Français") {
-            language1Code = "fr";
-        }
-        else if(language1==="हिंदी") {
-            language1Code = "hi";
-        }
-        else if(language1==="中国人") {
-            language1Code = "zh-CN";
-        }
-        else if(language1==="বাংলা"){
-            language1Code = "bn";
-        }
-        else if(language1==="العربية") {
-            language1Code = "ar";
-        }
-        else if(language1==="Deutsch") {
-            language1Code = "de";
-        }
-        else if(language1==="Bahasa Indonesia") {
-            language1Code = "id";
-        }
-        else if(language1==="Italiano"){
-            language1Code = "it";
-        }
-        else if(language1==="日本語") {
-            language1Code = "ja";
-        }
-        else if(language1==="Русский") {
-            language1Code = "ru";
-        }
-        if (language2==="English"){
-            language2Code = "en";
-        }
-        else if(language2==="Español") {
-            language2Code = "es";
-        }
-        else if(language2==="Français") {
-            language2Code = "fr";
-        }
-        else if(language2==="हिंदी") {
-            language2Code = "hi";
-        }
-        else if(language2==="中国人") {
-            language2Code = "zh-CN";
-        }
-        else if(language2==="বাংলা"){
-            language2Code = "bn";
-        }
-        else if(language2==="العربية") {
-            language2Code = "ar";
-        }
-        else if(language2==="Deutsch") {
-            language2Code = "de";
-        }
-        else if(language2==="Bahasa Indonesia") {
-            language2Code = "id";
-        }
-        else if(language2==="Italiano"){
-            language2Code = "it";
-        }
-        else if(language2==="日本語") {
-            language2Code = "ja";
-        }
-        else if(language2==="Русский") {
-            language2Code = "ru";
-        }
-        const apiUrl = "https://deep-translate1.p.rapidapi.com/language/translate/v2";
-        const data = {"q":text,"source":language1Code,"target":language2Code};
-        const options = {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            'x-rapidapi-host': 'deep-translate1.p.rapidapi.com',
-            'x-rapidapi-key': '14da2e3b7emsh5cd3496c28a4400p16208cjsn947339fe37a4'
-            },
-            body: JSON.stringify(data)
-        };
+
+    async function fetchPostLikers() {
         try {
-            const response = await fetch(apiUrl, options);
-            if (!response.ok) {
-                throw new Error("Network response not ok");
+            //batches of 20 likers will be fetched at a time
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/getPostLikers/${username}/${overallPostId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    exclude: [likersToExclude]
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                setErrorMessage("The server had trouble getting the likers of this post.");
             }
-            return response.json()['data']['translations']['translatedText'];
-        }
 
+            const fetchedLikers = await response.json();
+            const usernamesOfLikers = fetchedLikers.map(x=>x.username);
+            setLikersToExclude([...likersToExclude, ...usernamesOfLikers]);
+
+            const newUsersAndTheirRelevantInfo = await fetchAllTheNecessaryLikerInfo(usernamesOfLikers);
+            notifyParentToUpdateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+
+            const newLikers = [];
+            for(let fetchedLiker of fetchedLikers) {
+                const usernameOfLiker = fetchedLiker.username;
+                if(usernameOfLiker===username) {
+                    newLikers.push(
+                        <FollowUser
+                            key={username}
+                            username={username}
+                            followStatus={'N/A'}
+                            notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
+                            fullName={newUsersAndTheirRelevantInfo[username].fullName}
+                            isVerified={newUsersAndTheirRelevantInfo[username].isVerified}
+                            profilePhoto={newUsersAndTheirRelevantInfo[username].profilePhoto}
+                        />
+                    );
+                }
+                else if(fetchedLiker.isFollowedByAuthUser) {
+                    newLikers.push(
+                        <FollowUser
+                            key={usernameOfLiker}
+                            username={usernameOfLiker}
+                            followStatus={'Following'}
+                            notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
+                            fullName={newUsersAndTheirRelevantInfo[usernameOfLiker].fullName}
+                            isVerified={newUsersAndTheirRelevantInfo[usernameOfLiker].isVerified}
+                            profilePhoto={newUsersAndTheirRelevantInfo[usernameOfLiker].profilePhoto}
+                        />
+                    );
+                }
+                else if(fetchedLiker.isRequestedToBeFollowedByAuthUser) {
+                    newLikers.push(
+                        <FollowUser
+                            key={usernameOfLiker}
+                            username={usernameOfLiker}
+                            followStatus={'Requested'}
+                            notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
+                            fullName={newUsersAndTheirRelevantInfo[usernameOfLiker].fullName}
+                            isVerified={newUsersAndTheirRelevantInfo[usernameOfLiker].isVerified}
+                            profilePhoto={newUsersAndTheirRelevantInfo[usernameOfLiker].profilePhoto}
+                        />
+                    );
+                }
+                else {
+                    newLikers.push(
+                        <FollowUser
+                            key={usernameOfLiker}
+                            username={usernameOfLiker}
+                            followStatus={'Follow'}
+                            notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
+                            fullName={newUsersAndTheirRelevantInfo[usernameOfLiker].fullName}
+                            isVerified={newUsersAndTheirRelevantInfo[usernameOfLiker].isVerified}
+                            profilePhoto={newUsersAndTheirRelevantInfo[usernameOfLiker].profilePhoto}
+                        />
+                    );
+                }
+            }
+
+            setLikers(newLikers);
+        }
         catch (error) {
-            console.error('Error:', error);
-            return "T";
+            setErrorMessage("There was trouble connecting to the server to get the likers of this post.");
         }
     }
 
-    async updateLikesText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.likesText,
-                currLang,
-                this.props.language
-            );
-            this.setState({likesText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
+    async function fetchAllTheNecessaryLikerInfo(usernamesOfLikers) {
+        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
 
-    async componentDidMount() {
-        await this.updateLikesText("English");
-    }
-
-    async componentDidUpdate(prevProps, prevState) {
-        if(prevState.postId !== this.props.postId) {
-            this.setState({postId: this.props.postId});
-            this.fetchAccounts();
-        }
-        if(prevProps.language !== this.props.language) {
-            await this.updateLikesText(prevProps.language);
-        }
-        else if(prevState.likesText !== this.state.likesText) {
-            await this.updateLikesText("English");
-        }
-
-    }
-
-    fetchAccounts = async () => {
-        const response = await fetch(`http://localhost:8004/getLikes/${this.props.postId}`);
-        if(!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const usersThatLiked = await response.json();
-        let accounts = []
-        for(let i of usersThatLiked) {
-            if(i['username']==='rishavry') {
-                accounts.unshift(<FollowUser key={i['username']} language={this.props.language} username={i['username']} isOwn={true} isFollowing={true}/>);
-            }
-            else {
-                accounts.push(<FollowUser key={i['username']} language={this.props.language} username={i['username']} isOwn={false} isFollowing={false}/>);
+        let usersAndTheirFullNames = {};
+        const uniqueListOfUsernamesNeededForFullNames = [];
+        for(let username of usernamesOfLikers) {
+            if(!(username in newUsersAndTheirRelevantInfo) ||
+            !('fullName' in newUsersAndTheirRelevantInfo[username])) {
+                uniqueListOfUsernamesNeededForFullNames.push(username);
             }
         }
-        this.setState({accounts: accounts});
+        if (uniqueListOfUsernamesNeededForFullNames.length>0) {
+            try {
+                const response = await fetch(
+                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getFullNamesOfMultipleUsers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        usernames: uniqueListOfUsernamesNeededForFullNames
+                    })
+                });
+                if(!response.ok) {
+                    console.error("The server had trouble fetching all the necessary fullNames");
+                    for(let user_name in uniqueListOfUsernamesNeededForFullNames) {
+                        usersAndTheirFullNames[user_name] = '?';
+                    }
+                }
+                else {
+                    usersAndTheirFullNames = await response.json();
+                }
+            }
+            catch(error) {
+                console.error(
+                    "There was trouble connecting to the server to fetch all the necessary fullNames"
+                );
+                for(let user_name in uniqueListOfUsernamesNeededForFullNames) {
+                    usersAndTheirFullNames[user_name] = '?';
+                }
+            }
+        }
+
+        let usersAndTheirIsVerifiedStatuses = {};
+        const uniqueListOfUsernamesNeededForIsVerifiedStatuses = [];
+        for(let username of usernamesOfLikers) {
+            if(!(username in newUsersAndTheirRelevantInfo) ||
+            !('isVerified' in newUsersAndTheirRelevantInfo[username])) {
+                uniqueListOfUsernamesNeededForIsVerifiedStatuses.push(username);
+            }
+        }
+        if (uniqueListOfUsernamesNeededForIsVerifiedStatuses.length>0) {
+            try {
+                const response1 = await fetch(
+                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsVerifiedStatusesOfMultipleUsers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        usernames: uniqueListOfUsernamesNeededForIsVerifiedStatuses
+                    })
+                });
+                if(!response1.ok) {
+                    console.error("The server had trouble fetching all the necessary isVerified statuses");
+                    for(let user_name in uniqueListOfUsernamesNeededForIsVerifiedStatuses) {
+                        usersAndTheirIsVerifiedStatuses[user_name] = false;
+                    }
+                }
+                else {
+                    usersAndTheirIsVerifiedStatuses = await response1.json();
+                }
+            }
+            catch (error) {
+                console.error(
+                    "There was trouble connecting to the server to fetch all the necessary isVerified statuses"
+                );
+                for(let user_name in uniqueListOfUsernamesNeededForIsVerifiedStatuses) {
+                    usersAndTheirIsVerifiedStatuses[user_name] = false;
+                }
+            }
+        }
+
+        let usersAndTheirProfilePhotos = {};
+        const uniqueListOfUsernamesNeededForProfilePhotos= [];
+        for(let username of usernamesOfLikers) {
+            if(!(username in newUsersAndTheirRelevantInfo) ||
+            !('profilePhoto' in newUsersAndTheirRelevantInfo[username])) {
+                uniqueListOfUsernamesNeededForProfilePhotos.push(username);
+            }
+        }
+        if (uniqueListOfUsernamesNeededForProfilePhotos.length>0) {
+            try {
+                const response2 = await fetch(
+                    'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotosOfMultipleUsers', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            usernames: uniqueListOfUsernamesNeededForProfilePhotos
+                        })
+                    });
+                if(!response2.ok) {
+                    console.error("The server had trouble fetching all the necessary profile-photos");
+                    for(let user_name in uniqueListOfUsernamesNeededForProfilePhotos) {
+                        usersAndTheirProfilePhotos[user_name] = defaultPfp;
+                    }
+                }
+                else {
+                    usersAndTheirProfilePhotos = await response2.json();
+                }
+            }
+            catch (error) {
+                console.error(
+                    "There was trouble connecting to the server to fetch all the necessary profile-photos"
+                );
+                for(let user_name in uniqueListOfUsernamesNeededForProfilePhotos) {
+                    usersAndTheirProfilePhotos[user_name] = defaultPfp;
+                }
+            }
+        }
+
+        for(let user_name of usernamesOfLikers) {
+            if(!(user_name in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[user_name] = {};
+            }
+            if (user_name in usersAndTheirFullNames) {
+                newUsersAndTheirRelevantInfo[user_name].fullName = usersAndTheirFullNames[user_name];
+            }
+            if (user_name in usersAndTheirIsVerifiedStatuses) {
+                newUsersAndTheirRelevantInfo[user_name].isVerified = usersAndTheirIsVerifiedStatuses[user_name];
+            }
+            if (user_name in usersAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[user_name].profilePhoto = usersAndTheirProfilePhotos[user_name];
+            }
+        }
+        return newUsersAndTheirRelevantInfo;
+
     }
 
-    closePopup = () => {
-        this.setState({postId: '', accounts: []});
-        this.props.closePopup();
-    }
-
-
-    render() {
-        return (
-        <React.Fragment>
-        <div className="popup" style={{backgroundColor:'white',  boxShadow:'1px 4px 8px 3px rgba(0, 0, 0, 0.2)', width:'40em', height:'40em',
-        display:'flex', flexDirection:'column', alignItems:'center', borderRadius:'1.5%', paddingTop:'1em', overflow:'scroll'}}>
-        <div className="popup" style={{display:'flex', boxShadow:'none'}}>
-        <b style={{position:'absolute', left:'45%'}}>{this.state.likesText}</b>
-        <img src={closePopupIcon} onClick={this.closePopup} style={{height:'1.3em', width:'1.3em', cursor:'pointer', marginLeft:'30em'}}/>
+    return (
+        <div className="popup" style={{backgroundColor:'white', width:'40em', height:'40em', display:'flex',
+        flexDirection:'column', alignItems:'center', borderRadius:'1.5%', overflowY:'scroll',
+        position: 'relative'}}>
+            
+            <div style={{display:'flex', justifyContent: 'center', position: 'relative',
+            width: '100%', borderStyle: 'solid', borderColor: 'lightgray', borderTop: 'none',
+            borderLeft: 'none', borderRight: 'none', borderWidth: '0.08em', padding: '1em 1em'}}>
+                <b>Likes</b>
+                <img src={thinGrayXIcon} onClick={notifyParentToClosePopup} style={{height:'1.3em', width:'1.3em', 
+                cursor:'pointer', position: 'absolute', right: '5%', top: '30%'}}/>
+            </div>
+            
+            {errorMessage.length==0 ?
+                likers :
+                (
+                    <p style={{position: 'absolute', top: '50%', left: '50%',
+                    transform: 'translate(-50%, -50%)', width: '75%', color: 'gray'}}>
+                        {errorMessage}
+                    </p>
+                )
+            }
         </div>
-        <hr style={{color:'gray', width:'100%', marginTop:'0.7em'}}/>
-        {this.state.accounts}
-        </div>
-        </React.Fragment>);
-    };
+    );
 }
 
 export default PostLikersPopup;

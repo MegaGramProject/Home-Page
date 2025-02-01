@@ -3,12 +3,12 @@ import savedIcon from '../assets/images/saveIcon.png';
 import settingsIcon from '../assets/images/settingsIcon.png';
 import yourActivityIcon from '../assets/images/yourActivityIcon.png';
 
-function LeftSidebarPopup({username}) {
+function LeftSidebarPopup({username, notifyParentToShowErrorPopup}) {
 
     async function logout() {
         try {
-            const response = await fetch(`http://34.111.89.101/reset-password/api/logout/${username}`, {
-                method: 'POST',
+            const response = await fetch(`http://34.111.89.101/api/Reset-Password/logout/${username}`, {
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -16,18 +16,12 @@ function LeftSidebarPopup({username}) {
             });
 
             if(!response.ok) {
-                throw new Error('The server had trouble logging you out');
+                notifyParentToShowErrorPopup('The server had trouble logging you out');
             }
-            const responseData = await response.text();
-            if(responseData === "Successfully logged out") {
-                window.location.href = 'http://34.111.89.101/login';
-            }
-            else {
-                console.error(responseData);
-            }
+            window.location.href = 'http://34.111.89.101/login';
         }
         catch (error) {
-            throw new Error('There was trouble connecting to the server to log you out.')
+            notifyParentToShowErrorPopup('There was trouble connecting to the server to log you out.');
         }
     }
 
@@ -46,8 +40,7 @@ function LeftSidebarPopup({username}) {
 
     return (
         <>
-            <div className="popup" style={{width: '15em', height:'20em', borderRadius:'0.4em', paddingTop: '1em',
-            position: 'fixed', bottom: '10%', left: '1%'}}>
+            <div className="popup" style={{width: '15em', height:'20em', borderRadius:'0.4em', paddingTop: '1em'}}>
                 <div onClick={takeUserToSettings} className="sidebarElement">
                     <img className="iconToBeAdjustedForDarkMode" src={settingsIcon} style={{height:'2em', width:'2em',
                     pointerEvents:'none', objectFit:'contain'}}/>
