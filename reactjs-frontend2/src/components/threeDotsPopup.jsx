@@ -18,7 +18,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
     
 
     function visitAdLink() {
-        window.location.href = postDetails.adLink;
+        window.location.href = postDetails.adInfo.link;
     }
 
     async function toggleFollowUser() {
@@ -74,12 +74,12 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
 
     return (
         <>
-            {postDetails.adLink==null &&  
+            {postDetails.adInfo==null &&  
                 (
                     <div className="popup" style={{height:'30em', width:'30em', borderRadius:'5%',
                     display:'flex', flexDirection:'column', alignItems:'center'}}>
                         
-                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'red',
+                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'#ed6258',
                         paddingBottom:'0.7em', paddingTop:'1em', cursor:'pointer'}}>
                             Hide post
                         </b>
@@ -87,7 +87,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
                         <b onClick={toggleFollowUser} style={{fontSize:'1.1em',
-                        color: followText==='Unfollow' ? 'red' : followText==='Follow' ? '#3db0fc' : '#a2a3a3',
+                        color: followText==='Unfollow' ? '#ed6258' : followText==='Follow' ? '#3db0fc' : '#a2a3a3',
                         paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
                             {followText}
                         </b>
@@ -95,7 +95,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
                         <b onClick={markPostAsNotInterested} style={{fontSize:'1.1em',
-                        color: 'red', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
+                        color: '#ed6258', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
                             Not Interested
                         </b>
 
@@ -128,15 +128,22 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
                 )
             }
 
-            {postDetails.adLink!==null && 
+            {postDetails.adInfo!==null && 
                 (
-                    <div className="popup" style={{height:'13em', width:'30em', borderRadius:'5%',
+                    <div className="popup" style={{height:'17em', width:'30em', borderRadius:'5%',
                     display:'flex', flexDirection:'column', alignItems:'center'}}>
-                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'red',
-                        paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
+                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'#ed6258',
+                        paddingBottom:'0.7em', paddingTop:'1em', cursor:'pointer'}}>
                             Hide ad
                         </b>
                         
+                        <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
+
+                        <b onClick={markPostAsNotInterested} style={{fontSize:'1.1em',
+                        color: '#ed6258', paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
+                            Not Interested
+                        </b>
+
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
                         
                         <p onClick={visitAdLink} style={{fontSize:'1.1em', cursor:'pointer'}}>

@@ -39,15 +39,15 @@ body {
     }
 
     .iconToBeAdjustedForDarkMode {
-        filter: brightness(5) contrast(0);
+        filter: brightness(5) contrast(0) !important;
     }
 
     .leftArrow {
-        filter: brightness(5) contrast(0);
+        filter: brightness(5) contrast(0) !important;
     }
 
     .rightArrow {
-        filter: brightness(5) contrast(0);
+        filter: brightness(5) contrast(0) !important;
     }
 
     .textArea {
@@ -61,7 +61,26 @@ body {
     }
 
     .selectUserOrGroupChat:hover {
-        color: black;
+        color: black !important;
+    }
+
+    a {
+        color: white !important;
+    }
+
+    .hashtagOrMention {
+        color: #71a3f5 !important;
+    }
+
+    .videoSlideChaptersOrTaggedAccountsDiv {
+        background-color: #232424 !important;
+        border-style: solid;
+        border-color: black;
+        border-width: 0.07em;
+    }
+
+    .videoSlideSection:hover {
+        color: black !important;
     }
 }
 
@@ -106,105 +125,30 @@ body {
     background-color: #f5f5f5;
 }
 
-.custom-settings-icon {
-    width: 35px;
-    height: 35px;
-    object-fit: contain;
-    display: inline-block;
-    margin-top: -3px;
+a {
+    text-decoration: none;
+    color: black;
+}
+
+.loseOpacityWhenActive:active {
+    opacity: 0.5
+}
+
+.mediaPostButton {
     cursor: pointer;
+    height: 2.7em;
+    width: 2.7em;
+    object-fit: contain;
 }
 
-
-.video-js .vjs-progress-control .vjs-progress-holder {
-    background-color: rgba(157, 154, 154, 0);
-    width: 100% !important;
+.mediaPostButton:hover {
+    opacity: 0.5;
 }
 
-.video-js .vjs-progress-control .vjs-play-progress {
-    background-color: #f00;
+.videoSlideSection:hover {
+    background-color: #edf4fc;
 }
 
-.video-js .vjs-progress-control {
-    top: -55%;
-}
-
-.video-js .vjs-time-divider,
-.video-js .vjs-duration,
-.video-js .vjs-current-time {
-    display: inline-block !important;
-    color: white;
-    font-size: 12px;
-}
-
-.video-js .vjs-current-time {
-    left:-0.7%;
-}
-
-.video-js .vjs-duration {
-    left:-2.2%;
-}
-
-.video-js .vjs-time-divider {
-    position: absolute;
-    left:16.7%;
-
-}
-
-.video-js .vjs-playback-rate .vjs-menu .vjs-menu-item {
-    color: white;
-    background-color: black;
-    width: 60px;
-    padding-right: 15px;
-}
-
-.video-js .vjs-control-bar {
-    background-color: rgba(0, 0, 0, 0.1) !important;
-    color: white !important;
-}
-
-.video-js .vjs-subtitles-button {
-    display: inline-block !important;
-}
-
-
-.video-js .vjs-subtitles-button .vjs-menu-content {
-    background-color: #333 !important;
-    color: #fff !important;
-
-}
-.video-js .vjs-subtitles-button .vjs-menu-content .vjs-selected {
-    background-color: lightgray !important;
-}
-
-
-:focus { outline: none !important; }
-
-.vjs-big-play-button {
-    background-color: rgba(0, 0, 0, 0.3) !important;
-    border: none !important;
-    border-radius: 50% !important;
-    width: 100px !important;
-    height: 100px !important;
-    color: white !important;
-    font-size: 8em !important;
-    left: 59% !important;
-    transition: background-color 0.3s ease !important;
-}
-
-.vjs-menu-item-text::first-letter {
-    text-transform: capitalize !important;
-}
-
-.triangle {
-    width: 0;
-    height: 0;
-    border-left: 0.7em solid transparent;
-    border-right: 0.7em solid transparent;
-    border-bottom: 0.7em solid black;
-    background-color: rgba(0,0,0,0.75),
-}
-
-.vjs-mouse-display {
-    display: none !important;
+.videoSlideChaptersOrTaggedAccountsDiv {
+    background-color: white;
 }

@@ -8,7 +8,7 @@ import defaultPfp from '../assets/images/defaultPfp.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 function AboutAccountPopup({usernameOfMainPostAuthor, mainPostAuthorIsVerified, notifyParentToClosePopup,
-mainPostAuthorHasStories, mainPostAuthorHasUnseenStory}) {
+mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser}) {
     const [dateJoined, setDateJoined] = useState("");
     const [accountBasedIn, setAccountBasedIn] = useState("");
 
@@ -112,7 +112,7 @@ mainPostAuthorHasStories, mainPostAuthorHasUnseenStory}) {
                 (
                     <UserIcon
                         usernameOfMainPostAuthor={usernameOfMainPostAuthor}
-                        ownAccount={false}
+                        authUser={authUser}
                         unseenStory={mainPostAuthorHasUnseenStory}
                         inStoriesSection={false}
                         hasStories={mainPostAuthorHasStories}

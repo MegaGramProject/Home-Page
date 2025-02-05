@@ -25,8 +25,8 @@ server {
         add_header Content-Type text/plain;
     }
 
-    location /login-register-static/ {
-        proxy_pass http://34.172.22.111:8000/login-register-static/;
+    location static/Login-Register/ {
+        proxy_pass http://34.172.22.111:8000/static/Login-Register/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -81,16 +81,16 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
-    location /forgotPassword {
-        proxy_pass https://reactjs-frontend-1.herokuapp.com/forgotPassword;
+    location /password/forgot/ {
+        proxy_pass https://reactjs-frontend-1.herokuapp.com/password/forgot;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
-     location /setNewPassword/ {
-       	proxy_pass https://reactjs-frontend-1.herokuapp.com/setNewPassword/;
+     location /password/new/ {
+       	proxy_pass https://reactjs-frontend-1.herokuapp.com/password/new/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;

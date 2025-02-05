@@ -5,7 +5,7 @@ import AccountPreview from './accountPreview';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 
-function UserBar({username, ownAccount, isPrivate, numFollowers, numFollowing, numPosts, fullName, profilePhoto,
+function UserBar({username, isPrivate, numFollowers, numFollowing, numPosts, fullName, profilePhoto,
 isVerified, authUser, notifyParentToShowErrorPopup}) {
     const [followText, setFollowText] = useState('Follow');
     const [displayAccountPreview, setDisplayAccountPreview] = useState(false);
@@ -82,13 +82,13 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
                     </p>
                 </div>
 
-                <p onClick={ownAccount ? takeUserToLogin : toggleFollowUser}
+                <p onClick={(username===authUser) ? takeUserToLogin : toggleFollowUser}
                 style={{color: followText==="Follow" ? '#348feb' : 'gray', cursor:'pointer',
                 fontSize:'0.85em', fontWeight:'bold', position:'absolute', left:'76%', top: '0%'}}> 
-                    {ownAccount ? 'Switch' : followText}
+                    {(username===authUser) ? 'Switch' : followText}
                 </p>
                 
-                {(!ownAccount && displayAccountPreview) && 
+                {(!(username===authUser) && displayAccountPreview) && 
                     <div style={{position:'absolute', top:'36%'}}>
                         <AccountPreview
                             username={username}

@@ -1,7 +1,7 @@
 import bluePlusIcon from "../assets/images/bluePlusIcon.png";
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-function UserIcon({username, ownAccount, inStoriesSection, hasStories, hasUnseenStory, profilePhoto,
+function UserIcon({username, authUser, inStoriesSection, hasStories, hasUnseenStory, profilePhoto,
 isVerified}) {
     function takeUserToPostStory() {
         window.location.href = "http://34.111.89.101/postStory";
@@ -35,7 +35,7 @@ isVerified}) {
                                 style={{height:'3.75em', width:'3.75em', objectFit:'contain', position:'absolute',
                                 left:'4%', top:'5%', cursor:'pointer'}}/>
 
-                                {(inStoriesSection && ownAccount) &&
+                                {(inStoriesSection && (username===authUser)) &&
                                     (
                                         <img onClick={takeUserToPostStory} src={bluePlusIcon}
                                         style={{height:'1.75em', width:'1.75em', objectFit:'contain',
@@ -53,9 +53,9 @@ isVerified}) {
                         position: 'relative'}}>
                             <img onClick={onClickingProfilePhoto} src={profilePhoto}
                             style={{height:'3.75em', width:'3.75em', objectFit:'contain', position:'absolute', left:'50%',
-                            top:'50%', transform: 'translate(-50%, -50%)'}}/>
+                            top:'50%', transform: 'translate(-50%, -50%)', cursor: 'pointer'}}/>
 
-                            {(inStoriesSection && ownAccount) &&
+                            {(inStoriesSection && (username===authUser)) &&
                                 (
                                     <img onClick={takeUserToPostStory} src={bluePlusIcon}
                                     style={{height:'1.75em', width:'1.75em', objectFit:'contain',
@@ -72,7 +72,7 @@ isVerified}) {
                         marginTop: '0.2em'}}>
                             <p style={{textAlign:'center', fontSize:'0.8em', maxWidth: '7.5em',
                             overflowWrap: 'break-word'}}>
-                                {ownAccount ? 'You' : username}
+                                {(username===authUser) ? 'You' : username}
                             </p>
 
                             {isVerified &&

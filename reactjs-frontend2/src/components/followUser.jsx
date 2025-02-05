@@ -33,16 +33,24 @@ notifyParentToShowErrorPopup, authUser}) {
         }
     }
 
+    function takeUserToProfile() {
+        window.location.href = `http://34.111.89.101/profile/${username}`;
+    }
+
 
     return (
-        <div className="popup selectUserOrGroupChat" style={{cursor:'pointer', width:'95%', display:'flex',
+        <div className="selectUserOrGroupChat" style={{width:'95%', display:'flex',
         alignItems:'center', justifyContent:'space-between', boxShadow:'none', padding: '0.5em 1em'}}>
             <div style={{display:'flex', alignItems:'start'}}>
-                <img src={profilePhoto} style={{objectFit:'contain', height:'3em', width:'3em'}}/>
+                <img onClick={takeUserToProfile} src={profilePhoto} style={{objectFit:'contain', height:'3em',
+                width:'3em', cursor: 'pointer'}}/>
 
                 <div style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
-                        <b style={{maxWidth: '5em', overflowWrap: 'break-word'}}>{username}</b>
+                        <b onClick={takeUserToProfile} style={{maxWidth: '5em', overflowWrap: 'break-word',
+                        cursor: 'pointer', textAlign: 'start'}}>
+                            {username}
+                        </b>
                         {isVerified &&
                             (
                                 <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
@@ -51,7 +59,7 @@ notifyParentToShowErrorPopup, authUser}) {
                         }
                     </div>
                     <p style={{maxWidth: '10em', overflowWrap: 'break-word', color: 'gray',
-                    marginTop:'0.5em'}}>
+                    marginTop:'0.5em', textAlign: 'start'}}>
                         {fullName==='?' ? 'Could not get full name' : fullName}
                     </p>
                 </div>
@@ -61,8 +69,9 @@ notifyParentToShowErrorPopup, authUser}) {
                 (
                     <button onClick={toggleFollowUser} style={{
                     backgroundColor: followText!=='Follow' ? '#f5f5f5' : '#1f86ed',
-                    color:'black', fontWeight:'bold', cursor:'pointer', borderStyle:'none', width:'10em',
-                    borderRadius:'0.5em', paddingLeft:'0.5em', paddingBottom:'0.5em', paddingTop:'0.5em'}}>
+                    color: followText!=='Follow' ? 'black' : 'white', fontWeight:'bold', cursor:'pointer',
+                    borderStyle:'none', width:'10em', borderRadius:'0.5em', paddingLeft:'0.5em', paddingBottom:'0.5em',
+                    paddingTop:'0.5em'}}>
                         {followText}
                     </button>
                 )

@@ -1,378 +1,227 @@
-import getBlobDuration from 'get-blob-duration';
-import React, { Component } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import videojs from 'video.js';
-import 'video.js/dist/video-js.css';
+import { useEffect, useRef, useState } from 'react';
 
-import PostDots from "./postDots";
-import StoryIcon from './userIcon';
+import UserIcon from './userIcon';
+import FollowUser from './followUser';
+import PostDots from './postDots';
 
-import backArrow from "../assets/images/backArrow.png";
-import blackSaveIcon from '../assets/images/blackSaveIcon.png';
-import blankHeart from '../assets/images/blankHeartIcon.png';
-import closePopupIcon from '../assets/images/closePopupIcon.png';
+import blackSavedIcon from '../assets/images/blackSavedIcon.png';
+import blankHeartIcon from '../assets/images/blankHeartIcon.png';
+import blankSavedIcon from '../assets/images/blankSavedIcon.png';
 import commentIcon from '../assets/images/commentIcon.png';
-import fastForward5Seconds from '../assets/images/fastForward5Seconds.png';
-import musicIcon from '../assets/images/musicIcon.png';
-import rightArrow from "../assets/images/nextArrow.png";
+import defaultPfp from '../assets/images/defaultPfp.png';
+import megaphone from '../assets/images/megaphone.png';
+import musicSymbol from '../assets/images/musicSymbol.png';
+import nextSlideArrow from '../assets/images/nextSlideArrow.png';
 import pauseIcon from '../assets/images/pauseIcon.png';
-import playIcon from '../assets/images/playIcon.png';
-import sidewaysTriangle from '../assets/images/playIcon.webp';
-import redHeart from '../assets/images/redHeartIcon.png';
-import rewind5Seconds from '../assets/images/rewind5Seconds.png';
-import saveIcon from '../assets/images/saveIcon.png';
-import sendIcon from '../assets/images/sendIcon.png';
-import taggedAccountsIcon from "../assets/images/taggedAccountsIcon.png";
+import playIcon from '../assets/images/playIcon.webp';
+import redHeartIcon from '../assets/images/redHeartIcon.png';
+import sendPostIcon from '../assets/images/sendPostIcon.png';
+import taggedAccountsIcon from '../assets/images/taggedAccountsIcon.png';
 import threeHorizontalDots from '../assets/images/threeHorizontalDots.png';
+import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
+import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
-import videoSettingsIcon from '../assets/images/videoSettingsIcon.png';
+import likePostAnimationHeartIcon from '../assets/images/likePostAnimationHeartIcon.webp';
 
-class MediaPost extends Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            isLiked: false,
-            isSaved: false,
-            numLikes: 0,
-            caption: "Caption loading...",
-            comment: "",
-            sendComment: false,
-            timeText: '',
-            locationText: '',
-            likesText: this.props.numLikes==1 ? '1 like' : this.props.numLikes + ' likes',
-            viewAllCommentsText: 'View all comments',
-            addACommentText: 'Add a comment...',
-            postText: 'Post',
-            currSlide: 0,
-            showTags: false,
-            currSlideIsVid: null,
-            videoUrl: "",
-            numPosts: 0,
-            showQualityOptions: false,
-            showSettingsPopup: false,
-            showRightBanner: false,
-            showLeftBanner: false,
-            postId: "",
-            isVerified: false,
-            hearts:  [],
-            showPreview: false,
-            previewLeft: 30,
-            previewImage: "",
-            previewTime: "",
-            currSection: "",
-            sections: [],
-            showSections: false,
-            showSection: false,
-            songName: "",
-            song: null,
-            songIsPaused: true,
+function MediaPost({postDetails, authUser, notifyParentToShowThreeDotsPopup, notifyParentToShowCommentsPopup,
+notifyParentToShowSendPostPopup, notifyParentToShowPostLikersPopup, notifyParentToShowErrorPopup,
+mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo}) {
+    const [overallPostId, setOverallPostId] = useState('');
+    const [mainPostAuthor, setMainPostAuthor] = useState('');
+    const [currSlide, setCurrSlide] = useState(0);
+    const [backgroundMusicIsPlaying, setBackgroundMusicIsPlaying] = useState(false);
+    const [backgroundMusicInfo, setBackgroundMusicInfo] = useState(null);
+    const [displayTaggedAccountsOfSlide, setDisplayTaggedAccountsOfSlide] = useState(false);
+    const [elementsForCaption, setElementsForCaption] = useState([]);
+    const [commentInput, setCommentInput] = useState('');
+    const [newlyPostedCommentsByAuthUser, setNewlyPostedCommentsByAuthUser] = useState([]);
+    const [elementsForTaggedAccountsOfImageSlide, setElementsForTaggedAccountsOfImageSlide] = useState([]);
+    const [numLikes, setNumLikes] = useState(-1);
+    const [displaySectionsOfVidSlide, setDisplaySectionsOfVidSlide] = useState(false);
+    const [slideToVidTimeToFrameMappings, setSlideToVidTimeToFrameMappings] = useState({});
+    const [thisMediaPostHasBeenViewed, setThisMediaPostHasBeenViewed] = useState(false);
+    const [likePostHeartAnimationCoordinates, setLikePostHeartAnimationCoordinates] = useState([-1, -1]);
+    const [intervalIdForLikePostHeartAnimation, setIntervalIdForLikePostHeartAnimation] = useState(null);
+
+    const videoSlideRef = useRef(null);
+    const hiddenVideoSlideForFrameCollectionRef = useRef(null);
+    const canvasRef = useRef(null);
+    const slideContainerRef = useRef(null);
+    const languageCodeToLabelMappings = {
+        "af": "Afrikaans",
+        "sq": "Albanian",
+        "am": "Amharic",
+        "ar": "Arabic",
+        "hy": "Armenian",
+        "az": "Azerbaijani",
+        "eu": "Basque",
+        "be": "Belarusian",
+        "bn": "Bengali",
+        "bs": "Bosnian",
+        "bg": "Bulgarian",
+        "ca": "Catalan",
+        "zh-CN": "Chinese (Simplified)",
+        "zh-TW": "Chinese (Traditional)",
+        "hr": "Croatian",
+        "cs": "Czech",
+        "da": "Danish",
+        "nl": "Dutch",
+        "en": "English",
+        "et": "Estonian",
+        "fi": "Finnish",
+        "fr": "French",
+        "gl": "Galician",
+        "ka": "Georgian",
+        "de": "German",
+        "el": "Greek",
+        "gu": "Gujarati",
+        "ht": "Haitian Creole",
+        "ha": "Hausa",
+        "he": "Hebrew",
+        "hi": "Hindi",
+        "hu": "Hungarian",
+        "is": "Icelandic",
+        "id": "Indonesian",
+        "ga": "Irish",
+        "it": "Italian",
+        "ja": "Japanese",
+        "kn": "Kannada",
+        "kk": "Kazakh",
+        "km": "Khmer",
+        "ko": "Korean",
+        "ku": "Kurdish",
+        "ky": "Kyrgyz",
+        "lo": "Lao",
+        "lv": "Latvian",
+        "lt": "Lithuanian",
+        "mk": "Macedonian",
+        "ms": "Malay",
+        "ml": "Malayalam",
+        "mt": "Maltese",
+        "mi": "Maori",
+        "mr": "Marathi",
+        "mn": "Mongolian",
+        "ne": "Nepali",
+        "no": "Norwegian",
+        "fa": "Persian",
+        "pl": "Polish",
+        "pt-BR": "Portuguese (Brazil)",
+        "pt-PT": "Portuguese (Portugal)",
+        "pa": "Punjabi",
+        "ro": "Romanian",
+        "ru": "Russian",
+        "sr": "Serbian",
+        "si": "Sinhala",
+        "sk": "Slovak",
+        "sl": "Slovenian",
+        "so": "Somali",
+        "es": "Spanish",
+        "sw": "Swahili",
+        "sv": "Swedish",
+        "tl": "Tagalog",
+        "ta": "Tamil",
+        "te": "Telugu",
+        "th": "Thai",
+        "tr": "Turkish",
+        "uk": "Ukrainian",
+        "ur": "Urdu",
+        "uz": "Uzbek",
+        "vi": "Vietnamese",
+        "cy": "Welsh",
+        "xh": "Xhosa",
+        "yi": "Yiddish",
+        "zu": "Zulu"
+      };
+      
+
+    useEffect(() => {
+        setOverallPostId(postDetails.overallPostId);
+        setMainPostAuthor(postDetails.authors[0]);
+        setNumLikes(postDetails.numLikes);
+
+        if(postDetails.backgroundMusic!==null) {
+            setBackgroundMusicInfo(new Audio(postDetails.backgroundMusic.src));
+        }
+        finishSettingElementsForCaption();
+
+        window.addEventListener('scroll', checkIfPostIsViewedAsUserScrolls);
+
+        return () => {
+            window.removeEventListener('scroll', checkIfPostIsViewedAsUserScrolls);
         };
-        this.videoNode = React.createRef();
-        this.spaceKeyTimer = null;
-        this.spaceKeyPressed = false;
-        this.slideToVideoUrlMapping = {};
-        this.slideToVideoBlobMapping = {};
-        this.timeToVideoFrameMapping = {};
-        this.latestTimeString = "00:00";
+    }, []);
 
-    };
+    useEffect(() => {
+        markPostAsViewed();
+    }, [thisMediaPostHasBeenViewed]);
 
-    handleClick = () => {
-        this.props.onFocus(this.props.id);
-    }
 
-    handleKeyDown = (event) => {
-        if(!this.state.currSlideIsVid) {
-            if (this.props.isFocused && event.key === 'ArrowRight') {
-                if(this.state.currSlide < this.state.numPosts-1) {
-                    this.showNextSlide();
-                }
-            }
-            else if(this.props.isFocused && event.key=== 'ArrowLeft') {
-                if(this.state.currSlide>0) {
-                    this.showPreviousSlide();
-                }
-            }
-        }
-        else {
-            if (this.props.isFocused) {
-                const player = this.player;
-                if (!player) return;
-                switch(event.key) {
-                    case 'ArrowRight':
-                        player.currentTime(Math.min(player.duration(), player.currentTime() + 5));
-                        this.setState({showRightBanner: true });
-                        setTimeout(() => {
-                        this.setState({showRightBanner: false });
-                        }, 250);
-                        break;
-                    case 'ArrowLeft':
-                        player.currentTime(Math.max(0, player.currentTime() - 5));
-                        this.setState({showLeftBanner: true});
-                        this.timer = setTimeout(() => {
-                            this.setState({showLeftBanner: false});
-                        }, 250);
-                        break;
-                    case ' ':
-                        event.preventDefault();
-                        if (!this.Pressed) {
-                            this.spaceKeyPressed = true;
-                            this.spaceKeyTimer = setTimeout(() => {
-                                player.playbackRate(2);
-                            }, 500);
-                        }
-                        break;
-                    case 'k':
-                    case 'K':
-                        event.preventDefault();
-                        if (player.paused()) {
-                            this.setState({showPauseSymbol: false});
-                            player.play();
-                        } else {
-                            player.pause();
-                            this.setState({showPauseSymbol: true});
-                        }
-                        break;
-                    case 'F':
-                    case 'f':
-                        if (document.fullscreenElement) {
-                            document.exitFullscreen();
-                        } else {
-                            if (this.videoNode.current.requestFullscreen) {
-                                this.videoNode.current.requestFullscreen();
-                            } else if (this.videoNode.current.mozRequestFullScreen) {
-                                this.videoNode.current.mozRequestFullScreen();
-                            } else if (this.videoNode.current.webkitRequestFullscreen) {
-                                this.videoNode.current.webkitRequestFullscreen();
-                            } else if (this.videoNode.current.msRequestFullscreen) {
-                                this.videoNode.current.msRequestFullscreen();
-                            }
-                        }
-                        break;
-                    case 'm':
-                    case 'M':
-                        player.muted(!player.muted());
-                        break;
-                    default:
-                        break;
-                    }
-                }
-        }
-
-        }
+    function checkIfPostIsViewedAsUserScrolls() {
+        if (slideContainerRef.current) {
+            const rect = slideContainerRef.current.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
     
-
-    translateTextPromise = async function(text, language1, language2){
-        let language1Code;
-        let language2Code;
-        if(language1===language2) {
-            return text;
-        }
-        if (language1==="English"){
-            language1Code = "en";
-        }
-        else if(language1==="Español") {
-            language1Code = "es";
-        }
-        else if(language1==="Français") {
-            language1Code = "fr";
-        }
-        else if(language1==="हिंदी") {
-            language1Code = "hi";
-        }
-        else if(language1==="中国人") {
-            language1Code = "zh-CN";
-        }
-        else if(language1==="বাংলা"){
-            language1Code = "bn";
-        }
-        else if(language1==="العربية") {
-            language1Code = "ar";
-        }
-        else if(language1==="Deutsch") {
-            language1Code = "de";
-        }
-        else if(language1==="Bahasa Indonesia") {
-            language1Code = "id";
-        }
-        else if(language1==="Italiano"){
-            language1Code = "it";
-        }
-        else if(language1==="日本語") {
-            language1Code = "ja";
-        }
-        else if(language1==="Русский") {
-            language1Code = "ru";
-        }
-        if (language2==="English"){
-            language2Code = "en";
-        }
-        else if(language2==="Español") {
-            language2Code = "es";
-        }
-        else if(language2==="Français") {
-            language2Code = "fr";
-        }
-        else if(language2==="हिंदी") {
-            language2Code = "hi";
-        }
-        else if(language2==="中国人") {
-            language2Code = "zh-CN";
-        }
-        else if(language2==="বাংলা"){
-            language2Code = "bn";
-        }
-        else if(language2==="العربية") {
-            language2Code = "ar";
-        }
-        else if(language2==="Deutsch") {
-            language2Code = "de";
-        }
-        else if(language2==="Bahasa Indonesia") {
-            language2Code = "id";
-        }
-        else if(language2==="Italiano"){
-            language2Code = "it";
-        }
-        else if(language2==="日本語") {
-            language2Code = "ja";
-        }
-        else if(language2==="Русский") {
-            language2Code = "ru";
-        }
-        const apiUrl = "https://deep-translate1.p.rapidapi.com/language/translate/v2";
-        const data = {"q":text,"source":language1Code,"target":language2Code};
-        const options = {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            'x-rapidapi-host': 'deep-translate1.p.rapidapi.com',
-            'x-rapidapi-key': '14da2e3b7emsh5cd3496c28a4400p16208cjsn947339fe37a4'
-            },
-            body: JSON.stringify(data)
-        };
-        try {
-            const response = await fetch(apiUrl, options);
-            if (!response.ok) {
-                throw new Error("Network response not ok");
+            if (rect.bottom <= viewportHeight) {
+                setThisMediaPostHasBeenViewed(true);
+                window.removeEventListener('scroll', checkIfPostIsViewedAsUserScrolls);
             }
-            return response.json()['data']['translations']['translatedText'];
-        }
+          }
+    }
 
+    async function markPostAsViewed() {
+        try {
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/markPostAsViewed/${authUser}/${overallPostId}`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                console.error(`The server had trouble marking the post with id ${overallPostId} as viewed`);
+            }
+        }
         catch (error) {
-            console.error('Error:', error);
-            return "T";
+            console.error(`There was trouble connecting to the server to mark the post with id ${overallPostId}
+            as viewed`);
         }
     }
 
-    async updateTimeText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.timeText,
-                currLang,
-                this.props.language
-            );
-            this.setState({timeText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateLocationText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.locationText,
-                currLang,
-                this.props.language
-            );
-            this.setState({locationText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateLikesText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.likesText,
-                currLang,
-                this.props.language
-            );
-            this.setState({likesText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateViewAllCommentsText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.viewAllCommentsText,
-                currLang,
-                this.props.language
-            );
-            this.setState({viewAllCommentsText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updateAddACommentText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.addACommentText,
-                currLang,
-                this.props.language
-            );
-            this.setState({addACommentText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    async updatePostText(currLang) {
-        try {
-            const translatedText = await this.translateTextPromise(
-                this.state.postText,
-                currLang,
-                this.props.language
-            );
-            this.setState({postText: translatedText });
-        } catch (error) {
-            console.error("Translation failed", error);
-        }
-    }
-
-    formatDate(dateString) {
-        const date = new Date(dateString);
-        const currentDate = new Date();
-        const secondsDiff = Math.floor((currentDate - date) / 1000);
+    function formatDatetimeString(datetimeString) {
+        const givenDatetime = new Date(datetimeString);
+        const currentDatetime = new Date();
+        const secondsDiff = Math.floor((currentDatetime - givenDatetime) / 1000);
     
         if (secondsDiff < 60) {
             return `${secondsDiff}s`;
-        } else {
+        }
+        else {
             const minutesDiff = Math.floor(secondsDiff / 60);
             if (minutesDiff < 60) {
                 return `${minutesDiff}m`;
-            } else {
+            } 
+            else {
                 const hoursDiff = Math.floor(minutesDiff / 60);
                 if (hoursDiff < 24) {
                     return `${hoursDiff}h`;
-                } else {
+                }
+                else {
                     const daysDiff = Math.floor(hoursDiff/24);
                     if (daysDiff < 7) {
                         return `${daysDiff}d`;
                     }
                     else {
-                        const weeksDiff = Math.floor(hoursDiff / 24 / 7);
+                        const weeksDiff = Math.floor(daysDiff / 7);
                         if (weeksDiff < 4) {
                             return `${weeksDiff}w`;
-                        } else {
-                            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                            const month = months[date.getUTCMonth()];
-                            const day = date.getUTCDate();
-                            const year = date.getUTCFullYear();
-                            return `${month} ${day}, ${year}`;
+                        }
+                        else {
+                            const monthsDiff = Math.floor(daysDiff/30.417);
+                            if (monthsDiff < 12) {
+                                return `${monthsDiff}mo`;
+                            }
+                            else {
+                                const yearsDiff = Math.floor(monthsDiff/12);
+                                return `${yearsDiff}y`;
+                            }
                         }
                     }
                 }
@@ -380,1131 +229,920 @@ class MediaPost extends Component {
         }
     }
 
-    formatText(string) {
-        const words = string.split(' ');
-    
-        const formattedWords = words.map((word, index) => {
-            if (word.startsWith('#') || word.startsWith('@')) {
-                return <span key={index} style={{color: '#457aa3', cursor:'pointer'}}>{word}</span>;
-            }
-            return word;
-        });
-    
-        const formattedText = formattedWords.reduce((acc, word, index) => {
-            if (index === 0) {
-                return [word];
-            }
-            return [...acc, ' ', word];
-        }, []);
-    
-        return <span style={{fontSize:'1.1em', textAlign: 'left', textWrap:'wrap',  wordBreak: 'break-word'}}>{formattedText}</span>;
-    }
-    
-
-    toggleSettings = () => {
-        if(this.state.showQualityOptions) {
-            this.setState({showQualityOptions: false});
-        }
-        else if(this.state.showSettingsPopup) {
-            this.setState({showSettingsPopup: false})
+    function togglePauseBackgroundMusic() {
+        if(!backgroundMusicIsPlaying) {
+            backgroundMusicInfo.play();
         }
         else {
-            this.setState({showSettingsPopup: true});
+            backgroundMusicInfo.pause();
         }
+        setBackgroundMusicIsPlaying(!backgroundMusicIsPlaying);
     }
 
-    formatWithOxfordComma = (arr) => {
-        if (arr.length === 0) {
-            return '';
-        } else if (arr.length === 1) {
-            return arr[0];
-        } else if (arr.length === 2) {
-            return `${arr[0]}, ${arr[1]}`;
-        } else {
-            const lastItem = arr.pop();
-            return `${arr.join(', ')}, ${lastItem}`;
+    function toggleShowTaggedAccountsOfSlide() {
+        setDisplaySectionsOfVidSlide(false);
+        if(!displayTaggedAccountsOfSlide) {
+            if(postDetails.slides[currSlide].type==='Image') {
+                if(postDetails.slides[currSlide].taggedAccounts.length>0 &&
+                elementsForTaggedAccountsOfImageSlide.length==0) {
+                    finishSettingElementsForTaggedAccountsOfImageSlide();
+                }
+            }
+            setDisplayTaggedAccountsOfSlide(true);
+        }
+        else {
+            setDisplayTaggedAccountsOfSlide(false);
         }
     }
     
+    function changeSlide(incrementOrDecrementText) {
+        setElementsForTaggedAccountsOfImageSlide([]);
+        setDisplaySectionsOfVidSlide(false);
+        setDisplayTaggedAccountsOfSlide(false);
 
-
-    async componentDidMount() {
-        await this.updatePostText("English");
-        await this.updateAddACommentText("English");
-        await this.updateViewAllCommentsText("English");
-        await this.updateLikesText("English");
-        await this.updateLocationText("English");
-        await this.updateTimeText("English");
-        window.addEventListener('keydown', this.handleKeyDown);
-        window.addEventListener('keyup', this.handleKeyUp);
+        if(incrementOrDecrementText==='increment') {
+            setCurrSlide(currSlide+1);
+        }
+        else {
+            setCurrSlide(currSlide-1);
+        }
     }
 
-    async componentDidUpdate(prevProps, prevState) {
-        if(!prevState.currSlideIsVid && this.state.currSlideIsVid) {
-            const Button = videojs.getComponent('Button');
-                    class SettingsButton extends Button {
-                    constructor(player, options) {
-                        super(player, options);
-                        this.controlText('Settings (s)');
-                    }
-                    handleClick = () => {
-                        if (this.options_.toggleSettings) {
-                            this.options_.toggleSettings();
-                        }
-                    }
-                    createEl() {
-                        let el = super.createEl('button', {
-                            className: 'vjs-settings-button vjs-control vjs-button'
-                        });
-                
-                        let icon = videojs.dom.createEl('img', {
-                            src: videoSettingsIcon,
-                            alt: 'Settings Icon',
-                            className: 'custom-settings-icon'
-                        });
-                
-                        el.appendChild(icon);
-                
-                        return el;
-                    }
-                    }
-                    videojs.registerComponent('SettingsButton', SettingsButton);
-
-                    this.player = videojs(this.videoNode.current , {
-                        controls: true,
-                        autoplay: false,
-                        preload: 'auto',
-                        fluid: true,
-                        playbackRates: [0.125, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.25, 2.5, 3, 4, 6, 8],
-                        controlBar: {
-                        children: [
-                            'playToggle',
-                            'volumePanel',
-                            'CurrentTimeDisplay',
-                            'TimeDivider',
-                            'DurationDisplay',
-                            'progressControl',
-                        ]
-                        }
-                    });
-                
-                    const progressControl = this.player.getChild('controlBar').getChild('progressControl');
-                    this.player.getChild('controlBar').addChild('SubtitlesButton');
-                    this.player.getChild('controlBar').addChild('SettingsButton', {
-                        toggleSettings: this.toggleSettings,
-                    });
-                    this.player.getChild('controlBar').addChild('playbackRateMenuButton');
-                    this.player.getChild('controlBar').addChild('fullscreenToggle');
-                    progressControl.on('mousemove', this.handleMouseMove);
-                    progressControl.on('mouseout', this.handleMouseLeave);
-                    this.player.on('timeupdate', this.setSection);
-                    this.player.on('useractive', this.showSection);
-                    this.player.on('userinactive', this.hideSection);
+    function likePost(event) {
+        if(!postDetails.isLiked) {
+            notifyParentToUpdatePostDetails(
+                overallPostId,
+                {
+                    isLiked: true,
+                    numLikes: numLikes+1
+                }
+            );
+            setNumLikes(numLikes+1);
         }
 
-        if (prevProps.postDetails != this.props.postDetails) {
-            if(this.props.postDetails[1].length>0) {
-                    this.fetchVideos();
+        if (slideContainerRef.current) {
+            const rect = slideContainerRef.current.getBoundingClientRect();
+            const x = event.clientX;
+            const y = event.clientY;
+            const xPercent = ((x - rect.left) / rect.width) * 100;
+            const yPercent = ((y - rect.top) / rect.height) * 100;
+            startLikePostHeartAnimation(xPercent, yPercent);
+        }
+    }
+
+    function toggleLikePost() {
+        if(!postDetails.isLiked) {
+            startLikePostHeartAnimation(50, 50);
+            notifyParentToUpdatePostDetails(
+                overallPostId,
+                {
+                    isLiked: true,
+                    numLikes: numLikes+1
+                }
+            );
+            setNumLikes(numLikes+1);
+        }
+        else {
+            setIntervalIdForLikePostHeartAnimation(null);
+            notifyParentToUpdatePostDetails(
+                overallPostId,
+                {
+                    isLiked: false,
+                    numLikes: numLikes-1
+                }
+            );
+            setNumLikes(numLikes-1);
+        }
+    }
+
+    function toggleSavePost() {
+        notifyParentToUpdatePostDetails(
+            overallPostId,
+            {
+                isSaved: !postDetails.isSaved
             }
-            let currSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide));
-            if(!currSlideIsVid) {
-                this.fetchLikes(this.props.postDetails[0][0].id);
-                this.checkIfSaved(this.props.postDetails[0][0].id);
-                this.fetchBackgroundMusic(this.props.postDetails[0][0].id);
-                this.checkIfUserVerified(this.props.postDetails[0][0].usernames[0]);
+        );
+    }
+
+    function finishSettingElementsForCaption() {
+        const newElementsForCaption = [' '];
+
+        let caption = postDetails.caption;
+        while (caption.length > 0) {
+            const indexOfNextAtSymbol = caption.indexOf('@');
+            const indexOfNextHashtag = caption.indexOf('#');
+        
+            if (indexOfNextAtSymbol === -1 && indexOfNextHashtag === -1) {
+                newElementsForCaption.push(<span>{caption}</span>);
+                break;
+            } 
+            else if (indexOfNextAtSymbol === -1 || (indexOfNextHashtag !== -1 &&
+            indexOfNextHashtag < indexOfNextAtSymbol)) {
+                newElementsForCaption.push(<span>{caption.substring(0, indexOfNextHashtag)}</span>);
+        
+                caption = caption.substring(indexOfNextHashtag);
+                let indexOfSpaceAfterHashtagUsed = caption.indexOf(" ");
+                
+                if (indexOfSpaceAfterHashtagUsed === -1) indexOfSpaceAfterHashtagUsed = caption.length;
+        
+                const hashtagUsed = caption.substring(0, indexOfSpaceAfterHashtagUsed);
+                newElementsForCaption.push(
+                    <a 
+                        href={`http://34.111.89.101/search/tags/${hashtagUsed.substring(1)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hashtagOrMention"
+                        style={{ color: '#71a3f5' }}
+                    >
+                        {hashtagUsed}
+                    </a>
+                );
+        
+                caption = caption.substring(indexOfSpaceAfterHashtagUsed);
+            } 
+            else {
+                newElementsForCaption.push(<span>{caption.substring(0, indexOfNextAtSymbol)}</span>);
+        
+                caption = caption.substring(indexOfNextAtSymbol);
+                let indexOfSpaceAfterMentionedUsername = caption.indexOf(" ");
+        
+                if (indexOfSpaceAfterMentionedUsername === -1) indexOfSpaceAfterMentionedUsername = caption.length;
+        
+                const mentionedUsername = caption.substring(0, indexOfSpaceAfterMentionedUsername);
+                newElementsForCaption.push(
+                    <a 
+                        href={`http://34.111.89.101/profile/${mentionedUsername.substring(1)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hashtagOrMention"
+                        style={{ color: '#71a3f5' }}
+                    >
+                        {mentionedUsername}
+                    </a>
+                );
+        
+                caption = caption.substring(indexOfSpaceAfterMentionedUsername);
+            }
+        }
+
+        setElementsForCaption(newElementsForCaption);
+    }
+
+    function updateCommentInput(event) {
+        setCommentInput(event.target.value);
+    }
+
+    async function postComment() {
+        try {
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postComment/${authUser}/${overallPostId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    newComment: commentInput
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                notifyParentToShowErrorPopup('The server had trouble adding your comment.');
             }
             else {
-                this.fetchLikes(this.props.postDetails[1][0].overallPostId);
-                this.checkIfSaved(this.props.postDetails[1][0].overallPostId);
-                this.fetchBackgroundMusic(this.props.postDetails[1][0].overallPostId);
-                this.checkIfUserVerified(this.props.postDetails[1][0].usernames[0]);
-            }
-            this.setState({
-                caption: this.props.postDetails[2]['comment'],
-                currSlideIsVid: currSlideIsVid,
-                locationText: currSlideIsVid ? this.props.postDetails[1][0].locationOfPost : this.props.postDetails[0][0].locationOfPost,
-                timeText: currSlideIsVid ? this.formatDate(this.props.postDetails[1][0].dateTimeOfPost) : this.formatDate(this.props.postDetails[0][0].dateTimeOfPost),
-                numPosts: this.props.postDetails[0].length == 0 ? this.props.postDetails[1].length : this.props.postDetails[0][0].posts.length + this.props.postDetails[1].length,
-                postId: currSlideIsVid ? this.props.postDetails[1][0].overallPostId : this.props.postDetails[0][0].id
-
-            });
-        }
-            
-        if (prevProps.language !== this.props.language) {
-            await this.updatePostText(prevProps.language);
-            await this.updateAddACommentText(prevProps.language);
-            await this.updateViewAllCommentsText(prevProps.language);
-            await this.updateLikesText(prevProps.language);
-            await this.updateLocationText(prevProps.language);
-            await this.updateTimeText(prevProps.language);
-            }
-        else if(prevState.likesText !== this.state.likesText) {
-            await this.updateLikesText("English");
-        }
-
-    }
-
-    showSection = () => {
-        this.setState({showSection:true});
-    }
-
-    hideSection = () => {
-        this.setState({showSection:false});
-    }
-
-    handleMouseMove = (event) => {
-        if (this.player) {
-            const progressControl = this.player.getChild('controlBar').getChild('progressControl');
-            const rect = progressControl.el().getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const timeTooltipElement = this.player.el().querySelector('.vjs-time-tooltip');
-            const timeTooltipElementTimeStr = timeTooltipElement.innerText.trim();
-            const timeInSeconds = this.timeStringToSeconds(timeTooltipElementTimeStr);
-            try {
-            this.setState({
-                showPreview: true,
-                previewImage: this.timeToVideoFrameMapping[this.findTime(timeInSeconds)],
-                previewLeft: (mouseX/rect.width)*45+20,
-                previewTime: timeTooltipElementTimeStr
-            });
-            }
-            catch (error) {
-            console.error(error)
+                setNewlyPostedCommentsByAuthUser([...newlyPostedCommentsByAuthUser, commentInput]);
+                notifyParentToUpdatePostDetails(
+                    overallPostId,
+                    {
+                        numComments: postDetails.numComments+1
+                    }
+                );
+                setCommentInput('');
             }
         }
-    }
-
-    handleMouseLeave = (event) => {
-        this.setState({
-            showPreview: false,
-            previewLeft: 500,
-            previewImage: ""
-        })
-    }
-
-    currentlyInSection(currentTimeString, sectionInterval) {
-        let section = sectionInterval.split("-");
-        let startingTimeInSeconds = this.timeStringToSeconds(section[0]);
-        let endingTimeInSeconds = this.timeStringToSeconds(section[1]);
-        let currentTimeInSeconds = this.timeStringToSeconds(currentTimeString);
-        if (startingTimeInSeconds <= currentTimeInSeconds && currentTimeInSeconds <= endingTimeInSeconds) {
-            return true;
-        }
-        return false;
-    }
-
-    setSection = (event) => {
-        const currentTime = this.player.el().querySelector('.vjs-current-time-display');
-        const currentTimeString = currentTime.innerText.trim()
-        let sectionInterval = "";
-        let sectionFound = false;
-        if(currentTimeString!==this.latestTimeString) {
-            this.latestTimeString = currentTimeString;
-            for(let section of this.state.sections) {
-                sectionInterval = Object.keys(section)[0];
-                if(this.currentlyInSection(currentTimeString, sectionInterval)) {
-                    this.setState({
-                        currSection: section[sectionInterval]
-                    });
-                    sectionFound = true;
-                    break;
-                }
-            }
-            if(!sectionFound) {
-                this.setState({
-                    currSection: ""
-                });
-            }
+        catch (error) {
+            notifyParentToShowErrorPopup('There was trouble connecting to the server to add your comment.');
         }
     }
 
-    timeStringToSeconds(timeString) {
-        const timeParts = timeString.split(':');
-        let hours = 0;
-        let minutes = 0;
-        let seconds = 0;
-        if(timeParts.length==1) {
-            seconds = parseInt(timeParts[0]);
-        }
-        else if(timeParts.length==2) {
-            minutes = parseInt(timeParts[0]);
-            seconds = parseInt(timeParts[1]);
-        }
-        else if(timeParts.length==3) {
-            hours = parseInt(timeParts[0]);
-            minutes = parseInt(timeParts[1])
-            seconds = parseInt(timeParts[2]);
-        }
+    function finishSettingElementsForTaggedAccountsOfImageSlide() {
+        const newTaggedAccountElementsOfImageSlide = [];
         
-        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+        for(let taggedAccountInfo of postDetails.slides[currSlide].taggedAccounts) {
+            newTaggedAccountElementsOfImageSlide.push(
+                <a
+                    key={taggedAccountInfo[0]}
+                    href={`http://34.111.89.101/profile/${taggedAccountInfo[0]}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{color: 'white', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: '1.2%',
+                    padding: '0.3em 0.7em', position: 'absolute', top: `${taggedAccountInfo[1]}%`,
+                    left: `${taggedAccountInfo[2]}%`, maxWidth: '10em', textAlign: 'start',
+                    overflowWrap: 'break'}}
+                >
+                    {taggedAccountInfo[0]}
+                </a>
+            );
+        }
+
+        setElementsForTaggedAccountsOfImageSlide(newTaggedAccountElementsOfImageSlide);
+    }
+
+    function toggleShowSectionsOfVidSlide() {
+        setDisplayTaggedAccountsOfSlide(false);
+        setDisplaySectionsOfVidSlide(!displaySectionsOfVidSlide);
+    }
+
+    function takeUserToSectionInVideo(timeInSeconds) {
+        if (videoSlideRef.current) {
+            videoSlideRef.current.currentTime = timeInSeconds;
+            videoSlideRef.current.play();
+        }
+    }
+
+    function formatSecondsOfTimeAsString(timeInSeconds) {
+        const hours = Math.floor(timeInSeconds / 3600);
+        const minutes = Math.floor((timeInSeconds % 3600) / 60);
+        const remainingSeconds = timeInSeconds % 60;
+
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+        } else {
+            return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+        }
+    }
+
+    function getVideoFrameAtSpecifiedSlideAndTime(slide, timeInSeconds) {
+        const newSlideToVidTimeToFrameMappings = { ...slideToVidTimeToFrameMappings };
     
-        return totalSeconds;
-    }
-
-
-    getFramesAtEach5SecondInterval = async (currSlide) => {
-        try {
-            this.timeToVideoFrameMapping = {};
-            const videoBlob = this.slideToVideoBlobMapping[currSlide];
-            const duration = await getBlobDuration(videoBlob);
-            const formData = new FormData();
-            formData.append('video', videoBlob);
-            formData.append('duration', String(duration));
-            const framesResponse = await fetch('http://localhost:8006/getVideoFramesAtIntervals', {
-                method: "POST",
-                body: formData
-            });
-            if (!framesResponse.ok) {
-                throw new Error('Failed to fetch frames');
-            }
-            const framesData = await framesResponse.json();
-            const frames = framesData.frames;
-            for(let i=0; i<=frames.length; i++) {
-                const currFrame = frames[i];
-                this.timeToVideoFrameMapping[i*5] = currFrame;
-            }
-    
-        } catch (error) {
-            console.error('Error fetching or processing video frames:', error);
-        }
-    }
-    
-    
-
-    findTime = (timeInSeconds) => {
-        let val = timeInSeconds;
-        while (val%5!==0 && val > -1) {
-            val-=1
-        }
-        if(val>-1) {
-            return val;
-        }
-        return -1
-    }
-    
-
-
-    arrayBufferToBase64(buffer) {
-        let binary = '';
-        const bytes = new Uint8Array(buffer);
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
-        return window.btoa(binary);
-    }
-
-    componentWillUnmount() {
-        if (this.player) {
-            this.player.dispose();
-        }
-        window.removeEventListener('keydown', this.handleKeyDown);
-        window.removeEventListener('keyup', this.handleKeyUp);
-    }
-
-    showQuality = () => {
-        this.setState({showSettingsPopup: false, showQualityOptions: true});
-    }
-
-    toggleSettings = () => {
-        if(this.state.showQualityOptions) {
-            this.setState({showQualityOptions: false});
-        }
-        else if(this.state.showSettingsPopup) {
-            this.setState({showSettingsPopup: false})
-        }
-        else {
-            this.setState({showSettingsPopup: true});
-        }
-    }
-
-    handleKeyUp = (event) => {
-        if (this.props.isFocused  && event.key === ' ') {
-            event.preventDefault();
-            clearTimeout(this.spaceKeyTimer);
-            this.spaceKeyPressed = false;
-            if (this.player.playbackRate() === 2) {
-                this.player.playbackRate(1);
-            } else {
-                if (this.player.paused()) {
-                    this.player.play();
-                    this.setState({showPauseSymbol: false});
-                } else {
-                    this.player.pause();
-                    this.setState({showPauseSymbol: true});
-                }
-            }
-        }
-    }
-
-
-
-    toggleHeart = async () => {
-        if (this.state.isLiked) {
-            try {
-                if(!this.state.currSlideIsVid) {
-                    const response = await fetch('http://localhost:8004/removeLike/'+this.props.postDetails[0][0].id, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                }
-                else {
-                    const response = await fetch('http://localhost:8004/removeLike/'+this.props.postDetails[1][0].overallPostId, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                }
-                
-                this.setState(
-                    {isLiked: false,
-                    likesText: this.state.numLikes==2 ? '1 like' : (this.state.numLikes-1) + ' likes',
-                    numLikes: this.state.numLikes-1,
-                });
-            }
-            catch (error) {
-                console.error('Error:', error);
-            }
-        }
-        else {
-            this.likePost(null);
-        }
-    }
-
-    toggleSave = async () => {
-        if(!this.state.isSaved) {
-            try {
-                if(!this.state.currSlideIsVid) {
-                    const response = await fetch('http://localhost:8004/addSave/'+this.props.postDetails[0][0].id, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                
-                }
-                else {
-                    const response = await fetch('http://localhost:8004/addSave/'+this.props.postDetails[1][0].overallPostId, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                }
-                this.setState({
-                    isSaved: true
-                });
-            }
-            catch (error) {
-                console.error('Error:', error);
-            }
-        }
-        else {
-            try {
-                if(!this.state.currSlideIsVid) {
-                    const response = await fetch('http://localhost:8004/removeSave/'+this.props.postDetails[0][0].id, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                }
-                else {
-                    const response = await fetch('http://localhost:8004/removeSave/'+this.props.postDetails[1][0].overallPostId, {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                }
-                this.setState({isSaved: false});
-            }
-            catch (error) {
-                console.error('Error:', error);
-            }
-        }
-    }
-
-    removeHeart = (heartCoordinates) => {
-        const { hearts } = this.state;
-        const index = hearts.findIndex(heart =>
-        heart[0] == heartCoordinates[0] && heart[1] == heartCoordinates[1]
-        );
-
-    
-        if (index !== -1) {
-            const newHearts = [...hearts];
-            newHearts.splice(index, 1);
-            this.setState({ hearts: newHearts });
-        }
-    }
-    
-    likePost = async (event) => {
-        if(!this.state.isLiked) {
-            try {
-                if(!this.state.currSlideIsVid) {
-                    const response = await fetch('http://localhost:8004/addLike/'+this.props.postDetails[0][0].id, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                
-                }
-                else {
-                    const response = await fetch('http://localhost:8004/addLike/'+this.props.postDetails[1][0].overallPostId, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username: this.props.username }),
-                    });
-                    if(!response.ok) {
-                        console.error('Network response was not ok');
-                    }
-                    const output = await response.json();
-                }
-                this.setState(
-                    {isLiked: true,
-                    likesText: this.state.numLikes==0 ? '1 like' : this.state.numLikes+1 + ' likes',
-                    numLikes: this.state.numLikes+1});
-            }
-            catch (error) {
-                console.error('Error:', error);
-            }
-        }
-        if(event) {
-            const rect = event.target.getBoundingClientRect();
-            const xRelativeToDiv = (event.clientX - rect.left)/rect.width * 100 - 12;
-            const yRelativeToDiv = (event.clientY - rect.top)/rect.height * 100 - 11;
-            const rotation = Math.random() * 20 - 10;
-            const height = Math.random()*5 + 7;
-            const width = Math.random()*5 + 7;
-            const heartCoordinates = [xRelativeToDiv, yRelativeToDiv, rotation, height, width];
-            this.setState({
-                hearts: [...this.state.hearts, heartCoordinates]
-            }, () => {
-                setTimeout(() => {
-                this.removeHeart(heartCoordinates);
-                }, 900);
-            });
-        }
-    }
-    
-    
-    handleCommentChange = (event) => {
-        if (event.target.value.length > 0) {
-            this.setState({comment: event.target.value,
-            sendComment:true});
-        }
-        else {
-            this.setState({comment: event.target.value,
-            sendComment:false});
-        }
-    };
-
-    showNextSlide = async () => {
-        this.removeAllTextTracks();
-        let nextSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide+1));
-        if (nextSlideIsVid) {
-            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide+1);
-            this.setState({
-                videoUrl: this.slideToVideoUrlMapping[this.state.currSlide+1],
-                sections: x[0]['sections'],
-                currSection: "",
-                currSlide: this.state.currSlide+1,
-                currSlideIsVid: nextSlideIsVid,
-                showTags: false,
-                }, () => {
-                    this.getFramesAtEach5SecondInterval(this.state.currSlide);
-                    this.fetchSubtitles(x[0]['videoId']);
-                });
-        }
-        else {
-            this.setState({
-                currSlide: this.state.currSlide+1,
-                currSlideIsVid: nextSlideIsVid,
-                showTags: false,
-                sections: [],
-                currSection: ""
-                });
-        }
-    }
-
-    showPreviousSlide = async () => {
-        this.removeAllTextTracks();
-        let prevSlideIsVid = !(this.props.postDetails[0].length > 0 && this.props.postDetails[0][0].slides.includes(this.state.currSlide-1));
-        if (prevSlideIsVid) {
-            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==this.state.currSlide-1);
-            this.setState({
-                videoUrl: this.slideToVideoUrlMapping[this.state.currSlide-1],
-                sections: x[0]['sections'],
-                currSection: "",
-                currSlide: this.state.currSlide-1,
-                currSlideIsVid: prevSlideIsVid,
-                showTags: false,
-                }, () => {
-                    this.getFramesAtEach5SecondInterval(this.state.currSlide);
-                    this.fetchSubtitles(x[0]['videoId']);
-                });
-        }
-        else {
-            this.setState({
-                currSlide: this.state.currSlide-1,
-                currSlideIsVid: prevSlideIsVid,
-                showTags: false,
-                currSection: "",
-                sections: []
-                });
-        }
-    };
-
-
-    toggleTags = () => {
-        this.setState({showTags: !this.state.showTags});
-    }
-
-
-    async fetchVideos() {
-        for(let i of this.props.postDetails[1]) {
-            try {
-                let videoId = i['videoId'];
-                let slideNumber = i['slideNumber'];
-                const response = await fetch(`http://localhost:8004/getVideo/${videoId}`);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const videoBlob = await response.blob();
-                this.slideToVideoBlobMapping[slideNumber] = videoBlob;
-                const videoUrl = URL.createObjectURL(videoBlob);
-                this.slideToVideoUrlMapping[slideNumber] = videoUrl;
-            } catch (error) {
-                console.error('Trouble connecting to server:', error);
-            }
-        }
-        if(this.slideToVideoUrlMapping[0]) {
-            let x = this.props.postDetails[1].filter(x=>x['slideNumber']==0);
-            this.setState({
-                videoUrl: this.slideToVideoUrlMapping[0],
-                sections: x[0]['sections']
-            },
-            () => {this.getFramesAtEach5SecondInterval(0);
-                this.fetchSubtitles(this.props.postDetails[1][0].videoId);
-            });
-        
+        if (!(slide in slideToVidTimeToFrameMappings)) {
+            newSlideToVidTimeToFrameMappings[slide] = {};
         }
     
-    }
-
-    removeAllTextTracks = () => {
-        if(this.player) {
-            let remoteTracks = this.player.remoteTextTracks();
-            while (remoteTracks.length > 0) {
-            this.player.removeRemoteTextTrack(remoteTracks[0]);
-            }
+        const hiddenVideoSlideForFrameCollection = hiddenVideoSlideForFrameCollectionRef.current;
+    
+        if (!hiddenVideoSlideForFrameCollection) {
+            return defaultVideoFrame;
         }
+    
+        const canvas = canvasRef.current;
+        hiddenVideoSlideForFrameCollection.currentTime = timeInSeconds;
+    
+        hiddenVideoSlideForFrameCollection.onseeked = () => {
+            const ctx = canvas.getContext("2d");
+            canvas.width = hiddenVideoSlideForFrameCollection.videoWidth;
+            canvas.height = hiddenVideoSlideForFrameCollection.videoHeight;
+            ctx.drawImage(hiddenVideoSlideForFrameCollection, 0, 0, canvas.width, canvas.height);
+    
+            const frameImage = canvas.toDataURL("image/png");
+            newSlideToVidTimeToFrameMappings[slide][timeInSeconds] = frameImage;
+            setSlideToVidTimeToFrameMappings(newSlideToVidTimeToFrameMappings);
+        };
+    
+        return defaultVideoFrame;
     }
 
-
-    async fetchBackgroundMusic(postId) {
-        const response = await fetch(`http://localhost:8006/getPostBackgroundMusic/${postId}`);
-        if(!response.ok) {
+    function startLikePostHeartAnimation(startX, startY) {
+        if (intervalIdForLikePostHeartAnimation !== null) {
             return;
         }
-        const songName = response.headers.get('songName');
-        const backgroundMusicBlob = await response.blob();
-        const backgroundMusicURL = URL.createObjectURL(backgroundMusicBlob);
-        const backgroundMusic = new Audio(backgroundMusicURL);
-        backgroundMusic.loop = true;
-        this.setState({
-            song: backgroundMusic,
-            songName: songName
-        })
-    }
-
-    async fetchSubtitles(videoId) {
-        const response = await fetch(`http://localhost:8006/getVideoSubtitles/${videoId}`);
-        if(!response.ok) {
-            throw new Error('Network response not ok');
-        }
-        const subtitlesList = await response.json();
-        for(let i=0; i<subtitlesList.length; i++) {
-            const encodedVTT = encodeURIComponent(subtitlesList[i].subtitleFile);
-            const dataURI = `data:text/vtt;charset=utf-8,${encodedVTT}`;
-            this.player.addRemoteTextTrack({
-                kind: 'subtitles',
-                src: dataURI,
-                srclang: "en",
-                label: subtitlesList[i].language,
-            }, false);
-        }
-
-    }
-
-
-    async fetchLikes(postId) {
-        const response = await fetch(`http://localhost:8004/getLikes/${postId}`);
-        if(!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const usersThatLiked = await response.json();
-        let isLiked = false;
-        for(let i of usersThatLiked) {
-            if(i['username']===this.props.username) {
-                isLiked = true;
-                break;
-            }
-        }
-        this.setState({
-            numLikes: usersThatLiked.length,
-            likesText:  usersThatLiked.length==1 ? '1 like' : usersThatLiked.length + " likes",
-            isLiked: isLiked
-        });
-    }
-
-    async checkIfSaved(postId) {
-        const response = await fetch(`http://localhost:8004/getSaves/${postId}`);
-        if(!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const usersThatSaved = await response.json();
-        let isSaved = false;
-        for(let i of usersThatSaved) {
-            if(i['username']===this.props.username) {
-                isSaved = true;
-                break;
-            }
-        }
-        this.setState({
-            isSaved: isSaved
-        });
-    }
-
-
-    postComment = async () => {
-        try {
-            let currentDate = new Date();
-            const data = `
-            mutation {
-                addComment(
-                commentid: "${uuidv4()}"
-                comment: "${this.state.comment}"
-                datetime: "${currentDate.toISOString()}"
-                isedited: false
-                postid: "${this.state.postId}"
-                username: "${this.props.username}"
-                ) {
-                commentid
-                }
-            }`;
-
-            const options = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ query: data })
-            };
-            const response = await fetch('http://localhost:5022/graphql', options);
-            if (!response.ok) {
-                throw new Error("Error sending comment");
-            }
-            const responseData = await response.json();
-            this.setState({comment: "", sendComment: false});
-        }
-        catch (error) {
-            console.error(error);
-        }
-
-    }
-
-    checkIfUserVerified = async (username) => {
-        try {
-            const response = await fetch('http://localhost:5022/isUserVerified/'+username);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            const output = await response.json();
-            this.setState({isVerified: output['isVerified']});
-        }
-        catch (error) {
-            console.error(error);
-        }
-    }
-
-    showSections = () => {
-        this.setState({
-            showSections: true
-        });
-    }
-
-    closeSections = () => {
-        this.setState({
-            showSections: false
-        });
-    }
-
-    toggleSongPause = () => {
-        if(this.state.songIsPaused) {
-            this.state.song.play();
-            this.setState({
-                songIsPaused: false
-            });
-        }
-        else {
-            this.state.song.pause();
-            this.setState({
-                songIsPaused: true
-            });
-
-        }
-    }
-
-
-    render() {
-        let currPost = "";
-        if (this.props.postDetails !== null) {
-                if (!this.state.currSlideIsVid && this.state.currSlideIsVid!==null) {
-                    const x = this.props.postDetails[0][0].slides.indexOf(this.state.currSlide);
-                    currPost = 'data:image/jpeg;base64,' + this.props.postDetails[0][0].posts[x];
-                }
-        }
-
-        let shownTags = [];
-        if (this.props.postDetails!==null && this.state.showTags) {
-            if(!this.state.currSlideIsVid) {
-                let x = this.props.postDetails[0][0].slides.indexOf(this.state.currSlide);
-                for (let i of this.props.postDetails[0][0].taggedAccounts[x]) {
-                    shownTags.push(
-                        <div>
-                        <div className="triangle" style={{position: 'absolute',
-                        left: (i[0]+4).toString() + "%",
-                        top: (i[1]+0.55).toString() + "%",
-                        cursor:'pointer'}}></div>
-                        <p style={{
-                            position: 'absolute',
-                            left: i[0].toString() + "%",
-                            top: i[1].toString() + "%",
-                            backgroundColor: 'rgba(0,0,0,0.75)',
-                            color: 'white',
-                            textAlign: 'left',
-                            borderRadius: '10%',
-                            paddingLeft: '0.8em',
-                            paddingTop: '0.8em',
-                            paddingBottom: '0.8em',
-                            paddingRight: '0.8em',
-                            cursor: 'pointer',
-                            fontSize: '0.94em'
-                        }}>
-                            {i[2]}
-                        </p>
-                        </div>
-                    );
-                }
-            }
-            else {
-                let taggedAccounts = [];
-                for (let i of this.props.postDetails[1]) {
-                    if (i['slideNumber'] == this.state.currSlide) {
-                        taggedAccounts = i['taggedAccounts'];
-                        break;
-                    }
-                }
-                for (let i of taggedAccounts) {
-                    shownTags.push(
-                        <div style={{
-                            width:'90%',
-                            height:'5%',
-                            backgroundColor: 'white',
-                            color: 'black',
-                            textAlign: 'left',
-                            paddingLeft: '0.8em',
-                            paddingTop: '0.8em',
-                            paddingBottom: '0.8em',
-                            paddingRight: '0.8em',
-                            cursor: 'pointer',
-                            fontSize: '0.94em'
-                        }}>
-                            {i}
-                        </div>
-                    );
-                }
-
-            }
-        }
-
-        const heartsOnPhoto = [];
-        for(let i of this.state.hearts) {
-            heartsOnPhoto.push(<img src={redHeart} style={{height:i[3]+'em', width:i[4]+'em', objectFit:'contain', position:'absolute', top:i[1]+'%',
-            left:i[0]+'%', opacity:'0.8', transform: `rotate(${i[2]}deg)`}}/>)
-        }
-
-        const sections = [];
-        for(let i=0; i<this.state.sections.length; i++) {
-            let sectionInterval = Object.keys(this.state.sections[i])[0];
-            let section = this.state.sections[i][sectionInterval];
-            let sectionStartTimeString = sectionInterval.split("-")[0];
-            sections.push(
-                <div onClick={() => {this.player.currentTime(this.timeStringToSeconds(sectionStartTimeString))}} style={{display:'flex', alignItems:'start', gap:'1.5em',
-                backgroundColor: this.state.currSection===section ? '#f2f2f2' : 'white'}}>
-                <img src={this.timeToVideoFrameMapping[this.findTime(this.timeStringToSeconds(sectionStartTimeString))]}
-                style={{height:'5em', width:'5em', objectFit:'contain', borderRadius:'7px'}}/>
-                <div style={{display:'flex', flexDirection:'column', alignItems: 'start', cursor:'pointer'}}>
-                <b>{i+1}. {section}</b>
-                <b style={{fontSize:'0.8em', color:'#1b5abf', backgroundColor:'#b8d8fc'}}>{sectionStartTimeString}</b>
-                </div>
-                <br/>
-                </div>
-            )
-            sections.push(<hr style={{width: '100%', borderTop: '1px solid lightgray'}} />);
-        }
-
     
-    
-
+        setLikePostHeartAnimationCoordinates([startX, startY]);
         
+        setIntervalIdForLikePostHeartAnimation('on the way...');
+        setTimeout(() => {
+            const intervalId = setInterval(() => {
+                setLikePostHeartAnimationCoordinates(([x, y]) => {
+                    if (y < -7) {
+                        clearInterval(intervalId);
+                        setIntervalIdForLikePostHeartAnimation(null);
+                        return [-1, -1];
+                    }
+                    return [x, y - 1];
+                });
+            }, 10);
 
-        return (
-        <React.Fragment>
-        {!this.state.currSlideIsVid && this.state.currSlideIsVid!==null && (
-        <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
-        <div style={{display:'flex', justifyContent:'start'}}>
-        {this.props.postDetails && <StoryIcon username={this.props.postDetails[0][0].usernames[0]} unseenStory={true} isStory={false}/>}
-        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
-        marginTop:'-1em', textAlign:'left',  textWrap:'wrap',  wordBreak: 'break-word', position:'relative'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}>
-        <div style={{display:'flex', alignItems:'center'}}>
-        <b>{this.props.postDetails && this.formatWithOxfordComma(this.props.postDetails[0][0].usernames)}</b>
-        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
-        </div>
-        <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText} </span></span>
-        <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
-        {this.state.songName.length>0 &&
-        <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
-        <img className="iconToBeAdjustedForDarkMode" src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
-        <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
-        {this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
-        {!this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
-        </div>}
-        </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
-        cursor:'pointer'}}/>
-        </div>
-        <div style={{position:'absolute', top:'12%', width:'37em', height:'45em', marginLeft:'-0.5em'}}>
-        {currPost!=="" && <img onDoubleClick={this.likePost} onClick={this.handleClick} src={currPost} style={{objectFit:'cover',  width: '100%', height: '100%', position: 'absolute', top: 0,
-        left: 0}}/>}
-        {this.props.postDetails!==null && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
-        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
-        <img className="iconToBeAdjustedForDarkMode" onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
-        display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
-        {this.props.postDetails!==null &&
-        <img src={taggedAccountsIcon} onClick={this.toggleTags} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%',
-        cursor:'pointer'}}/>}
-        {this.props.postDetails!==null && <PostDots numSlides={this.state.numPosts} currSlide={this.state.currSlide}/>}
-        {this.props.postDetails !== null && this.state.showTags &&
-        shownTags
-        }
-        {heartsOnPhoto}
-        </div>
-        <div style={{display:'flex', position:'absolute', top:'74.5%', alignItems:'center'}}>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
-        display: this.state.isLiked ? 'none' : 'inline-block'}}/>
-        <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
-        display: this.state.isLiked ? 'inline-block' : 'none'}}/>
-        {this.props.postDetails && <img className="iconToBeAdjustedForDarkMode" onClick = {() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
-        src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>}
-        <img className="iconToBeAdjustedForDarkMode" onClick = {this.props.showSendPostPopup} src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
-        <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
-        display: this.state.isSaved ? 'none' : 'inline-block'}}/>
-        <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={blackSaveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
-        display: !this.state.isSaved ? 'none' : 'inline-block'}}/>
-        </div>
-        <div style={{position:'absolute', top:'79%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
-        <b onClick={() => {this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        {this.props.postDetails &&
-        <div style={{display:'flex', alignItems:'center'}}>
-        <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}</b>
-        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
-        </div>
-        }
-        {this.formatText(this.state.caption)}
-        {this.props.postDetails && <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
-        style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>}
-        <br/>
-        <div>
-        <textarea className="textArea" type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
-        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', resize: 'true', fontFamily:'Arial'}}
-        placeholder={this.state.addACommentText}/>
-        <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
-        fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
-        </div>
-        </div>
-        </div>)}
+            setIntervalIdForLikePostHeartAnimation(intervalId);
+        }, 400);
+    }
+    
+    
 
+    return (
+        <div style={{display: 'flex', flexDirection: 'column', width: '61%', alignItems: 'start', padding: '1em 1em'}}>
 
-        {this.state.currSlideIsVid && this.state.currSlideIsVid!== null &&  (
-        <div style={{display:'flex', alignItems:'start'}}>
-        <div style={{width:'38em', height:'72em', borderColor:'lightgray', paddingTop:'2em', paddingLeft:'2em', position:'relative'}}>
-        <div style={{display:'flex', justifyContent:'start'}}>
-        {this.props.postDetails && <StoryIcon unseenStory={true} username={this.props.postDetails[1][0]['usernames'][0]} isStory={false}/>}
-        <div style={{display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'start', marginLeft:'1em', gap:'0.2em',
-        marginTop:'-1em', textAlign:'left'}}>
-        <span style={{fontSize:'1.1em', cursor:'pointer'}}>
-        <div style={{display:'flex', alignItems:'center'}}>
-        <b>{this.props.postDetails && this.formatWithOxfordComma(this.props.postDetails[1][0]['usernames'])}</b>
-        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
+            <div style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '1em'}}>
+                    <UserIcon
+                        username={mainPostAuthor}
+                        authUser={authUser}
+                        inStoriesSection={false}
+                        hasStories={
+                            ('hasStories' in mainPostAuthorInfo) ?
+                            mainPostAuthorInfo.hasStories : false
+                        }
+                        hasUnseenStory={
+                            ('hasUnseenStory' in mainPostAuthorInfo) ?
+                            mainPostAuthorInfo.hasUnseenStory : false
+                        } 
+                        profilePhoto={
+                            ('profilePhoto' in mainPostAuthorInfo) ?
+                            mainPostAuthorInfo.profilePhoto : defaultPfp
+                        }
+                        isVerified={
+                            ('isVerified' in mainPostAuthorInfo) ?
+                            mainPostAuthorInfo.isVerified : false
+                        }
+                    />
+
+                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em'}}>
+                        <p style={{marginBottom: '0em', maxWidth: '18em', textAlign: 'start',
+                        overflowWrap: 'break-word'}}>
+                            {postDetails.authors.map((author, index) => 
+                                (
+                                    <>
+                                        <a
+                                            href={`http://34.111.89.101/profile/${author}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            style={{ fontWeight: 'bold' }}
+                                        >
+                                            {author}
+                                        </a>
+
+                                        {(author in usersAndTheirRelevantInfo &&
+                                        'isVerified' in usersAndTheirRelevantInfo[author] &&
+                                        usersAndTheirRelevantInfo[author].isVerified) &&
+                                            (
+                                                <img src={verifiedBlueCheck} style={{height: '1.4em',
+                                                width: '1.4em', marginLeft: '-0.1em', pointerEvents: 'none',
+                                                marginRight: '-0.2em', objectFit: 'contain'}}/>
+                                            )
+                                        }
+
+                                        {index < postDetails.authors.length - 2 &&
+                                            <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>, </span>
+                                        }
+
+                                        {(index === postDetails.authors.length - 2 && index === 0) &&
+                                            <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}> and </span>
+                                        }
+
+                                        {(index === postDetails.authors.length - 2 && index > 0) &&
+                                            <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>,  and </span>
+                                        }
+                                    </>
+                                ))
+                            }
+
+                            <span style={{ color: 'gray' }}>
+                                {' • ' + formatDatetimeString(postDetails.datetimeOfPost)}
+                            </span>
+                        </p>
+
+                        {postDetails.locationOfPost!==null &&
+                            (
+                                <a href={`http://34.111.89.101/search/locations/${postDetails.locationOfPost}`}
+                                style={{fontSize: 'small', marginBottom: '-1em', maxWidth: '20em', textAlign: 'start',
+                                overflowWrap: 'break-word'}}>
+                                    {postDetails.locationOfPost}
+                                </a>
+                            )
+                        }
+
+                        {backgroundMusicInfo!==null &&
+                            (
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5em',
+                                fontSize: '0.88em', marginBottom: '-1em'}}>
+                                    <img src={musicSymbol}
+                                    className="iconToBeAdjustedForDarkMode"
+                                    style={{pointerEvents: 'none',
+                                    height: '1.1em', width: '1.1em', objectFit: 'contain'}}
+                                    />
+                                    
+                                    <p style={{maxWidth: '17em', textAlign: 'start', overflowWrap: 'break-word'}}>
+                                        <b>{postDetails.backgroundMusic.songTitle}</b> •
+                                        <b>{' ' + postDetails.backgroundMusic.songArtist}</b>
+                                    </p>
+
+                                    {!backgroundMusicIsPlaying &&
+                                        (
+                                            <img src={playIcon}
+                                            className="iconToBeAdjustedForDarkMode"
+                                            onClick={togglePauseBackgroundMusic}
+                                            style={{cursor: 'pointer',
+                                            height: '1.3em', width: '1.3em', objectFit: 'contain'}}
+                                            />
+                                        )
+                                    }
+
+                                    {backgroundMusicIsPlaying &&
+                                        (
+                                            <img src={pauseIcon}
+                                            className="iconToBeAdjustedForDarkMode"
+                                            onClick={togglePauseBackgroundMusic}
+                                            style={{cursor: 'pointer',
+                                            height: '1.5em', width: '1.5em', objectFit: 'contain'}}
+                                            />
+                                        )
+                                    }
+                                </div>
+                            )
+                        }
+
+                        {postDetails.adInfo!==null &&
+                            (
+                                <a href={postDetails.adInfo.link}
+                                style={{fontSize: 'small'}}>
+                                    Sponsored
+                                </a>
+                            )
+                        }
+                    </div>
+                </div>
+
+                <img src={threeHorizontalDots}
+                    className="iconToBeAdjustedForDarkMode"
+                    onClick={() => {
+                        setDisplayTaggedAccountsOfSlide(false);
+                        setDisplaySectionsOfVidSlide(false);
+                        notifyParentToShowThreeDotsPopup(postDetails);
+                    }}
+                    style={{cursor: 'pointer',
+                    height: '2em', width: '2em', objectFit: 'contain'}}
+                />
+            </div>
+
+            <br/>
+                    
+            {postDetails.slides[currSlide].type==='Image' &&
+                (
+                    <div ref={slideContainerRef} style={{width: '100%', height: '42em', position: 'relative'}}>
+                        <img src={postDetails.slides[currSlide].src}
+                        onDoubleClick={likePost}
+                        style={{position: 'absolute', objectFit: 'cover',
+                        top: '0%', left: '0%', height: '100%', width: '100%'}}/>
+
+                        {currSlide > 0 &&
+                            (
+                                <img src={nextSlideArrow}
+                                onClick={() => changeSlide('decrement')}
+                                style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
+                                objectFit: 'contain', position: 'absolute', left: '1%', top: '50%',
+                                transform: 'translateY(-50%) rotate(180deg)'}}/>
+                            )
+                        }
+
+                        {currSlide < postDetails.slides.length-1 &&
+                            (
+                                <img src={nextSlideArrow}
+                                onClick={() => changeSlide('increment')}
+                                style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
+                                objectFit: 'contain', position: 'absolute', right: '1%', top: '50%',
+                                transform: 'translateY(-50%)'}}/>
+                            )
+                        }
+
+                        <PostDots
+                            numSlides={postDetails.slides.length}
+                            currSlide={currSlide}
+                            currSlideIsImage={true}
+                        />
+
+                        {postDetails.slides[currSlide].taggedAccounts.length>0 &&
+                                (
+                                    <img src={taggedAccountsIcon}
+                                    onClick={toggleShowTaggedAccountsOfSlide}
+                                    style={{height: '2.4em', width: '2.4em', objectFit: 'contain',
+                                    position: 'absolute', bottom: '2%', left: '3%', cursor: 'pointer'}}/>
+                                )
+                        }
+
+                        {displayTaggedAccountsOfSlide &&
+                            (
+                                elementsForTaggedAccountsOfImageSlide
+                            )
+                        }
+
+                        {intervalIdForLikePostHeartAnimation!==null &&
+                            (
+                                <img src={likePostAnimationHeartIcon} style={{height: '6.6em', width: '6.6em',
+                                pointerEvents: 'none', objectFit: 'contain', position: 'absolute',
+                                top: `${likePostHeartAnimationCoordinates[1]}%`,
+                                left: `${likePostHeartAnimationCoordinates[0]}%`, transform: 'translate(-50%, -50%)'}}/>
+                            )
+                        }
+                    </div>
+                )
+            }
+
+            {postDetails.slides[currSlide].type==='Video' &&
+                (
+                    <div ref={slideContainerRef} style={{width: '100%', height: '42em', position: 'relative',
+                    backgroundColor: 'black'}}>
+                        <video ref={videoSlideRef} controls src={postDetails.slides[currSlide].src}
+                        onDoubleClick={likePost}
+                        style={{width: '100%', height: '100%', position: 'absolute', top: '0%', left: '0%'}}>
+                            {postDetails.slides[currSlide].subtitles.map(subtitlesInfo =>
+                                (
+                                    <track
+                                        src={subtitlesInfo.src}
+                                        kind="subtitles"
+                                        srcLang={subtitlesInfo.langCode}
+                                        label={languageCodeToLabelMappings[subtitlesInfo.langCode]}
+                                        default={'default' in subtitlesInfo && subtitlesInfo.default}
+                                    />
+                                ))
+                            }
+                        </video>
+
+                        <video ref={hiddenVideoSlideForFrameCollectionRef} src={postDetails.slides[currSlide].src}
+                        style={{display: 'none'}}/>
+                        
+                        <canvas ref={canvasRef} style={{ display: "none" }} />
+
+                        {currSlide > 0 &&
+                            (
+                                <img src={nextSlideArrow}
+                                onClick={() => changeSlide('decrement')}
+                                style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
+                                objectFit: 'contain', position: 'absolute', left: '1%', top: '50%',
+                                transform: 'translateY(-50%) rotate(180deg)'}}/>
+                            )
+                        }
+
+                        {currSlide < postDetails.slides.length-1 &&
+                            (
+                                <img src={nextSlideArrow}
+                                onClick={() => changeSlide('increment')}
+                                style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
+                                objectFit: 'contain', position: 'absolute', right: '1%', top: '50%',
+                                transform: 'translateY(-50%)'}}/>
+                            )
+                        } 
+
+                        <PostDots
+                            numSlides={postDetails.slides.length}
+                            currSlide={currSlide}
+                            currSlideIsImage={false}
+                        />
+
+                        {postDetails.slides[currSlide].taggedAccounts.length>0 &&
+                                (
+                                    <img src={taggedAccountsIcon}
+                                    onClick={toggleShowTaggedAccountsOfSlide}
+                                    style={{height: '2.4em', width: '2.4em', objectFit: 'contain',
+                                    position: 'absolute', bottom: '16%', left: '3%', cursor: 'pointer'}}/>
+                                )
+                        }
+
+                        {(!displaySectionsOfVidSlide && postDetails.slides[currSlide].sections.length>0
+                        && !displayTaggedAccountsOfSlide) &&
+                            (
+                                <div className="videoSlideChaptersOrTaggedAccountsDiv"
+                                onClick={toggleShowSectionsOfVidSlide}
+                                style={{position: 'absolute',
+                                bottom: '0%', right: '-55%', overflowY: 'scroll',
+                                boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px',
+                                padding: '0.5em 1em', cursor: 'pointer', borderRadius: '2em'}}>
+                                    <small style={{fontWeight: 'bold'}}>
+                                        Show Sections of this Video-Slide
+                                    </small>
+                                </div>
+                            )
+                        }
+
+                        {displaySectionsOfVidSlide &&
+                            (
+                                <div className="videoSlideChaptersOrTaggedAccountsDiv"
+                                style={{position: 'absolute', width: '100%',
+                                top: '0%', right: '-105%', height: '100%', overflowY: 'scroll', 
+                                boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px', zIndex: '3'}}>
+
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 
+                                    'center', padding: '0.4em 1.5em', borderStyle: 'solid', borderColor: 'lightgray',
+                                    borderWidth: '0.08em', borderTop: 'none', borderLeft: 'none', borderRight: 'none'}}>
+                                        <h4>Sections of this Video-Slide</h4>
+                                        <img src={thinGrayXIcon} onClick={toggleShowSectionsOfVidSlide}
+                                        style={{cursor: 'pointer', height: '1.6em',
+                                        width: '1.6em', objectFit: 'contain'}}/>
+                                    </div>
+
+                                    <br/>
+                                    
+                                    {postDetails.slides[currSlide].sections.map(sectionInfo =>
+                                        (
+                                            <div onClick={() => takeUserToSectionInVideo(sectionInfo[0])}
+                                            className="videoSlideSection"
+                                            style={{display: 'flex', width: '100%', alignItems: 'center',
+                                            cursor: 'pointer', padding: '0.4em 1.5em', gap: '1.5em'}}>
+                                                <img src={
+                                                    (currSlide in slideToVidTimeToFrameMappings &&
+                                                    sectionInfo[0] in slideToVidTimeToFrameMappings[currSlide]
+                                                    ) ?
+                                                    slideToVidTimeToFrameMappings[currSlide][sectionInfo[0]] :
+                                                    getVideoFrameAtSpecifiedSlideAndTime(currSlide, sectionInfo[0])
+                                                }
+                                                style={{pointerEvents: 'none',
+                                                height: '8em', width: '8em', objectFit: 'contain'}}/>
+
+                                                <div style={{display: 'flex', flexDirection: 'column',
+                                                alignItems: 'start'}}>
+                                                    <b>
+                                                        {sectionInfo[1]}
+                                                    </b>
+                                                    <p>
+                                                        {formatSecondsOfTimeAsString(sectionInfo[0])}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            )
+                        }
+
+                        {displayTaggedAccountsOfSlide &&
+                            (
+                                <div className="videoSlideChaptersOrTaggedAccountsDiv"
+                                style={{backgroundColor: 'white', position: 'absolute', width: '100%',
+                                zIndex: '3', top: '0%', right: '-105%', height: '100%', overflowY: 'scroll', 
+                                boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px'}}>
+                                    <h2 style={{maxWidth: '65%', marginLeft: '20%'}}>
+                                        Tagged Accounts of this Video-Slide
+                                    </h2>
+                                    <hr style={{width: '100%', color: 'lightgray'}}/>
+                                    {
+                                        postDetails.slides[currSlide].taggedAccounts.map(taggedAccountInfo=>
+                                            (
+                                                <FollowUser
+                                                    key={taggedAccountInfo[0]}
+                                                    username={taggedAccountInfo[0]}
+                                                    authUser={authUser}
+                                                    fullName={
+                                                       (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
+                                                        'fullName' in
+                                                        usersAndTheirRelevantInfo[taggedAccountInfo[0]]) ?
+                                                        usersAndTheirRelevantInfo[taggedAccountInfo[0]].fullName : '?'
+                                                    }
+                                                    profilePhoto={
+                                                        (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
+                                                        'profilePhoto' in
+                                                        usersAndTheirRelevantInfo[taggedAccountInfo[0]]) ?
+                                                        usersAndTheirRelevantInfo[taggedAccountInfo[0]].profilePhoto :
+                                                        defaultPfp
+                                                    }
+                                                    isVerified={
+                                                        (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
+                                                        'isVerified' in
+                                                        usersAndTheirRelevantInfo[taggedAccountInfo[0]]) ?
+                                                        usersAndTheirRelevantInfo[taggedAccountInfo[0]].isVerified :
+                                                        false
+                                                    }
+                                                    followStatus={taggedAccountInfo[1]}
+                                                    notifyParentToShowErrorPopup={
+                                                        (errorMessage) => {
+                                                            setDisplayTaggedAccountsOfSlide(false);
+                                                            setDisplaySectionsOfVidSlide(false);
+                                                            notifyParentToShowErrorPopup(errorMessage);
+                                                        }
+                                                    }
+                                                />
+                                            )
+                                        )
+                                    }
+                                </div>
+                            )
+                        }
+
+                        {intervalIdForLikePostHeartAnimation!==null &&
+                            (
+                                <img src={likePostAnimationHeartIcon} style={{height: '6.6em', width: '6.6em',
+                                pointerEvents: 'none', objectFit: 'contain', position: 'absolute',
+                                top: `${likePostHeartAnimationCoordinates[1]}%`,
+                                left: `${likePostHeartAnimationCoordinates[0]}%`, transform: 'translate(-50%, -50%)'}}/>
+                            )
+                        }
+                    </div>
+                )
+            }
+
+            {postDetails.adInfo!==null &&
+                (
+                    <a href={postDetails.adInfo.link}
+                    style={{fontWeight: 'bold', fontSize: '1.1em', width: '92%'}}>
+                        <div style={{width: '100%', display: 'flex', alignItems: 'center', gap: '1em',
+                        justifyContent: 'start', borderStyle: 'solid', borderTop: 'none', borderColor: 'lightgray',
+                        borderWidth: '0.065em', padding: '1em 1em'}}>
+                            <img src={megaphone} style={{height: '1.8em', width: '1.8em', objectFit: 'contain',
+                            pointerEvents: 'none'}}/>
+
+                            <p style={{maxWidth: '77%', overflowWrap: 'break-word', textAlign: 'start'}}>
+                                {'Click this to ' + postDetails.adInfo.callToAction}
+                            </p>
+                        </div>
+                    </a>
+                )
+            }
+
+            <div style={{width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginTop: '1em'}}>
+                <div style={{display: 'flex', alignItems: 'center'}}>
+                    {!postDetails.isLiked &&
+                        (
+                            <img src={blankHeartIcon}
+                                onClick={toggleLikePost}
+                                className="mediaPostButton iconToBeAdjustedForDarkMode"
+                            />
+                        )
+                    }
+
+                    {postDetails.isLiked &&
+                        (
+                            <img src={redHeartIcon}
+                                onClick={toggleLikePost}
+                                className="mediaPostButton"
+                            />
+                        )
+                    }
+
+                    <img src={commentIcon}
+                        onClick={() => {
+                            setDisplayTaggedAccountsOfSlide(false);
+                            setDisplaySectionsOfVidSlide(false);
+                            notifyParentToShowCommentsPopup(
+                                postDetails, currSlide, newlyPostedCommentsByAuthUser
+                            );
+                        }}
+                        className="mediaPostButton iconToBeAdjustedForDarkMode"
+                    />
+                    
+                    <img src={sendPostIcon}
+                        onClick={() => {
+                            setDisplayTaggedAccountsOfSlide(false);
+                            setDisplaySectionsOfVidSlide(false);
+                            notifyParentToShowSendPostPopup(overallPostId);
+                        }}
+                        className="mediaPostButton iconToBeAdjustedForDarkMode"
+                    />
+                </div>
+
+                {!postDetails.isSaved &&
+                    (
+                        <img src={blankSavedIcon}
+                            onClick={toggleSavePost}
+                            className="mediaPostButton iconToBeAdjustedForDarkMode"
+                        />
+                    )
+                }
+
+                {postDetails.isSaved &&
+                    (
+                        <img src={blackSavedIcon}
+                            onClick={toggleSavePost}
+                            className="mediaPostButton iconToBeAdjustedForDarkMode"
+                        />
+                    )
+                }
+            </div>
+            
+            {postDetails.likersFollowedByAuthUser.length==0 &&
+                (
+                    <b onClick={() => {
+                        setDisplayTaggedAccountsOfSlide(false);
+                        setDisplaySectionsOfVidSlide(false);
+                        notifyParentToShowPostLikersPopup(overallPostId);
+                    }}
+                    style={{marginBottom: '0em', maxWidth: '60%',
+                    overflowWrap: 'break-word', textAlign: 'start'}}>
+                        {numLikes.toLocaleString() + numLikes==1 ? ' like' : ' likes'}
+                    </b>
+                )
+            }
+
+            {postDetails.likersFollowedByAuthUser.length>0 &&
+                (
+                    <p style={{marginBottom: '0em', maxWidth: '74%', overflowWrap: 'break-word',
+                    textAlign: 'start'}}>
+                        <span>Liked by </span>
+                        {postDetails.likersFollowedByAuthUser.map((username, index) =>
+                            (
+                                <>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center'}}>
+                                        <a
+                                            href={`http://34.111.89.101/profile/${username}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            style={{ fontWeight: 'bold' }}
+                                        >
+                                            {username}
+                                        </a>
+
+                                        {(username in usersAndTheirRelevantInfo &&
+                                        'isVerified' in usersAndTheirRelevantInfo[username] &&
+                                        usersAndTheirRelevantInfo[username].isVerified) &&
+                                            (
+                                                <img src={verifiedBlueCheck} style={{height: '1.4em',
+                                                width: '1.4em', pointerEvents: 'none', objectFit: 'contain',
+                                                marginLeft: '-0.1em', marginRight: '-0.2em'}}/>
+                                            )
+                                        }
+                                    </span>
+
+                                    <span style={{marginRight: '0.15em'}}>, </span>
+
+                                    {index == postDetails.likersFollowedByAuthUser.length-1 &&
+                                        (
+                                            <>
+                                                <span>and </span>
+                                                <b onClick={() => {
+                                                    setDisplayTaggedAccountsOfSlide(false);
+                                                    setDisplaySectionsOfVidSlide(false);
+                                                    notifyParentToShowPostLikersPopup(overallPostId);
+                                                }}
+                                                style={{cursor: 'pointer'}}>
+                                                    {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length}
+                                                </b>
+
+                                                {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
+                                                    <b onClick={() => {
+                                                        setDisplayTaggedAccountsOfSlide(false);
+                                                        setDisplaySectionsOfVidSlide(false);
+                                                        notifyParentToShowPostLikersPopup(overallPostId);
+                                                    }}
+                                                    style={{cursor: 'pointer'}}> other</b>
+                                                }
+
+                                                {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
+                                                    <b onClick={() => {
+                                                        setDisplayTaggedAccountsOfSlide(false);
+                                                        setDisplaySectionsOfVidSlide(false);
+                                                        notifyParentToShowPostLikersPopup(overallPostId);
+                                                    }}
+                                                    style={{cursor: 'pointer'}}> others</b>
+                                                }
+                                            </>
+                                        )
+                                    }
+                                </>
+                            ))
+                        }
+                    </p>
+                )
+            }
+
+            <p style={{maxWidth: '100%', overflowWrap: 'break-word', textAlign: 'start', marginBottom: '0em'}}>
+                <span style={{ display: 'inline-flex', alignItems: 'center'}}>
+                    <a
+                        href={`http://34.111.89.101/profile/${mainPostAuthor}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ fontWeight: 'bold' }}
+                    >
+                        {mainPostAuthor}
+                    </a>
+
+                    {('isVerified' in mainPostAuthorInfo && mainPostAuthorInfo.isVerified) &&
+                        (
+                            <img src={verifiedBlueCheck} style={{height: '1.4em',
+                            width: '1.4em', marginLeft: '-0.1em', pointerEvents: 'none', objectFit: 'contain'}}/>
+                        )
+                    }
+                </span>
+                {elementsForCaption}
+            </p>
+
+            <p onClick={() => {
+                setDisplayTaggedAccountsOfSlide(false);
+                setDisplaySectionsOfVidSlide(false);
+                notifyParentToShowCommentsPopup(
+                    postDetails, currSlide, newlyPostedCommentsByAuthUser
+                );
+            }} className="loseOpacityWhenActive"
+            style={{color: 'gray', cursor: 'pointer', marginBottom: '1em'}}>
+                {
+                    postDetails.numComments==0 ? 'No comments yet' :
+                    postDetails.numComments==1 ? 'View 1 comment' :
+                    `View all ${postDetails.numComments.toLocaleString()} comments`
+                }
+            </p>
+
+            <div style={{width: '100%', height: '3em', position: 'relative'}}>
+                <input value={commentInput} onChange={updateCommentInput}
+                placeholder="Add a comment..."
+                style={{fontFamily: 'Arial', width: '100%', outline: 'none', borderTop: 'none',
+                borderLeft: 'none', borderRight: 'none', borderColor: 'lightgray',
+                fontSize: '1em', paddingBottom: '1em'}}/>
+
+                {commentInput.length>0 &&
+                    (
+                        <b onClick={postComment} style={{cursor: 'pointer', color: '#28a2fa', position: 'absolute',
+                        right: '0%', top: '0%'}}>
+                            Post
+                        </b>
+                    )
+                }
+            </div>
+
         </div>
-        <span style={{color:'gray'}}>{this.props.isAd && <span style={{color:'black'}}> • Sponsored</span>} • {this.state.timeText}</span></span>
-        <span style={{fontSize:'0.9em', cursor:'pointer'}}>{this.state.locationText}</span>
-        {this.state.songName.length>0 &&
-        <div style={{display:'flex', alignItems:'center', width:'400%', gap:'0.65em'}}>
-        <img className="iconToBeAdjustedForDarkMode" src={musicIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>
-        <b style={{fontSize:'0.9em'}}>{this.state.songName}</b>
-        {this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={sidewaysTriangle} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
-        {!this.state.songIsPaused && <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSongPause} src={playIcon} style={{height:'0.95em', width:'0.95em', objectFit:'contain', cursor:'pointer'}}/>}
-        </div>}
-        </div>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {()=>{this.props.showThreeDotsPopup(this.state.postId, this.props.id)}} src={threeHorizontalDots} style={{height:'4em', width:'4em', objectFit:'contain', marginLeft:'19em',
-        cursor:'pointer'}}/>
-        </div>
-        <div onClick={this.handleClick} onDoubleClick = {this.likePost} style={{position:'absolute', top:'10%', width:'37em', height:'45em', marginLeft:'-0.5em', backgroundColor:'black'}}>
-        <div style={{position:'absolute', position:'relative', top:'20%', left:'0%'}} data-vjs-player>
-        <video id="videoPlayer" src={this.state.videoUrl} ref={this.videoNode} className="video-js" width="600" height="800">
-        </video>
-        {this.state.showLeftBanner && (<img src={rewind5Seconds} style={{height:'30%', width:'30%', objectFit:'contain', position:'absolute', top: '35%', left: '0%'}}/>)}
-        {this.state.showRightBanner && (<img src={fastForward5Seconds} style={{height:'33%', width:'33%', objectFit: 'contain', position:'absolute', top: '35%', left: '73%'}}/>)}
-        {this.state.showPauseSymbol && (<img src={pauseIcon} style={{height:'20%', width:'20%', objectFit: 'contain', position:'absolute', top: '35%', left: '38%'}}/>)}
-        {this.state.showSettingsPopup && (
-        <div style={{borderStyle: 'solid', borderWidth: '0.0001px', backgroundColor: 'rgb(0,0,0,0.2)', color: 'white', position:'absolute', top:'77%', left:'77%', width:'10%', height: '10%'}}>
-        <p onClick={this.showQuality} style={{cursor:'pointer'}}> Quality </p>
-        </div>
-        )}
-        {this.state.showQualityOptions && (
-        <div style={{borderStyle: 'solid',  borderWidth: '0.0001px', backgroundColor: 'rgb(0,0,0,0.2)', color: 'white', position:'absolute', top:'20%', left:'77%', width:'10%',
-        display: 'flex', flexDirection:'column', alignItems:'center', justifyContent:'enter'}}>
-        <p style={{cursor:'pointer'}}>8k</p>
-        <p style={{cursor:'pointer'}}>4k</p>
-        <p style={{cursor:'pointer'}}>1080p</p>
-        <p style={{cursor:'pointer'}}>720p</p>
-        <p style={{cursor:'pointer'}}>360p</p>
-        <p style={{cursor:'pointer'}}>144p</p>
-        <p style={{cursor:'pointer'}}>Auto</p>
-        </div>
-        )}
-        {this.state.showSection && <p onClick={this.showSections} style={{position:'absolute', top:'93%', left:'35%', cursor:'pointer', color:'white', fontWeight:'bold', fontSize:'0.94em'}}>{this.state.currSection}</p>}
-        {this.state.showPreview &&
-        <div>
-        <img src={this.state.previewImage} style={{height:'16%', width:'16%', objectFit:'contain', position:'absolute', top:'65%', left:this.state.previewLeft+'%'}}/>
-        <p style={{color:'white', position:'absolute', top: '83%', left: (this.state.previewLeft+6.5) + '%'}}>{this.state.previewTime}</p>
-        </div>
-        }
-        </div>
-        {this.props.postDetails && <img className="iconToBeAdjustedForDarkMode" onClick={this.showNextSlide} src={rightArrow} style={{objectFit:'contain', width:'2em', height:'2em', position:'absolute', top:'45%', left:'100%', cursor:'pointer',
-        display: this.state.currSlide < this.state.numPosts-1 ? 'inline-block' : 'none'}}/>}
-        <img className="iconToBeAdjustedForDarkMode" onClick={this.showPreviousSlide} src={backArrow} style={{objectFit:'contain', width:'1.4em', height:'1.4em', position:'absolute', top:'45%', left:'-5%', cursor:'pointer',
-        display: this.state.currSlide > 0 ? 'inline-block' : 'none'}}/>
-        <img src={taggedAccountsIcon} onClick={this.toggleTags} style={{objectFit:'contain', width:'2.7em', height:'2.7em', position:'absolute', top:'92%', left:'3%', cursor:'pointer'}}/>
-        {this.props.postDetails && <PostDots numSlides={this.state.numPosts} currSlide={this.state.currSlide}/>}
-        {this.props.postDetails !== null && this.state.showTags && shownTags.length > 0 &&
-        <div style={{position:'absolute', top:'72%', left:'25%', width:'50%', height:'20%', display:'flex',
-        flexDirection:'column', alignItems:'start', backgroundColor:'white', overflow:'scroll', borderRadius:'5%', paddingTop:'1%'}}>
-        <b style={{marginLeft:'30%'}}>Tagged Accounts</b>
-        <hr style={{width: '100%', borderTop: '1px solid lightgray'}} />
-        {shownTags}
-        </div>
-        }
-        </div>
-        <div style={{display:'flex', position:'absolute', top:'72%', alignItems:'center'}}>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {this.toggleHeart} src={blankHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
-        display: this.state.isLiked ? 'none' : 'inline-block'}}/>
-        <img onClick = {this.toggleHeart} src={redHeart} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer',
-        display: this.state.isLiked ? 'inline-block' : 'none'}}/>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
-        src={commentIcon} style={{height:'3em', width:'3em', objectFit:'contain', cursor: 'pointer'}}/>
-        <img className="iconToBeAdjustedForDarkMode" onClick = {this.props.showSendPostPopup} src={sendIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', cursor: 'pointer'}}/>
-        <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={saveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
-        display: this.state.isSaved ? 'none' : 'inline-block'}}/>
-        <img className="iconToBeAdjustedForDarkMode" onClick={this.toggleSave} src={blackSaveIcon} style={{height:'3.2em', width:'3.2em', objectFit:'contain', marginLeft:'24em', cursor: 'pointer',
-        display: !this.state.isSaved ? 'none' : 'inline-block'}}/>
-        </div>
-        <div style={{position:'absolute', top:'77%', display:'flex', flexDirection:'column', alignItems:'start', width:'37em', gap:'0.8em'}}>
-        <b onClick={()=>{this.props.showPostLikersPopup(this.state.postId)}} style={{fontSize:'1.1em', cursor:'pointer'}}>{this.state.likesText}</b>
-        {this.props.postDetails &&
-        <div style={{display:'flex', alignItems:'center'}}>
-        <b style={{fontSize:'1.1em'}}>{this.props.postDetails[2]['username']}</b>
-        {this.state.isVerified && <img src={verifiedBlueCheck} style={{height:'1.5em', width:'1.5em', objectFit:'contain', paddingBottom:'0%', verticalAlign: 'text-bottom'}}/>}
-        </div>
-        }
-        {this.formatText(this.state.caption)}
-        <p onClick={() => this.props.showCommentsPopup(this.props.postDetails, this.state.numLikes,
-        this.props.numComments, this.state.currSlide, this.state.isLiked, this.props.isAd, this.state.isSaved, this.props.id)}
-        style={{color:'gray', marginTop:'0.4em', fontSize:'1.15em', cursor:'pointer'}}>{this.state.viewAllCommentsText}</p>
-        <br/>
-        <div>
-        <textarea className="textArea" type="text" value={this.state.comment} onChange={this.handleCommentChange} style={{padding: '0.5em', fontSize: '1.1em', marginTop:'-1.2em', width:'29em',
-        borderWidth: '0px 0px 0.1em 0px', outline:'none', color:'black', fontFamily:'Arial', resize:'true'}}
-        placeholder={this.state.addACommentText}/>
-        <span onClick={this.postComment} style={{color:'#387deb', fontWeight:'bold', cursor: 'pointer', display: this.state.sendComment ? 'inline-block' : 'none',
-        fontSize:'1.1em', marginLeft:'1.2em'}}>{this.state.postText}</span>
-        </div>
-        </div>
-        </div>
-        {this.state.showSections &&
-        <div style={{boxShadow:'0px 0px 10px 0px rgba(0, 0, 0, 0.2)', height:'43em', width:'22em', marginTop:'8em', display:'flex', flexDirection:'column', borderRadius:'8px',
-        borderColor:'lightgray', overflow:'scroll', paddingTop:'1em', paddingLeft:'1em', paddingRight:'1em', paddingBottom:'1em'}}>
-        <div style={{display:'flex', justifyContent:'space-between'}}>
-        <b>Chapters</b>
-        <img onClick={this.closeSections} src={closePopupIcon} style={{objectFit:'contain', height:'1em', width:'1em', cursor:'pointer'}}/>
-        </div>
-        <hr style={{width:'100%', color:'lightgray', marginTop:'0.7em'}}/>
-        {sections}
-        </div>}
-        </div>
-        )}
-        </React.Fragment>
-        );
-    };
+    )
 }
 
 export default MediaPost;

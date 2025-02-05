@@ -1,13 +1,13 @@
 import reportAProblemIcon from '../assets/images/reportAProblemIcon.png';
-import savedIcon from '../assets/images/saveIcon.png';
+import blankSavedIcon from '../assets/images/blankSavedIcon.png';
 import settingsIcon from '../assets/images/settingsIcon.png';
 import yourActivityIcon from '../assets/images/yourActivityIcon.png';
 
-function LeftSidebarPopup({username, notifyParentToShowErrorPopup}) {
+function LeftSidebarPopup({authUser, notifyParentToShowErrorPopup}) {
 
     async function logout() {
         try {
-            const response = await fetch(`http://34.111.89.101/api/Reset-Password/logout/${username}`, {
+            const response = await fetch(`http://34.111.89.101/api/Reset-Password/logout/${authUser}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
@@ -54,7 +54,7 @@ function LeftSidebarPopup({username, notifyParentToShowErrorPopup}) {
                 </div>
 
                 <div onClick={takeUserToSavedPosts} className="sidebarElement">
-                    <img className="iconToBeAdjustedForDarkMode" src={savedIcon} style={{height:'2em', width:'2em',
+                    <img className="iconToBeAdjustedForDarkMode" src={blankSavedIcon} style={{height:'2em', width:'2em',
                     pointerEvents:'none', objectFit:'contain'}}/>
                     <p style={{fontSize:'0.89em', marginLeft:'0.4em'}}>Saved</p>
                 </div>
