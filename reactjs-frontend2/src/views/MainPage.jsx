@@ -7,7 +7,7 @@ import Footer from "../components/footer";
 import LeftSidebar from "../components/leftSidebar";
 import LeftSidebarPopup from '../components/leftSidebarPopup';
 import MediaPost from "../components/mediaPost";
-import PostLikersPopup from '../components/postLikersPopup';
+import LikersPopup from '../components/likersPopup';
 import SendPostPopup from '../components/sendPostPopup';
 import ThreeDotsPopup from '../components/threeDotsPopup';
 import UserBar from "../components/userBar";
@@ -32,19 +32,18 @@ function MainPage({urlParams}) {
     const [authUser, setAuthUser] = useState('rishavry');
     const [displayThreeDotsPopup, setDisplayThreeDotsPopup] = useState(false);
     const [threeDotsPopupPostDetails, setThreeDotsPopupPostDetails] = useState(null);
-    const [displayCommentsPopup, setDisplayCommentsPopup] = useState(false);
+    const [displayCommentsPopup, setDisplayCommentsPopup] = useState(true);
     const [commentsPopupPostDetails, setCommentsPopupPostDetails] = useState(null);
     const [commentsPopupCurrSlide, setCommentsPopupCurrSlide] = useState(0);
     const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
-    const [displayPostLikersPopup, setDisplayPostLikersPopup] = useState(false);
-    const [postLikersPopupOverallPostId, setPostLikersPopupOverallPostId] = useState('');
+    const [displayLikersPopup, setDisplayLikersPopup] = useState(false);
+    const [likersPopupIdOfPostOrComment, setLikersPopupIdOfPostOrComment] = useState('');
     const [currStoryLevel, setCurrStoryLevel] = useState(0);
     const [displayAboutAccountPopup, setDisplayAboutAccountPopup] = useState(false);
     const [aboutAccountUsername, setAboutAccountUsername] = useState('');
     const [aboutAccountUserIsVerified, setAboutAccountUserIsVerified] = useState(false);
     const [aboutAccountUserHasStories, setAboutAccountUserHasStories] = useState(false);
     const [aboutAccountUserHasUnseenStory, setAboutAccountUserHasUnseenStory] = useState(false);
-    const [hiddenPosts, setHiddenPosts] = useState([]);
     const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
     const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
     const [errorPopupMessage, setErrorPopupMessage] = useState('');
@@ -58,15 +57,85 @@ function MainPage({urlParams}) {
     const [storiesSectionErrorMessage, setStoriesSectionErrorMessage] = useState('');
     const [orderedListOfUsernamesOfSuggestedAccounts, setOrderedListOfUsernamesOfSuggestedAccounts] = useState([]);
     const [suggestedAccountsSectionErrorMessage, setSuggestedAccountsSectionErrorMessage] = useState('');
-    const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
+    const [orderedListOfPosts, setOrderedListOfPosts] = useState([
+        {
+            overallPostId: '593e4353-22d5-47fd-a9e2-510a46c655b0',
+            authors: ['rishavry2', 'rishavry4', 'rishavry5'],
+            datetimeOfPost: "2025-01-24T13:49:00",
+            locationOfPost: "Virginia Beach, Virginia USA",
+            backgroundMusic: {
+                songTitle: "Torn",
+                songArtist: "Natalie Imbruglia",
+                src: torn
+            },
+            slides: [
+                {
+                    type: 'Image',
+                    src: scenicRoad,
+                    taggedAccounts: [
+                        ['saquon', 50, 20],
+                        ['jb', 66, 69]
+                    ]
+                },
+                {
+                    type: 'Image',
+                    src: scenicNature,
+                    taggedAccounts: []
+                },
+                {
+                    type: 'Video',
+                    src: vidPost,
+                    subtitles: [
+                        {
+                            langCode: 'en',
+                            src: subtitles1,
+                            default: true
+                        },
+
+                        {
+                            langCode: 'es',
+                            src: subtitles2
+                        },
+
+                        {
+                            langCode: 'de',
+                            src: subtitles3
+                        }
+                    ],
+                    sections: [
+                        [0, 'intro'],
+                        [1000, 'middle'],
+                        [2000, 'ending']
+                    ],
+                    taggedAccounts: [
+                        ['rishavry6', 'Following'],
+                        ['rishavry7', 'Follow']
+                    ]
+                },
+            ],
+            isLiked: false,
+            isSaved: false,
+            numLikes: 15565,
+            likersFollowedByAuthUser: ['rishavry5', 'rishavry6'],
+            numComments: 57,
+            caption: {
+                content: `Life\'s good when you bounce back from adversity and actively seek out whatever enriches
+                your soul! Me and @rishavry3 can testify to that! #fyp #blessed`,
+                datetime: "2025-01-24T13:49:00",
+                isEdited: false
+            },
+            adInfo: {
+                callToAction: 'fly here in 2 days!',
+                link: 'https://google.com'
+            },   
+        }
+    ]);
     const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
     const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState(null);
     const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
     const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
-    const [
-        newlyPostedCommentsByAuthUserForCommentsPopup,
-        setNewlyPostedCommentsByAuthUserForCommentsPopup
-    ] = useState([]);
+    const [commentsPopupMainPostAuthorInfo, setCommentsPopupMainPostAuthorInfo] = useState({});
+    const [likersPopupPostOrCommentText, setLikersPopupPostOrCommentText] = useState("");
 
     useEffect(() => {
         document.title = "Megagram";
@@ -106,10 +175,9 @@ function MainPage({urlParams}) {
         setDisplayThreeDotsPopup(true);
     }
 
-    function showCommentsPopup(postDetails, currSlide, newNewlyPostedCommentsByAuthUserForCommentsPopup) {
+    function showCommentsPopup(postDetails, currSlide, mainPostAuthorInfo) {
         setCommentsPopupPostDetails(postDetails);
-        setCommentsPopupCurrSlide(currSlide);
-        setNewlyPostedCommentsByAuthUserForCommentsPopup(newNewlyPostedCommentsByAuthUserForCommentsPopup);
+        setCommentsPopupMainPostAuthorInfo(mainPostAuthorInfo);
 
         setDisplayCommentsPopup(true);
     }
@@ -132,8 +200,13 @@ function MainPage({urlParams}) {
     };
 
     function hidePost(overallPostId) {
-        setHiddenPosts([...hiddenPosts, overallPostId]);
+        const newOrderedListOfPosts = orderedListOfPosts.filter(
+            postDetails => (postDetails.overallPostId !== overallPostId)
+        );
+        setOrderedListOfPosts(newOrderedListOfPosts);
+
         setDisplayThreeDotsPopup(false);
+        setDisplayCommentsPopup(false);
     }
 
     
@@ -256,75 +329,6 @@ function MainPage({urlParams}) {
     }
     
     async function fetchPosts(initialOrAdditionalText) {
-        setOrderedListOfPosts([
-            {
-                overallPostId: '593e4353-22d5-47fd-a9e2-510a46c655b0',
-                authors: ['rishavry2', 'rishavry4', 'rishavry5'],
-                datetimeOfPost: "2025-01-24T13:49:00",
-                locationOfPost: "Virginia Beach, Virginia USA",
-                backgroundMusic: {
-                    songTitle: "Torn",
-                    songArtist: "Natalie Imbruglia",
-                    src: torn
-                },
-                slides: [
-                    {
-                        type: 'Image',
-                        src: scenicRoad,
-                        taggedAccounts: [
-                            ['saquon', 50, 20],
-                            ['jb', 66, 69]
-                        ]
-                    },
-                    {
-                        type: 'Image',
-                        src: scenicNature,
-                        taggedAccounts: []
-                    },
-                    {
-                        type: 'Video',
-                        src: vidPost,
-                        subtitles: [
-                            {
-                                langCode: 'en',
-                                src: subtitles1,
-                                default: true
-                            },
-
-                            {
-                                langCode: 'es',
-                                src: subtitles2
-                            },
-
-                            {
-                                langCode: 'de',
-                                src: subtitles3
-                            }
-                        ],
-                        sections: [
-                            [0, 'intro'],
-                            [1000, 'middle'],
-                            [2000, 'ending']
-                        ],
-                        taggedAccounts: [
-                            ['rishavry6', 'Following'],
-                            ['rishavry7', 'Follow']
-                        ]
-                    },
-                ],
-                isLiked: false,
-                isSaved: false,
-                numLikes: 15565,
-                likersFollowedByAuthUser: ['rishavry5', 'rishavry6'],
-                numComments: 57,
-                caption: `Life\'s good when you bounce back from adversity and actively seek out whatever enriches
-                your soul! Me and @rishavry3 can testify to that! #fyp #blessed`,
-                adInfo: {
-                    callToAction: 'fly here in 2 days!',
-                    link: 'https://google.com'
-                }   
-            }
-        ]);
         setFetchingInitialPostsIsComplete(true);
         setIsCurrentlyFetchingAdditionalPosts(false);
         return;
@@ -880,13 +884,14 @@ function MainPage({urlParams}) {
         }
     }
 
-    function closePostLikersPopup () {
-        setDisplayPostLikersPopup(false);
+    function closeLikersPopup () {
+        setDisplayLikersPopup(false);
     }
 
-    function showPostLikersPopup(overallPostId) {
-        setPostLikersPopupOverallPostId(overallPostId);
-        setDisplayPostLikersPopup(true);
+    function showLikersPopup(postOrCommentText, likersPopupIdOfPostOrComment) {
+        setLikersPopupPostOrCommentText(postOrCommentText);
+        setLikersPopupIdOfPostOrComment(likersPopupIdOfPostOrComment);
+        setDisplayLikersPopup(true);
     }
 
     function incrementStoryLevel() {
@@ -923,10 +928,14 @@ function MainPage({urlParams}) {
     }
 
     function closeAllPopups() {
+        if(! (displayCommentsPopup && (displayThreeDotsPopup || displayAboutAccountPopup ||
+        displayErrorPopup || displaySendPostPopup || displayLikersPopup))) {
+            setDisplayCommentsPopup(false);
+        }
+
         setDisplayThreeDotsPopup(false);
-        setDisplayCommentsPopup(false);
         setDisplaySendPostPopup(false);
-        setDisplayPostLikersPopup(false);
+        setDisplayLikersPopup(false);
         setDisplayAboutAccountPopup(false);
         setDisplayLeftSidebarPopup(false);
         setDisplayErrorPopup(false);
@@ -1047,7 +1056,7 @@ function MainPage({urlParams}) {
                                     (
                                         <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
                                         left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none'}}/>
+                                        objectFit: 'contain', pointerEvents: 'none', display: 'none'}}/>
                                     )
                                 }
                             </div>
@@ -1074,7 +1083,6 @@ function MainPage({urlParams}) {
                                 {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length==0) &&
                                     (
                                         orderedListOfPosts
-                                        .filter(postDetails =>!hiddenPosts.includes(postDetails.overallPostId))
                                         .map((postDetails) => (
                                             <MediaPost
                                                 key={postDetails.overallPostId}
@@ -1089,7 +1097,7 @@ function MainPage({urlParams}) {
                                                 notifyParentToShowThreeDotsPopup={showThreeDotsPopupForPost}
                                                 notifyParentToShowCommentsPopup={showCommentsPopup}
                                                 notifyParentToShowSendPostPopup={showSendPostPopup}
-                                                notifyParentToShowPostLikersPopup={showPostLikersPopup}
+                                                notifyParentToShowLikersPopup={showLikersPopup}
                                                 notifyParentToShowErrorPopup={showErrorPopup}
                                                 notifyParentToUpdatePostDetails={updatePostDetails}
                                             />
@@ -1119,7 +1127,8 @@ function MainPage({urlParams}) {
                                 {isCurrentlyFetchingAdditionalPosts &&
                                     (
                                         <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}}/>
+                                        objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em',
+                                        display: 'none'}}/>
                                     )
                                 }
                             </div>
@@ -1128,7 +1137,7 @@ function MainPage({urlParams}) {
                                 (
                                     <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
                                     left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
-                                    objectFit: 'contain', pointerEvents: 'none'}}/>
+                                    objectFit: 'contain', pointerEvents: 'none', display: 'none'}}/>
                                 )
                             }
                         </div>
@@ -1221,7 +1230,7 @@ function MainPage({urlParams}) {
                                     <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center',
                                     width: '75%'}}>
                                         <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none'}}/>
+                                        objectFit: 'contain', pointerEvents: 'none', display: 'none'}}/>
                                     </div>
                                 )
                             }
@@ -1233,33 +1242,43 @@ function MainPage({urlParams}) {
                     </div>
 
                     {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup || 
-                    displayPostLikersPopup || displayAboutAccountPopup || displayLeftSidebarPopup ||
+                    displayLikersPopup || displayAboutAccountPopup || displayLeftSidebarPopup ||
                     displayErrorPopup)
                     && (
                             <img onClick={closeAllPopups} src={blackScreen} style={{position: 'fixed', 
-                            top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7'}}/>
+                            top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7', 
+                            zIndex: '2'}}/>
                         )
                     }
 
                     {displayCommentsPopup &&
                         (
-                            <div style={{display: displayErrorPopup ? 'none' : 'inline-block', position: 'fixed', top: '50%',
-                            left: '50%', transform: 'translate(-50%, -50%)'}}>
-                                <CommentsPopup
-                                    authUser={authUser} 
-                                    postDetails={commentsPopupPostDetails}
-                                    currSlide={commentsPopupCurrSlide}
-                                    notifyParentToClosePopup={hideCommentsPopup}
-                                    newlyPostedCommentsByAuthUser={newlyPostedCommentsByAuthUserForCommentsPopup}
-                                />
-                            </div>
+                            <CommentsPopup
+                                authUser={authUser} 
+                                postDetails={orderedListOfPosts[0]} //later replace with commentsPopupPostDetails
+                                currSlide={0} //later replace with commentsPopupCurrSlide
+                                notifyParentToClosePopup={hideCommentsPopup}
+                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                mainPostAuthorInfo={commentsPopupMainPostAuthorInfo}
+                                notifyParentToShowSendPostPopup={showSendPostPopup}
+                                notifyParentToUpdatePostDetails={updatePostDetails}
+                                notifyParentToShowErrorPopup={showErrorPopup}
+                                notifyParentToShowThreeDotsPopup={showThreeDotsPopupForPost}
+                                notifyParentToShowLikersPopup={showLikersPopup}
+                                notifyParentToUpdateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
+                                zIndex={
+                                    (displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup ||
+                                    displayAboutAccountPopup || displayErrorPopup) ? 
+                                    '1' : '3'
+                                }
+                            />
                         )
                     }
 
                     {displayLeftSidebarPopup &&
                         (
-                            <div style={{display: displayErrorPopup ? 'none' : 'inline-block', position: 'fixed', bottom: '10%',
-                            left: '1%'}}>
+                            <div style={{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ? '1'
+                            : '3'}}>
                                 <LeftSidebarPopup
                                     authUser={authUser}
                                     notifyParentToShowErrorPopup={showErrorPopup}
@@ -1270,8 +1289,8 @@ function MainPage({urlParams}) {
 
                     {displayThreeDotsPopup &&
                         (
-                            <div style={{display: displayErrorPopup ? 'none' : 'inline-block', position: 'fixed', top: '50%', 
-                            left: '50%', transform: 'translate(-50%, -50%)'}}>
+                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            zIndex: displayErrorPopup ? '1': '3'}}>
                                 <ThreeDotsPopup
                                     authUser={authUser}
                                     notifyParentToClosePopup={closeThreeDotsPopup}
@@ -1286,8 +1305,8 @@ function MainPage({urlParams}) {
 
                     {displaySendPostPopup &&
                         (
-                            <div style={{display: displayErrorPopup ? 'none' : 'inline-block', position: 'fixed',
-                            top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}}>
+                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            zIndex: displayErrorPopup ? '1': '3'}}>
                                 <SendPostPopup
                                     authUser={authUser}
                                     overallPostId={sendPostPopupOverallPostId}
@@ -1300,16 +1319,17 @@ function MainPage({urlParams}) {
                         )
                     }
 
-                    {displayPostLikersPopup &&
+                    {displayLikersPopup &&
                         (
-                            <div style={{display: displayErrorPopup ? 'none' : 'inline-block', position: 'fixed', top: '50%',
-                            left: '50%', transform: 'translate(-50%, -50%)'}}>
-                                <PostLikersPopup
+                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            zIndex: displayErrorPopup ? '1': '3'}}>
+                                <LikersPopup
                                     authUser={authUser}
-                                    overallPostId={postLikersPopupOverallPostId}
+                                    idOfPostOrComment={likersPopupIdOfPostOrComment}
                                     usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                    postOrCommentText={likersPopupPostOrCommentText}
                                     notifyParentToUpdateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                    notifyParentToClosePopup={closePostLikersPopup}
+                                    notifyParentToClosePopup={closeLikersPopup}
                                     notifyParentToShowErrorPopup={showErrorPopup}
                                 />
                             </div>
@@ -1318,8 +1338,8 @@ function MainPage({urlParams}) {
 
                     {displayAboutAccountPopup &&
                         (
-                            <div style={{display: displayErrorPopup ? 'none' : 'inline-block', position: 'fixed', top: '50%',
-                            left: '50%', transform: 'translate(-50%, -50%)'}}>
+                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            zIndex: '3'}}>
                                 <AboutAccountPopup
                                     authUser={authUser}
                                     usernameOfMainPostAuthor={aboutAccountUsername}
@@ -1335,7 +1355,7 @@ function MainPage({urlParams}) {
                     {displayErrorPopup &&
                         (
                             <div style={{position: 'fixed', top: '50%', left: '50%',
-                            transform: 'translate(-50%, -50%)'}}>
+                            transform: 'translate(-50%, -50%)', zIndex: '3'}}>
                                 <ErrorPopup
                                     errorMessage={errorPopupMessage} notifyParentToClosePopup={closeErrorPopup}
                                 />

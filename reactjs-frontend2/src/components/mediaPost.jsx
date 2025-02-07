@@ -24,17 +24,16 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 import likePostAnimationHeartIcon from '../assets/images/likePostAnimationHeartIcon.webp';
 
 function MediaPost({postDetails, authUser, notifyParentToShowThreeDotsPopup, notifyParentToShowCommentsPopup,
-notifyParentToShowSendPostPopup, notifyParentToShowPostLikersPopup, notifyParentToShowErrorPopup,
+notifyParentToShowSendPostPopup, notifyParentToShowLikersPopup, notifyParentToShowErrorPopup,
 mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo}) {
     const [overallPostId, setOverallPostId] = useState('');
     const [mainPostAuthor, setMainPostAuthor] = useState('');
     const [currSlide, setCurrSlide] = useState(0);
     const [backgroundMusicIsPlaying, setBackgroundMusicIsPlaying] = useState(false);
-    const [backgroundMusicInfo, setBackgroundMusicInfo] = useState(null);
+    const [backgroundMusicObject, setBackgroundMusicObject] = useState(null);
     const [displayTaggedAccountsOfSlide, setDisplayTaggedAccountsOfSlide] = useState(false);
     const [elementsForCaption, setElementsForCaption] = useState([]);
     const [commentInput, setCommentInput] = useState('');
-    const [newlyPostedCommentsByAuthUser, setNewlyPostedCommentsByAuthUser] = useState([]);
     const [elementsForTaggedAccountsOfImageSlide, setElementsForTaggedAccountsOfImageSlide] = useState([]);
     const [numLikes, setNumLikes] = useState(-1);
     const [displaySectionsOfVidSlide, setDisplaySectionsOfVidSlide] = useState(false);
@@ -47,6 +46,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     const hiddenVideoSlideForFrameCollectionRef = useRef(null);
     const canvasRef = useRef(null);
     const slideContainerRef = useRef(null);
+    
     const languageCodeToLabelMappings = {
         "af": "Afrikaans",
         "sq": "Albanian",
@@ -131,7 +131,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         "xh": "Xhosa",
         "yi": "Yiddish",
         "zu": "Zulu"
-      };
+    };
       
 
     useEffect(() => {
@@ -140,7 +140,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         setNumLikes(postDetails.numLikes);
 
         if(postDetails.backgroundMusic!==null) {
-            setBackgroundMusicInfo(new Audio(postDetails.backgroundMusic.src));
+            setBackgroundMusicObject(new Audio(postDetails.backgroundMusic.src));
         }
         finishSettingElementsForCaption();
 
@@ -169,6 +169,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function markPostAsViewed() {
+        return;
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/markPostAsViewed/${authUser}/${overallPostId}`, {
@@ -231,10 +232,10 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
 
     function togglePauseBackgroundMusic() {
         if(!backgroundMusicIsPlaying) {
-            backgroundMusicInfo.play();
+            backgroundMusicObject.play();
         }
         else {
-            backgroundMusicInfo.pause();
+            backgroundMusicObject.pause();
         }
         setBackgroundMusicIsPlaying(!backgroundMusicIsPlaying);
     }
@@ -268,66 +269,148 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         }
     }
 
-    function likePost(event) {
+    async function likePost(event) {
+        let likeWasSuccessful = true;
         if(!postDetails.isLiked) {
-            notifyParentToUpdatePostDetails(
-                overallPostId,
-                {
-                    isLiked: true,
-                    numLikes: numLikes+1
+            try {
+                const response = await fetch(
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addPostLike/${authUser}/${overallPostId}`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                if(!response.ok) {
+                    notifyParentToShowErrorPopup('The server had trouble adding your like to this post');
+                    likeWasSuccessful = false;
                 }
-            );
-            setNumLikes(numLikes+1);
+                else {
+                    notifyParentToUpdatePostDetails(
+                        overallPostId,
+                        {
+                            isLiked: true,
+                            numLikes: numLikes+1
+                        }
+                    );
+                    setNumLikes(numLikes+1);
+                }
+            }
+            catch (error) {
+                notifyParentToShowErrorPopup(
+                    'There was trouble connecting to the server to add your like to this post'
+                );
+                likeWasSuccessful = false;
+            }
         }
 
-        if (slideContainerRef.current) {
-            const rect = slideContainerRef.current.getBoundingClientRect();
-            const x = event.clientX;
-            const y = event.clientY;
-            const xPercent = ((x - rect.left) / rect.width) * 100;
-            const yPercent = ((y - rect.top) / rect.height) * 100;
-            startLikePostHeartAnimation(xPercent, yPercent);
+        if (likeWasSuccessful) {
+            if(event==null) {
+                startLikePostHeartAnimation(50, 50);
+            }
+            else if (slideContainerRef.current) {
+                const rect = slideContainerRef.current.getBoundingClientRect();
+                const x = event.clientX;
+                const y = event.clientY;
+                const xPercent = ((x - rect.left) / rect.width) * 100;
+                const yPercent = ((y - rect.top) / rect.height) * 100;
+                startLikePostHeartAnimation(xPercent, yPercent);
+            }
         }
     }
 
-    function toggleLikePost() {
+    async function toggleLikePost() {
         if(!postDetails.isLiked) {
-            startLikePostHeartAnimation(50, 50);
-            notifyParentToUpdatePostDetails(
-                overallPostId,
-                {
-                    isLiked: true,
-                    numLikes: numLikes+1
-                }
-            );
-            setNumLikes(numLikes+1);
+            likePost(null);
         }
         else {
-            setIntervalIdForLikePostHeartAnimation(null);
-            notifyParentToUpdatePostDetails(
-                overallPostId,
-                {
-                    isLiked: false,
-                    numLikes: numLikes-1
+            try {
+                const response = await fetch(
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removePostLike/${authUser}/${overallPostId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if(!response.ok) {
+                    notifyParentToShowErrorPopup('The server had trouble removing your like of this post');
                 }
-            );
-            setNumLikes(numLikes-1);
+                else {
+                    setIntervalIdForLikePostHeartAnimation(null);
+                    notifyParentToUpdatePostDetails(
+                        overallPostId,
+                        {
+                            isLiked: false,
+                            numLikes: numLikes-1
+                        }
+                    );
+                    setNumLikes(numLikes-1);
+                }
+            }
+            catch (error) {
+                notifyParentToShowErrorPopup(
+                    'There was trouble connecting to the server to remove your like of this post'
+                );
+            }
         }
     }
 
-    function toggleSavePost() {
-        notifyParentToUpdatePostDetails(
-            overallPostId,
-            {
-                isSaved: !postDetails.isSaved
+    async function toggleSavePost() {
+        let toggleSaveWasSuccessful = false;
+        if(postDetails.isSaved) {
+            try {
+                const response = await fetch(
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removeSave/${authUser}/${overallPostId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                if(!response.ok) {
+                    notifyParentToShowErrorPopup(
+                        'The server had trouble removing your save of this post'
+                    );
+                }
+                else {
+                    toggleSaveWasSuccessful = true;
+                }
             }
-        );
+            catch (error) {
+                notifyParentToShowErrorPopup(
+                    'There was trouble connecting to the server for removing your save of this post'
+                );
+            }
+        }
+        else {
+           try {
+                const response = await fetch(
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addSave/${authUser}/${overallPostId}`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                if(!response.ok) {
+                    notifyParentToShowErrorPopup(
+                        'The server had trouble adding your save to this post'
+                    );
+                }
+                else {
+                    toggleSaveWasSuccessful = true;
+                }
+           }
+           catch (error) {
+                notifyParentToShowErrorPopup(
+                    'There was trouble connecting to the server for adding your save to this post'
+                );
+           }
+        }
+
+        if(toggleSaveWasSuccessful) {
+            notifyParentToUpdatePostDetails(
+                overallPostId,
+                {
+                    isSaved: !postDetails.isSaved
+                }
+            );
+        }
     }
 
     function finishSettingElementsForCaption() {
         const newElementsForCaption = [' '];
 
-        let caption = postDetails.caption;
+        let caption = postDetails.caption.content;
         while (caption.length > 0) {
             const indexOfNextAtSymbol = caption.indexOf('@');
             const indexOfNextHashtag = caption.indexOf('#');
@@ -407,7 +490,6 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                 notifyParentToShowErrorPopup('The server had trouble adding your comment.');
             }
             else {
-                setNewlyPostedCommentsByAuthUser([...newlyPostedCommentsByAuthUser, commentInput]);
                 notifyParentToUpdatePostDetails(
                     overallPostId,
                     {
@@ -586,7 +668,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                                         }
 
                                         {(index === postDetails.authors.length - 2 && index > 0) &&
-                                            <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>,  and </span>
+                                            <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>, and </span>
                                         }
                                     </>
                                 ))
@@ -607,7 +689,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                             )
                         }
 
-                        {backgroundMusicInfo!==null &&
+                        {backgroundMusicObject!==null &&
                             (
                                 <div style={{display: 'flex', alignItems: 'center', gap: '0.5em',
                                 fontSize: '0.88em', marginBottom: '-1em'}}>
@@ -968,7 +1050,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                             setDisplayTaggedAccountsOfSlide(false);
                             setDisplaySectionsOfVidSlide(false);
                             notifyParentToShowCommentsPopup(
-                                postDetails, currSlide, newlyPostedCommentsByAuthUser
+                                postDetails, currSlide, mainPostAuthorInfo
                             );
                         }}
                         className="mediaPostButton iconToBeAdjustedForDarkMode"
@@ -1008,11 +1090,11 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                     <b onClick={() => {
                         setDisplayTaggedAccountsOfSlide(false);
                         setDisplaySectionsOfVidSlide(false);
-                        notifyParentToShowPostLikersPopup(overallPostId);
+                        notifyParentToShowLikersPopup('post', overallPostId);
                     }}
                     style={{marginBottom: '0em', maxWidth: '60%',
                     overflowWrap: 'break-word', textAlign: 'start'}}>
-                        {numLikes.toLocaleString() + numLikes==1 ? ' like' : ' likes'}
+                        {numLikes.toLocaleString() + (numLikes==1 ? ' like' : ' likes')}
                     </b>
                 )
             }
@@ -1055,26 +1137,29 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                                                 <b onClick={() => {
                                                     setDisplayTaggedAccountsOfSlide(false);
                                                     setDisplaySectionsOfVidSlide(false);
-                                                    notifyParentToShowPostLikersPopup(overallPostId);
+                                                    notifyParentToShowLikersPopup('post', overallPostId);
                                                 }}
                                                 style={{cursor: 'pointer'}}>
-                                                    {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length}
+                                                    {
+                                                        (numLikes-postDetails.likersFollowedByAuthUser.length).
+                                                        toLocaleString()
+                                                    }
                                                 </b>
 
-                                                {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
+                                                {numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
                                                     <b onClick={() => {
                                                         setDisplayTaggedAccountsOfSlide(false);
                                                         setDisplaySectionsOfVidSlide(false);
-                                                        notifyParentToShowPostLikersPopup(overallPostId);
+                                                        notifyParentToShowLikersPopup('post', overallPostId);
                                                     }}
                                                     style={{cursor: 'pointer'}}> other</b>
                                                 }
 
-                                                {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
+                                                {numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
                                                     <b onClick={() => {
                                                         setDisplayTaggedAccountsOfSlide(false);
                                                         setDisplaySectionsOfVidSlide(false);
-                                                        notifyParentToShowPostLikersPopup(overallPostId);
+                                                        notifyParentToShowLikersPopup('post', overallPostId);
                                                     }}
                                                     style={{cursor: 'pointer'}}> others</b>
                                                 }
@@ -1113,7 +1198,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                 setDisplayTaggedAccountsOfSlide(false);
                 setDisplaySectionsOfVidSlide(false);
                 notifyParentToShowCommentsPopup(
-                    postDetails, currSlide, newlyPostedCommentsByAuthUser
+                    postDetails, currSlide, mainPostAuthorInfo
                 );
             }} className="loseOpacityWhenActive"
             style={{color: 'gray', cursor: 'pointer', marginBottom: '1em'}}>

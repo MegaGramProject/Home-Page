@@ -6,53 +6,65 @@ import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 
-function PostLikersPopup({authUser, overallPostId, notifyParentToClosePopup, notifyParentToShowErrorPopup,
-usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
+function LikersPopup({authUser, idOfPostOrComment, notifyParentToClosePopup, notifyParentToShowErrorPopup,
+usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOrCommentText}) {
     const [likers, setLikers] = useState([]);
-    const [initialPostLikersFetchingErrorMessage, setInitialPostLikersFetchingErrorMessage] = useState("");
+    const [initialLikersFetchingErrorMessage, setInitialLikersFetchingErrorMessage] = useState("");
     const [likersToExclude, setLikersToExclude] = useState([]);
-    const [fetchingInitialPostLikersIsComplete, setFetchingInitialPostLikersIsComplete] = useState(false);
-    const [isCurrentlyFetchingAdditionalPostLikers, setIsCurrentlyFetchingAdditionalPostLikers] = useState(false);
-    const [additionalPostLikersFetchingErrorMessage, setAdditionalPostLikersFetchingErrorMessage] = useState('');
+    const [fetchingInitialLikersIsComplete, setFetchingInitialLikersIsComplete] = useState(false);
+    const [isCurrentlyFetchingAdditionalLikers, setIsCurrentlyFetchingAdditionalLikers] = useState(false);
+    const [additionalLikersFetchingErrorMessage, setAdditionalLikersFetchingErrorMessage] = useState('');
     const scrollableLikersDivRef = useRef(null);
 
     useEffect(() => {
-        if (overallPostId.length==0) {
-            fetchPostLikers('initial');
-        }
-    }, [overallPostId]);
-    
-    useEffect(() => {
-        return () => {
-          window.removeEventListener('scroll', fetchAdditionalPostLikersWhenUserScrollsToBottomOfPopup);
-        };
-      }, []);
+        fetchLikers('initial');
 
-    async function fetchPostLikers(initialOrAdditionalText) {
+        return () => {
+            window.removeEventListener('scroll', fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
+        };
+    }, []);
+
+    async function fetchLikers(initialOrAdditionalText) {
+        console.log(idOfPostOrComment);
         const isInitialFetch = initialOrAdditionalText === 'initial';
         try {
             //batches of 20 likers will be fetched at a time
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/getPostLikers/${authUser}/${overallPostId}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    exclude: likersToExclude
-                }),
-                credentials: 'include'
-            });
+            let response;
+            if(postOrCommentText==='post') {
+                response = await fetch(
+                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getCommentLikers/${authUser}/${idOfPostOrComment}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        exclude: likersToExclude
+                    }),
+                    credentials: 'include'
+                });
+            }
+            else {
+                response = await fetch(
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/getPostLikers/${authUser}/${idOfPostOrComment}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        exclude: likersToExclude
+                    }),
+                    credentials: 'include'
+                });
+            }
             if(!response.ok) {
                 if(isInitialFetch) {
-                    setInitialPostLikersFetchingErrorMessage(
-                        "The server had trouble getting the initial likers of this post."
+                    console.log("A");
+                    setInitialLikersFetchingErrorMessage(
+                        `The server had trouble getting the initial likers of this ${postOrCommentText}.`
                     );
-                    setFetchingInitialPostLikersIsComplete(true);
+                    setFetchingInitialLikersIsComplete(true);
                 }
                 else {
-                    setAdditionalPostLikersFetchingErrorMessage(
-                        "The server had trouble getting the additional likers of this post."
+                    setAdditionalLikersFetchingErrorMessage(
+                        `The server had trouble getting the additional likers of this ${postOrCommentText}.`
                     );
-                    setIsCurrentlyFetchingAdditionalPostLikers(false);
+                    setIsCurrentlyFetchingAdditionalLikers(false);
                 }
                 return;
             }
@@ -123,27 +135,27 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
             setLikers(newLikers);
 
             if(isInitialFetch) {
-                setFetchingInitialPostLikersIsComplete(true);
+                setFetchingInitialLikersIsComplete(true);
                 setTimeout(() => {
-                    window.addEventListener("scroll", fetchAdditionalPostLikersWhenUserScrollsToBottomOfPopup);
+                    window.addEventListener("scroll", fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
                 }, 1500);
             }
             else {
-                setIsCurrentlyFetchingAdditionalPostLikers(false);
+                setIsCurrentlyFetchingAdditionalLikers(false);
             }
         }
         catch (error) {
             if(isInitialFetch) {
-                setInitialPostLikersFetchingErrorMessage(
-                    "There was trouble connecting to the server to get the initial likers of this post."
+                setInitialLikersFetchingErrorMessage(
+                    `There was trouble connecting to the server to get the initial likers of this ${postOrCommentText}.`
                 );
-                setFetchingInitialPostLikersIsComplete(true);
+                setFetchingInitialLikersIsComplete(true);
             }
             else {
-                setAdditionalPostLikersFetchingErrorMessage(
-                    "There was trouble connecting to the server to get the additional likers of this post."
+                setAdditionalLikersFetchingErrorMessage(
+                    `There was trouble connecting to the server to get the additional likers of this ${postOrCommentText}.`
                 );
-                setIsCurrentlyFetchingAdditionalPostLikers(false);
+                setIsCurrentlyFetchingAdditionalLikers(false);
             }
         }
     }
@@ -277,14 +289,14 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         return newUsersAndTheirRelevantInfo;
     }
 
-    function fetchAdditionalPostLikersWhenUserScrollsToBottomOfPopup() {
-        if (additionalPostLikersFetchingErrorMessage.length==0 &&
-        !isCurrentlyFetchingAdditionalPostLikers &&
+    function fetchAdditionalLikersWhenUserScrollsToBottomOfPopup() {
+        if (additionalLikersFetchingErrorMessage.length==0 &&
+        !isCurrentlyFetchingAdditionalLikers &&
         scrollableLikersDivRef.current &&
         scrollableLikersDivRef.current.clientHeight +  scrollableLikersDivRef.current.scrollTop >=
         scrollableLikersDivRef.current.scrollHeight) {
-            setIsCurrentlyFetchingAdditionalPostLikers(true);
-            fetchPostLikers('additional');
+            setIsCurrentlyFetchingAdditionalLikers(true);
+            fetchLikers('additional');
         }
     }
 
@@ -301,32 +313,32 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                 cursor:'pointer', position: 'absolute', right: '5%', top: '30%'}}/>
             </div>
 
-            {(fetchingInitialPostLikersIsComplete && initialPostLikersFetchingErrorMessage.length==0) &&
+            {(fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length==0) &&
                 (
                     likers
                 )
             }
 
-            {(fetchingInitialPostLikersIsComplete && initialPostLikersFetchingErrorMessage.length>0) &&
+            {(fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length>0) &&
                 (
                     <p style={{position: 'absolute', top: '50%', left: '50%',
                     transform: 'translate(-50%, -50%)', width: '75%', color: 'gray'}}>
-                        {initialPostLikersFetchingErrorMessage}
+                        {initialLikersFetchingErrorMessage}
                     </p>
                 )
             }
 
-            {(!isCurrentlyFetchingAdditionalPostLikers &&
-            additionalPostLikersFetchingErrorMessage.length>0) &&
+            {(!isCurrentlyFetchingAdditionalLikers &&
+            additionalLikersFetchingErrorMessage.length>0) &&
                 (
                     <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
                     marginTop: '3.75em'}}>
-                        {additionalPostLikersFetchingErrorMessage}
+                        {additionalLikersFetchingErrorMessage}
                     </p>
                 )
             } 
 
-            {isCurrentlyFetchingAdditionalPostLikers &&
+            {isCurrentlyFetchingAdditionalLikers &&
                 (
                     <img src={loadingAnimation} style={{height: '2em', width: '2em',
                     objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}}/>
@@ -336,4 +348,4 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     );
 }
 
-export default PostLikersPopup;
+export default LikersPopup;
