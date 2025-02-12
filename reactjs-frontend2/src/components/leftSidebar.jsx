@@ -28,7 +28,7 @@ function LeftSidebar({profilePhoto, displayPopup, toggleDisplayPopup}) {
     }
     
     return (
-        <div style={{position: 'fixed', height: '100%', top: '0%', left: '0%', width: '14.5em'}}>
+        <div id="leftSidebar" style={{position: 'fixed', height: '100%', top: '0%', left: '0%', width: '14.5em'}}>
             <div style={{width:'100%', height:'100%', borderStyle:'solid',
             borderColor:'lightgray',  borderWidth: '0em 0.01em 0em 0em', position: 'relative',
             paddingTop: '1.5em'}}>

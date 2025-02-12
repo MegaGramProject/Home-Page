@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 import AboutAccountPopup from '../components/aboutAccountPopup';
 import CommentsPopup from '../components/commentsPopup';
@@ -6,9 +7,10 @@ import ErrorPopup from '../components/errorPopup';
 import Footer from "../components/footer";
 import LeftSidebar from "../components/leftSidebar";
 import LeftSidebarPopup from '../components/leftSidebarPopup';
-import MediaPost from "../components/mediaPost";
 import LikersPopup from '../components/likersPopup';
+import MediaPost from "../components/mediaPost";
 import SendPostPopup from '../components/sendPostPopup';
+import StoryViewer from '../components/storyViewer';
 import ThreeDotsPopup from '../components/threeDotsPopup';
 import UserBar from "../components/userBar";
 import UserIcon from "../components/userIcon";
@@ -18,13 +20,9 @@ import blackScreen from "../assets/images/blackScreen.png";
 import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import rightArrow from "../assets/images/nextArrow.png";
+//import videoPost from '../assets/misc/videoPost.mp4';
+import dogVid from '../assets/misc/dogVid.mp4';
 import scenicRoad from '../assets/images/scenicRoad.jpg';
-import scenicNature from '../assets/images/scenicNature.jpg';
-import vidPost from '../assets/misc/videoPost.mp4';
-import subtitles1 from '../assets/misc/subtitles1.vtt';
-import subtitles2 from '../assets/misc/subtitles2.vtt';
-import subtitles3 from '../assets/misc/subtitles3.vtt';
-import torn from '../assets/misc/torn.mp3';
 
 import '../styles.css';
 
@@ -32,7 +30,7 @@ function MainPage({urlParams}) {
     const [authUser, setAuthUser] = useState('rishavry');
     const [displayThreeDotsPopup, setDisplayThreeDotsPopup] = useState(false);
     const [threeDotsPopupPostDetails, setThreeDotsPopupPostDetails] = useState(null);
-    const [displayCommentsPopup, setDisplayCommentsPopup] = useState(true);
+    const [displayCommentsPopup, setDisplayCommentsPopup] = useState(false);
     const [commentsPopupPostDetails, setCommentsPopupPostDetails] = useState(null);
     const [commentsPopupCurrSlide, setCommentsPopupCurrSlide] = useState(0);
     const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
@@ -48,8 +46,19 @@ function MainPage({urlParams}) {
     const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
     const [errorPopupMessage, setErrorPopupMessage] = useState('');
     const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
-    const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
-    const [orderedListOfUsernamesInStoriesSection, setOrderedListOfUsernamesInStoriesSection] = useState([]);
+    const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({
+        'rishavry': 0
+    });
+    const [orderedListOfUsernamesInStoriesSection, setOrderedListOfUsernamesInStoriesSection] = useState([
+        'rishavry',
+        'rishavry2',
+        'rishavry3',
+        'rishavry4',
+        'rishavry5',
+        'rishavry6',
+        'rishavry7',
+        'rishavry8'
+    ]);
     const [fetchingStoriesIsComplete, setFetchingStoriesIsComplete] = useState(false);
     const [fetchingSuggestedAccountsIsComplete, setFetchingSuggestedAccountsIsComplete] = useState(false);
     const [fetchingInitialPostsIsComplete, setFetchingInitialPostsIsComplete] = useState(false);
@@ -58,6 +67,7 @@ function MainPage({urlParams}) {
     const [orderedListOfUsernamesOfSuggestedAccounts, setOrderedListOfUsernamesOfSuggestedAccounts] = useState([]);
     const [suggestedAccountsSectionErrorMessage, setSuggestedAccountsSectionErrorMessage] = useState('');
     const [orderedListOfPosts, setOrderedListOfPosts] = useState([
+        /*
         {
             overallPostId: '593e4353-22d5-47fd-a9e2-510a46c655b0',
             authors: ['rishavry2', 'rishavry4', 'rishavry5'],
@@ -129,16 +139,24 @@ function MainPage({urlParams}) {
                 link: 'https://google.com'
             },   
         }
+        */
     ]);
     const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
     const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState(null);
     const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
     const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
     const [commentsPopupMainPostAuthorInfo, setCommentsPopupMainPostAuthorInfo] = useState({});
-    const [likersPopupPostOrCommentText, setLikersPopupPostOrCommentText] = useState("");
+    const [likersPopupPostOrCommentText, setLikersPopupPostOrCommentText] = useState('');
+    const [displayStoryViewer, setDisplayStoryViewer] = useState(false);
+    const [storyViewerIsFromStoriesSection, setStoryViewerIsFromStoriesSection] = useState(false);
+    const [storyViewerUsername, setStoryViewerUsername] = useState('');
+    const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
+    const [idsOfStoriesMarkedAsViewed, setIdsOfStoriesMarkedAsViewed] = useState(new Set());
+    const [originalURL, setOriginalURL] = useState('');
 
     useEffect(() => {
         document.title = "Megagram";
+        setOriginalURL(window.location.href);
         return;
         
         if(urlParams) {
@@ -178,7 +196,7 @@ function MainPage({urlParams}) {
     function showCommentsPopup(postDetails, currSlide, mainPostAuthorInfo) {
         setCommentsPopupPostDetails(postDetails);
         setCommentsPopupMainPostAuthorInfo(mainPostAuthorInfo);
-
+        setCommentsPopupCurrSlide(currSlide);
         setDisplayCommentsPopup(true);
     }
 
@@ -249,9 +267,46 @@ function MainPage({urlParams}) {
                 Users can post a max of 10 unexpired stories at a time.
             )
         */
+        setUsersAndTheirStories({
+            'rishavry': [
+                {
+                    id: uuidv4(),
+                    datetime: '2025-02-05T13:49:00',
+                    src: scenicRoad,
+                    vidDurationInSeconds: null,
+                    adInfo: {
+                        callToAction: 'fly here in 2 days!',
+                        link: 'https://google.com'
+                    }
+                },
+
+                {
+                    id: uuidv4(),
+                    datetime: '2025-02-08T13:49:00',
+                    src: dogVid,
+                    vidDurationInSeconds: 60,
+                    adInfo: null
+                },
+            ]
+        });
+        setUsersAndYourCurrSlideInTheirStories({
+            'rishavry': 0
+        });
+        setOrderedListOfUsernamesInStoriesSection([
+            authUser,
+            'rishavry2',
+            'rishavry3',
+            'rishavry4',
+            'rishavry5',
+            'rishavry6',
+            'rishavry7',
+            'rishavry8'
+        ]);
+        setFetchingStoriesIsComplete(true);
         return;
+
         const newUsersAndTheirStories = {};
-        const newUsersAndYourCurrSlideInTheirStory = {};
+        const newUsersAndYourCurrSlideInTheirStories = {};
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getOwnUnexpiredStories/${authUser}}`, {
@@ -263,7 +318,19 @@ function MainPage({urlParams}) {
             else {
                 const ownUnexpiredStoryData = await response.json();
                 newUsersAndTheirStories[authUser] = ownUnexpiredStoryData.stories;
-                newUsersAndYourCurrSlideInTheirStory[authUser] = ownUnexpiredStoryData.currSlide;
+                
+                if (ownUnexpiredStoryData.currSlide==='finished') {
+                    newUsersAndYourCurrSlideInTheirStories[authUser] = 0;
+                    setUsernamesWhoseStoriesYouHaveFinished(new Set(
+                        [
+                            authUser
+                        ]
+                    ));
+
+                }
+                else {
+                    newUsersAndYourCurrSlideInTheirStories[authUser] = ownUnexpiredStoryData.currSlide;
+                }
             }
         }
         catch (error) {
@@ -289,7 +356,7 @@ function MainPage({urlParams}) {
         }
         finally {
             setUsersAndTheirStories(newUsersAndTheirStories);
-            setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStory);
+            setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
             setOrderedListOfUsernamesInStoriesSection(newOrderedListOfUsernamesInStoriesSection);
             setFetchingStoriesIsComplete(true);
         }
@@ -973,6 +1040,49 @@ function MainPage({urlParams}) {
         }
     }
 
+    function showStoryViewer(newStoryViewerUsername, newStoryViewerIsFromStoriesSection) {
+        setStoryViewerUsername(newStoryViewerUsername);
+        setStoryViewerIsFromStoriesSection(newStoryViewerIsFromStoriesSection);
+        setDisplayStoryViewer(true);
+    }
+
+    function closeStoryViewer() {
+        window.history.pushState(
+            {
+                page: 'Home',
+            },
+            'Home',
+            originalURL
+        );
+        setDisplayStoryViewer(false);
+    }
+
+    function updateUsersAndTheirStories(newUsersAndTheirStories) {
+        setUsersAndTheirStories(newUsersAndTheirStories);
+    }
+
+    function updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories) {
+        setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+    }
+
+    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername) {
+        setUsernamesWhoseStoriesYouHaveFinished(new Set(
+            [
+                ...usernamesWhoseStoriesYouHaveFinished,
+                newUsername
+            ]
+        ));
+    }
+
+    function addStoryIdToSetOfViewedStoryIds(newStoryId) {
+        setIdsOfStoriesMarkedAsViewed(new Set(
+            [
+                ...idsOfStoriesMarkedAsViewed, 
+                newStoryId
+            ]
+        ));
+    }
+
     return (
         <>
             {authUser.length>0 &&
@@ -1000,8 +1110,7 @@ function MainPage({urlParams}) {
                                                 (authUser in usersAndTheirStories)
                                             }
                                             hasUnseenStory={
-                                                !(authUser in usersAndYourCurrSlideInTheirStories &&
-                                                usersAndYourCurrSlideInTheirStories[authUser] === 'finished')
+                                                !(usernamesWhoseStoriesYouHaveFinished.has(authUser))
                                             } 
                                             profilePhoto={
                                                 (authUser in usersAndTheirRelevantInfo) ?
@@ -1011,6 +1120,7 @@ function MainPage({urlParams}) {
                                                 (authUser in usersAndTheirRelevantInfo) ?
                                                 usersAndTheirRelevantInfo[authUser].isVerified : false
                                             }
+                                            notifyParentToShowStoryViewer={showStoryViewer}
                                         />
                                     )
                                 }
@@ -1018,6 +1128,7 @@ function MainPage({urlParams}) {
                                 {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length==0) &&
                                     (
                                     orderedListOfUsernamesInStoriesSection
+                                        .filter(username => username!==authUser)
                                         .slice(
                                             currStoryLevel * 6,
                                             currStoryLevel * 6 + 6
@@ -1029,7 +1140,9 @@ function MainPage({urlParams}) {
                                                 ownAccount={false}
                                                 inStoriesSection={true}
                                                 hasStories={true}
-                                                hasUnseenStory={true} 
+                                                hasUnseenStory={
+                                                    !(usernamesWhoseStoriesYouHaveFinished.has(username))
+                                                } 
                                                 profilePhoto={
                                                     (username in usersAndTheirRelevantInfo) ?
                                                     usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
@@ -1038,6 +1151,7 @@ function MainPage({urlParams}) {
                                                     (username in usersAndTheirRelevantInfo) ?
                                                     usersAndTheirRelevantInfo[username].isVerified : false
                                                 }
+                                                notifyParentToShowStoryViewer={showStoryViewer}
                                             />
                                         ))
                                     )
@@ -1066,7 +1180,7 @@ function MainPage({urlParams}) {
                                 (
                                     <img className="rightArrow" onClick={incrementStoryLevel} src={rightArrow}
                                     style={{height:'1.5em', width:'1.5em', objectFit:'contain', position:'absolute',
-                                    left:'88%', top:'3%', cursor:'pointer'}}/>
+                                    left:'80%', top:'20%', cursor:'pointer'}}/>
                                 )
                             }
 
@@ -1074,7 +1188,7 @@ function MainPage({urlParams}) {
                                 (
                                     <img className="leftArrow" onClick={decrementStoryLevel} src={backArrow}
                                     style={{height:'1em', width:'1em', objectFit:'contain', position:'absolute',
-                                    left:'-7.5%', top:'3%', cursor:'pointer'}}/>
+                                    left:'-6%', top:'20%', cursor:'pointer'}}/>
                                 )
                             }
 
@@ -1142,8 +1256,8 @@ function MainPage({urlParams}) {
                             }
                         </div>
                         
-                        <div style={{display:'flex', flexDirection:'column', alignItems: 'start', position: 'absolute',
-                        right:'0%', marginTop:'4em', width: '25em'}}>
+                        <div id="rightmostSection" style={{display:'flex', flexDirection:'column', alignItems: 'start',
+                        position: 'absolute', right:'0%', marginTop:'4em', width: '25em'}}>
                             <UserBar
                                 username={authUser}
                                 authUser={authUser}
@@ -1241,6 +1355,34 @@ function MainPage({urlParams}) {
                         </div>
                     </div>
 
+                    {displayStoryViewer &&
+                        (
+                            <StoryViewer
+                                username={storyViewerUsername}
+                                authUser={authUser}
+                                notifyParentToCloseStoryViewer={closeStoryViewer}
+                                usersAndTheirStories={usersAndTheirStories}
+                                usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
+                                orderedListOfUsernamesInStoriesSection={orderedListOfUsernamesInStoriesSection}
+                                isFromStoriesSection={storyViewerIsFromStoriesSection}
+                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                notifyParentToShowErrorPopup={showErrorPopup}
+                                notifyParentToUpdateUsersAndTheirStories={updateUsersAndTheirStories}
+                                notifyParentToUpdateUsersAndYourCurrSlideInTheirStories={
+                                    updateUsersAndYourCurrSlideInTheirStories
+                                }
+                                usernamesWhoseStoriesYouHaveFinished={usernamesWhoseStoriesYouHaveFinished}
+                                notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
+                                    addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
+                                }
+                                idsOfStoriesMarkedAsViewed={idsOfStoriesMarkedAsViewed}
+                                notifyParentToAddStoryIdToSetOfViewedStoryIds={
+                                    addStoryIdToSetOfViewedStoryIds
+                                }
+                            />
+                        )
+                    }
+
                     {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup || 
                     displayLikersPopup || displayAboutAccountPopup || displayLeftSidebarPopup ||
                     displayErrorPopup)
@@ -1255,8 +1397,8 @@ function MainPage({urlParams}) {
                         (
                             <CommentsPopup
                                 authUser={authUser} 
-                                postDetails={orderedListOfPosts[0]} //later replace with commentsPopupPostDetails
-                                currSlide={0} //later replace with commentsPopupCurrSlide
+                                postDetails={commentsPopupPostDetails}
+                                currSlide={commentsPopupCurrSlide}
                                 notifyParentToClosePopup={hideCommentsPopup}
                                 usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
                                 mainPostAuthorInfo={commentsPopupMainPostAuthorInfo}

@@ -819,7 +819,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                 (
                     <div ref={slideContainerRef} style={{width: '100%', height: '42em', position: 'relative',
                     backgroundColor: 'black'}}>
-                        <video ref={videoSlideRef} controls src={postDetails.slides[currSlide].src}
+                        <video ref={videoSlideRef} muted controls src={postDetails.slides[currSlide].src}
                         onDoubleClick={likePost}
                         style={{width: '100%', height: '100%', position: 'absolute', top: '0%', left: '0%'}}>
                             {postDetails.slides[currSlide].subtitles.map(subtitlesInfo =>

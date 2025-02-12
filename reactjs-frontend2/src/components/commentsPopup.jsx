@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
+import Comment from './comment';
 import FollowUser from './followUser';
 import PostDots from './postDots';
 import UserIcon from './userIcon';
-import Comment from './comment';
 
 import blackSavedIcon from '../assets/images/blackSavedIcon.png';
 import blankHeartIcon from '../assets/images/blankHeartIcon.png';
@@ -13,10 +12,13 @@ import commentIcon from '../assets/images/commentIcon.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
 import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
 import likePostAnimationHeartIcon from '../assets/images/likePostAnimationHeartIcon.webp';
+import loadingAnimation from '../assets/images/loadingAnimation.gif';
+import megaphone from '../assets/images/megaphone.png';
 import musicSymbol from '../assets/images/musicSymbol.png';
 import nextSlideArrow from '../assets/images/nextSlideArrow.png';
 import pauseIcon from '../assets/images/pauseIcon.png';
 import playIcon from '../assets/images/playIcon.webp';
+import plusIconInCircle from '../assets/images/plusIconInCircle.png';
 import redHeartIcon from '../assets/images/redHeartIcon.png';
 import sendPostIcon from '../assets/images/sendPostIcon.png';
 import taggedAccountsIcon from '../assets/images/taggedAccountsIcon.png';
@@ -24,9 +26,6 @@ import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
 import thinWhiteXIcon from '../assets/images/thinWhiteXIcon.png';
 import threeHorizontalDots from '../assets/images/threeHorizontalDots.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
-import megaphone from '../assets/images/megaphone.png';
-import loadingAnimation from '../assets/images/loadingAnimation.gif';
-import plusIconInCircle from '../assets/images/plusIconInCircle.png';
 
 function CommentsPopup({authUser, postDetails, currSlide, notifyParentToClosePopup, notifyParentToShowErrorPopup,
 notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo, mainPostAuthorInfo,
@@ -668,22 +667,6 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     }
 
     async function postComment() {
-        setNewlyPostedRepliesByAuthUser([
-            {
-                id: uuidv4(),
-                content: commentInput,
-                datetime: (new Date()).toISOString(),
-                isEdited: false,
-                numLikes: 0,
-                numReplies: 0,
-                isLikedByAuthUser: false,
-                idOfParentComment: replyingToCommentInfo.id
-            },
-            ...newlyPostedRepliesByAuthUser
-        ]);
-        setReplyingToCommentInfo(null);
-        setCommentInput('');
-        return;
         let commentOrReplyText = '';
         try {
             let response;
@@ -924,7 +907,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                         {postDetails.slides[currSlideState].type === 'Video' &&
                             (
                                 <>
-                                    <video ref={videoSlideRef} controls src={postDetails.slides[currSlideState].src}
+                                    <video ref={videoSlideRef} muted controls src={postDetails.slides[currSlideState].src}
                                     onDoubleClick={likePost}
                                     style={{width: '100%', height: '100%', position: 'absolute', top: '0%', left: '0%'}}>
                                         {postDetails.slides[currSlideState].subtitles.map(subtitlesInfo =>
