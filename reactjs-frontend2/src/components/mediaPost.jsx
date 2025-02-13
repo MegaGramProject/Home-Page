@@ -35,7 +35,6 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     const [elementsForCaption, setElementsForCaption] = useState([]);
     const [commentInput, setCommentInput] = useState('');
     const [elementsForTaggedAccountsOfImageSlide, setElementsForTaggedAccountsOfImageSlide] = useState([]);
-    const [numLikes, setNumLikes] = useState(-1);
     const [displaySectionsOfVidSlide, setDisplaySectionsOfVidSlide] = useState(false);
     const [slideToVidTimeToFrameMappings, setSlideToVidTimeToFrameMappings] = useState({});
     const [thisMediaPostHasBeenViewed, setThisMediaPostHasBeenViewed] = useState(false);
@@ -137,15 +136,14 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     useEffect(() => {
         setOverallPostId(postDetails.overallPostId);
         setMainPostAuthor(postDetails.authors[0]);
-        setNumLikes(postDetails.numLikes);
 
         if(postDetails.backgroundMusic!==null) {
             setBackgroundMusicObject(new Audio(postDetails.backgroundMusic.src));
         }
+
         finishSettingElementsForCaption();
 
         window.addEventListener('scroll', checkIfPostIsViewedAsUserScrolls);
-
         return () => {
             window.removeEventListener('scroll', checkIfPostIsViewedAsUserScrolls);
         };
@@ -169,7 +167,10 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function markPostAsViewed() {
-        return;
+        if (authUser === 'Anonymous Guest') {
+            return;
+        }
+
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/markPostAsViewed/${authUser}/${overallPostId}`, {
@@ -243,11 +244,10 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     function toggleShowTaggedAccountsOfSlide() {
         setDisplaySectionsOfVidSlide(false);
         if(!displayTaggedAccountsOfSlide) {
-            if(postDetails.slides[currSlide].type==='Image') {
-                if(postDetails.slides[currSlide].taggedAccounts.length>0 &&
-                elementsForTaggedAccountsOfImageSlide.length==0) {
-                    finishSettingElementsForTaggedAccountsOfImageSlide();
-                }
+            if(postDetails.slides[currSlide].type==='Image' && 
+            postDetails.slides[currSlide].taggedAccounts.length>0 &&
+            elementsForTaggedAccountsOfImageSlide.length==0) {
+                finishSettingElementsForTaggedAccountsOfImageSlide();
             }
             setDisplayTaggedAccountsOfSlide(true);
         }
@@ -287,10 +287,9 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                         overallPostId,
                         {
                             isLiked: true,
-                            numLikes: numLikes+1
+                            numLikes: postDetails.numLikes+1
                         }
                     );
-                    setNumLikes(numLikes+1);
                 }
             }
             catch (error) {
@@ -317,6 +316,11 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function toggleLikePost() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot like posts without logging into an account');
+            return;
+        }
+
         if(!postDetails.isLiked) {
             likePost(null);
         }
@@ -336,10 +340,9 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                         overallPostId,
                         {
                             isLiked: false,
-                            numLikes: numLikes-1
+                            numLikes: postDetails.numLikes-1
                         }
                     );
-                    setNumLikes(numLikes-1);
                 }
             }
             catch (error) {
@@ -351,6 +354,11 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function toggleSavePost() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot save posts without logging into an account');
+            return;
+        }
+
         let toggleSaveWasSuccessful = false;
         if(postDetails.isSaved) {
             try {
@@ -476,6 +484,11 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function postComment() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot post comments without logging into an account');
+            return;
+        }
+
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postComment/${authUser}/${overallPostId}`, {
@@ -676,7 +689,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
 
                             <span style={{ color: 'gray' }}>
                                 {' • ' + formatDatetimeString(postDetails.datetimeOfPost)}
-                            </span>
+                            </span> 
                         </p>
 
                         {postDetails.locationOfPost!==null &&
@@ -732,7 +745,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                         {postDetails.adInfo!==null &&
                             (
                                 <a href={postDetails.adInfo.link}
-                                style={{fontSize: 'small'}}>
+                                style={{fontSize: 'small', marginTop: '0.5em'}}>
                                     Sponsored
                                 </a>
                             )
@@ -1094,7 +1107,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                     }}
                     style={{marginBottom: '0em', maxWidth: '60%',
                     overflowWrap: 'break-word', textAlign: 'start'}}>
-                        {numLikes.toLocaleString() + (numLikes==1 ? ' like' : ' likes')}
+                        {postDetails.numLikes.toLocaleString() + (postDetails.numLikes==1 ? ' like' : ' likes')}
                     </b>
                 )
             }
@@ -1141,12 +1154,12 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                                                 }}
                                                 style={{cursor: 'pointer'}}>
                                                     {
-                                                        (numLikes-postDetails.likersFollowedByAuthUser.length).
+                                                        (postDetails.numLikes-postDetails.likersFollowedByAuthUser.length).
                                                         toLocaleString()
                                                     }
                                                 </b>
 
-                                                {numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
+                                                {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
                                                     <b onClick={() => {
                                                         setDisplayTaggedAccountsOfSlide(false);
                                                         setDisplaySectionsOfVidSlide(false);
@@ -1155,7 +1168,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                                                     style={{cursor: 'pointer'}}> other</b>
                                                 }
 
-                                                {numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
+                                                {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
                                                     <b onClick={() => {
                                                         setDisplayTaggedAccountsOfSlide(false);
                                                         setDisplaySectionsOfVidSlide(false);

@@ -17,11 +17,6 @@ function NotFoundPage() {
         }
     }, []);
 
-
-    const takeUserToHomePage = () => {
-        window.location.href = 'http://34.111.89.101/';
-    };
-
     const styles = `
     import url("https://fonts.googleapis.com/css?family=Barlow+Condensed:300,400,500,600,700,800,900|Barlow:300,400,500,600,700,800,900&display=swap");
 
@@ -679,8 +674,8 @@ function NotFoundPage() {
             <style dangerouslySetInnerHTML={{ __html: styles }} />
             <nav>
                 <div className="menu">
-                    <p
-                        onClick={takeUserToHomePage}
+                    <a
+                        href="http://34.111.89.101/"
                         className="website_name"
                         style={{
                             fontFamily: 'Billabong',
@@ -690,27 +685,33 @@ function NotFoundPage() {
                         }}
                     >
                         Megagram
-                    </p>
-                    <img
-                        onClick={takeUserToHomePage}
-                        src={favicon1}
-                        style={{ height: '4em', width: '4em', cursor: 'pointer' }}
-                    />
-                    <img
-                        onClick={takeUserToHomePage}
-                        src={favicon}
-                        style={{ height: '4em', width: '4em', cursor: 'pointer' }}
-                    />
-                    <img
-                        onClick={takeUserToHomePage}
-                        src={megagramLoading}
-                        style={{
-                            height: '7em',
-                            width: '7em',
-                            marginTop: '2em',
-                            cursor: 'pointer',
-                        }}
-                    />
+                    </a>
+
+                    <a href="http://34.111.89.101/">
+                        <img
+                            src={favicon1}
+                            style={{ height: '4em', width: '4em', cursor: 'pointer' }}
+                        />
+                    </a>
+
+                    <a href="http://34.111.89.101/">
+                        <img
+                            src={favicon}
+                            style={{ height: '4em', width: '4em', cursor: 'pointer' }}
+                        />
+                    </a>
+
+                    <a href="http://34.111.89.101/">
+                        <img
+                            src={megagramLoading}
+                            style={{
+                                height: '7em',
+                                width: '7em',
+                                marginTop: '2em',
+                                cursor: 'pointer',
+                            }}
+                        />
+                    </a>
                 </div>
             </nav>
 
@@ -754,7 +755,9 @@ function NotFoundPage() {
                                 <br />
                                 Go to the home-page if that's what you were looking for & you dare!
                             </p>
-                            <button onClick={takeUserToHomePage}>I dare!</button>
+                            <a href="http://34.111.89.101/">
+                                <button>I dare!</button>
+                            </a>
                             <p
                                 style={{
                                     position: 'absolute',

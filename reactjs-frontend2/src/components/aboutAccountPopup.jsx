@@ -4,11 +4,11 @@ import UserIcon from './userIcon';
 
 import accountBasedInIcon from '../assets/images/accountBasedIn.png';
 import dateJoinedIcon from '../assets/images/dateJoined.png';
-import defaultPfp from '../assets/images/defaultPfp.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 function AboutAccountPopup({usernameOfMainPostAuthor, mainPostAuthorIsVerified, notifyParentToClosePopup,
-mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser}) {
+mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser, mainPostAuthorProfilePhoto,
+notifyParentToShowStoryViewer}) {
     const [dateJoined, setDateJoined] = useState("");
     const [accountBasedIn, setAccountBasedIn] = useState("");
 
@@ -28,18 +28,18 @@ mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser}) {
                 credentials: 'include'
             });
             if(!response.ok) {
-                newDateJoined = 'Server had trouble getting the date when user joined Megagram';
-                newAccountBasedIn = 'Server had trouble getting where the account is based in';
+                newDateJoined = 'The server had trouble getting the date when this user joined Megagram';
+                newAccountBasedIn = 'The server had trouble getting where the user is based in';
             }
             else {
                 const userInfo = await response.json();
                 newDateJoined = userInfo['created'];
-                newAccountBasedIn = userInfo['account_based_in'];
+                newAccountBasedIn = userInfo['accountBasedIn'];
             }
         }
         catch (error) {
-            newDateJoined = 'Trouble connecting to server for getting the date when the user joined Megagram';
-            newAccountBasedIn = 'Trouble connecting to server for getting where the account is based in';
+            newDateJoined = 'There was trouble connecting to server to get the date when this user joined Megagram';
+            newAccountBasedIn = 'There as trouble connecting to server to get where this user is based in';
         }
         finally {
             setDateJoined(newDateJoined);
@@ -48,45 +48,18 @@ mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser}) {
     }
 
     function formatDate(dateString) {
-        if (dateString.includes("date-joined")) {
+        if (dateString.includes("joined Megagram")) {
             return dateString;
         }
         const date = new Date(dateString);
-        const currentDate = new Date();
-        const secondsDiff = Math.floor((currentDate - date) / 1000);
-    
-        if (secondsDiff < 60) {
-            return `${secondsDiff}s`;
-        } else {
-            const minutesDiff = Math.floor(secondsDiff / 60);
-            if (minutesDiff < 60) {
-                return `${minutesDiff}m`;
-            } else {
-                const hoursDiff = Math.floor(minutesDiff / 60);
-                if (hoursDiff < 24) {
-                    return `${hoursDiff}h`;
-                } else {
-                    const daysDiff = Math.floor(hoursDiff/24);
-                    if (daysDiff < 7) {
-                        return `${daysDiff}d`;
-                    }
-                    else {
-                        const weeksDiff = Math.floor(hoursDiff / 24 / 7);
-                        if (weeksDiff < 4) {
-                            return `${weeksDiff}w`;
-                        } else {
-                            const months = [
-                                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-                            ];
-                            const month = months[date.getUTCMonth()];
-                            const day = date.getUTCDate();
-                            const year = date.getUTCFullYear();
-                            return `${month} ${day}, ${year}`;
-                        }
-                    }
-                }
-            }
-        }
+        
+        const months = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+        const month = months[date.getUTCMonth()];
+        const day = date.getUTCDate();
+        const year = date.getUTCFullYear();
+        return `${month} ${day}, ${year}`;
     }
 
     function takeToUsersProfile() {
@@ -108,24 +81,16 @@ mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser}) {
 
             <br/>
 
-            {usernameOfMainPostAuthor.length > 0 && 
-                (
-                    <UserIcon
-                        usernameOfMainPostAuthor={usernameOfMainPostAuthor}
-                        authUser={authUser}
-                        unseenStory={mainPostAuthorHasUnseenStory}
-                        inStoriesSection={false}
-                        hasStories={mainPostAuthorHasStories}
-                        mainPostAuthorIsVerified={mainPostAuthorIsVerified}
-                    />
-                )
-            }
-
-            {usernameOfMainPostAuthor.length == 0 && 
-                (
-                    <img src={defaultPfp} style={{height:'3.75em', width:'3.75em', objectFit:'contain'}}/>
-                )
-            }
+            <UserIcon
+                username={usernameOfMainPostAuthor}
+                authUser={authUser}
+                inStoriesSection={false}
+                hasStories={mainPostAuthorHasStories}
+                hasUnseenStory={mainPostAuthorHasUnseenStory}
+                profilePhoto={mainPostAuthorProfilePhoto}
+                isVerified={mainPostAuthorIsVerified}
+                notifyParentToShowStoryViewer={notifyParentToShowStoryViewer}
+            />
 
             <div style={{display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center',
             marginTop: '1em'}}>
@@ -152,26 +117,25 @@ mainPostAuthorHasStories, mainPostAuthorHasUnseenStory, authUser}) {
 
             <br/>
 
-            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start',
-            gap: '0.65em'}}>
-                <div style={{display:'flex', gap:'0.7em'}}>
+            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.65em'}}>
+                <div style={{display:'flex', gap:'0.7em', marginLeft: '-2em'}}>
                     <img className="iconToBeAdjustedForDarkMode" src={dateJoinedIcon} style={{height:'2.9em',
                     width:'2.9em', objectFit:'contain', pointerEvents:'none'}}/>
                     <div style={{display:'flex', flexDirection:'column', alignItems:'start'}}>
                         <b>Date joined</b>
-                        <p style={{color:'gray', marginTop:'0.1em', maxWidth: '90%', overflowWrap:'break-word',
+                        <p style={{color:'gray', marginTop:'0.1em', maxWidth: '25em', overflowWrap:'break-word',
                         textAlign: 'start'}}>
                             {formatDate(dateJoined)}
                         </p>
                     </div>
                 </div>
 
-                <div style={{display:'flex', gap:'0.5em'}}>
+                <div style={{display:'flex', gap:'0.5em', marginLeft: '-2em'}}>
                     <img className="iconToBeAdjustedForDarkMode" src={accountBasedInIcon} style={{height:'2.9em',
                     width:'2.9em', objectFit:'contain', pointerEvents:'none'}}/>
                     <div style={{display:'flex', flexDirection:'column', alignItems:'start'}}>
                         <b>Account based in</b>
-                        <p style={{color:'gray', marginTop:'0.1em', maxWidth: '90%', overflowWrap:'break-word',
+                        <p style={{color:'gray', marginTop:'0.1em', maxWidth: '25em', overflowWrap:'break-word',
                         textAlign: 'start'}}>
                             {accountBasedIn}
                         </p>

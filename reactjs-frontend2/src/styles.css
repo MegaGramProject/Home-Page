@@ -161,7 +161,7 @@ a {
     display: none !important;
 }
 
-@media (max-width: 91em) {
+@media (max-width: 95em) {
     #rightmostSection {
         display: none !important;
     }

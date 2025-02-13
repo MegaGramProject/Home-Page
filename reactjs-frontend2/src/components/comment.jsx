@@ -152,6 +152,11 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
     }
 
     async function toggleLikeComment() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot like comments without logging into an account');
+            return;
+        }
+
         if(!isLikedByAuthUser) {
             likeComment();
         }
@@ -184,6 +189,11 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
     }
 
     async function likeComment() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot like comments without logging into an account');
+            return;
+        }
+
         if(!isLikedByAuthUser) {
             try {
                 const response = await fetch(
@@ -219,7 +229,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
         setDisplayReplies(!displayReplies);
     }
 
-    async function fetchAdditionalReplies() { 
+    async function fetchAdditionalReplies() {
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getRepliesOfComment/${authUser}/${id}`, {
@@ -330,16 +340,16 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', marginTop: '-1em'}}>
                     {!editMode &&
                         (
-                            <p onDoubleClick={!isCaption ? likeComment : null} style={{maxWidth: '68%', overflowWrap: 'break-word', 
-                            textAlign: 'start', marginBottom: '0em', fontSize: '0.95em'}}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center'}}>
+                            <p onDoubleClick={!isCaption ? likeComment : null} style={{marginBottom: '0em', fontSize: '0.95em',
+                            textAlign: 'start', maxWidth: '65%'}}>
+                                <span style={{ display: 'inline-flex'}}>
                                     <a
                                         href={`http://34.111.89.101/profile/${username}`} 
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        style={{ fontWeight: 'bold' }}
+                                        style={{ fontWeight: 'bold'}}
                                     >
-                                        {username}
+                                        {username.substring(0,30)}{username.length>30 ? '...' : ''}
                                     </a>
 
                                     {isVerified &&
@@ -370,12 +380,14 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
                             )
                         }
 
-                        <p>{formatDatetimeString(datetime)}</p>
+                        <p style={{maxWidth: '6em', textAlign: 'start', overflowWrap: 'break-word'}}>
+                            {formatDatetimeString(datetime)}
+                        </p>
 
                         {!isCaption &&
                             (
                                 <b onClick={() => notifyParentToShowLikersPopup('comment', id)}
-                                style={{cursor: 'pointer'}}>
+                                style={{cursor: 'pointer', maxWidth: '8em', textAlign: 'start', overflowWrap: 'break-word'}}>
                                     {numLikes.toLocaleString()} {numLikes!==1 ? 'likes' : 'like'}
                                 </b>
                             )

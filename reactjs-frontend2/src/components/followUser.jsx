@@ -11,6 +11,12 @@ notifyParentToShowErrorPopup, authUser}) {
     }, []);
 
     async function toggleFollowUser() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
+            Guest' mode`);
+            return;
+        }
+
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
@@ -33,24 +39,22 @@ notifyParentToShowErrorPopup, authUser}) {
         }
     }
 
-    function takeUserToProfile() {
-        window.location.href = `http://34.111.89.101/profile/${username}`;
-    }
-
 
     return (
         <div className="selectUserOrGroupChat" style={{width:'95%', display:'flex',
         alignItems:'center', justifyContent:'space-between', boxShadow:'none', padding: '0.5em 1em'}}>
             <div style={{display:'flex', alignItems:'start'}}>
-                <img onClick={takeUserToProfile} src={profilePhoto} style={{objectFit:'contain', height:'3em',
-                width:'3em', cursor: 'pointer'}}/>
+                <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
+                    <img src={profilePhoto} style={{objectFit:'contain', height:'3em',
+                    width:'3em', cursor: 'pointer'}}/>
+                </a>
 
                 <div style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
-                        <b onClick={takeUserToProfile} style={{maxWidth: '5em', overflowWrap: 'break-word',
-                        cursor: 'pointer', textAlign: 'start'}}>
+                        <a href={`http://34.111.89.101/profile/${username}`} style={{maxWidth: '10em', overflowWrap: 'break-word',
+                        cursor: 'pointer', textAlign: 'start', fontWeight: 'bold'}} target="_blank" rel="noopener noreferrer">
                             {username}
-                        </b>
+                        </a>
                         {isVerified &&
                             (
                                 <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',

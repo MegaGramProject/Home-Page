@@ -11,7 +11,7 @@ notifyParentToUnselect, isSelected, profilePhoto, isVerified}) {
                 notifyParentToSelect(usernameOrGroupChatName);
             }
             else {
-                notifyParentToSelect('GROUP CHAT ID: '+groupChatId);
+                notifyParentToSelect('GROUP CHAT ID: ' + groupChatId);
             }
         }
         else {
@@ -19,20 +19,22 @@ notifyParentToUnselect, isSelected, profilePhoto, isVerified}) {
                 notifyParentToUnselect(usernameOrGroupChatName);
             }
             else {
-                notifyParentToUnselect('GROUP CHAT ID: '+groupChatId);
+                notifyParentToUnselect('GROUP CHAT ID: ' + groupChatId);
             }
         }
     }
 
     return (
         <div className="selectUserOrGroupChat"
-        onClick={toggleCheck} style={{cursor:'pointer', width:'95%', display:'flex', alignItems:'center',
-        paddingLeft: '1.5em', position: 'relative'}}>
+        onClick={toggleCheck} style={{cursor:'pointer', width:'93%', display:'flex', alignItems:'center',
+        paddingLeft: '2em', position: 'relative', paddingTop: '0.5em', paddingBottom: '0.5em',
+        paddingRight: '0.5em'}}>
            <img src={profilePhoto} style={{height:'3.75em', width:'3.75em', objectFit:'contain'}}/>
 
-            <div style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
+            <div style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em',
+            gap: '0.7em'}}>
                 <div style={{display: 'flex', alignItems: 'center'}}>
-                    <b style={{maxWidth: '5em', overflowWrap: 'break-word'}}>
+                    <b style={{maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}}>
                         {usernameOrGroupChatName}
                     </b>
                     

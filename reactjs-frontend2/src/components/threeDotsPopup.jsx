@@ -22,19 +22,26 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
     }
 
     async function toggleFollowUser() {
+        const username = postDetails.usernames[0];
+        
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
+            Guest' mode`);
+            return;
+        }
+
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/
-            ${authUser}/${postDetails.usernames[0]}`, {
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
                 method: 'PATCH',
                 credentials: 'include'
             });
             if(!response.ok) {
                 notifyParentToShowErrorPopup(
-                `The server had trouble toggling your follow-status of ${postDetails.usernames[0]}`);
+                `The server had trouble toggling your follow-status of ${username}`);
             }
             else {
-                let newFollowText = await response.text(); //either 'Follow', 'Following', or 'Requested'
+                const newFollowText = await response.text(); //either 'Follow', 'Following', or 'Requested'
                 if (newFollowText==='Following') {
                     newFollowText = 'Unfollow'
                 }
@@ -47,11 +54,17 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
 
         catch (error) {
             notifyParentToShowErrorPopup(`There was trouble connecting to the server to toggle your follow-status
-            of ${postDetails.usernames[0]}`);
+            of ${username}`);
         }
-    } 
+    }
 
     async function markPostAsNotInterested() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup(`You cannot mark posts as 'Not-Interested' when you are on 'Anonymous
+            Guest' mode`);
+            return;
+        }
+
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/expressJSBackend1/markPostAsNotInterested/

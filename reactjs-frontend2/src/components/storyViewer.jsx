@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-//import { v4 as uuidv4 } from 'uuid';
 
 import blackScreen from '../assets/images/blackScreen.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
@@ -7,11 +6,9 @@ import mutedIcon from '../assets/images/mutedIcon.png';
 import nextSlideArrow from '../assets/images/nextSlideArrow.png';
 import notMutedIcon from '../assets/images/notMutedIcon.png';
 import pauseIcon2 from '../assets/images/pauseIcon2.png';
-//import scenicRoad from '../assets/images/scenicRoad.jpg';
 import thinWhiteXIcon from '../assets/images/thinWhiteXIcon.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 import whitePlayIcon from '../assets/images/whitePlayIcon.png';
-//import dogVid from '../assets/misc/dogVid.mp4';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
 
@@ -20,7 +17,7 @@ usersAndYourCurrSlideInTheirStories, orderedListOfUsernamesInStoriesSection, isF
 usersAndTheirRelevantInfo, notifyParentToShowErrorPopup, notifyParentToUpdateUsersAndTheirStories, 
 notifyParentToUpdateUsersAndYourCurrSlideInTheirStories, usernamesWhoseStoriesYouHaveFinished,
 notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished, idsOfStoriesMarkedAsViewed,
-notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
+notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
     const [currUsername, setCurrUsername] = useState('');
     const [replyToStoryInput, setReplyToStoryInput] = useState('');
     const [currSlide, setCurrSlide] = useState(0);
@@ -109,7 +106,7 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
                     storyId: storyId
                 },
                 'Stories',
-                `http://localhost:8004/stories/${username}/${storyId}`
+                `http://34.111.89.101/stories/${username}/${storyId}`
             );
 
             if(stories[slide].vidDurationInSeconds==null) {
@@ -122,8 +119,8 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
             newUsersAndYourCurrSlideInTheirStories[username] = slide;
             notifyParentToUpdateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
 
-            if(!(idsOfStoriesMarkedAsViewed.has(stories[slide].id))) {
-               markCurrentStorySlideAsViewed(stories[slide].id);
+            if(!(idsOfStoriesMarkedAsViewed.has(storyId))) {
+               markCurrentStorySlideAsViewed(storyId);
             }
         }
         else {
@@ -134,6 +131,11 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
     
 
     async function markCurrentStorySlideAsViewed(storyId) {
+        if (authUser === 'Anonymous Guest') {
+            console.error('You cannot mark story-slides as viewed when you are an Anonymous Guest');
+            return;
+        } 
+
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/markStoryAsViewed/${authUser}/${storyId}`, {
@@ -153,50 +155,6 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
     }
 
     async function fetchTheNecessaryStories() {
-        /*
-        setCurrStories([
-            {
-                id: uuidv4(),
-                datetime: '2025-02-05T13:49:00',
-                src: scenicRoad,
-                vidDurationInSeconds: null,
-                adInfo: {
-                    callToAction: 'fly here in 2 days!',
-                    link: 'https://google.com'
-                }
-            },
-            {
-                id: uuidv4(),
-                datetime: '2025-02-08T13:49:00',
-                src: dogVid,
-                vidDurationInSeconds: 60,
-                adInfo: null
-            }
-        ]);
-        setCurrSlide(0);
-        handleChangeInSlide(
-        [
-            {
-                id: uuidv4(),
-                datetime: '2025-02-05T13:49:00',
-                src: scenicRoad,
-                vidDurationInSeconds: null,
-                adInfo: {
-                    callToAction: 'fly here in 2 days!',
-                    link: 'https://google.com'
-                }
-            },
-            {
-                id: uuidv4(),
-                datetime: '2025-02-08T13:49:00',
-                src: dogVid,
-                vidDurationInSeconds: 60,
-                adInfo: null
-            }
-        ], 0, currUsername);
-        return;
-        */
-
         setIsCurrentlyFetchingStory(true);
 
         if (isFromStoriesSection) {
@@ -218,7 +176,7 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
             if (listOfUsernamesNeededForStoryFetching.length>0) {
                 try {
                     const response = await fetch(
-                    `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getStoriesOfAtMost3Users/${currUsername}`, {
+                    `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getStoriesOfAtMost3Users/${authUser}`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
@@ -406,6 +364,11 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
     }
 
     async function sendReply(replyToSend) {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot post replies to stories when you are an Anonymous Guest.');
+            return;
+        } 
+
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/expressJSBackend1/sendReplyToStory/
@@ -496,7 +459,7 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds}) {
 
     return (
         <div style={{position: 'fixed', height: '100%', width: '100%', top: '0%', left: '0%',
-        backgroundColor: '#1c1c1c', color: 'white', zIndex: '1'}}>
+        backgroundColor: '#1c1c1c', color: 'white', zIndex: zIndex}}>
             <p onClick={notifyParentToCloseStoryViewer} className="headerMegagram"
             style={{position: 'absolute', top: '2%', left: '1%', fontFamily: 'Billabong', fontSize: '2.1em',
             cursor: 'pointer', marginTop: '0em'}}>

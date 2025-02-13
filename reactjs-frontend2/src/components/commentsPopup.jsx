@@ -39,7 +39,6 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     const [displayTaggedAccountsOfSlide, setDisplayTaggedAccountsOfSlide] = useState(false);
     const [likePostHeartAnimationCoordinates, setLikePostHeartAnimationCoordinates] = useState([-1, -1]);
     const [intervalIdForLikePostHeartAnimation, setIntervalIdForLikePostHeartAnimation] = useState(null);
-    const [numLikes, setNumLikes] = useState(-1);
     const [slideToVidTimeToFrameMappings, setSlideToVidTimeToFrameMappings] = useState({});
     const [backgroundMusicIsPlaying, setBackgroundMusicIsPlaying] = useState(false);
     const [backgroundMusicObject, setBackgroundMusicObject] = useState(null);
@@ -147,7 +146,6 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
 
     useEffect(() => {
         setOverallPostId(postDetails.overallPostId);
-        setNumLikes(postDetails.numLikes);
         setMainPostAuthor(postDetails.authors[0]);
         setCurrSlideState(currSlide);
 
@@ -162,31 +160,8 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         if(initialOrAdditionalText==='additional') {
             setIsCurrentlyFetchingAdditionalComments(true);
         }
+
         let newOrderedListOfComments = [...orderedListOfComments];
-
-    
-        if(initialOrAdditionalText==='initial') {
-            newOrderedListOfComments.push({
-                id: "0700e022-d29f-4acc-8310-dc2f9901cebc",
-                username: 'randymoss',
-                isEdited: false,
-                datetime: '2025-01-24T20:50:00',
-                content: 'What a rad post yo! You earned my follow home-fry! @toppostgod #imlyingsohard',
-                numLikes: 5421,
-                numReplies: 89,
-                commenterStatus: 'Friend',
-                isLikedByAuthor: false,
-                isLikedByAuthUser: false
-            });
-            setOrderedListOfComments(newOrderedListOfComments);
-            setInitialCommentsFetchingIsComplete(true);
-        }
-        else {
-            setIsCurrentlyFetchingAdditionalComments(false);
-        }
-        return;
-        
-
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getCommentsOfPost/${authUser}/${overallPostId}`, {
@@ -396,6 +371,11 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     }
 
     async function likePost(event) {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot like posts without logging into an account');
+            return;
+        }
+
         let likeWasSuccessful = true;
         if(!postDetails.isLiked) {
             try {
@@ -413,10 +393,9 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                         overallPostId,
                         {
                             isLiked: true,
-                            numLikes: numLikes+1
+                            numLikes: postDetails.numLikes+1
                         }
                     );
-                    setNumLikes(numLikes+1);
                 }
             }
             catch (error) {
@@ -576,6 +555,11 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     }
 
     async function toggleLikePost() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot like posts without logging into an account');
+            return;
+        }
+
         if(!postDetails.isLiked) {
             likePost(null);
         }
@@ -595,10 +579,9 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                         overallPostId,
                         {
                             isLiked: false,
-                            numLikes: numLikes-1
+                            numLikes: postDetails.numLikes-1
                         }
                     );
-                    setNumLikes(numLikes-1);
                 }
             }
             catch (error) {
@@ -610,6 +593,11 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     }
 
     async function toggleSavePost() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot save posts without logging into an account');
+            return;
+        }
+
         let toggleSaveWasSuccessful = false;
         if(postDetails.isSaved) {
             try {
@@ -667,6 +655,11 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     }
 
     async function postComment() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup('You cannot post comments/replies without logging into an account');
+            return;
+        }
+
         let commentOrReplyText = '';
         try {
             let response;
@@ -685,8 +678,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
             else {
                 commentOrReplyText = 'reply';
                 response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postReply/
-                ${authUser}/${replyingToCommentInfo.id}`, {
+                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postReply/${authUser}/${replyingToCommentInfo.id}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -751,6 +743,38 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
     }
 
     function updateCommentDetails(commentId, updatedDetails) {
+        let commentFound = false;
+        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.filter(commentDetails => {
+            if(commentDetails.id === commentId) {
+                commentFound = true;
+                const newCommentDetails = {...commentDetails};
+                for(let key of Object.keys(updatedDetails)) {
+                    newCommentDetails[key] = updatedDetails[key];
+                }
+                return newCommentDetails;
+            }
+        });
+        if (commentFound) {
+            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
+            return;
+        }
+
+        const newNewlyPostedRepliesByAuthUser = newlyPostedCommentsByAuthUser.filter(replyDetails => {
+            if(replyDetails.id === commentId) {
+                commentFound = true;
+                const newReplyDetails = {...replyDetails};
+                for(let key of Object.keys(updatedDetails)) {
+                    newReplyDetails[key] = updatedDetails[key];
+                }
+                return newReplyDetails;
+            }
+        });
+        if (commentFound) {
+            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
+            return;
+        }
+
+
         const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
             if(commentDetails.id === commentId) {
                 const newCommentDetails = {...commentDetails};
@@ -772,29 +796,41 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         }
     }
 
-    function deleteComment(idOfCommentToDelete) {
+    function deleteComment(id) {
         let commentFound = false;
         const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.filter(commentDetails => {
-            if(commentDetails.id === idOfCommentToDelete) {
+            if(commentDetails.id === id) {
                 commentFound = true;
                 return false;
             }
             return true;
         });
-        
 
-        if(!commentFound) {
-            const newOrderedListOfComments = orderedListOfComments.filter(commentDetails => {
-                if(commentDetails.id === idOfCommentToDelete) {
-                    return false;
-                }
-                return true;
-            });
-            setOrderedListOfComments(newOrderedListOfComments);
-        }
-        else {
+        if (commentFound) {
             setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
+            return;
         }
+
+        const newNewlyPostedRepliesByAuthUser = newlyPostedRepliesByAuthUser.filter(replyDetails => {
+            if(replyDetails.id === id) {
+                commentFound = true;
+                return false;
+            }
+            return true;
+        });
+
+        if (commentFound) {
+            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
+            return;
+        }
+
+        const newOrderedListOfComments = orderedListOfComments.filter(commentDetails => {
+            if(commentDetails.id === id) {
+                return false;
+            }
+            return true;
+        });
+        setOrderedListOfComments(newOrderedListOfComments);
     }
 
     function editComment(idOfCommentToEdit, newContent) {
@@ -810,24 +846,40 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
             }
             return commentDetails;
         });
-        
 
-        if(!commentFound) {
-            const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
-                if(commentDetails.id === idOfCommentToEdit) {
-                    const newCommentDetails = {...commentDetails};
-                    newCommentDetails.content = newContent;
-                    newCommentDetails.datetime = (new Date()).toISOString();
-                    newCommentDetails.isEdited = true;
-                    return newCommentDetails;  
-                }
-                return commentDetails;
-            });
-            setOrderedListOfComments(newOrderedListOfComments);
-        }
-        else {
+        if (commentFound) {
             setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
+            return;
         }
+
+        const newNewlyPostedRepliesByAuthUser = newlyPostedRepliesByAuthUser.map(replyDetails => {
+            if(replyDetails.id === idOfCommentToEdit) {
+                commentFound = true;
+                const newReplyDetails = {...replyDetails};
+                newReplyDetails.content = newContent;
+                newReplyDetails.datetime = (new Date()).toISOString();
+                newReplyDetails.isEdited = true;
+                return newReplyDetails;
+            }
+            return replyDetails;
+        });
+
+        if (commentFound) {
+            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
+            return;
+        }
+        
+        const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
+            if(commentDetails.id === idOfCommentToEdit) {
+                const newCommentDetails = {...commentDetails};
+                newCommentDetails.content = newContent;
+                newCommentDetails.datetime = (new Date()).toISOString();
+                newCommentDetails.isEdited = true;
+                return newCommentDetails;  
+            }
+            return commentDetails;
+        });
+        setOrderedListOfComments(newOrderedListOfComments);
     }
 
     return (
@@ -907,7 +959,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                         {postDetails.slides[currSlideState].type === 'Video' &&
                             (
                                 <>
-                                    <video ref={videoSlideRef} muted controls src={postDetails.slides[currSlideState].src}
+                                    <video ref={videoSlideRef} controls src={postDetails.slides[currSlideState].src}
                                     onDoubleClick={likePost}
                                     style={{width: '100%', height: '100%', position: 'absolute', top: '0%', left: '0%'}}>
                                         {postDetails.slides[currSlideState].subtitles.map(subtitlesInfo =>
@@ -1104,7 +1156,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                 />
 
                                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em'}}>
-                                    <p style={{marginBottom: '0em', maxWidth: '70%', textAlign: 'start',
+                                    <p style={{marginBottom: '0em', maxWidth: '12em', textAlign: 'start',
                                     overflowWrap: 'break-word'}}>
                                         {postDetails.authors.map((author, index) => 
                                             (
@@ -1151,7 +1203,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                     {postDetails.locationOfPost!==null &&
                                         (
                                             <a href={`http://34.111.89.101/search/locations/${postDetails.locationOfPost}`}
-                                            style={{fontSize: 'small', marginBottom: '-1em', maxWidth: '70%', textAlign: 'start',
+                                            style={{fontSize: 'small', marginBottom: '-1em', maxWidth: '12em', textAlign: 'start',
                                             overflowWrap: 'break-word'}}>
                                                 {postDetails.locationOfPost}
                                             </a>
@@ -1168,7 +1220,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                                 height: '1.1em', width: '1.1em', objectFit: 'contain'}}
                                                 />
                                                 
-                                                <p style={{maxWidth: '14em', textAlign: 'start', overflowWrap: 'break-word'}}>
+                                                <p style={{maxWidth: '12em', textAlign: 'start', overflowWrap: 'break-word'}}>
                                                     <b>{postDetails.backgroundMusic.songTitle}</b> •
                                                     <b>{' ' + postDetails.backgroundMusic.songArtist}</b>
                                                 </p>
@@ -1201,7 +1253,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                     {postDetails.adInfo!==null &&
                                         (
                                             <a href={postDetails.adInfo.link}
-                                            style={{fontSize: 'small'}}>
+                                            style={{fontSize: 'small', marginTop: '0.5em'}}>
                                                 Sponsored
                                             </a>
                                         )
@@ -1519,14 +1571,14 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                 }}
                                 style={{marginBottom: '0em', maxWidth: '60%', marginLeft: '0.5em', marginTop: '0.5em',
                                 overflowWrap: 'break-word', textAlign: 'start', cursor: 'pointer'}}>
-                                    {numLikes.toLocaleString() + (numLikes==1 ? ' like' : ' likes')}
+                                    {postDetails.numLikes.toLocaleString() + (postDetails.numLikes==1 ? ' like' : ' likes')}
                                 </b>
                             )
                         }
 
                         {postDetails.likersFollowedByAuthUser.length>0 &&
                             (
-                                <p style={{marginBottom: '0em', maxWidth: '74%', overflowWrap: 'break-word',
+                                <p style={{marginBottom: '0em', maxWidth: '75%', overflowWrap: 'break-word',
                                 textAlign: 'start', marginLeft: '1em', marginTop: '0.5em'}}>
                                     <span>Liked by </span>
                                     {postDetails.likersFollowedByAuthUser.map((username, index) =>
@@ -1566,12 +1618,12 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                                             }}
                                                             style={{cursor: 'pointer'}}>
                                                                 {
-                                                                    (numLikes-postDetails.likersFollowedByAuthUser.length).
+                                                                    (postDetails.numLikes-postDetails.likersFollowedByAuthUser.length).
                                                                     toLocaleString()
                                                                 }
                                                             </b>
 
-                                                            {numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
+                                                            {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
                                                                 <b onClick={() => {
                                                                     setDisplayTaggedAccountsOfSlide(false);
                                                                     setDisplaySectionsOfVidSlide(false);
@@ -1580,7 +1632,7 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                                                                 style={{cursor: 'pointer'}}> other</b>
                                                             }
 
-                                                            {numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
+                                                            {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
                                                                 <b onClick={() => {
                                                                     setDisplayTaggedAccountsOfSlide(false);
                                                                     setDisplaySectionsOfVidSlide(false);

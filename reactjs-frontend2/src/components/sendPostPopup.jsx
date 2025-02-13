@@ -19,17 +19,12 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
     }, []);
 
     async function fetchUsersToSendPostToGivenTextInput(event) {
-        /*
-            This is the backend algo: the topmost result will be the exact match if applicable(in this case
-            it is exactly event.target.value'). The next results will be the top 12 user/groups to whom you send the
-            most messages to that start with event.target.value. The rest will be users that you follow that follow
-            you back(i.e 'friends') that start with event.target.value.
-        */
         let givenTextInput = "";
         if(event!==null) {
             givenTextInput = event.target.value;
             setAccountToSendTo(givenTextInput);
         }
+
         if(givenTextInput in cachedSuggestionResults) {
             setErrorMessage("");
             setSuggestedResults(cachedSuggestionResults[givenTextInput]);
@@ -67,8 +62,12 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
                 for(let suggestion of postSendingSuggestions) {
                     newSuggestedResults.push(
                         <SelectUserOrGroupChat
+                            key={
+                                (suggestion.groupChatId!==null) ?
+                                'GROUP CHAT ID: ' + suggestion.groupChatId : suggestion.username
+                            }
                             groupChatId={suggestion.groupChatId}
-                            usernameOrGroupChatId={
+                            usernameOrGroupChatName={
                                 (suggestion.groupChatId!==null) ?
                                 suggestion.groupChatName : suggestion.username
                             }
@@ -80,18 +79,19 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
                             notifyParentToUnselect={unselectUserOrGroupChat}
                             isSelected={
                                 (suggestion.groupChatId!==null) ?
-                                selectedUsersAndGroupChats.has('GROUP CHAT ID: '+suggestion.groupChatId) :
+                                selectedUsersAndGroupChats.has('GROUP CHAT ID: ' + suggestion.groupChatId) :
                                 selectedUsersAndGroupChats.has(suggestion.username)
                             }
                             profilePhoto={
                                 (suggestion.groupChatId!==null) ?
                                 //yes, the usersAndRelevantInfo dict will contain the profilePhotos of group-chats!
-                                newUsersAndTheirRelevantInfo[suggestion.groupChatId].profilePhoto :
+                                newUsersAndTheirRelevantInfo['GROUP CHAT ID: ' + suggestion.groupChatId].profilePhoto :
                                 newUsersAndTheirRelevantInfo[suggestion.username].profilePhoto
                             }
                             isVerified={
                                 (suggestion.groupChatId!==null) ?
-                                false : newUsersAndTheirRelevantInfo[suggestion.username].isVerified
+                                false :
+                                newUsersAndTheirRelevantInfo[suggestion.username].isVerified
                             }
                         />
                     );
@@ -292,10 +292,11 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
             if (suggestion in usersAndTheirIsVerifiedStatuses) {
                 newUsersAndTheirRelevantInfo[suggestion].isVerified = usersAndTheirIsVerifiedStatuses[suggestion];
             }
+
             if (suggestion in usersAndTheirProfilePhotos) {
                 newUsersAndTheirRelevantInfo[suggestion].profilePhoto = usersAndTheirProfilePhotos[suggestion];
             }
-            if (suggestion in groupChatsAndTheirProfilePhotos) {
+            else if (suggestion in groupChatsAndTheirProfilePhotos) {
                 newUsersAndTheirRelevantInfo[suggestion].profilePhoto = groupChatsAndTheirProfilePhotos[suggestion];
             }
         }
@@ -303,25 +304,28 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
     }
 
     function selectUserOrGroupChat(usernameOrGroupChatToBeSelected) {
-        setSelectedUsersAndGroupChats(new Set([...selectedUsersAndGroupChats]).add(usernameOrGroupChatToBeSelected));
+        setSelectedUsersAndGroupChats(prevSelected => new Set(prevSelected).add(usernameOrGroupChatToBeSelected));
     }
     
     function unselectUserOrGroupChat(usernameOrGroupChatToBeUnselected) {
-        const newSelectedUsersAndGroupChats = new Set([...selectedUsersAndGroupChats]);
-        newSelectedUsersAndGroupChats.delete(usernameOrGroupChatToBeUnselected);
-        setSelectedUsersAndGroupChats(newSelectedUsersAndGroupChats);
+        setSelectedUsersAndGroupChats(prevSelected => {
+            const updatedSet = new Set(prevSelected);
+            updatedSet.delete(usernameOrGroupChatToBeUnselected);
+            return updatedSet;
+        });
     }
+    
 
     async function sendPost(method) {
         //method is either 'individually' or 'as a group'
         //simply send a message that contains the link to the post
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup(`As an anonymous guest, you cannot send posts to anybody. If you would like to do so,
+            you must login to an account of yours`);
+            return;
+        }
+        
         setSendPostStatus('Loading...');
-        const usersAndGroupChatsToSendTo = selectedUsersAndGroupChats.map(x=> {
-            if(x.startsWith('GROUP CHAT ID: ')) {
-                return x.substring(15);
-            }
-            return x;
-        });
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/sendPostToMultipleUsersAndGroups/
@@ -331,7 +335,7 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     method: method,
-                    usersAndGroupsToSendTo: usersAndGroupChatsToSendTo
+                    usersAndGroupsToSendTo: selectedUsersAndGroupChats
                 }),
                 credentials: 'include'
             });
@@ -347,7 +351,7 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
             }
         }
         catch (error) {
-            notifyParentToShowErrorPopup(`There was trouble connecting to the server for sending the post
+            notifyParentToShowErrorPopup(`There was trouble connecting to the server to send the post
             to the selected member(s).`);
         }
     }
@@ -374,7 +378,7 @@ notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {
             <hr style={{width: '99%', borderTop: '0.1px solid lightgray'}} />
 
             <div style={{display:'flex', flexDirection:'column', alignItems:'start', height:'26em',
-            overflow:'scroll'}}>
+            overflow:'scroll', gap: '1em'}}>
                 {accountToSendTo.length==0 && 
                     (
                         <b style={{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}}>

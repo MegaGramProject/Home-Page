@@ -22,9 +22,15 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
     }
 
     async function toggleFollowUser() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
+            Guest' mode`);
+            return;
+        }
+        
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/toggleFollowUser/${authUser}/${username}`, {
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
                 method: 'PATCH',
                 credentials: 'include'
             });
@@ -36,15 +42,12 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
                 const newFollowText = await response.text();
                 notifyParentToUpdateFollowText(newFollowText);
             }
+
         }
         catch (error) {
             notifyParentToShowErrorPopup(`There was an error connecting to the server to toggle your follow-status
             of ${username}`);
         }
-    }
-
-    function takeToUsersProfile() {
-        window.location.href = `http://34.111.89.101/profile/${username}`;
     }
     
 
@@ -52,16 +55,18 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
         <div className="popup" style={{width:'22em', position:'absolute',
         padding: '1.5em 1.5em', borderRadius:'2%', zIndex: '10'}}>
             <div style={{display:'flex', justifyContent:'start', alignItems:'start'}}>
-                <img src={profilePhoto} onClick={takeToUsersProfile}
-                style={{width:'3em', height:'3em', cursor: 'pointer'}}/>
+                <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
+                    <img src={profilePhoto} style={{width:'3em', height:'3em', cursor: 'pointer'}}/>
+                </a>
 
                 <div style={{display:'flex', flexDirection:'column', marginLeft:'0.7em',
                 alignItems: 'start'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
-                        <b onClick={takeToUsersProfile} style={{fontSize:'0.85em', cursor:'pointer',
-                        maxWidth: '5em', overflowWrap:'break-word'}}>
+                        <a href={`http://34.111.89.101/profile/${username}`} style={{fontSize:'0.85em', cursor:'pointer',
+                        maxWidth: '10em', overflowWrap:'break-word', fontWeight: 'bold', textAlign: 'start'}}
+                        target="_blank" rel="noopener noreferrer">
                             {username}
-                        </b>
+                        </a>
 
                         {isVerified &&
                             (
@@ -100,6 +105,9 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
                 </div>
             </div>
 
+            <br/>
+            <br/>
+
             {isPrivate==true &&
                 (
                     <div style={{display:'flex', flexDirection: 'column', alignItems: 'center'}}>
@@ -117,15 +125,18 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
 
             {(isPrivate==false || isPrivate==='?') && 
                 (
-                    <p onClick={takeToUsersProfile}
-                    style={{fontSize: '0.84em', color: '#666666', cursor: 'pointer',
-                    marginTop: '20%', marginBottom: '20%'}}>
+                    <a href={`http://34.111.89.101/profile/${username}`}
+                    style={{fontSize: '0.84em', color: '#666666', cursor: 'pointer'}}
+                    target="_blank" rel="noopener noreferrer">
                         Click here to visit this profile.
-                    </p>
+                    </a>
                 )
             }
 
-            <button onClick={toggleFollowUser}className="blueButton"
+            <br/>
+            <br/>
+
+            <button onClick={toggleFollowUser} className="blueButton"
             style={{width:'96%', backgroundColor: followText==='Follow' ? '#327bf0' : '#b3b4b5',
             cursor:'pointer'}}>
                 {followText}

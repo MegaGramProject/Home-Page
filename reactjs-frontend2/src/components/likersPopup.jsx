@@ -25,12 +25,11 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
     }, []);
 
     async function fetchLikers(initialOrAdditionalText) {
-        console.log(idOfPostOrComment);
         const isInitialFetch = initialOrAdditionalText === 'initial';
         try {
             //batches of 20 likers will be fetched at a time
             let response;
-            if(postOrCommentText==='post') {
+            if(postOrCommentText==='comment') {
                 response = await fetch(
                 `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getCommentLikers/${authUser}/${idOfPostOrComment}`, {
                     method: 'POST',
@@ -43,7 +42,7 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
             }
             else {
                 response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/getPostLikers/${authUser}/${idOfPostOrComment}`, {
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/getPostLikers/${authUser}/${idOfPostOrComment}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -54,7 +53,6 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
             }
             if(!response.ok) {
                 if(isInitialFetch) {
-                    console.log("A");
                     setInitialLikersFetchingErrorMessage(
                         `The server had trouble getting the initial likers of this ${postOrCommentText}.`
                     );
@@ -82,6 +80,7 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
                     newLikers.push(
                         <FollowUser
                             key={authUser}
+                            authUser={authUser}
                             username={authUser}
                             followStatus={'N/A'}
                             notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
@@ -95,6 +94,7 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
                     newLikers.push(
                         <FollowUser
                             key={usernameOfLiker}
+                            authUser={authUser}
                             username={usernameOfLiker}
                             followStatus={'Following'}
                             notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
@@ -108,6 +108,7 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
                     newLikers.push(
                         <FollowUser
                             key={usernameOfLiker}
+                            authUser={authUser}
                             username={usernameOfLiker}
                             followStatus={'Requested'}
                             notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
@@ -121,6 +122,7 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
                     newLikers.push(
                         <FollowUser
                             key={usernameOfLiker}
+                            authUser={authUser}
                             username={usernameOfLiker}
                             followStatus={'Follow'}
                             notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
@@ -325,6 +327,13 @@ usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOr
                     transform: 'translate(-50%, -50%)', width: '75%', color: 'gray'}}>
                         {initialLikersFetchingErrorMessage}
                     </p>
+                )
+            }
+
+            {!fetchingInitialLikersIsComplete &&
+                (
+                    <img src={loadingAnimation} style={{height: '2.75em', width: '2.75em', objectFit: 'contain',
+                    pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}}/>
                 )
             }
 

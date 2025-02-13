@@ -20,7 +20,7 @@ function ErrorPopup({errorMessage, notifyParentToClosePopup}) {
             </div>
         
             <p style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            maxWidth: '88%', overflowWrap: 'break-word', fontSize: '1em', color: 'gray'}}>
+            maxWidth: '90%', overflowWrap: 'break-word', fontSize: '1em', color: 'gray'}}>
                 {errorMessage}
             </p>
 

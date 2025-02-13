@@ -24,8 +24,8 @@ function PostDots({numSlides, currSlide, currSlideIsImage}) {
     }, [numSlides, currSlide]);
 
     return (
-        <div style={{display:'flex', width:'100%', position:'absolute',
-        top: currSlideIsImage ? '95%' : '90%', left: '0%', justifyContent:'center', alignItems:'center', gap:'0.2em'}}>
+        <div style={{display:'flex', width:'100%', position:'absolute', top: currSlideIsImage ? '95%' : '90%', left: '0%',
+        justifyContent:'center', alignItems:'center', gap:'0.2em'}}>
             {slides}
         </div>
     );

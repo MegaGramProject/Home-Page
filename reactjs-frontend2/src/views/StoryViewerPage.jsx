@@ -23,64 +23,55 @@ function StoryViewerPage({urlParams}) {
         document.title = "Stories";
         setStoryViewerUsername(urlParams.username);
         setStoryId(urlParams.storyId);
-        return;
 
         if(localStorage.getItem("defaultAuthUser")!==null) {
             authenticateUser(localStorage.getItem("defaultAuthUser"));
         }
         else {
-            window.location.href = "http://34.111.89.101/login"
+            setAuthUser('Anonymous Guest');
         }
     }, []);
 
     useEffect(() => {
         if (authUser.length > 0) {
+            localStorage.setItem('defaultAuthUser', authUser);
             fetchTheNecessaryUserData();
         }
     }, [authUser]);
 
     async function authenticateUser(username) {
-        let authenticationFailed = false;
+        if (username === 'Anonymous Guest') {
+            setAuthUser(username);
+            return;
+        }
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${username}`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 credentials: 'include'
             });
             if(!response.ok) {
-                authenticationFailed = true;
-                showErrorPopup('The server had trouble authenticating your login-session.');
+                setAuthUser('Anonymous Guest');
+                showErrorPopup(`The server had trouble verifying your login-status as ${username}. You are now browsing
+                Megagram stories as an Anonymous Guest.`);
             }
             else {
-                localStorage.setItem('defaultAuthUser', username);
                 setAuthUser(username);
             }
         }
         catch (error) {
-            authenticationFailed = true;
-            showErrorPopup('There was trouble connecting to the server to check if you are logged in.');
-        }
-        finally {
-            if(authenticationFailed) {
-                setTimeout(() => {
-                    window.location.href = 'http://34.111.89.101/login';
-                }, 3000);
-            }
+            setAuthUser('Anonymous Guest');
+            showErrorPopup(`There was trouble connecting to the server to verify your login-status as ${username}. You are now 
+            browsing Megagram stories as an Anonymous Guest.`);
         }
     }
 
     async function fetchTheNecessaryUserData() {
         const newUsersAndTheirRelevantInfo = {};
         newUsersAndTheirRelevantInfo[storyViewerUsername] = {};
-
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsVerifiedStatusAndProfilePhotoOfUser/
-            ${authUser}/${storyViewerUsername}`, {
-                credentials: 'include'
-            });
+            ${authUser}/${storyViewerUsername}`);
             if (!response.ok) {
                 console.error(`The server had trouble getting the isVerified status and profile-photo of
                 ${storyViewerUsername}`);
@@ -105,10 +96,6 @@ function StoryViewerPage({urlParams}) {
             setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
         }
 
-        setStoryFetchingIsComplete(true);
-        return;
-        const newUsersAndTheirStories = {};
-        const newUsersAndYourCurrSlideInTheirStories = {};
         try {
             const response1 = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/getStoriesOfUserGivenUsernameAndStoryId/
@@ -121,6 +108,8 @@ function StoryViewerPage({urlParams}) {
             }
             else {
                 const storyData = await response1.json();
+                const newUsersAndTheirStories = {};
+                const newUsersAndYourCurrSlideInTheirStories = {};
                 newUsersAndTheirStories[storyViewerUsername] = storyData.stories;
                 newUsersAndYourCurrSlideInTheirStories[storyViewerUsername] = storyData.currSlide;
 
@@ -138,7 +127,7 @@ function StoryViewerPage({urlParams}) {
     }
 
     function closeStoryViewer() {
-        window.location.href = 'http://localhost:8004';
+        window.location.href = 'http://34.111.89.101/';
     }
 
     function showErrorPopup(errorMessage) {
@@ -150,7 +139,7 @@ function StoryViewerPage({urlParams}) {
         setDisplayErrorPopup(false);
 
         if(storyFetchingError) {
-            window.location.href = 'http://localhost:8004';
+            window.location.href = 'http://34.111.89.101/';
         }
     }
 

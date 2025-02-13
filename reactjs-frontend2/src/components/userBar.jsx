@@ -9,11 +9,18 @@ function UserBar({username, isPrivate, numFollowers, numFollowing, numPosts, ful
 isVerified, authUser, notifyParentToShowErrorPopup}) {
     const [followText, setFollowText] = useState('Follow');
     const [displayAccountPreview, setDisplayAccountPreview] = useState(false);
+
     function takeUserToLogin() {
         window.location.href = "http://34.111.89.101/login";
     }
 
     async function toggleFollowUser() {
+        if (authUser === 'Anonymous Guest') {
+            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
+            Guest' mode`);
+            return;
+        }
+        
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
@@ -44,10 +51,6 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
         setDisplayAccountPreview(false);
     }
 
-    function takeToUsersProfile() {
-        window.location.href = `http://34.111.89.101/profile/${username}`;
-    }
-
     function updateFollowTextFromAccountPreview(newFollowText) {
         setFollowText(newFollowText);
     }
@@ -57,16 +60,19 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
             <div style={{display:'flex', width:'20em', alignItems:'start', position:'relative',
             marginBottom: '-1em'}} onMouseEnter={setDisplayAccountPreviewToTrue}
             onMouseLeave={setDisplayAccountPreviewToFalse}>
-                <img src={profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', 
-                cursor:'pointer'}}/>   
+                <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
+                    <img src={profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', 
+                    cursor:'pointer'}}/>   
+                </a>
 
                 <div style={{display:'flex', flexDirection:'column', alignItems: 'start', marginLeft:'0.7em'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
-                        <b onClick={takeToUsersProfile} onMouseEnter={setDisplayAccountPreviewToTrue}
-                        onMouseLeave={setDisplayAccountPreviewToFalse}
-                        style={{fontSize:'0.85em', cursor:'pointer', maxWidth: '5em', overflowWrap: 'break-word'}}>
+                        <a href={`http://34.111.89.101/profile/${username}`} onMouseEnter={setDisplayAccountPreviewToTrue}
+                        onMouseLeave={setDisplayAccountPreviewToFalse} style={{fontSize:'0.85em', cursor:'pointer', maxWidth: '8em',
+                        overflowWrap: 'break-word', textAlign: 'start', fontWeight: 'bold'}} target="_blank"
+                        rel="noopener noreferrer">
                             {username}
-                        </b>
+                        </a>
 
                         {isVerified &&
                             (
@@ -77,7 +83,7 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
                     </div>
 
                     <p style={{fontSize:'0.7em', marginTop:'0.1em', color:'#787878',
-                    maxWidth: '11em', overflowWrap: 'break-word'}}>
+                    maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}}>
                         {fullName==='?' ? 'Could not get full name' : fullName}
                     </p>
                 </div>
@@ -89,7 +95,7 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
                 </p>
                 
                 {(!(username===authUser) && displayAccountPreview) && 
-                    <div style={{position:'absolute', top:'36%'}}>
+                    <div style={{position:'absolute', top:'36%', left: '-2%'}}>
                         <AccountPreview
                             username={username}
                             profilePhoto={profilePhoto}
