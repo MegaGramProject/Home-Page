@@ -19,13 +19,6 @@ import blackScreen from "../assets/images/blackScreen.png";
 import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import rightArrow from "../assets/images/nextArrow.png";
-import torn from '../assets/misc/torn.mp3';
-import subtitles1 from '../assets/misc/subtitles1.vtt';
-import subtitles2 from '../assets/misc/subtitles2.vtt';
-import subtitles3 from '../assets/misc/subtitles3.vtt';
-import scenicRoad from '../assets/images/scenicRoad.jpg';
-import scenicNature from '../assets/images/scenicNature.jpg';
-import vidPost from '../assets/misc/videoPost.mp4';
 
 
 import '../styles.css';
@@ -256,82 +249,6 @@ function MainPage({urlParams}) {
     }
     
     async function fetchPosts(initialOrAdditionalText) {
-        setOrderedListOfPosts([
-            {
-                overallPostId: '593e4353-22d5-47fd-a9e2-510a46c655b0',
-                authors: ['rishavry2', 'rishavry4', 'rishavry5'],
-                datetimeOfPost: "2025-01-24T13:49:00",
-                locationOfPost: "Virginia Beach, Virginia USA",
-                backgroundMusic: {
-                    songTitle: "Torn",
-                    songArtist: "Natalie Imbruglia",
-                    src: torn
-                },
-                slides: [
-                    {
-                        type: 'Image',
-                        src: scenicRoad,
-                        taggedAccounts: [
-                            ['saquon', 50, 20],
-                            ['jb', 66, 69]
-                        ]
-                    },
-                    {
-                        type: 'Image',
-                        src: scenicNature,
-                        taggedAccounts: []
-                    },
-                    {
-                        type: 'Video',
-                        src: vidPost,
-                        subtitles: [
-                            {
-                                langCode: 'en',
-                                src: subtitles1,
-                                default: true
-                            },
-    
-                            {
-                                langCode: 'es',
-                                src: subtitles2
-                            },
-    
-                            {
-                                langCode: 'de',
-                                src: subtitles3
-                            }
-                        ],
-                        sections: [
-                            [0, 'intro'],
-                            [1000, 'middle'],
-                            [2000, 'ending']
-                        ],
-                        taggedAccounts: [
-                            ['rishavry6', 'Following'],
-                            ['rishavry7', 'Follow']
-                        ]
-                    },
-                ],
-                isLiked: false,
-                isSaved: false,
-                numLikes: 15565,
-                likersFollowedByAuthUser: ['rishavry5', 'rishavry6'],
-                numComments: 57,
-                caption: {
-                    content: `Life\'s good when you bounce back from adversity and actively seek out whatever enriches
-                    your soul! Me and @rishavry3 can testify to that! #fyp #blessed`,
-                    datetime: "2025-01-24T13:49:00",
-                    isEdited: false
-                },
-                adInfo: {
-                    callToAction: 'fly here in 2 days!',
-                    link: 'https://google.com'
-                },   
-            }
-        ]);
-        setFetchingInitialPostsIsComplete(true);
-        return;
-        
         const isInitialFetch = initialOrAdditionalText==='initial';
         let fetchError = false;
         let listOfNewPostsForFeed = [];

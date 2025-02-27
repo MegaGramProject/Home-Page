@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../buildMultiTargeting/aspNetCoreBackend1.props" />
-</Project>
