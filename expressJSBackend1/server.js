@@ -157,7 +157,7 @@ const listOfValidLangCodes = Object.keys(languageCodeToLabelMappings);
 const mutualTLSAgent = new https.Agent({
     key: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-key.pem'),
     cert: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-cert.pem'),
-    ca: fs.readFileSync('../pemFilesForMutualTLS/Home-Page-api-key.pem'),
+    ca: fs.readFileSync('../pemFilesForMutualTLS/Home-Page-ca-cert.pem'),
     requestCert: true,
     rejectUnauthorized: false
 });
@@ -3913,7 +3913,7 @@ https.createServer(
     {
         key: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-key.pem'),
         cert: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-cert.pem'),
-        ca: fs.readFileSync('../pemFilesForMutualTLS/Home-Page-api-key.pem'),
+        ca: fs.readFileSync('../pemFilesForMutualTLS/Home-Page-ca-cert.pem'),
         requestCert: true,
         rejectUnauthorized: false
     },
