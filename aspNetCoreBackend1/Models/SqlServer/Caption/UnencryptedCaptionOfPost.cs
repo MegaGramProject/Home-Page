@@ -8,9 +8,6 @@ namespace aspNetCoreBackend1.Models.SqlServer.Caption;
 public class UnencryptedCaptionOfPost
 {
     [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int id { get; set; }
-
     [Column("overallPostId")]
     public string overallPostId { get; set; }
 
@@ -25,6 +22,9 @@ public class UnencryptedCaptionOfPost
 
     [Column("content")]
     public string content { get; set; }
+
+    public UnencryptedCaptionOfPost()
+    {}
 
     public UnencryptedCaptionOfPost(
         string overallPostId, bool isEdited, DateTime datetimeOfCaption, int authorId, string content

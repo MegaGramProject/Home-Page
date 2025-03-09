@@ -7,10 +7,8 @@ namespace aspNetCoreBackend1.Models.SqlServer.Caption;
 [Table("encryptedCaptionsOfPosts")]
 public class EncryptedCaptionOfPost
 {
+    
     [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int id { get; set; }
-
     [Column("overallPostId")]
     public string overallPostId { get; set; }
 

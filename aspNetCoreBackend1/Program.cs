@@ -1,14 +1,29 @@
 using aspNetCoreBackend1.Contexts;
-using aspNetCoreBackend1.Controllers;
+using aspNetCoreBackend1.Attributes;
 using aspNetCoreBackend1.Services;
+using aspNetCoreBackend1.graphql.Mutations;
+using aspNetCoreBackend1.graphql.Queries;
+
+using System.Security.Cryptography.X509Certificates;
+
 using Microsoft.EntityFrameworkCore;
 using Azure.Identity;
 using Azure.Security.KeyVault.Keys;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
-using System.Security.Cryptography.X509Certificates;
+using DotNetEnv;
 
+
+Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddEnvironmentVariables();
+builder.Host.UseDefaultServiceProvider(options =>
+{
+    options.ValidateScopes = false;
+    options.ValidateOnBuild = false;
+});
+
 builder.Services.AddCors(options =>
 {
         options.AddPolicy("AllowSpecificOrigins", policy =>
@@ -34,6 +49,10 @@ builder.Services.AddSingleton<EncryptionAndDecryptionService>();
 builder.Services.AddSingleton<UserAuthService>();
 
 builder.Services.AddSingleton<PostOrCommentLikingService>();
+
+builder.Services.AddSingleton<CommentsService>();
+
+builder.Services.AddSingleton<PostInfoFetchingService>();
 
 builder.Services.AddSingleton<KeyClient>(provider =>
 {
@@ -64,6 +83,8 @@ builder.Services.AddHttpClient("HttpClientWithMutualTLS")
         return handler;
     });
 
+builder.Services.AddHttpContextAccessor();
+
 var serverCert = new X509Certificate2("../pemFilesForMutualTLS/aspNetCoreBackend1-key-and-cert.pfx");
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -79,6 +100,16 @@ builder.WebHost.ConfigureKestrel(options =>
     });
 });
 
+builder.Services.AddGraphQLServer()
+    .AddQueryType<CaptionQueryProvider>()
+    .AddQueryType<CommentQueryProvider>()
+
+    .AddMutationType<CaptionMutationProvider>()
+    .AddMutationType<CommentMutationProvider>()
+
+    .AddProjections()
+    .AddFiltering()
+    .AddSorting();
 
 var app = builder.Build();
 
@@ -91,7 +122,7 @@ app.UseRouting();
 app.Use(async (context, next) =>
 {
     var endpoint = context.GetEndpoint();
-    var requiresCert = endpoint?.Metadata.GetMetadata<RequireCertificateAttribute>() != null;
+    var requiresCert = endpoint?.Metadata.GetMetadata<RequireMutualTLSAttribute>() != null;
 
     if (requiresCert)
     {
@@ -120,5 +151,9 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+app.MapGraphQL(path: "/graphql");
+
+app.UseGraphQLGraphiQL("/graphiql");
 
 app.Run();

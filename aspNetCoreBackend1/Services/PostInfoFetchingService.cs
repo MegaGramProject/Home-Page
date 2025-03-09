@@ -1,0 +1,336 @@
+using System.Text;
+using System.Text.Json;
+
+namespace aspNetCoreBackend1.Services;
+
+public class PostInfoFetchingService
+{
+
+
+    public async Task<object> checkIfUserIsAnAuthorAndAlsoGetEncryptionStatusOfPost(
+        int authUserId, string overallPostId, HttpClient httpClientWithMutualTLS
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Get,
+                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost
+                /{overallPostId}"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return (
+                        @"There doesn't currently exist a post with the provided overallPostId",
+                        "NOT_FOUND"
+                    );                    
+                }
+                return (
+                    @"The expressJSBackend1 server had trouble getting the authors and encryption-status of the post.",
+                    "BAD_GATEWAY"
+                );
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, object>? parsedResponseData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                stringifiedResponseData
+            );
+
+            int[] authorsOfPost = (int[]) parsedResponseData!["authors"];
+            bool? isEncrypted = (bool) parsedResponseData!["isEncrypted"];
+
+            return (
+                authorsOfPost.Contains(authUserId),
+                isEncrypted
+            );
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the expressJSBackend1 server to get the authors and encryption-status of the
+                post.",
+                "BAD_GATEWAY"
+            ); 
+        }
+    }
+
+
+    public async Task<object> getPostEncryptionStatusIfUserHasAccessToPost(
+        int? authUserId, string overallPostId, HttpClient httpClientWithMutualTLS
+    )
+    {  
+        int[] authorsOfPost = [];
+        bool isEncrypted = false;
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Get,
+                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost
+                /{overallPostId}"
+            );
+
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+            
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return (
+                        @"There doesn't currently exist a post with the overallPostId that you provided.",
+                        "NOT_FOUND"
+                    );                    
+                }
+                return (
+                    @"The expressJSBackend1 server had trouble getting the authors and encryption-status of the post.",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, object>? parsedResponseData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                stringifiedResponseData
+            );
+
+            authorsOfPost = (int[]) parsedResponseData!["authorsOfPost"];
+            isEncrypted = (bool) parsedResponseData["isEncrypted"];
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the expressJSBackend1 server to get the authors and encryption-
+                status of the post.",
+                "BAD_GATEWAY"
+            ); 
+        }
+
+        if (isEncrypted)
+        {
+            if (authUserId == null)
+            {
+               return (
+                    @"As an anonymous guest, you do not have access to this private-post or any of the encrypted data
+                    associated with it.",
+                    "UNAUTHORIZED"
+                );  
+            } 
+
+            try
+            {
+                HttpRequestMessage request1 = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserFollowsAtLeastOneInList/{authUserId}"
+                );
+
+                request1.Content = new StringContent(
+                    JsonSerializer.Serialize(
+                        new {
+                            list = authorsOfPost
+                        }
+                    ),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                HttpResponseMessage response1 = await httpClientWithMutualTLS.SendAsync(request1);
+                
+                if (!response1.IsSuccessStatusCode)
+                {
+                    return (
+                        @"The djangoBackend2 server had trouble verifying whether or not you follow at-least one of the
+                        authors of this private-post.",
+                        "BAD_GATEWAY"
+                    ); 
+                }
+
+                string stringifiedDataForResponse1 = await response1.Content.ReadAsStringAsync();
+                bool userFollowsAtLeastOneAuthor = JsonSerializer.Deserialize<bool>(stringifiedDataForResponse1);
+                if (!userFollowsAtLeastOneAuthor) {
+                    return (
+                        @"You do not have access to any of the encrypted-data of this post since you do not follow
+                        at-least one of its authors.",
+                        "UNAUTHORIZED"
+                    ); 
+                }
+            }
+            catch
+            {
+                return (
+                    @"There was trouble connecting to the djangoBackend2 server to verify whether or not you follow at-least 
+                    one of the authors of this private-post.",
+                    "BAD_GATEWAY"
+                ); 
+            }  
+        }
+        else
+        {
+            if (authUserId != null)
+            {
+                try
+                {
+                    HttpRequestMessage request2 = new HttpRequestMessage(
+                        HttpMethod.Post,
+                        @$"http://34.111.89.101/api/Home-Page/djangoBackend2/isEachUserInListInTheBlockingsOfAuthUser
+                        /{authUserId}"
+                    );
+
+                    request2.Content = new StringContent(
+                        JsonSerializer.Serialize(
+                            new {
+                                list = authorsOfPost
+                            }
+                        ),
+                        Encoding.UTF8,
+                        "application/json"
+                    );
+
+                    HttpResponseMessage response2 = await httpClientWithMutualTLS.SendAsync(request2);
+
+                    if (!response2.IsSuccessStatusCode)
+                    {
+                        return (
+                            @"The djangoBackend2 server had trouble checking whether or not
+                            each of the authors of this post either block you or are blocked by you.",
+                            "BAD_GATEWAY"
+                        ); 
+                    }
+
+                    string stringifiedResponse2Data = await response2.Content.ReadAsStringAsync();
+                    bool? eachPostAuthorIsInAuthUserBlockings = JsonSerializer.Deserialize<bool>(
+                        stringifiedResponse2Data
+                    );
+                    if (eachPostAuthorIsInAuthUserBlockings == true)
+                    {
+                        return (
+                            "You are trying to access the data of a post that does not exist.",
+                            "NOT_FOUND"
+                        );
+                    }
+                }
+                catch
+                {
+                    return (
+                        @"There was trouble connecting to the djangoBackend2 server to check whether or not
+                        each of the authors of this unencrypted post either block you or are blocked by you.",
+                        "BAD_GATEWAY"
+                    );
+                }
+            }
+        }
+
+        return isEncrypted;
+    }
+
+    public async Task<object> getAuthorsAndEncryptionStatusOfPostAndFollowingsAndBlockingsOfUser(
+        int? authUserId, string overallPostId, HttpClient httpClientWithMutualTLS
+    )
+    {
+        int[] authorsOfPost = [];
+        bool isEncrypted = false;
+        HashSet<int> setOfAuthUserFollowings = new HashSet<int>();
+        HashSet<int> setOfAuthUserBlockings = new HashSet<int>();
+
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Get,
+                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost
+                /{overallPostId}"
+            );
+
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+            
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return (
+                        @"There doesn't currently exist a post with the overallPostId that
+                        you provided.",
+                        "NOT_FOUND"
+                    );
+                    
+                }
+                return (
+                    @"The expressJSBackend1 server had trouble getting the authors and encryption-status of the post.",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, object>? parsedResponseData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                stringifiedResponseData
+            );
+
+            authorsOfPost = (int[]) parsedResponseData!["authorsOfPost"];
+            isEncrypted = (bool) parsedResponseData["isEncrypted"];
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the expressJSBackend1 server to get the authors and encryption-
+                status of the post.",
+                "BAD_GATEWAY"
+            ); 
+        }
+
+        if (authUserId == -1)
+        {
+            authUserId = null;
+        }
+
+        if (authUserId != null)
+        {
+            try
+            {
+                HttpRequestMessage request1 = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/getFollowingsAndBlockingsOfUser/{authUserId}"
+                );
+
+                HttpResponseMessage response1 = await httpClientWithMutualTLS.SendAsync(request1);
+                
+                if (!response1.IsSuccessStatusCode)
+                {
+                    return (
+                        @"The djangoBackend2 server had trouble getting the people that you follow, as well
+                        as the people who either block you or are blocked by you.",
+                        "BAD_GATEWAY"
+                    ); 
+                }
+
+                string stringifiedDataForResponse1 = await response1.Content.ReadAsStringAsync();
+                Dictionary<string, int[]>? parsedDataForResponse1 = JsonSerializer.Deserialize<Dictionary<string, int[]>>(
+                    stringifiedDataForResponse1
+                );
+                setOfAuthUserFollowings = new HashSet<int>(parsedDataForResponse1!["followings"]);
+                setOfAuthUserBlockings = new HashSet<int>(parsedDataForResponse1!["blockings"]);
+            }
+            catch
+            {
+                return (
+                    @"There was trouble connecting to the djangoBackend2 server to get the people that you follow, as well
+                    as the people who either block you or are blocked by you.",
+                    "BAD_GATEWAY"
+                ); 
+            }
+        }
+
+
+        return new Dictionary<string, object>
+        {
+            { "authorsOfPost", authorsOfPost },
+            { "isEncrypted", isEncrypted },
+            { "setOfAuthUserFollowings", setOfAuthUserFollowings },
+            { "setOfAuthUserBlockings", setOfAuthUserBlockings },
+        };
+    }
+}
