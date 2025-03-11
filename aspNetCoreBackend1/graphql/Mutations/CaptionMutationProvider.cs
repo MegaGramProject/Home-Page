@@ -1,12 +1,10 @@
 using aspNetCoreBackend1.Contexts;
 using aspNetCoreBackend1.Services;
-using aspNetCoreBackend1.Models.SqlServer.Caption;
-
-using System.Text.Json;
-using System.Text;
 
 using MongoDB.Bson;
-using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.RateLimiting;
+
 
 namespace aspNetCoreBackend1.graphql.Mutations;
 
@@ -15,12 +13,14 @@ public class CaptionMutationProvider
 {
 
 
+    [EnableRateLimiting("5PerMinute")]
     public async Task<bool> AddCaptionToPost(
         int authUserId, string overallPostId, string captionContent,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService
-        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService
+        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient, [Service] CaptionService captionService
     )
     {
         if (!ObjectId.TryParse(overallPostId, out _))
@@ -121,91 +121,40 @@ public class CaptionMutationProvider
             isEncrypted = isUserAnAuthorAndIsPostEncryptedSuccessOutput.Item2;
         }
 
-        if (isEncrypted)
+        IDatabase? redisCachingDatabase = null;
+        try
         {
-            try
-            {
-                byte[]? encryptedDataEncryptionKey = postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                );
-
-                var encryptedAuthUserIdInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
-                    authUserId.ToString(),
-                    plaintextDataEncryptionKey
-                );
-
-                byte[] encryptedCaptionContent = encryptionAndDecryptionService
-                .EncryptTextWithAzureDataEncryptionKeyGivenIvAndAuthTag(
-                    captionContent,
-                    plaintextDataEncryptionKey,
-                    encryptedAuthUserIdInfo.iv,
-                    encryptedAuthUserIdInfo.authTag
-                );
-
-                EncryptedCaptionOfPost newEncryptedCaptionOfPost = new EncryptedCaptionOfPost(
-                    overallPostId,
-                    false,
-                    DateTime.Now,
-                    encryptedAuthUserIdInfo.encryptedTextBuffer,
-                    encryptedCaptionContent,
-                    encryptedAuthUserIdInfo.iv,
-                    encryptedAuthUserIdInfo.authTag
-                );
-
-                await sqlServerContext.encryptedCaptionsOfPosts
-                    .AddAsync(newEncryptedCaptionOfPost);
-            }
-            catch
-            {
-                throw new GraphQLException(new Error(
-                    @"There was trouble in the process of adding your encrypted caption to this post. This could be due to
-                    this post possibly already having a caption, or due to temporary database-issues.",
-                    "INTERNAL_SERVER_ERROR"
-                ));
-            }
+            redisCachingDatabase = redisClient.GetDatabase(0);
         }
-        else
+        catch
         {
-            try
-            {
-                UnencryptedCaptionOfPost newUnencryptedCaptionOfPost = new UnencryptedCaptionOfPost(
-                    overallPostId,
-                    false,
-                    DateTime.Now,
-                    authUserId,
-                    captionContent
-                );
-
-                await sqlServerContext.unencryptedCaptionsOfPosts
-                    .AddAsync(newUnencryptedCaptionOfPost);
-            }
-            catch
-            {
-                throw new GraphQLException(new Error(
-                    @"There was trouble adding your caption to this post. This could be due to this post possibly
-                    already having a caption, or due to temporary database-issues.",
-                    "INTERNAL_SERVER_ERROR"
-                ));
-            }
+            //pass
         }
 
+        var addCaptionToPostResult = await captionService.AddCaptionToPost(
+            authUserId, overallPostId, captionContent, isEncrypted, encryptionAndDecryptionService,
+            postgresContext, redisCachingDatabase!, sqlServerContext
+        );
+
+        if (addCaptionToPostResult is Tuple<string, string> addCaptionToPostResultErrorOutput)
+        {
+            throw new GraphQLException(new Error(
+                addCaptionToPostResultErrorOutput.Item1,
+                addCaptionToPostResultErrorOutput.Item2
+            ));
+        }
         return true;
     }
 
     
+    [EnableRateLimiting("5PerMinute")]
     public async Task<bool> EditCaptionOfPost(
         int authUserId, string overallPostId, string newCaptionContent,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService
-        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService
+        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient, [Service] CaptionService captionService
 
     )
     {
@@ -307,101 +256,40 @@ public class CaptionMutationProvider
             isEncrypted = isUserAnAuthorAndIsPostEncryptedSuccessOutput.Item2;
         }
         
-
-        if (isEncrypted)
+        IDatabase? redisCachingDatabase = null;
+        try
         {
-            try
-            {
-                EncryptedCaptionOfPost? encryptedCaptionOfPostToEdit = await sqlServerContext
-                    .encryptedCaptionsOfPosts
-                    .Where(x => x.overallPostId == overallPostId)
-                    .FirstOrDefaultAsync();
-                
-                if (encryptedCaptionOfPostToEdit != null)
-                {
-                    byte[]? encryptedDataEncryptionKey = postgresContext
-                        .captionsCommentsAndLikesEncryptionInfo
-                        .Where(x => x.overallPostId == overallPostId)
-                        .Select(x => x.encryptedDataEncryptionKey)
-                        .FirstOrDefault();
-
-                    byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                        encryptedDataEncryptionKey!,
-                        $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                    );
-
-                    encryptedCaptionOfPostToEdit!.isEdited = true;
-                    encryptedCaptionOfPostToEdit!.encryptedContent = encryptionAndDecryptionService
-                    .EncryptTextWithAzureDataEncryptionKeyGivenIvAndAuthTag(
-                        newCaptionContent,
-                        plaintextDataEncryptionKey,
-                        encryptedCaptionOfPostToEdit.encryptionIv,
-                        encryptedCaptionOfPostToEdit.encryptionAuthTag
-                    );
-                    encryptedCaptionOfPostToEdit!.datetimeOfCaption = DateTime.Now;
-
-                    sqlServerContext.encryptedCaptionsOfPosts.Update(encryptedCaptionOfPostToEdit);
-                    await sqlServerContext.SaveChangesAsync();
-                }
-                else
-                {
-                    throw new GraphQLException(new Error(
-                        @"The post with the provided overallPostId has no caption for you to edit.",
-                        "NOT_FOUND"
-                    ));
-                }
-            }
-            catch
-            {
-                throw new GraphQLException(new Error(
-                    @"There was trouble in the process of editing the encrypted caption, if any, of this post.",
-                    "INTERNAL_SERVER_ERROR"
-                ));
-            }
+            redisCachingDatabase = redisClient.GetDatabase(0);
         }
-        else
+        catch
         {
-            try
-            {
-                UnencryptedCaptionOfPost? unencryptedCaptionOfPostToEdit = await sqlServerContext
-                    .unencryptedCaptionsOfPosts
-                    .Where(x => x.overallPostId == overallPostId)
-                    .FirstOrDefaultAsync();
-                
-                if (unencryptedCaptionOfPostToEdit != null)
-                {
-                    unencryptedCaptionOfPostToEdit!.isEdited = true;
-                    unencryptedCaptionOfPostToEdit!.content = newCaptionContent;
-                    unencryptedCaptionOfPostToEdit!.datetimeOfCaption = DateTime.Now;
-
-                    sqlServerContext.unencryptedCaptionsOfPosts.Update(unencryptedCaptionOfPostToEdit);
-                    await sqlServerContext.SaveChangesAsync();
-                }
-                else
-                {
-                    throw new GraphQLException(new Error(
-                        @"The post with the provided overallPostId has no caption for you to edit.",
-                        "NOT_FOUND"
-                    ));
-                }
-            }
-            catch
-            {
-                throw new GraphQLException(new Error(
-                    @"There was trouble editing the unencrypted caption, if any, of this post.",
-                    "INTERNAL_SERVER_ERROR"
-                ));
-            }
+            //pass
         }
 
-        return true;
+        var editCaptionOfPostResult = await captionService.EditCaptionOfPost(
+            overallPostId, newCaptionContent, isEncrypted, encryptionAndDecryptionService,
+            postgresContext, redisCachingDatabase!, sqlServerContext
+        );
+
+        if (editCaptionOfPostResult is Tuple<string, string> addCaptionToPostResultErrorOutput)
+        {
+            throw new GraphQLException(new Error(
+                addCaptionToPostResultErrorOutput.Item1,
+                addCaptionToPostResultErrorOutput.Item2
+            ));
+        }
+
+        return (bool) editCaptionOfPostResult; 
     }
 
+
+    [EnableRateLimiting("5PerMinute")]
     public async Task<bool> DeleteCaptionOfPost(
         int authUserId, string overallPostId,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
-        [Service] PostInfoFetchingService postInfoFetchingService
+        [Service] PostInfoFetchingService postInfoFetchingService, [Service] IConnectionMultiplexer
+        redisClient, [Service] CaptionService captionService
     )
     {
         if (!ObjectId.TryParse(overallPostId, out _))
@@ -493,43 +381,28 @@ public class CaptionMutationProvider
             }
             isEncrypted = isUserAnAuthorAndIsPostEncryptedSuccessOutput.Item2;
         }
-
-        int numCaptionsDeleted = 0;
-        if (isEncrypted)
+        
+        IDatabase? redisCachingDatabase = null;
+        try
         {
-            try
-            {
-                numCaptionsDeleted = await sqlServerContext
-                    .encryptedCaptionsOfPosts
-                    .Where(x => x.overallPostId == overallPostId)
-                    .ExecuteDeleteAsync();
-            }
-            catch
-            {
-                throw new GraphQLException(new Error(
-                    @"There was trouble removing the encrypted caption, if any, of this post.",
-                    "INTERNAL_SERVER_ERROR"
-                ));
-            }
+            redisCachingDatabase = redisClient.GetDatabase(0);
         }
-        else
+        catch
         {
-            try
-            {
-                numCaptionsDeleted = await sqlServerContext
-                    .unencryptedCaptionsOfPosts
-                    .Where(x => x.overallPostId == overallPostId)
-                    .ExecuteDeleteAsync();
-            }
-            catch
-            {
-                throw new GraphQLException(new Error(
-                    @"There was trouble removing the unencrypted caption, if any, of this post.",
-                    "INTERNAL_SERVER_ERROR"
-                ));
-            }
+            //pass
         }
 
-        return numCaptionsDeleted==1;
+        var deleteCaptionOfPostResult = await captionService.DeleteCaptionOfPost(
+            overallPostId, isEncrypted, redisCachingDatabase!, sqlServerContext
+        );
+
+        if (deleteCaptionOfPostResult is Tuple<string, string> deleteCaptionOfPostResultErrorOutput)
+        {
+            throw new GraphQLException(new Error(
+                deleteCaptionOfPostResultErrorOutput.Item1,
+                deleteCaptionOfPostResultErrorOutput.Item2
+            ));
+        }
+        return (bool) deleteCaptionOfPostResult;
     }
 }

@@ -200,7 +200,7 @@ app.use(cors(corsOptions));
 
 
 app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, async (req, res) => {
-    const { authUserId } = req.params;
+    let { authUserId } = req.params;
     if (authUserId !== 'Anonymous Guest') {
         const userTokenValidationResult = validateUserAuthToken(authUserId, req.cookies);
 
@@ -219,23 +219,28 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             return res.sendStatus(401);
         }
     }
+    else
+    {
+        authUserId = -1;
+    }
 
     let successMessage = '';
-    let failureMessage = '';
+    let errorMessage = '';
 
     let top10UsersThatAuthUserFollowsAndEngagesWithTheMost = [];
-    let top10UsersThatAuthUserEngagesWithTheAdPostsOfTheMost = [];
+    let top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost = [];
+    let authUserFollowings = [];
     try {
         const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/
-        forHomePageFeedGetTheTopUsersBasedOnNumLikesCommentsPostViewsAndNumAdLinkClicks/${authUserId}`, {
+        forHomePageFeedGetTheTopUsersBasedOnNumLikesNumCommentsNumPostViewsAndNumAdLinkClicks/${authUserId}`, {
             agent: mutualTLSAgent
         });
         if (!response.ok) {
-            failureMessage += `• The server is supposed to provide the list of top 10 users you follow and whose posts you engage with
+            errorMessage += `• The server is supposed to provide the list of top 10 users you follow and whose posts you engage with
             the most(based on numLikes/numComments/numPostViews). Furthermore, it's supposed to provide the list of the top 10 users
             whose ad-posts you engage with the most(based on numLikes/numComments/numPostViews/numAdLinkClicks). However,
             the server had trouble doing that\n`; 
-            return res.send(failureMessage).status(500);
+            return res.status(500).send(errorMessage);
         }
 
         successMessage += `• The server successfully provided the list of top 10 users you follow and whose posts you engage with
@@ -243,37 +248,41 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         whose ad-posts you engage with the most(based on numLikes/numComments/numPostViews/numAdLinkClicks).\n`;
         const responseData = await response.json();
         top10UsersThatAuthUserFollowsAndEngagesWithTheMost = responseData.top10UsersThatAuthUserFollowsAndEngagesWithTheMost;
-        top10UsersThatAuthUserEngagesWithTheAdPostsOfTheMost = responseData.top10UsersThatAuthUserEngagesWithTheAdPostsOfTheMost;
+        top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost = responseData.top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost;
+        authUserFollowings = responseData.authUserFollowings;
+        usersWithSponsoredPostsThatAuthUserCanView = responseData.usersWithSponsoredPostsThatAuthUserCanView;
     }
     catch (error) {
-        failureMessage += `• The server is supposed to provide the list of top 10 users you follow and whose posts you engage with
+        errorMessage += `• The server is supposed to provide the list of top 10 users you follow and whose posts you engage with
         the most(based on numLikes/numComments/numPostViews). Furthermore, it's supposed to provide the list of the top 10 users
         whose ad-posts you engage with the most(based on numLikes/numComments/numPostViews/numAdLinkClicks). However,
         there was trouble connecting to the server that does this.\n`; 
-        return res.send(failureMessage).status(500);
+        return res.status(500).send(errorMessage);
     }
 
     let orderedListOfOverallPostIdsForAuthUsersFeed = [];
     const overallPostIdToPostInfoMappings = {};
     try {
-        const response1 = await fetch(`http:/34.111.89.101/api/Home-Page/djangoBackend2/
+        const response1 = await fetch(`http:/34.111.89.101/api/Home-Page/laravelBackend1/
         getOrderedListOfOverallPostIdsOfBatchForHomePageFeed/${authUserId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
+                authUserFollowings: authUserFollowings,
+                usersWithSponsoredPostsThatAuthUserCanView: usersWithSponsoredPostsThatAuthUserCanView,
                 top10UsersThatAuthUserFollowsAndEngagesWithTheMost: top10UsersThatAuthUserFollowsAndEngagesWithTheMost,
-                top10UsersThatAuthUserEngagesWithTheAdPostsOfTheMost: top10UsersThatAuthUserEngagesWithTheAdPostsOfTheMost
+                top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost: top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost
             }),
             agent: mutualTLSAgent
         });
         if (!response1.ok) {
-            failureMessage += `• The server had trouble getting the ordered list of overallPostIds of the batch of posts for your
+            errorMessage += `• The server had trouble getting the ordered list of overallPostIds of the batch of posts for your
             home-page feed.\n`;
-            return res.send(
-                'There was a mix of success and failures in this API-request...\n' + 
+            return res.status(500).send(
+                'There was a mix of success and Errors in this API-request...\n' + 
                 'Here are the Successes:\n' + successMessage +
-                '& Here are the Failures:\n' + failureMessage
-            ).status(500);
+                '& Here are the Errors:\n' + errorMessage
+            );
         }
         successMessage += `• The server successfully provided the ordered list of overallPostIds of the batch of posts for
         your home-page feed.\n`; 
@@ -289,16 +298,17 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble connecting to the server to get the ordered list of overallPostIds of the batch of posts for your
+        errorMessage += `• There was trouble connecting to the server to get the ordered list of overallPostIds of the batch of posts for your
         home-page feed.\n`;
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
+        return res.status(500).send(
+            'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + failureMessage
-        ).status(500);
+            '& Here are the Errors:\n' + errorMessage
+        );
     }
 
     const setOfUserIdsToGetUsernamesOf = new Set();
+    const overallPostIdsAndIfTheyAreEncrypted = {};
     try {
         const allPostSlides = await imageAndVideoSlidesOfPostsDotFilesCollection.find(
             { "metadata.overallPostId": { $in: orderedListOfOverallPostIdsForAuthUsersFeed } }
@@ -313,6 +323,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
 
             if (slideNumber == 0) {
                 if ('authorsEncryptionInfo' in postSlideData) {
+                    overallPostIdsAndIfTheyAreEncrypted[overallPostId] = true;
                     const encryptedDataEncryptionKey = postSlideData.authorsEncryptionInfo.encryptedDataEncryptionKey;
                     const decryptResponse = await awsKMSClient.send(new DecryptCommand({
                         CiphertextBlob: encryptedDataEncryptionKey,
@@ -346,6 +357,10 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
                         );   
                         postSlideData.adInfo = JSON.parse(decryptedAdInfo);
                     }
+                }
+                else
+                {
+                    overallPostIdsAndIfTheyAreEncrypted[overallPostId] = false;
                 }
 
                 overallPostIdToPostInfoMappings[overallPostId].datetimeOfPost = postSlideData.datetimeOfPost;
@@ -439,13 +454,13 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         successMessage += `• The image-&-video slide data of the posts for your feed has been fetched successfully\n`;
     }
     catch (error) {
-        failureMessage += `• There was trouble that took place during the fetching of the image-&-video-slide data of the posts for
+        errorMessage += `• There was trouble that took place during the fetching of the image-&-video-slide data of the posts for
         your feed.\n`;
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
+        return res.status(500).send(
+            'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + failureMessage
-        ).status(500);
+            '& Here are the Errors:\n' + errorMessage
+        );
     }
 
     try {
@@ -453,58 +468,45 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                overallPostIds: orderedListOfOverallPostIdsForAuthUsersFeed
+                overallPostIdsAndIfTheyAreEncrypted: overallPostIdsAndIfTheyAreEncrypted
             }),
             agent: mutualTLSAgent
         });
 
         if (!response2.ok) {
-            failureMessage += `• There was trouble fetching the captions of each of the posts of your feed\n`;
+            errorMessage += `• There was trouble fetching the captions of each of the posts of your feed\n`;
         }
         else {
-            const overallPostIdToCaptionInfoMappings = await response2.json();
-            for(const overallPostId of Object.keys(overallPostIdToCaptionInfoMappings)) {
-                if (overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey==null) {
-                    overallPostIdToPostInfoMappings[overallPostId].caption = overallPostIdToCaptionInfoMappings[overallPostId];
+            const response2Data = await response2.json();
+            const overallPostIdsAndTheirCaptions = response2Data["overallPostIdsAndTheirCaptions"];
+            for(const overallPostId of Object.keys(overallPostIdsAndTheirCaptions)) {
+                if (overallPostIdsAndTheirCaptions[overallPostId] == null)
+                {
+                    continue;
                 }
-                else {
-                    overallPostIdToPostInfoMappings[overallPostId].caption = {
-                        datetime: overallPostIdToCaptionInfoMappings[overallPostId].datetime
-                    };
+                
+                const captionInfo = overallPostIdsAndTheirCaptions[overallPostId];
+                overallPostIdToPostInfoMappings[overallPostId].caption =
+                {
+                    datetime: captionInfo['datetimeOfCaption'],
+                    author: captionInfo['authorId'],
+                    content: captionInfo['content']
+                };
 
-                    const encryptedCaptionAuthor = overallPostIdToCaptionInfoMappings[overallPostId].author;
-                    const captionAuthorEncryptionInfo = overallPostIdToCaptionInfoMappings[overallPostId].authorEncryptionInfo;
-                    overallPostIdToPostInfoMappings[overallPostId].caption.author = decryptTextWithAWSDataEncryptionKey(
-                        encryptedCaptionAuthor,
-                        overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey,
-                        captionAuthorEncryptionInfo.iv,
-                        captionAuthorEncryptionInfo.authTag
-                    );
-                    
-                    const encryptedCaptionContent = overallPostIdToCaptionInfoMappings[overallPostId].content;
-                    const captionContentEncryptionInfo = overallPostIdToCaptionInfoMappings[overallPostId].contentEncryptionInfo;
-                    overallPostIdToPostInfoMappings[overallPostId].caption.content = decryptTextWithAWSDataEncryptionKey(
-                        encryptedCaptionContent,
-                        overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey,
-                        captionContentEncryptionInfo.iv,
-                        captionContentEncryptionInfo.authTag
-                    );
-
-                    if ('isEdited' in overallPostIdToCaptionInfoMappings[overallPostId]) {
-                        overallPostIdToPostInfoMappings[overallPostId].caption.isEdited = true;
-                    }
+                if ('isEdited' in overallPostIdsAndTheirCaptions[overallPostId]) {
+                    overallPostIdToPostInfoMappings[overallPostId].caption.isEdited = true;
                 }
             }
             successMessage += `• The captions of each of the posts of your feed have been fetched successfully\n`;
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble connecting to the server to fetch the captions of each of the posts of your
+        errorMessage += `• There was trouble connecting to the server to fetch the captions of each of the posts of your
         feed\n`;
     }
 
     try {
-        const response3 = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2/getBackgroundMusicOfMultiplePosts`, {
+        const response3 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getBackgroundMusicOfMultiplePosts`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -513,7 +515,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             agent: mutualTLSAgent
         });
         if (!response3.ok) {
-            failureMessage += `• The server had trouble fetching the background-music of each of the posts for your feed\n`;
+            errorMessage += `• The server had trouble fetching the background-music of each of the posts for your feed\n`;
         }
         else {
             const overallPostIdToBackgroundMusicMappings = await response3.json();
@@ -561,12 +563,12 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble connecting to the server to fetch the background-music of each of the posts for your
+        errorMessage += `• There was trouble connecting to the server to fetch the background-music of each of the posts for your
         feed\n`;
     }
 
     try {
-        const response4 = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getVideoSubtitleFilesOfMultiplePosts`, {
+        const response4 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getVideoSubtitleFilesOfMultiplePosts`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -575,7 +577,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             agent: mutualTLSAgent
         });
         if (!response4.ok) {
-            failureMessage += `• The server had trouble fetching the video-subtitle-files of each of the posts of your feed\n`;
+            errorMessage += `• The server had trouble fetching the video-subtitle-files of each of the posts of your feed\n`;
         }
         else {
             const overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings = await response4.json();
@@ -622,27 +624,26 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble connecting to the server to fetch the video-subtitle-files of each of the posts of your
+        errorMessage += `• There was trouble connecting to the server to fetch the video-subtitle-files of each of the posts of your
         feed\n`;
     }
 
     let response5WasSuccessful = false;
     try {
         const response5 = await fetch (`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
-        /getNumLikesNumCommentsAndLikersFollowedByAuthUserForMultiplePosts/${authUserId}`, {
+        /getNumLikesNumCommentsAndAtMost3LikersFollowedByAuthUserForMultiplePosts/${authUserId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                overallPostIds: orderedListOfOverallPostIdsForAuthUsersFeed
-            }),
+            body: JSON.stringify(overallPostIdsAndIfTheyAreEncrypted),
             agent: mutualTLSAgent
         });
         if (!response5.ok) {
-            failureMessage += `• There server had trouble fetching the numLikes/numComments/likersFollowedByAuthUser of each of
+            errorMessage += `• There server had trouble fetching the numLikes/numComments/likersFollowedByAuthUser of each of
             the posts of your feed\n`;
         }
         else {
-            const response5Data = await response5.json();
+            let response5Data = await response5.json();
+            response5Data = response5Data["postsAndTheirWantedInfo"];
 
             for (let overallPostId of Object.keys(response5Data)) {
                 overallPostIdToPostInfoMappings[overallPostId].numLikes = response5Data[overallPostId].numLikes;
@@ -660,7 +661,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble connecting to the server to fetch the numLikes/numComments/likersFollowedByAuthUser of
+        errorMessage += `• There was trouble connecting to the server to fetch the numLikes/numComments/likersFollowedByAuthUser of
         each of the posts of your feed\n`;
     }
 
@@ -674,7 +675,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
 
     let userIdToUsernameMappings = null;
     try {
-        const response6 = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2/getUsernamesOfMultipleUserIds/${authUserId}`,
+        const response6 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getUsernamesOfMultipleUserIds/${authUserId}`,
         {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -684,7 +685,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             agent: mutualTLSAgent
         });
         if (!response6.ok) {
-            failureMessage += `• The server had trouble fetching the usernames associated with the
+            errorMessage += `• The server had trouble fetching the usernames associated with the
             authors/slideTaggedAccounts/likersFollowedByYou of each of the posts of your feed\n`
         }
         else {
@@ -694,7 +695,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble connecting to the server to fetch the usernames associated with the authors/slideTaggedAccounts/
+        errorMessage += `• There was trouble connecting to the server to fetch the usernames associated with the authors/slideTaggedAccounts/
         likersFollowedByYou of each of the posts of your feed\n`
     }
 
@@ -787,7 +788,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
 
     return res.send({
         successes: successMessage,
-        failures: failureMessage,
+        Errors: errorMessage,
         output: orderedListOfPostsForUserFeed
     });
 }); 
@@ -814,7 +815,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
 
     authUserId = Number(authUserId);
     let successMessage = "";
-    let failureMessage = "";
+    let errorMessage = "";
 
     const validPostData = {
         authors: []
@@ -835,7 +836,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 authors = [authUserId, ...new Set(authors.filter(id => !isNaN(id) && id > 0 && id !== authUserId))];
                 if (authors.length > 5) {
                     authors = authors.slice(0, 5);
-                    failureMessage += `• The maximum number of post-authors is 5. Here is the
+                    errorMessage += `• The maximum number of post-authors is 5. Here is the
                     list of authors that have been randomly chosen as the 5 authors:
                     ${JSON.stringify(authors)}\n`; 
                 }
@@ -847,7 +848,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
 
         if (!authorsIsValidlyStructured) {
             authors = [authUserId];
-            failureMessage += `• The authors list must be a list of user-ids of authors of this
+            errorMessage += `• The authors list must be a list of user-ids of authors of this
             post\n`; 
         }
     }
@@ -857,9 +858,9 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
 
     isPrivateStatusesOfAuthors = await getIsPrivateStatusesOfMultipleUsers(authUserId, authors);
     if (typeof isPrivateStatusesOfAuthors === 'string') {
-        failureMessage += `• ${isPrivateStatusesOfAuthors}. For context, that list was interpreted
+        errorMessage += `• ${isPrivateStatusesOfAuthors}. For context, that list was interpreted
         as the authors of the post.\n`; 
-        return res.send(failureMessage).status(500);
+        return res.status(500).send(errorMessage);;
     }
 
     for (let i=0; i<authors.length; i++) {
@@ -870,7 +871,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             validPostData.authors.push(authors[i]);
         }
         else {
-            failureMessage += `• The author with the user-id ${authors[i]} does not exist\n`; 
+            errorMessage += `• The author with the user-id ${authors[i]} does not exist\n`; 
         }
     }
 
@@ -894,9 +895,9 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             encryptedDataEncryptionKey = newAWSDataEncryptionKeyInfo[1];
         }
         catch (error) {
-            failureMessage += `• There was trouble in the process of generating the data-encryption keys required for encrypting the
+            errorMessage += `• There was trouble in the process of generating the data-encryption keys required for encrypting the
             sensitive private-post-data.\n`;
-            return res.send(failureMessage).status(500);
+            return res.status(500).send(errorMessage);;
         }
 
         try {
@@ -913,15 +914,15 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             }
         }
         catch (error) {
-            failureMessage += `• There was trouble encrypting the authors of this intended-to-be-private post.\n`;
-            return res.send(failureMessage).status(500);
+            errorMessage += `• There was trouble encrypting the authors of this intended-to-be-private post.\n`;
+            return res.status(500).send(errorMessage);;
         }
     }
 
     if ('locationOfPost' in req.body && typeof req.body.locationOfPost === 'string') {
         if (req.body.locationOfPost.length > 40) {
             validPostData.locationOfPost = req.body.locationOfPost.substring(0, 37) + "...";
-            failureMessage += `• The location of post has been trimmed to 37 characters followed by a
+            errorMessage += `• The location of post has been trimmed to 37 characters followed by a
             '...'\n`;
         }
         else {
@@ -943,14 +944,14 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             }
     
             catch (error) {
-                failureMessage += `• There was trouble encrypting the location of this this intended-to-be-private
+                errorMessage += `• There was trouble encrypting the location of this this intended-to-be-private
                 post.\n`;
                 delete validPostData.locationOfPost;
             }
         }
     }
     else if ('locationOfPost' in req.body) {
-        failureMessage += `• The location of post, if you decide to set it, must be a string that doesn't exceed 40 characters
+        errorMessage += `• The location of post, if you decide to set it, must be a string that doesn't exceed 40 characters
         in length. ${req.body.locationOfPost} is invalid\n`;
     }
 
@@ -959,7 +960,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             validPostData.category = req.body.category
         }
         else {
-            failureMessage += `• Your provided category (${req.body.category}) isn't in the list
+            errorMessage += `• Your provided category (${req.body.category}) isn't in the list
             ${JSON.stringify(listOfValidPostCategories)}\n`;
         }
     }
@@ -979,7 +980,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                         if ('callToAction' in adInfo && typeof adInfo.callToAction === 'string') {
                             if (adInfo.callToAction.length > 45) {
                                 validPostData.adInfo.callToAction = adInfo.callToAction.substring(0,42) + '...';
-                                failureMessage += `• The call to action of the adInfo object has been trimmed
+                                errorMessage += `• The call to action of the adInfo object has been trimmed
                                 to 42 characters followed by a '...'\n`;
                             }
                             else {
@@ -1009,7 +1010,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 }
         
                 catch (error) {
-                    failureMessage += `• There was trouble encrypting the ad-info of this this
+                    errorMessage += `• There was trouble encrypting the ad-info of this this
                     intended-to-be-private post.\n`;
                     delete validPostData.adInfo;
                 }
@@ -1018,7 +1019,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         catch (error) {}
 
         if (!adInfoIsValid) {
-            failureMessage += `• The adInfo, if provided, must be an object with two keys: 'link'(required) and
+            errorMessage += `• The adInfo, if provided, must be an object with two keys: 'link'(required) and
             'callToAction'(optional)\n`;
         }
     }
@@ -1039,7 +1040,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         catch (error) {}
 
         if (!slidesInfoIsValid) {
-            failureMessage += `• slidesInfo, if you decide to submit it, is a stringified dict where 
+            errorMessage += `• slidesInfo, if you decide to submit it, is a stringified dict where 
             keys are the same string-keys used for the files that were sent here, and the values are info regarding
             them. You can also submit info about the audio-file you sent here, if you
             choose to upload your post with background-music. Furthermore, you can also
@@ -1055,7 +1056,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
     req.files.forEach((file) => {
         const intendedSlideNumber = Number(file.fieldname);
         if (isNaN(intendedSlideNumber)) {
-            failureMessage += `• The key of each image/vid file should be your intended slide number 
+            errorMessage += `• The key of each image/vid file should be your intended slide number 
             of the image/vid. I.e: the lowest number if you would like for it to be in the first slide,
             the second lowest number if you would like for it to be in the second slide, and so on.
             If the file is intended for background-music/subtitles of the post, you can set the key to any
@@ -1093,7 +1094,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
 
                 if (backgroundMusicInfo.title.length > 35) {
                     backgroundMusicInfo.title = backgroundMusicInfo.title.substring(0,32) + '...';
-                    failureMessage += `• The title of the background-music has been shortened to 32
+                    errorMessage += `• The title of the background-music has been shortened to 32
                     characters followed by an '...'\n`;
                 }
             }
@@ -1107,7 +1108,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
 
                 if (backgroundMusicInfo.artist.length > 35) {
                     backgroundMusicInfo.artist = backgroundMusicInfo.artist.substring(0,32) + '...';
-                    failureMessage += `• The artist of the background-music has been shortened to 32
+                    errorMessage += `• The artist of the background-music has been shortened to 32
                     characters followed by an '...'\n`;
                 }
             }
@@ -1151,21 +1152,21 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 listOfSubtitleFiles.push(subtitleFileDetails);
             }
             else {
-                failureMessage += `• The info for the subtitles file contains the following keys:
+                errorMessage += `• The info for the subtitles file contains the following keys:
                 'videoSlideNumberString'(required), 'langCode'(required; also, must be a valid langCode), & 'isDefault'(optional).
                 The info provided for ${file.originalname} is invalid!\n`;
             }
         }
         else {
-            failureMessage += `• You can only submit images, videos, background-music, and vid-subtitle-files of the post,
+            errorMessage += `• You can only submit images, videos, background-music, and vid-subtitle-files of the post,
             not any other kinds of files, such as ${file.originalname}!\n`;
         }
     });
 
     let sortedSlideNumbers = [...Object.keys(slideNumberToImageOrVideoFileMappings)].sort((a, b) => a - b);
     if (sortedSlideNumbers.length==0) {
-        failureMessage += `• You didn't submit any images/video slides for the post\n`;
-        return res.send(failureMessage).status(400);
+        errorMessage += `• You didn't submit any images/video slides for the post\n`;
+        return res.status(400).send(errorMessage);
     }
 
     const vidSlideNumbersAndTheirSubtitleFiles = {};
@@ -1183,7 +1184,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                     vidSlideNumbersAndTheirSubtitleFiles[videoSlideNumber][langCode] = newSubtitleFile;
                 }
                 else {
-                    failureMessage += `• Videos can have subtitle-files associated with them for at-most 20
+                    errorMessage += `• Videos can have subtitle-files associated with them for at-most 20
                     unique language codes. Hence, some of the subtitle-files for the video with the
                     slide-number ${videoSlideNumber} will be left out. In this case, the lang-code
                     of the subtitle-file that will be left out for slide-number ${videoSlideNumber} is
@@ -1199,7 +1200,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             }
         }
         else {
-            failureMessage += `• One of the subtitle-files is incorrectly pointing to a file that isn't a video.
+            errorMessage += `• One of the subtitle-files is incorrectly pointing to a file that isn't a video.
             Specifically, this subtitle-file has a videoSlideNumberString value of ${videoSlideNumberString}
             and a langCode of ${langCode}\n`;
         }
@@ -1210,7 +1211,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
     const newVidSlideNumbersAndTheirSubtitleFiles = {};
     for(let i=0; i<sortedSlideNumbers.length; i++) {
         if (imageSlides.length + videoSlides.length == 10) {
-            failureMessage += `• There can be at-most 10 image and video slides per post`;
+            errorMessage += `• There can be at-most 10 image and video slides per post`;
             break;
         }
 
@@ -1238,9 +1239,9 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             }
     
             catch (error) {
-                failureMessage += `• There was trouble encrypting the image/vid slide file-buffer associated
+                errorMessage += `• There was trouble encrypting the image/vid slide file-buffer associated
                 with the slide-number ${currSlideNumber}, for this intended-to-be-private post.\n`;
-                return res.send(failureMessage).status(500);
+                return res.status(500).send(errorMessage);;
             }
         }
 
@@ -1252,7 +1253,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                         slidesInfo[stringifiedCurrSlideNumber].taggedAccounts
                     );
                     if (typeof validatedTaggedAccounts === 'string') {
-                        failureMessage += `• ${validatedTaggedAccounts}\n`
+                        errorMessage += `• ${validatedTaggedAccounts}\n`
                     }
                     else if (validatedTaggedAccounts.length > 0) {
                         newSlideInfo.taggedAccounts = validatedTaggedAccounts;
@@ -1271,7 +1272,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                             }
                     
                             catch (error) {
-                                failureMessage += `• There was trouble encrypting the taggedAccounts
+                                errorMessage += `• There was trouble encrypting the taggedAccounts
                                 of the intended-to-be-private post for slide-number ${currSlideNumber}.\n`;
                                 delete newSlideInfo.taggedAccounts;
                             }
@@ -1294,7 +1295,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                         slidesInfo[stringifiedCurrSlideNumber].taggedAccounts
                     );
                     if (typeof validatedTaggedAccounts === 'string') {
-                        failureMessage += `• ${validatedTaggedAccounts}\n`
+                        errorMessage += `• ${validatedTaggedAccounts}\n`
                     }
                     else if (validatedTaggedAccounts.length > 0) {
                         newSlideInfo.taggedAccounts = validatedTaggedAccounts;
@@ -1313,7 +1314,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                             }
                     
                             catch (error) {
-                                failureMessage += `• There was trouble encrypting the the taggedAccounts
+                                errorMessage += `• There was trouble encrypting the the taggedAccounts
                                 of the intended-to-be-private post for slide-number ${currSlideNumber}.\n`;
                                 delete newSlideInfo.taggedAccounts;
                             }
@@ -1342,7 +1343,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                             }
                     
                             catch (error) {
-                                failureMessage += `• There was trouble encrypting the the sections
+                                errorMessage += `• There was trouble encrypting the the sections
                                 of the intended-to-be-private post for slide-number
                                 ${currSlideNumber}.\n`;
                                 delete newSlideInfo.sections;
@@ -1350,7 +1351,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                         }
                     }
                     else {
-                        failureMessage += `• The sections provided for slide-number ${currSlideNumber}
+                        errorMessage += `• The sections provided for slide-number ${currSlideNumber}
                         is either invalidly structured or is simply an empty list.
                         Got: ${JSON.stringify(slidesInfo[stringifiedCurrSlideNumber].sections)}\n`
                     }
@@ -1397,8 +1398,8 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         await uploadImageOrVideoSlide(postSlides[0].data, uploadStream);
     }
     catch (error) {
-        failureMessage += `• There was trouble uploading image/video slide number 0 of your post into the database\n`;
-        return res.send(failureMessage).status(500);
+        errorMessage += `• There was trouble uploading image/video slide number 0 of your post into the database\n`;
+        return res.status(500).send(errorMessage);;
     }
 
     for(let i=1; i<postSlides.length; i++) {
@@ -1439,8 +1440,44 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             successMessage += `• Image/video slide number ${i} of your post has successfully been uploaded to the database.\n`;
         }
         catch (error) {
-            failureMessage += `• There was trouble uploading postSlide ${i} into the database\n`;
-            return res.send(failureMessage).status(500);
+            errorMessage += `• There was trouble uploading postSlide ${i} into the database\n`;
+            if (successMessage.length == 0) {
+                return res.status(500).send(errorMessage);
+            }
+            return res.status(500).send(
+                'There was a mix of success and Errors in this API-request...\n' + 
+                newOverallPostIdAsString.length > 0 ? 
+                `This is the overallPostId of your newly uploaded post: ${newOverallPostIdAsString}\n` : 
+                '' +
+                'Here are the Successes:\n' + successMessage +
+                '& Here are the Errors:\n' + errorMessage
+            );
+        }
+    }
+
+    if (isEncrypted)
+    {
+        const encryptionInfoForCaptionCommentsAndLikesWasSuccessfullyAdded = await
+        addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost(
+            newOverallPostIdAsString
+        );
+
+        if (!encryptionInfoForCaptionCommentsAndLikesWasSuccessfullyAdded)
+        {
+            errorMessage += `• There was trouble adding the encryption-info for the caption/comments/likes
+            of your newly uploaded private-post.\n`;
+
+            if (successMessage.length == 0) {
+                return res.status(500).send(errorMessage);
+            }
+            return res.status(500).send(
+                'There was a mix of success and Errors in this API-request...\n' + 
+                newOverallPostIdAsString.length > 0 ? 
+                `This is the overallPostId of your newly uploaded post: ${newOverallPostIdAsString}\n` : 
+                '' +
+                'Here are the Successes:\n' + successMessage +
+                '& Here are the Errors:\n' + errorMessage
+            );
         }
     }
 
@@ -1448,16 +1485,16 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         let { caption } = req.body;
         if (caption.length > 2200) {
             caption = caption.substring(0, 2197) + "...";
-            failureMessage += `• The caption has been trimmed down to 2197 characters followed by a '...'\n`;
+            errorMessage += `• The caption has been trimmed down to 2197 characters followed by a '...'\n`;
         }
-        const captionWasSuccessfullyInserted = await insertCaptionToPost(
-            authUserId, caption, newOverallPostIdAsString, isEncrypted, plaintextDataEncryptionKey
+        const captionWasSuccessfullyAdded = await addCaptionToPost(
+            authUserId, caption, newOverallPostIdAsString, isEncrypted
         );
-        if (captionWasSuccessfullyInserted) {
+        if (captionWasSuccessfullyAdded) {
             successMessage += `• Your caption has been added successfully\n`;
         }
         else {
-            failureMessage += `• There was trouble adding your caption\n`;
+            errorMessage += `• There was trouble adding your caption\n`;
         }
     }
 
@@ -1470,7 +1507,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             successMessage += `• Your vid-subtitle-files have been added to your post successfully\n`;
         }
         else {
-            failureMessage += `• There was trouble adding your vid-subtitle-files to your post\n`;
+            errorMessage += `• There was trouble adding your vid-subtitle-files to your post\n`;
         }
     }
 
@@ -1482,29 +1519,27 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             successMessage += `• Your post-background-music has been added successfully\n`;
         }
         else {
-            failureMessage += `• There was trouble adding your post-background-music\n`;
+            errorMessage += `• There was trouble adding your post-background-music\n`;
         }
     }
  
-    if (failureMessage.length == 0) {
+    if (errorMessage.length == 0) {
         return res.send(
         `This is the overallPostId of your newly uploaded post: ${newOverallPostIdAsString}\n` + 
         '& Here are the Successes:\n' + successMessage
         );
     }
     else if (successMessage.length == 0) {
-        return res.send(errorMessage).status(500)
+        return res.status(500).send(errorMessage);
     }
-    else {
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
-            newOverallPostIdAsString.length > 0 ? 
-            `This is the overallPostId of your newly uploaded post: ${newOverallPostIdAsString}\n` : 
-            '' +
-            'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + errorMessage
-        ).status(500);
-    }
+    return res.status(500).send(
+        'There was a mix of success and Errors in this API-request...\n' + 
+        newOverallPostIdAsString.length > 0 ? 
+        `This is the overallPostId of your newly uploaded post: ${newOverallPostIdAsString}\n` : 
+        '' +
+        'Here are the Successes:\n' + successMessage +
+        '& Here are the Errors:\n' + errorMessage
+    );
 }); 
 
 
@@ -1563,7 +1598,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     );
                     const authors = JSON.parse(decryptedAuthors);
                     if (!authors.includes(authUserId)) {
-                        return res.send('You are not one of the authors of this post').sendStatus(401);
+                        return res.status(401).send('You are not one of the authors of this post');
                     }
                     dataForEntirePost.authorsEncryptionInfo = postSlideData.authorsEncryptionInfo;
     
@@ -1618,7 +1653,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
     }
 
     let successMessage = '';
-    let failureMessage = '';
+    let errorMessage = '';
 
     let isToBeEncrypted;
     if ('isToBeEncrypted' in req.body) {
@@ -1649,9 +1684,9 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             encryptedDataEncryptionKey = newAWSDataEncryptionKeyInfo[1];
         }
         catch (error) {
-            failureMessage += `• There was trouble in the process of generating the data-encryption
+            errorMessage += `• There was trouble in the process of generating the data-encryption
             keys required for encrypting the sensitive intended-to-be-private post-data.\n`;
-            return res.send(failureMessage).status(500);
+            return res.status(500).send(errorMessage);;
         }
     }
 
@@ -1698,9 +1733,9 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             }
         }
         catch (error) {
-            failureMessage += `• There was trouble fetching all the image and video files of the slides of this post, which
+            errorMessage += `• There was trouble fetching all the image and video files of the slides of this post, which
             is necessary for changing the encryption-status.\n`;
-            return res.send(failureMessage).status(500);
+            return res.status(500).send(errorMessage);;
         }
     }
 
@@ -1711,7 +1746,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
     if ('locationOfPost' in req.body && typeof req.body.locationOfPost === 'string') {
         if (req.body.locationOfPost.length > 40) {
             updatedDataForEntirePost.locationOfPost = req.body.locationOfPost.substring(0, 37) + "...";
-            failureMessage += `• The location of post has been trimmed to 37 characters followed by a
+            errorMessage += `• The location of post has been trimmed to 37 characters followed by a
             '...'\n`;
         }
         else {
@@ -1722,7 +1757,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 updatedDataForEntirePost.locationOfPost = req.body.locationOfPost;
             }
             else {
-                failureMessage += `• The location of this post cannot be unset since it wasn't even set in the first place\n`;
+                errorMessage += `• The location of this post cannot be unset since it wasn't even set in the first place\n`;
             }
         }
 
@@ -1740,7 +1775,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
             }
             catch (error) {
-                failureMessage += `• There was trouble encrypting the updated location of this intended-to-be-private
+                errorMessage += `• There was trouble encrypting the updated location of this intended-to-be-private
                 post.\n`;
                 delete updatedDataForEntirePost.locationOfPost;
             }
@@ -1750,7 +1785,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
     }
     else if ('locationOfPost' in req.body) {
-        failureMessage += `• The location of post, if you decide to update it, must be a string that doesn't exceed 40 characters
+        errorMessage += `• The location of post, if you decide to update it, must be a string that doesn't exceed 40 characters
         in length. If you would like to unset the location of post property, simply provide an empty string for it.
         ${req.body.locationOfPost} is invalid\n`;
     }
@@ -1763,7 +1798,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             updatedDataForEntirePost.$unset.category = "";
         }
         else {
-            failureMessage += `• Your provided category (${req.body.category}) isn't in the list ${JSON.stringify(
+            errorMessage += `• Your provided category (${req.body.category}) isn't in the list ${JSON.stringify(
             listOfValidPostCategories)}. If you would like to unset the 'category' field instead, simply
             provide an empty string for it.\n`;
         }
@@ -1782,7 +1817,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     if ('callToAction' in adInfo && typeof adInfo.callToAction === 'string') {
                         if (adInfo.callToAction.length > 45) {
                             updatedDataForEntirePost.adInfo.callToAction = adInfo.callToAction.substring(0,42) + '...';
-                            failureMessage += `• The call to action of the adInfo object has been trimmed
+                            errorMessage += `• The call to action of the adInfo object has been trimmed
                             to 42 characters followed by a '...'\n`;
                         }
                         else {
@@ -1801,7 +1836,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
             }
             else if ('link' in adInfo && typeof adInfo.link === 'string') {
-                failureMessage += `• The link of the adInfo object must not exceed 90 characters in length\n`;
+                errorMessage += `• The link of the adInfo object must not exceed 90 characters in length\n`;
             }
 
             if (adInfoIsValid && isToBeEncrypted) {
@@ -1819,7 +1854,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
         
                 catch (error) {
-                    failureMessage += `• There was trouble encrypting the ad-info of this this
+                    errorMessage += `• There was trouble encrypting the ad-info of this this
                     intended-to-be-private post.\n`;
                     delete updatedDataForEntirePost.adInfo;
                 }
@@ -1833,7 +1868,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
 
         if (!adInfoIsValid) {
-            failureMessage += `• The adInfo, if you decide to add it, must be a dictionary with two keys: 'link'(required) and
+            errorMessage += `• The adInfo, if you decide to add it, must be a dictionary with two keys: 'link'(required) and
             'callToAction'(optional). If you would like to unset the adInfo field of the post,
             simply provide an empty dictionary.\n`;
         }
@@ -1862,7 +1897,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                             );
                         }
                         if (typeof validatedTaggedAccounts === 'string') {
-                            failureMessage += `• ${JSON.stringify(slideNumberToUpdatedTaggedAccounts[slideNumber])}
+                            errorMessage += `• ${JSON.stringify(slideNumberToUpdatedTaggedAccounts[slideNumber])}
                             is in invalid value for the hashmap provided for the key ${slideNumber}
                             in the dict provided for 'slideNumberToUpdatedTaggedAccounts'\n`;
                         }
@@ -1897,7 +1932,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                         }
                     }
                     else {
-                        failureMessage += `• ${slideNumber} is an invalid key in the
+                        errorMessage += `• ${slideNumber} is an invalid key in the
                         dict provided for slideNumberToUpdatedTaggedAccounts. Only valid
                         slide numbers, in their numeric form(i.e no stringified numbers/etc), 
                         are acceptable\n`;
@@ -1913,7 +1948,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
 
         if (!slideNumberToUpdatedTaggedAccountsIsValid) {
-            failureMessage += `• The slideNumberToUpdatedTaggedAccounts body parameter
+            errorMessage += `• The slideNumberToUpdatedTaggedAccounts body parameter
             must have a value that is a stringified-hashmap. In this hashmap, each key must be
             an integer slideNumber and each value must be the updated taggedAccounts for that
             slideNumber.\n`;
@@ -1938,7 +1973,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                                 sections
                             );
                             if (!sectionsAreValid) {
-                                failureMessage += `• ${JSON.stringify(sections)} is an invalid video-sections value for the key
+                                errorMessage += `• ${JSON.stringify(sections)} is an invalid video-sections value for the key
                                 ${slideNumber} in the dict provided for the 'slideNumberToUpdatedSections' parameter.\n`;  
                             }
                             else {
@@ -1973,7 +2008,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                         }
                     }
                     if (!slideNumberIsValid) {
-                        failureMessage += `• ${slideNumber} is an invalid key in the
+                        errorMessage += `• ${slideNumber} is an invalid key in the
                         dict provided for slideNumberToUpdatedSections. Only valid
                         slide numbers, in their numeric form(i.e no stringified numbers/etc), 
                         are acceptable\n`;
@@ -1989,7 +2024,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
 
         if(!slideNumberToUpdatedSectionsIsValid) {
-            failureMessage += `• The slideNumberToUpdatedSections body parameter
+            errorMessage += `• The slideNumberToUpdatedSections body parameter
             must have a value that is a stringified-hashmap. In this hashmap, each key must be
             an integer slideNumber and each value must be the updated sections for that
             slideNumber, provided that the slide is of type 'video'. If you would like to unset the 
@@ -2101,9 +2136,9 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
             }
             catch (error) {
-                failureMessage += `• There was trouble encrypting the data of this intended-to-be-private
+                errorMessage += `• There was trouble encrypting the data of this intended-to-be-private
                 post.\n`;
-                return res.send(failureMessage).status(500);
+                return res.status(500).send(errorMessage);;
             }
         }
         else {
@@ -2195,8 +2230,8 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
             }
             catch (error) {
-                failureMessage += `• There was trouble decrypting the data of this intended-to-be-public post.\n`;
-                return res.send(failureMessage).status(500);
+                errorMessage += `• There was trouble decrypting the data of this intended-to-be-public post.\n`;
+                return res.status(500).send(errorMessage);;
             }
         }
     }
@@ -2313,17 +2348,17 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
     }
     catch (error) {
-        failureMessage += `• There was trouble applying your desired updates to all the image/video slide-data of this post.\n`;
+        errorMessage += `• There was trouble applying your desired updates to all the image/video slide-data of this post.\n`;
 
         if (successMessage.length == 0 ) {
-            return res.send(errorMessage).status(500);
+            return res.status(500).send(errorMessage);
         }
         else {
-            return res.send(
-                'There was a mix of success and failures in this API-request...\n' + 
+            return res.status(500).send(
+                'There was a mix of success and Errors in this API-request...\n' + 
                 'Here are the Successes:\n' + successMessage +
-                '& Here are the Failures:\n' + errorMessage
-            ).status(500);
+                '& Here are the Errors:\n' + errorMessage
+            );
         }
     }
 
@@ -2332,7 +2367,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             await deleteAWSCustomerMasterKey(`post${overallPostId}`);
         }
         catch (error) {
-            failureMessage += `• There was trouble scheduling-for-deletion the AWS Customer-Master-Key(CMK) used for encrypting/
+            errorMessage += `• There was trouble scheduling-for-deletion the AWS Customer-Master-Key(CMK) used for encrypting/
             decrypting the Data-Encryption-Keys for the data of this post.\n`; 
         }
     }
@@ -2346,7 +2381,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 slideNumbersToDelete = slideNumbersToDelete.filter(slideNumber => slideNumber in allSlideNumbers);
                 const setOfSlideNumbersToDelete = new Set(slideNumbersToDelete)
                 if (setOfSlideNumbersToDelete.size == allSlideNumbers.length) {
-                    failureMessage = `• If you would like to delete all the slides of this post, you must
+                    errorMessage = `• If you would like to delete all the slides of this post, you must
                     use the '/deletePost' endpoint of this backend-server, instead of this '/updatePost' endpoint\n`;
                 }
                 else {
@@ -2366,17 +2401,17 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                                 post's slide number ${slideNumber}\n`;
                             }
                             catch (error) {
-                                failureMessage += `• There was trouble deleting one of the image/video slides of this post, specifically of the
+                                errorMessage += `• There was trouble deleting one of the image/video slides of this post, specifically of the
                                 post's slide number ${slideNumber}\n`;
                                 if (successMessage.length == 0 ) {
-                                    return res.send(errorMessage).status(500);
+                                    return res.status(500).send(errorMessage);
                                 }
                                 else {
-                                    return res.send(
-                                        'There was a mix of success and failures in this API-request...\n' + 
+                                    return res.status(500).send(
+                                        'There was a mix of success and Errors in this API-request...\n' + 
                                         'Here are the Successes:\n' + successMessage +
-                                        '& Here are the Failures:\n' + errorMessage
-                                    ).status(500);
+                                        '& Here are the Errors:\n' + errorMessage
+                                    );
                                 }
                             }
                         }
@@ -2434,37 +2469,38 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
 
         if (!slideNumbersToDeleteIsValid) {
-            failureMessage += `• The 'slideNumbersToDelete' parameter is only valid if its value is a stringified-list
+            errorMessage += `• The 'slideNumbersToDelete' parameter is only valid if its value is a stringified-list
             of the numbers of the slides you intend to delete. We received this value instead, which is invalid:
             ${req.body.slideNumbersToDelete}\n`;
         }
     }
 
-    let captionWasSuccessfullyUpdated = false;
+    let captionWasSuccessfullyEdited = false;
     if ('caption' in req.body && typeof req.body.caption === 'string') {
         let { caption } = req.body;
         if (caption.length > 2200) {
             caption = caption.substring(0, 2197) + "...";
-            failureMessage += `• The caption has been trimmed to be 2197 characters in length,
+            errorMessage += `• The caption has been trimmed to be 2197 characters in length,
             followed by a '...' in the end\n`;
         }
         
         if (caption.length > 0) {
-            captionWasSuccessfullyUpdated = await updateCaptionOfPost(authUserId, caption, overallPostId,
-            isToBeEncrypted, plaintextDataEncryptionKey);
+            captionWasSuccessfullyEdited = await editCaptionOfPost(authUserId, caption, overallPostId,
+            isToBeEncrypted);
         }
         else {
-            captionWasSuccessfullyUpdated = await deleteCaptionOfPost(overallPostId);
+            captionWasSuccessfullyEdited = await deleteCaptionOfPost(overallPostId, isToBeEncrypted);
         }
-        if (captionWasSuccessfullyUpdated) {
-            successMessage += `• Your caption has been updated successfully\n`;
+
+        if (captionWasSuccessfullyEdited) {
+            successMessage += `• Your caption has been edited successfully\n`;
         }
         else {
-            failureMessage += `• There was trouble updating your caption\n`;
+            errorMessage += `• There was trouble editing your caption\n`;
         }
     }
     else if('caption' in req.body) {
-        failureMessage += `• The caption must be a string that doesn't exceed 2200 characters in
+        errorMessage += `• The caption must be a string that doesn't exceed 2200 characters in
         length. If you would like to unset the caption of this post, provide an empty string as the caption.\n`; 
     }
 
@@ -2475,7 +2511,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             successMessage += `• Your post's background-music has been removed successfully\n`;
         }
         else {
-            failureMessage += `• There was trouble removing your post's background-music\n`;
+            errorMessage += `• There was trouble removing your post's background-music\n`;
         }
     }
 
@@ -2489,7 +2525,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 slideNumberToInfoMappings[subtitleFile.slideNumber].type === 'video') {
                     return true;
                 }
-                failureMessage += `• This specific subtitleFile in the list of subtitlesFileToRemove
+                errorMessage += `• This specific subtitleFile in the list of subtitlesFileToRemove
                 is invalid: ${JSON.stringify(subtitleFile)}\n`;
                 return false;
             });
@@ -2500,12 +2536,12 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     successMessage += `• Your post's specified subtitle-files has been removed successfully\n`;
                 }
                 else {
-                    failureMessage += `• There was trouble removing your post's specified subtitle-files\n`;
+                    errorMessage += `• There was trouble removing your post's specified subtitle-files\n`;
                 }
             }
         }
         catch (error) {
-            failureMessage += `• The subtitleFilesToRemove parameter must include a list of dicts that contain info
+            errorMessage += `• The subtitleFilesToRemove parameter must include a list of dicts that contain info
             on the subtitleFiles you would like to remove. Each dict must have two keys: langCode and slideNumber\n`;
         }
     }
@@ -2551,7 +2587,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
 
         if (!backgroundMusicInfoIsValid) {
-            failureMessage += `• The backgroundMusicInfo value must be a stringified dict that contains
+            errorMessage += `• The backgroundMusicInfo value must be a stringified dict that contains
             the key-value-pairs on info regarding the updated backgroundMusic of the post, if you plan on updating
             the background-music in this endpoint.\n`;
         }
@@ -2598,14 +2634,14 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
             }
             else {
-                failureMessage += `• Expected a file fieldname structured like the following, with a valid
+                errorMessage += `• Expected a file fieldname structured like the following, with a valid
                 langCode and slideNumber of a video in the post: 'subtitleFileForVidAtSlideNumber=3&langCode=en&isDefault'
                 (&isDefault is present in the end of the file fieldname is the subtitles-file is intended to be
                 the default one for its video-slide). Instead, this is what was received: ${JSON.stringify(file.fieldname)}\n`;
             }
         }
         else {
-            failureMessage += `• For this endpoint, any files you submit must meet the following requirements:
+            errorMessage += `• For this endpoint, any files you submit must meet the following requirements:
             is an audio file with the fieldname 'backgroundMusic'. OR it is a text/vtt subtitles-file with
             the fieldname structured as such- 'subtitleFileForVidAtSlideNumber=3&langCode=en&isDefault'. For
             clarification, if you do not want to set the subtitle-file as the default one of the vid-slide, simply omit the
@@ -2622,7 +2658,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             successMessage += `• The background-music of this post has successfully been updated.\n`;
         }
         else {
-            failureMessage += `• There was trouble updating the background-music of this post\n`;
+            errorMessage += `• There was trouble updating the background-music of this post\n`;
         }
     }
 
@@ -2638,26 +2674,30 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             the number of subtitle-files you added for any given slide, some files may have not been added.\n`;
         }
         else {
-            failureMessage += `• There was trouble updating the subtitle-files of this post.\n`;
+            errorMessage += `• There was trouble updating the subtitle-files of this post.\n`;
         }
     }
 
-    if (!captionWasSuccessfullyUpdated && (dataForEntirePost.isOriginallyEncrypted !== isToBeEncrypted)) {
-        captionWasSuccessfullyUpdated = await toggleEncryptionStatusOfCaption(overallPostId, plaintextDataEncryptionKey);
-        if (captionWasSuccessfullyUpdated) {
-            successMessage += `• The encryption-status of the caption has successfully been altered.\n`;
+    if (dataForEntirePost.isOriginallyEncrypted !== isToBeEncrypted) {
+        const encryptionStatusUpdatedSuccessfullyForCaptionCommentsAndLikesOfPost = await
+        toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost(overallPostId, dataForEntirePost.isOriginallyEncrypted);
+        
+        if (encryptionStatusUpdatedSuccessfullyForCaptionCommentsAndLikesOfPost) {
+            successMessage += `• The encryption-status has successfully been updated for the caption, comments, and
+            likes of the post.\n`;
         }
         else {
-            failureMessage += `• There was trouble altering the encryption-status of the caption.\n`;
+            errorMessage += `• There was trouble updating the encryption-status for the caption, comments, and
+            likes of the post.\n`;
             if (successMessage.length == 0 ) {
-                return res.send(errorMessage).status(500);
+                return res.status(500).send(errorMessage);
             }
             else {
-                return res.send(
-                    'There was a mix of success and failures in this API-request...\n' + 
+                return res.status(500).send(
+                    'There was a mix of success and Errors in this API-request...\n' + 
                     'Here are the Successes:\n' + successMessage +
-                    '& Here are the Failures:\n' + errorMessage
-                ).status(500);
+                    '& Here are the Errors:\n' + errorMessage
+                );
             }
 
         }
@@ -2669,16 +2709,16 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             successMessage += `• The encryption-status of the post's background-music has successfully been altered.\n`;
         }
         else {
-            failureMessage += `• There was trouble altering the encryption-status of the post's background-music.\n`;
+            errorMessage += `• There was trouble altering the encryption-status of the post's background-music.\n`;
             if (successMessage.length == 0 ) {
-                return res.send(errorMessage).status(500);
+                return res.status(500).send(errorMessage);
             }
             else {
-                return res.send(
-                    'There was a mix of success and failures in this API-request...\n' + 
+                return res.status(500).send(
+                    'There was a mix of success and Errors in this API-request...\n' + 
                     'Here are the Successes:\n' + successMessage +
-                    '& Here are the Failures:\n' + errorMessage
-                ).status(500);
+                    '& Here are the Errors:\n' + errorMessage
+                );
             }
 
         }
@@ -2690,28 +2730,28 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             successMessage += `• The encryption-status of the post's video-slide-subtitle-files has successfully been altered.\n`;
         }
         else {
-            failureMessage += `• There was trouble altering the encryption-status of this post's video-slide-subtitle-files.\n`;
+            errorMessage += `• There was trouble altering the encryption-status of this post's video-slide-subtitle-files.\n`;
             if (successMessage.length == 0) {
-                return res.send(errorMessage).status(500);
+                return res.status(500).send(errorMessage);
             }
             else {
-                return res.send(
-                    'There was a mix of success and failures in this API-request...\n' + 
+                return res.status(500).send(
+                    'There was a mix of success and Errors in this API-request...\n' + 
                     'Here are the Successes:\n' + successMessage +
-                    '& Here are the Failures:\n' + errorMessage
-                ).status(500);
+                    '& Here are the Errors:\n' + errorMessage
+                );
             }
         }
     }
 
-    if (failureMessage.length == 0) {
+    if (errorMessage.length == 0) {
         return res.send(successMessage);
     }
-    return res.send(
-        'There was a mix of success and failures in this API-request...\n' + 
+    return res.status(500).send(
+        'There was a mix of success and Errors in this API-request...\n' + 
         'Here are the Successes:\n' + successMessage +
-        '& Here are the Failures:\n' + errorMessage
-    ).status(500);
+        '& Here are the Errors:\n' + errorMessage
+    );
 }); 
 
 
@@ -2739,11 +2779,14 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
         { "metadata.overallPostId": overallPostIdObject }
     ).toArray();
 
+    let isEncrypted = false;
+
     if (slidesToDelete.length > 0) {
         for (let slideToDelete of slidesToDelete) {
             if ('authors' in slideToDelete.metadata) {
                 let authors = slideToDelete.metadata.authors;
                 if ('authorsEncryptionInfo' in slideToDelete.metadata) {
+                    isEncrypted = true;
                     const { encryptedDataEncryptionKey } = slideToDelete.metadata.authorsEncryptionInfo;
                     const decryptResponse = await awsKMSClient.send(new DecryptCommand({
                         CiphertextBlob: encryptedDataEncryptionKey,
@@ -2759,7 +2802,7 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
                     authors = JSON.parse(decryptedAuthors);
                 }
                 if (!authors.includes(authUserId)) {
-                    return res.send('You are not one of the authors of this post').sendStatus(401);
+                    return res.status(401).send('You are not one of the authors of this post');
                 }
                 break;
             }
@@ -2772,7 +2815,7 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
     }
 
     let successMessage = "• The post you are trying to delete has been found successfully.\n";
-    let failureMessage = "";
+    let errorMessage = "";
     try {
         for (let slideToDelete of slidesToDelete) {
             await imageAndVideoSlidesOfPostsBucket.delete(slideToDelete._id);
@@ -2780,21 +2823,23 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
         successMessage += '• There was success deleting all the image and video slide-data of this post\n';
     }
     catch (error) {
-        failureMessage += '• There was trouble deleting all the image and video slide-data of this post.\n'
-        return res.send(failureMessage).status(500);
+        errorMessage += '• There was trouble deleting all the image and video slide-data of this post.\n'
+        return res.status(500).send(errorMessage);;
     }
 
-    const captionWasSuccessfullyDeleted = await deleteCaptionOfPost(overallPostId);
-    if (captionWasSuccessfullyDeleted) {
-        successMessage += `• The caption of your post has been deleted successfully from the database.\n`;
+    const captionCommentsAndLikesWereSuccessfullyRemoved = await removeCaptionCommentsAndLikesOfPostAfterDeletingPost(
+        overallPostId, isEncrypted
+    );
+    if (captionCommentsAndLikesWereSuccessfullyRemoved) {
+        successMessage += `• The caption, comments and likes of your post has been removed successfully.\n`;
     }
     else {
-        failureMessage = `• There was trouble deleting the caption of your post from the database.\n`;
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
+        errorMessage = `• There was trouble remioving the caption, comments, and likes of your post.\n`;
+        return res.status(500).send(
+            'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + errorMessage
-        ).status(500);
+            '& Here are the Errors:\n' + errorMessage
+        );
     }
 
     const backgroundMusicOfPostWasSuccessfullyRemoved = await removeBackgroundMusicFromPost(overallPostId);
@@ -2802,12 +2847,12 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
         successMessage += `• The background-music of your post has been removed successfully from the database.\n`;
     }
     else {
-        failureMessage = `• There was trouble removing the background-music of your post from the database.\n`;
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
+        errorMessage = `• There was trouble removing the background-music of your post from the database.\n`;
+        return res.status(500).send(
+            'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + errorMessage
-        ).status(500);
+            '& Here are the Errors:\n' + errorMessage
+        );
     }
 
     const videoSubtitleFilesOfPostWereSuccessfullyRemoved = await removeAllVideoSubtitleFilesOfPost(overallPostId);
@@ -2815,23 +2860,23 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
         successMessage += `• The video-subtitle-files of your post have been removed successfully from the database.\n`;
     }
     else {
-        failureMessage = `• There was trouble removing the video-subtitle-files of your post from the database.\n`;
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
+        errorMessage = `• There was trouble removing the video-subtitle-files of your post from the database.\n`;
+        return res.status(500).send(
+            'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + errorMessage
-        ).status(500);
+            '& Here are the Errors:\n' + errorMessage
+        );
     }
 
-    if (failureMessage.length == 0) {
+    if (errorMessage.length == 0) {
         return res.send(successMessage);
     }
     else {
-        return res.send(
-            'There was a mix of success and failures in this API-request...\n' + 
+        return res.status(500).send(
+            'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
-            '& Here are the Failures:\n' + errorMessage
-        ).status(500);
+            '& Here are the Errors:\n' + errorMessage
+        );
     }
 });
 
@@ -2886,6 +2931,309 @@ app.patch('/logout/:authUserId', threePerMinuteRateLimiter, async (req, res) => 
 
     res.sendStatus(200);
 });
+
+app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', enforceMutualTLS, async (req, res) => {
+    const { overallPostId } = req.params;
+    let authorsOfPost = [];
+    let isEncrypted = false;
+
+    try
+    {
+        const authorsAndIsEncryptedOfPost = await imageAndVideoSlidesOfPostsDotFilesCollection.findOne(
+            {
+                "metadata.overallPostId": overallPostId,
+                "metadata.slideNumber": 0
+            },
+            {
+                projection: {
+                    "metadata.authors": 1,
+                    "metadata.authorsEncryptionInfo": 1
+                }
+            }
+        );
+
+        if (authorsAndIsEncryptedOfPost == null)
+        {
+            return res.status(404).send(
+                "You are trying to fetch the authors and encryption-status of a post that does not exist"
+            );
+        }
+        authorsOfPost = authorsAndIsEncryptedOfPost.metadata.authors;
+        if ('authorsEncryptionInfo' in authorsAndIsEncryptedOfPost.metadata)
+        {
+            isEncrypted = true;
+            const { encryptedDataEncryptionKey, iv, authTag } = authorsAndIsEncryptedOfPost.metadata.authorsEncryptionInfo;
+            let plaintextDataEncryptionKey;
+            let plaintextDataEncryptionKeyWasFound = true;
+
+            try
+            {
+                const decryptResponse = await awsKMSClient.send(new DecryptCommand({
+                    CiphertextBlob: encryptedDataEncryptionKey,
+                }));
+                plaintextDataEncryptionKey = decryptResponse.Plaintext;
+            }
+            catch (error)
+            {
+                plaintextDataEncryptionKeyWasFound = false;
+            }
+            
+            if (plaintextDataEncryptionKeyWasFound)
+            {
+                const authorsAsString = decryptTextWithAWSDataEncryptionKey(
+                    authorsOfPost,
+                    plaintextDataEncryptionKey,
+                    iv,
+                    authTag
+                );
+                authorsOfPost = JSON.parse(authorsAsString);
+            }
+            else
+            {
+                return res.status(500).send(
+                    `There was trouble getting the plaintextDataEncryptionKey that is needed to get the authors of this
+                    encrypted post`
+                );
+            }
+        }
+
+        return res.send({
+            authorsOfPost,
+            isEncrypted
+        });
+    }
+    catch
+    {
+        return res.status(500).send(
+            "There was trouble in the process of fetching the authors and encryptionStatus of the post"
+        );
+    }
+});
+
+
+app.post('/getTheOverallPostIdsOfEachUserInList/:postsFromAtMostThisManyMonthsAgo/:allUsersArePublic', enforceMutualTLS,
+async (req, res) => {
+    const { postsFromAtMostThisManyMonthsAgo, allUsersArePublic } = req.params;
+    const { listOfUserIds } = req.body;
+    const setOfUsersInList = new Set(listOfUserIds);
+
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - postsFromAtMostThisManyMonthsAgo);
+
+    const relevantInfoOfEachPost = await imageAndVideoSlidesOfPostsDotFilesCollection.find(
+        {
+            "metadata.slideNumber": 0,
+            "metadata.datetimeOfPost": { $gte: cutoffDate }
+        },
+        {
+            projection: {
+                "metadata.overallPostId": 1,
+                "metadata.authors": 1,
+                "metadata.authorsEncryptionInfo": 1
+            }
+        }
+    ).toArray();
+    
+    const overallPostIdsAndTheirAuthors = {};
+    let errorMessage = "";
+
+    for(let relevantPostInfo of relevantInfoOfEachPost)
+    {
+        let postIsEncrypted = 'authorsEncryptionInfo' in relevantPostInfo.metadata;
+
+        if (postIsEncrypted && allUsersArePublic)
+        {
+            continue;
+        }
+
+        const { overallPostId, authorsEncryptionInfo } = relevantPostInfo.metadata;
+        let { authors } = relevantPostInfo.metadata;
+        let plaintextDataEncryptionKeyWasFound = true;
+        
+        if (postIsEncrypted)
+        {
+            const { encryptedDataEncryptionKey, iv, authTag } = authorsEncryptionInfo;
+            let plaintextDataEncryptionKey;
+            try
+            {
+                const decryptResponse = await awsKMSClient.send(new DecryptCommand({
+                    CiphertextBlob: encryptedDataEncryptionKey,
+                }));
+                plaintextDataEncryptionKey = decryptResponse.Plaintext;
+            }
+            catch (error)
+            {
+                plaintextDataEncryptionKeyWasFound = false;
+            }
+            
+            if (plaintextDataEncryptionKeyWasFound)
+            {
+                const decryptedAuthors = decryptTextWithAWSDataEncryptionKey(
+                    authors,
+                    plaintextDataEncryptionKey,
+                    iv,
+                    authTag
+                );
+                authors = JSON.parse(decryptedAuthors);
+            }
+            else
+            {
+                errorMessage += `• There was trouble getting the plaintextDataEncryptionKey that is needed
+                to get the authors of the post ${overallPostId}, which may or may not have authors
+                that are in the list.\n`;
+            }
+        }
+        
+        if (!postIsEncrypted || (postIsEncrypted && plaintextDataEncryptionKeyWasFound))
+        {
+            authors = authors.filter(
+                author => setOfUsersInList.has(author)
+            );
+            if (authors.length > 0)
+            {
+                overallPostIdsAndTheirAuthors[overallPostId] = authors;
+            }
+        }
+    }
+
+    res.send({
+        errorMessage: errorMessage,
+        overallPostIdsAndTheirAuthors: overallPostIdsAndTheirAuthors
+    });
+});
+
+
+app.post('/getTheOverallPostIdsOfEverySponsoredPostThatAuthUserCanView/:postsFromAtMostThisManyMonthsAgo', enforceMutualTLS,
+async (req, res) => {
+    const { postsFromAtMostThisManyMonthsAgo } = req.params;
+    const { authUserFollowings, authUserBlockings } = req.body;
+    const setOfAuthUserFollowings = new Set(authUserFollowings);
+    const setOfAuthUserBlockings = new Set(authUserBlockings);
+
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - postsFromAtMostThisManyMonthsAgo);
+
+    const relevantInfoOfEachPost = await imageAndVideoSlidesOfPostsDotFilesCollection.find(
+        {
+            "metadata.slideNumber": 0,
+            "metadata.datetimeOfPost": { $gte: cutoffDate }
+        },
+        {
+            projection: {
+                "metadata.overallPostId": 1,
+                "metadata.authors": 1,
+                "metadata.authorsEncryptionInfo": 1,
+                "metadata.adInfo": 1
+            }
+        }
+    ).toArray();
+    
+    const overallPostIdsAndTheirAuthors = {};
+    let errorMessage = "";
+
+    for(let relevantPostInfo of relevantInfoOfEachPost)
+    {
+        let postIsSponsored = 'adInfo' in relevantInfoOfEachPost.metadata;
+        if (!postIsSponsored)
+        {
+            continue;
+        }
+
+        let postIsEncrypted = 'authorsEncryptionInfo' in relevantPostInfo.metadata;
+
+        const { overallPostId, authorsEncryptionInfo } = relevantPostInfo.metadata;
+        let { authors } = relevantPostInfo.metadata;
+        let plaintextDataEncryptionKeyWasFound = true;
+        
+        if (postIsEncrypted)
+        {
+            const { encryptedDataEncryptionKey, iv, authTag } = authorsEncryptionInfo;
+            let plaintextDataEncryptionKey;
+            try
+            {
+                const decryptResponse = await awsKMSClient.send(new DecryptCommand({
+                    CiphertextBlob: encryptedDataEncryptionKey,
+                }));
+                plaintextDataEncryptionKey = decryptResponse.Plaintext;
+            }
+            catch (error)
+            {
+                plaintextDataEncryptionKeyWasFound = false;
+            }
+            
+            if (plaintextDataEncryptionKeyWasFound)
+            {
+                const authorsAsString = decryptTextWithAWSDataEncryptionKey(
+                    authors,
+                    plaintextDataEncryptionKey,
+                    iv,
+                    authTag
+                );
+                authors = JSON.parse(authorsAsString);
+            }
+            else
+            {
+                errorMessage += `• There was trouble getting the plaintextDataEncryptionKey that is needed
+                to get the authors of the post ${overallPostId}. The authors of the post is required
+                to see if the user has access to this sponsored post.\n`;
+            }
+        }
+        
+        if (!postIsEncrypted || (postIsEncrypted && plaintextDataEncryptionKeyWasFound))
+        {
+            if (postIsEncrypted)
+            {
+                let authorFollowsAtLeastOneAuthorOfPost = false;
+                for(let author of authors) {
+                    if (setOfAuthUserFollowings.has(author)) {
+                        authorFollowsAtLeastOneAuthorOfPost = true;
+                        break;
+                    }
+                }
+
+                if (!authorFollowsAtLeastOneAuthorOfPost) {
+                    continue;
+                }
+            }
+            else
+            {
+                let authorIsBlockedByEachAuthorOfPost = true;
+                for(let author of authors) {
+                    if (!setOfAuthUserBlockings.has(author)) {
+                        authorIsBlockedByEachAuthorOfPost = false;
+                        break;
+                    }
+                }
+
+                if (authorIsBlockedByEachAuthorOfPost) {
+                    continue;
+                }
+            }
+
+            authors = authors.filter(
+                author => !setOfAuthUserBlockings.has(author)
+            );
+
+            if (authors.length > 0)
+            {
+                overallPostIdsAndTheirAuthors[overallPostId] = authors;
+            }
+        }
+    }
+
+    res.send({
+        errorMessage: errorMessage,
+        overallPostIdsAndTheirAuthors: overallPostIdsAndTheirAuthors
+    });
+});
+
+
+function enforceMutualTLS(req, res, next) {
+    if (!req.connection.authorized) {
+        return res.status(401).send('Unauthorized: Invalid client certificate');
+    }
+    next();
+}
 
 
 async function validateUserAuthToken(userId, requestCookies) {
@@ -3013,7 +3361,7 @@ function generateToken(byteLength) {
 
 async function getIsPrivateStatusesOfMultipleUsers(authUserId, userIds) {
     try {
-        const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2/getIsPrivateStatusesOfMultipleUserIds
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getIsPrivateStatusesOfMultipleUserIds
         /${authUserId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -3066,7 +3414,7 @@ async function getValidatedImageSlideTaggedAccounts(authUserId, taggedAccounts) 
         if (Object.keys(userIdToTaggedAccountPositionMappings).length > 0) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/getTheUserIdsThatExistGivenListOfPotentialIds/${authUserId}`, {
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/getTheUserIdsThatExistGivenListOfPotentialIds/${authUserId}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -3118,7 +3466,7 @@ async function getValidatedVideoSlideTaggedAccounts(authUserId, taggedAccounts) 
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/getTheUserIdsThatExistGivenListOfPotentialIds/${authUserId}`, {
+            `http://34.111.89.101/api/Home-Page/laravelBackend1/getTheUserIdsThatExistGivenListOfPotentialIds/${authUserId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -3172,45 +3520,18 @@ function validateSections(sections) {
 }
 
 
-async function insertCaptionToPost(authUserId, caption, overallPostId, isToBeEncrypted, plaintextDataEncryptionKey) {
+async function addCaptionToPost(authUserId, captionContent, overallPostId, isEncrypted) {
     try {
-        let captionAuthor = authUserId;
-        let captionContentToInsert = caption;
-        let postBody = {};
-
-        if (isToBeEncrypted) {
-            const encryptedCaptionAuthorInfo = encryptTextWithAWSDataEncryptionKey(
-                captionAuthor,
-                plaintextDataEncryptionKey
-            );
-            postBody.author = encryptedCaptionAuthorInfo.encryptedTextBuffer;
-            postBody.authorEncryptionInfo = {
-                iv: encryptedCaptionAuthorInfo.iv,
-                authTag: encryptedCaptionAuthorInfo.authTag
-            };
-
-            const encryptedCaptionContentInfo = encryptTextWithAWSDataEncryptionKey(
-                captionContentToInsert,
-                plaintextDataEncryptionKey
-            );
-            postBody.content = encryptedCaptionContentInfo.encryptedTextBuffer;
-            postBody.contentEncryptionInfo = {
-                iv: encryptedCaptionContentInfo.iv,
-                authTag: encryptedCaptionContentInfo.authTag
-            };
-        }
-        else {
-            postBody = {
-                author: captionAuthor,
-                content: captionContentToInsert
-            };
-        }
-
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/insertCaptionToPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addCaptionToPost
+        /${authUserId}/${overallPostId}/${isEncrypted}`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(postBody),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                content: captionContent,
+            }),
             agent: mutualTLSAgent
         });
         if (!response.ok) {
@@ -3224,45 +3545,18 @@ async function insertCaptionToPost(authUserId, caption, overallPostId, isToBeEnc
 }
 
 
-async function updateCaptionOfPost(authUserId, caption, overallPostId, isToBeEncrypted, plaintextDataEncryptionKey) {
+async function editCaptionOfPost(authUserId, newCaptionContent, overallPostId, isEncrypted) {
     try {
-        let captionAuthor = authUserId;
-        let newCaption = caption;
-        let patchBody = {};
-
-        if (isToBeEncrypted) {
-            const encryptedCaptionAuthorInfo = encryptTextWithAWSDataEncryptionKey(
-                captionAuthor,
-                plaintextDataEncryptionKey
-            );
-            patchBody.author = encryptedCaptionAuthorInfo.encryptedTextBuffer;
-            patchBody.authorEncryptionInfo = {
-                iv: encryptedCaptionAuthorInfo.iv,
-                authTag: encryptedCaptionAuthorInfo.authTag
-            };
-
-            const encryptedCaptionInfo = encryptTextWithAWSDataEncryptionKey(
-                newCaption,
-                plaintextDataEncryptionKey
-            );
-            patchBody.content = encryptedCaptionInfo.encryptedTextBuffer;
-            patchBody.contentEncryptionInfo = {
-                iv: encryptedCaptionInfo.iv,
-                authTag: encryptedCaptionInfo.authTag
-            };
-        }
-        else {
-            patchBody = {
-                author: captionAuthor,
-                content: newCaption
-            };
-        }
-
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/updateCaptionOfPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/editCaptionOfPost
+        /${authUserId}/${overallPostId}/${isEncrypted}`, {
             method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(patchBody),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                newContent: newCaptionContent
+            }),
             agent: mutualTLSAgent
         });
         if (!response.ok) {
@@ -3276,75 +3570,15 @@ async function updateCaptionOfPost(authUserId, caption, overallPostId, isToBeEnc
 }
 
 
-async function toggleEncryptionStatusOfCaption(overallPostId, plaintextDataEncryptionKey) {
-    let captionOfPost;
+async function toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost(overallPostId, originallyIsEncrypted) {
     try {
         const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getCaptionOfPost/${overallPostId}`, {
-                agent: mutualTLSAgent
-            }
-        );
-        if (!response.ok) {
-            if (response.status == 404)  {
-                return true;
-            }
-            return false;
-        }
-        captionOfPost = await response.json();
-    }
-    catch (error) {
-        return false;
-    }
-
-    try {
-        let newCaptionOfPost = {};
-        if ('authorEncryptionInfo' in captionOfPost) {
-            const decryptedCaptionAuthor = decryptTextWithAWSDataEncryptionKey(
-                captionOfPost.authors,
-                plaintextDataEncryptionKey,
-                captionOfPost.authorsEncryptionInfo.iv,
-                captionOfPost.authorsEncryptionInfo.authTag,
-            );
-            newCaptionOfPost.author = decryptedCaptionAuthor;
-
-            const decryptedCaptionContent = decryptTextWithAWSDataEncryptionKey(
-                captionOfPost.content,
-                plaintextDataEncryptionKey,
-                captionOfPost.contentEncryptionInfo.iv,
-                captionOfPost.contentEncryptionInfo.authTag,
-            );
-            newCaptionOfPost.content = decryptedCaptionContent;
-        }
-        else {
-            const encryptedCaptionAuthorInfo = encryptTextWithAWSDataEncryptionKey(
-                captionOfPost.authors,
-                plaintextDataEncryptionKey,
-            );
-            newCaptionOfPost.author = encryptedCaptionAuthorInfo.encryptedTextBuffer;
-            newCaptionOfPost.authorEncryptionInfo = {
-                iv: encryptedCaptionAuthorInfo.iv,
-                authTag: encryptedCaptionAuthorInfo.authTag
-            };
-
-            const encryptedCaptionContentInfo = encryptTextWithAWSDataEncryptionKey(
-                captionOfPost.content,
-                plaintextDataEncryptionKey,
-            );
-            newCaptionOfPost.content = encryptedCaptionContentInfo.encryptedTextBuffer;
-            newCaptionOfPost.contentEncryptionInfo = {
-                iv: encryptedCaptionContentInfo.iv,
-                authTag: encryptedCaptionContentInfo.authTag
-            };
-        }
-
-        const response1 = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/toggleEncryptionStatusOfCaption/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost
+        /${overallPostId}/${originallyIsEncrypted}`, {
             method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(newCaptionOfPost),
             agent: mutualTLSAgent
         });
-        if (!response1.ok) {
+        if (!response.ok) {
             return false;
         }
         return true;
@@ -3355,10 +3589,29 @@ async function toggleEncryptionStatusOfCaption(overallPostId, plaintextDataEncry
 }
 
 
-async function deleteCaptionOfPost(overallPostId) {
+async function deleteCaptionOfPost(overallPostId, isEncrypted) {
     try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/deleteCaptionOfPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/deleteCaptionOfPost/${overallPostId}/${isEncrypted}`, {
+            method: 'DELETE',
+            agent: mutualTLSAgent
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
+
+async function removeCaptionCommentsAndLikesOfPostAfterDeletingPost(overallPostId, wasEncrypted) {
+    try {
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
+        /removeCaptionCommentsAndLikesOfPostAfterItsDeletion/${overallPostId}/${wasEncrypted}`, {
             method: 'DELETE',
             agent: mutualTLSAgent
         });
@@ -3410,7 +3663,7 @@ async function addBackgroundMusicToPost(backgroundMusicInfo, overallPostId, isTo
         }
 
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/djangoBackend2/addBackgroundMusicToPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/addBackgroundMusicToPost/${overallPostId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -3471,7 +3724,7 @@ async function updateBackgroundMusicOfPost(backgroundMusicInfo, overallPostId, i
         }
 
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/djangoBackend2/updateBackgroundMusicOfPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/updateBackgroundMusicOfPost/${overallPostId}`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -3499,7 +3752,7 @@ async function toggleEncryptionStatusOfBackgroundMusicOfPost(overallPostId, plai
     let backgroundMusicOfPost;
     try {
         const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/getBackgroundMusicOfPost/${overallPostId}`, {
+            `http://34.111.89.101/api/Home-Page/laravelBackend1/getBackgroundMusicOfPost/${overallPostId}`, {
                 agent: mutualTLSAgent
             }
         );
@@ -3572,7 +3825,7 @@ async function toggleEncryptionStatusOfBackgroundMusicOfPost(overallPostId, plai
         }
 
         const response1 = await fetch(
-        `http://34.111.89.101/api/Home-Page/djangoBackend2/updateBackgroundMusicOfPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/updateBackgroundMusicOfPost/${overallPostId}`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -3597,7 +3850,7 @@ async function toggleEncryptionStatusOfBackgroundMusicOfPost(overallPostId, plai
 async function removeBackgroundMusicFromPost(overallPostId) {
     try {
         const response = await fetch(`
-        http://34.111.89.101/api/Home-Page/djangoBackend2/removeBackgroundMusicFromPost/${overallPostId}`, {
+        http://34.111.89.101/api/Home-Page/laravelBackend1/removeBackgroundMusicFromPost/${overallPostId}`, {
             method: 'DELETE',
             agent: mutualTLSAgent
         });
@@ -3648,7 +3901,7 @@ plaintextDataEncryptionKey) {
             }
         }
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addVideoSubtitleFilesToPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/addVideoSubtitleFilesToPost/${overallPostId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(postRequestData),
@@ -3669,7 +3922,7 @@ async function toggleEncryptionStatusOfVideoSubtitleFiles(overallPostId, plainte
     let slideNumberToLangCodeToSubtitleFileMappings;
     try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getVideoSubtitleFilesOfPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/getVideoSubtitleFilesOfPost/${overallPostId}`, {
             agent: mutualTLSAgent
         });
         if (!response.ok) {
@@ -3742,7 +3995,7 @@ async function toggleEncryptionStatusOfVideoSubtitleFiles(overallPostId, plainte
         }
 
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/toggleEncryptionStatusOfVideoSubtitleFilesOfPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/toggleEncryptionStatusOfVideoSubtitleFilesOfPost/${overallPostId}`, {
             method: 'PATCH',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -3763,7 +4016,7 @@ async function toggleEncryptionStatusOfVideoSubtitleFiles(overallPostId, plainte
 async function removeSpecifiedVideoSubtitleFilesFromPost(overallPostId, subtitleFilesToRemove) {
     try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/removeSpecifiedVideoSubtitleFilesFromPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/removeSpecifiedVideoSubtitleFilesFromPost/${overallPostId}`, {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -3784,8 +4037,26 @@ async function removeSpecifiedVideoSubtitleFilesFromPost(overallPostId, subtitle
 async function removeAllVideoSubtitleFilesOfPost(overallPostId) {
     try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/removeAllVideoSubtitleFilesFromPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/removeAllVideoSubtitleFilesFromPost/${overallPostId}`, {
             method: 'DELETE',
+            agent: mutualTLSAgent
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
+async function addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost(overallPostId) {
+    try {
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
+        /addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost/${overallPostId}`, {
+            method: 'POST',
             agent: mutualTLSAgent
         });
         if (!response.ok) {

@@ -5,11 +5,13 @@ using aspNetCoreBackend1.graphql.Mutations;
 using aspNetCoreBackend1.graphql.Queries;
 
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.RateLimiting;
 
 using Microsoft.EntityFrameworkCore;
 using Azure.Identity;
 using Azure.Security.KeyVault.Keys;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
+using StackExchange.Redis;
 using DotNetEnv;
 
 
@@ -37,12 +39,18 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 
 builder.Services.AddDbContext<PostgresContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("postgresConnectionString")));
+        options.UseNpgsql(builder.Configuration.GetConnectionString("postgresConnectionString"))
+);
 builder.Services.AddScoped<PostgresContext>();
 
 builder.Services.AddDbContext<SqlServerContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("sqlServerConnectionString")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("sqlServerConnectionString"))
+);
 builder.Services.AddScoped<SqlServerContext>();
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("redisConnectionString")!)
+);
 
 builder.Services.AddSingleton<EncryptionAndDecryptionService>();
 
@@ -53,6 +61,10 @@ builder.Services.AddSingleton<PostOrCommentLikingService>();
 builder.Services.AddSingleton<CommentsService>();
 
 builder.Services.AddSingleton<PostInfoFetchingService>();
+
+builder.Services.AddSingleton<CaptionService>();
+
+builder.Services.AddSingleton<UserInfoFetchingService>();
 
 builder.Services.AddSingleton<KeyClient>(provider =>
 {
@@ -111,6 +123,53 @@ builder.Services.AddGraphQLServer()
     .AddFiltering()
     .AddSorting();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("5PerMinute", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromSeconds(60)
+            }
+        )
+    );
+
+    options.AddPolicy("6PerMinute", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 6,
+                Window = TimeSpan.FromSeconds(60)
+            }
+        )
+    );
+
+    options.AddPolicy("8PerMinute", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                Window = TimeSpan.FromSeconds(60)
+            }
+        )
+    );
+        
+    options.AddPolicy("12PerMinute", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 12,
+                Window = TimeSpan.FromSeconds(60)
+            }
+        )
+    );
+});
+
 var app = builder.Build();
 
 app.UseCors("AllowSpecificOrigins");
@@ -155,5 +214,7 @@ app.Use(async (context, next) =>
 app.MapGraphQL(path: "/graphql");
 
 app.UseGraphQLGraphiQL("/graphiql");
+
+app.UseRateLimiter();
 
 app.Run();

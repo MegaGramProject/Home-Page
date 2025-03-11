@@ -3,11 +3,11 @@ using aspNetCoreBackend1.Contexts;
 using aspNetCoreBackend1.Models.SqlServer.Comment;
 using aspNetCoreBackend1.graphql.Types;
 
-using System.Text.Json;
-using System.Text;
-
 using MongoDB.Bson;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.RateLimiting;
+
 
 namespace aspNetCoreBackend1.graphql.Queries;
 
@@ -19,12 +19,14 @@ public class CommentQueryProvider
     [UseProjection]
     [UseFiltering]
     [UseSorting]
+    [EnableRateLimiting("5PerMinute")]
     public async Task<List<CommentWithNumLikesAndNumReplies>> GetBatchOfCommentsOfPost(
         int? authUserId, string overallPostId, int[] commentIdsToExclude,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService encryptionAndDecryptionService,
-        [Service] CommentsService commentsService, [Service] PostInfoFetchingService postInfoFetchingService
+        [Service] CommentsService commentsService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient
     )
     {
         if (!ObjectId.TryParse(overallPostId, out _))
@@ -166,16 +168,13 @@ public class CommentQueryProvider
 
             try
             {
-                byte[]? encryptedDataEncryptionKey = await postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefaultAsync();
-
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService
-                .DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+                IDatabase redisCachingDatabase =  redisClient.GetDatabase(0);
+                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                (
+                    overallPostId!,
+                    postgresContext,
+                    encryptionAndDecryptionService,
+                    redisCachingDatabase
                 );
 
                 List<EncryptedCommentOfPost> encryptedCommentsOfPost = await sqlServerContext.
@@ -294,12 +293,14 @@ public class CommentQueryProvider
     [UseProjection]
     [UseFiltering]
     [UseSorting]
+    [EnableRateLimiting("5PerMinute")]
     public async Task<List<CommentWithNumLikesAndNumReplies>> GetBatchOfRepliesOfComment(
         int? authUserId, int commentId, int[] replyIdsToExclude,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService encryptionAndDecryptionService,
-        [Service] CommentsService commentsService, [Service] PostInfoFetchingService postInfoFetchingService
+        [Service] CommentsService commentsService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient
     )
     {
         if (commentId < 1)
@@ -478,16 +479,13 @@ public class CommentQueryProvider
 
             try
             {
-                byte[]? encryptedDataEncryptionKey = await postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefaultAsync();
-
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService
-                .DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+                IDatabase redisCachingDatabase =  redisClient.GetDatabase(0);
+                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                (
+                    overallPostId!,
+                    postgresContext,
+                    encryptionAndDecryptionService,
+                    redisCachingDatabase
                 );
 
                 List<EncryptedCommentOfPost> encryptedRepliesOfComment = await sqlServerContext.

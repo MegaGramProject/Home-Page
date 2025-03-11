@@ -3,11 +3,10 @@ using aspNetCoreBackend1.Contexts;
 using aspNetCoreBackend1.Models.SqlServer.Comment;
 using aspNetCoreBackend1.graphql.Types;
 
-using System.Text.Json;
-using System.Text;
-
 using MongoDB.Bson;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace aspNetCoreBackend1.graphql.Mutations;
 
@@ -16,12 +15,14 @@ public class CommentMutationProvider
 {
 
 
+    [EnableRateLimiting("8PerMinute")]
     public async Task<int> AddCommentToPost(
         int authUserId, string overallPostId, string commentContent,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService
-        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService
+        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient
     )
     {
         if (!ObjectId.TryParse(overallPostId, out _))
@@ -121,15 +122,13 @@ public class CommentMutationProvider
         {   
             try
             {
-                byte[]? encryptedDataEncryptionKey = postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"commentCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+                IDatabase redisCachingDatabase = redisClient.GetDatabase(0);
+                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                (
+                    overallPostId!,
+                    postgresContext,
+                    encryptionAndDecryptionService,
+                    redisCachingDatabase
                 );
 
                 var encryptedAuthUserIdInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
@@ -200,12 +199,14 @@ public class CommentMutationProvider
     }
 
 
+    [EnableRateLimiting("8PerMinute")]
     public async Task<int> AddReplyToComment(
         int authUserId, int commentId, string replyContent,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService
-        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService
+        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient
     )
     {
         if (commentId < 1)
@@ -340,15 +341,13 @@ public class CommentMutationProvider
         {   
             try
             {
-                byte[]? encryptedDataEncryptionKey = postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"commentCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+                IDatabase redisCachingDatabase = redisClient.GetDatabase(0);
+                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                (
+                    overallPostId!,
+                    postgresContext,
+                    encryptionAndDecryptionService,
+                    redisCachingDatabase
                 );
 
                 var encryptedAuthUserIdInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
@@ -418,12 +417,14 @@ public class CommentMutationProvider
         return idOfNewReply;
     }
 
+    [EnableRateLimiting("8PerMinute")]
     public async Task<bool> EditComment(
         int authUserId, int commentId, string newCommentContent,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService
-        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService
+        encryptionAndDecryptionService, [Service] PostInfoFetchingService postInfoFetchingService,
+        [Service] IConnectionMultiplexer redisClient
     )
     {
         if (commentId < 1)
@@ -571,15 +572,13 @@ public class CommentMutationProvider
                     .Where(x => x.id == commentId)
                     .FirstOrDefaultAsync();
                 
-                byte[]? encryptedDataEncryptionKey = postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+                IDatabase redisCachingDatabase = redisClient.GetDatabase(0);
+                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                (
+                    overallPostId!,
+                    postgresContext,
+                    encryptionAndDecryptionService,
+                    redisCachingDatabase
                 );
 
                 encryptedCommentToEdit!.isEdited = true;
@@ -632,6 +631,7 @@ public class CommentMutationProvider
         return true;
     }
 
+    [EnableRateLimiting("8PerMinute")]
     public async Task<InfoAfterDeletingComment> DeleteComment(
         int authUserId, int commentId,
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,

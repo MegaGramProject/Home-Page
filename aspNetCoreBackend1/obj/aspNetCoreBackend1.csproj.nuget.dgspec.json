@@ -87,6 +87,10 @@
               "target": "Package",
               "version": "[8.0.6, )"
             },
+            "Microsoft.AspNetCore.RateLimiting": {
+              "target": "Package",
+              "version": "[7.0.0-rc.2.22476.2, )"
+            },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
               "version": "[9.0.2, )"
@@ -102,6 +106,10 @@
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
               "version": "[9.0.3, )"
+            },
+            "StackExchange.Redis": {
+              "target": "Package",
+              "version": "[2.8.31, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",

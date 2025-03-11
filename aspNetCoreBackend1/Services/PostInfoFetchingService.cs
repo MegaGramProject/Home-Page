@@ -3,6 +3,7 @@ using System.Text.Json;
 
 namespace aspNetCoreBackend1.Services;
 
+
 public class PostInfoFetchingService
 {
 
@@ -131,7 +132,7 @@ public class PostInfoFetchingService
                 request1.Content = new StringContent(
                     JsonSerializer.Serialize(
                         new {
-                            list = authorsOfPost
+                            listOfUsers = authorsOfPost
                         }
                     ),
                     Encoding.UTF8,
@@ -183,7 +184,7 @@ public class PostInfoFetchingService
                     request2.Content = new StringContent(
                         JsonSerializer.Serialize(
                             new {
-                                list = authorsOfPost
+                                listOfUsers = authorsOfPost
                             }
                         ),
                         Encoding.UTF8,
@@ -332,5 +333,317 @@ public class PostInfoFetchingService
             { "setOfAuthUserFollowings", setOfAuthUserFollowings },
             { "setOfAuthUserBlockings", setOfAuthUserBlockings },
         };
+    }
+
+
+    public async Task<object> GetOverallPostIdsOfEachUserInList(
+        HttpClient httpClientWithMutualTLS, int[] listOfUserIds, int postsFromAtMostThisManyMonthsAgo,
+        bool allUsersArePublic
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1/getTheOverallPostIdsOfEachUserInList
+                /{postsFromAtMostThisManyMonthsAgo}/{allUsersArePublic}"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        listOfUserIds,
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (
+                    @"The expressJSBackend1 server had trouble getting the posts from at-most 2 months ago of each of the
+                    users in the list",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, object> parsedResponseData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                stringifiedResponseData
+            )!;
+            Dictionary<string, int[]> overallPostIdsAndTheirAuthors = (Dictionary<string, int[]>) parsedResponseData[
+                "overallPostIdsAndTheirAuthors"
+            ];
+
+            return overallPostIdsAndTheirAuthors;
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the expressJSBackend1 server to get the posts from at-most 2 months ago of
+                each of the users in the list",
+                "BAD_GATEWAY"
+            );
+        }
+    }
+
+
+    public async Task<object> GetNumPostViewsOfEachOverallPostIdInList(
+        HttpClient httpClientWithMutualTLS, List<string> overallPostIds
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                "http://34.111.89.101/api/Home-Page/springBootBackend2/getNumPostViewsOfEachOverallPostIdInList"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        overallPostIds
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (
+                    @"The springBootBackend2 server had trouble getting the numPostViews received by the posts in the 
+                    list",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, int>? overallPostIdsAndTheirNumViews = JsonSerializer.Deserialize<Dictionary<string, int>>(
+                stringifiedResponseData
+            );
+
+            return overallPostIdsAndTheirNumViews!;
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the springBootBackend2 server to get the numPostViews received by the posts
+                in the list",
+                "BAD_GATEWAY"
+            );
+        }
+    }
+
+
+    public async Task<object> GetOverallPostIdsOfEachSponsoredPostThatAuthUserCanView(
+        HttpClient httpClientWithMutualTLS, List<int> authUserFollowings, List<int> authUserBlockings,
+        int postsFromAtMostThisManyMonthsAgo
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1
+                /getTheOverallPostIdsOfEverySponsoredPostThatAuthUserCanView/{postsFromAtMostThisManyMonthsAgo}"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        authUserFollowings,
+                        authUserBlockings,
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (
+                    @"The expressJSBackend1 server had trouble getting the sponsored posts from at-most 2 months ago that are
+                    visible to the authUser",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, object> parsedResponseData = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                stringifiedResponseData
+            )!;
+            Dictionary<string, int[]> overallPostIdsAndTheirAuthors = (Dictionary<string, int[]>) parsedResponseData[
+                "overallPostIdsAndTheirAuthors"
+            ];
+
+            return overallPostIdsAndTheirAuthors;
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the expressJSBackend1 server to get the sponsored posts from at-most 2
+                months ago that are visible to the authUser",
+                "BAD_GATEWAY"
+            );
+        }
+    }
+
+
+    public async Task<object> GetNumAdLinkClicksOfEachSponsoredOverallPostIdInList(
+        HttpClient httpClientWithMutualTLS, List<string> sponsoredOverallPostIds
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                "http://34.111.89.101/api/Home-Page/springBootBackend2/getNumAdLinkClicksOfEachSponsoredOverallPostIdInList"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        sponsoredOverallPostIds
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (
+                    @"The springBootBackend2 server had trouble getting the numAdLinkClicks received by the sponsored posts
+                    of the list",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, int> overallPostIdsAndTheirAdLinkClicks = JsonSerializer.Deserialize<Dictionary<string, int>>(
+                stringifiedResponseData
+            )!;
+
+            return overallPostIdsAndTheirAdLinkClicks;
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the springBootBackend2 server to get the numAdLinkClicks received by the
+                sponsored posts in the list",
+                "BAD_GATEWAY"
+            );
+        }
+    }
+
+
+    public async Task<object> GetNumPostViewsByAuthUserForEachOverallPostIdInList(
+        HttpClient httpClientWithMutualTLS, List<string> overallPostIds, int authUserId
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                @$"http://34.111.89.101/api/Home-Page/springBootBackend2
+                /getNumPostViewsByAuthUserForEachOverallPostIdInList/{authUserId}"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        overallPostIds
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (
+                    @"The springBootBackend2 server had trouble getting the numPostViews by the authUser for each post in the 
+                    list",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, int>? overallPostIdsAndTheirNumViews = JsonSerializer.Deserialize<Dictionary<string, int>>(
+                stringifiedResponseData
+            );
+
+            return overallPostIdsAndTheirNumViews!;
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the springBootBackend2 server to get the numPostViews by the authUser for
+                each post in the list",
+                "BAD_GATEWAY"
+            );
+        }
+    }
+
+    public async Task<object> GetNumAdLinkClicksByAuthUserForEachSponsoredOverallPostIdInList(
+        HttpClient httpClientWithMutualTLS, List<string> sponsoredOverallPostIds, int authUserId
+    )
+    {
+        try
+        {
+            HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                @$"http://34.111.89.101/api/Home-Page/springBootBackend2
+                /GetNumAdLinkClicksByAuthUserForEachSponsoredOverallPostIdInList/{authUserId}"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        sponsoredOverallPostIds
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return (
+                    @"The springBootBackend2 server had trouble getting the numAdLinkClicks by the authUser for
+                    each sponsored post in the list",
+                    "BAD_GATEWAY"
+                ); 
+            }
+
+            string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+            Dictionary<string, int> overallPostIdsAndTheirAdLinkClicks = JsonSerializer.Deserialize<Dictionary<string, int>>(
+                stringifiedResponseData
+            )!;
+
+            return overallPostIdsAndTheirAdLinkClicks;
+        }
+        catch
+        {
+            return (
+                @"There was trouble connecting to the springBootBackend2 server to get the numAdLinkClicks by the authUser for
+                each sponsored post in the list",
+                "BAD_GATEWAY"
+            );
+        }
     }
 }

@@ -7,10 +7,14 @@ using aspNetCoreBackend1.Services;
 using aspNetCoreBackend1.Attributes;
 
 using System.Text.Json;
+using System.Text;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
+using Microsoft.AspNetCore.RateLimiting;
+using StackExchange.Redis;
+
 
 namespace aspNetCoreBackend1.Controllers;
 
@@ -25,16 +29,20 @@ public class Controller : ControllerBase
     private readonly UserAuthService _userAuthService;
     private readonly PostOrCommentLikingService _postOrCommentLikingService;
     private readonly PostInfoFetchingService _postInfoFetchingService;
+    private readonly CaptionService _captionService;
+    private readonly UserInfoFetchingService _userInfoFetchingService;
     private readonly HttpClient _httpClient;
     private readonly HttpClient _httpClientWithMutualTLS;
     private readonly Dictionary<string, int> _stringLabelToIntStatusCodeMappings;
+    private readonly IDatabase _redisCachingDatabase;
 
 
     public Controller(
         PostgresContext postgresContext, SqlServerContext sqlServerContext,
         EncryptionAndDecryptionService encryptionAndDecryptionService, UserAuthService userAuthService,
-        PostOrCommentLikingService postOrCommentLikingService, IHttpClientFactory httpClientFactory,
-        PostInfoFetchingService postInfoFetchingService
+        PostOrCommentLikingService postOrCommentLikingService, PostInfoFetchingService postInfoFetchingService,
+        CaptionService captionService, UserInfoFetchingService UserInfoFetchingService,
+        IHttpClientFactory httpClientFactory, IConnectionMultiplexer redisClient
     )
     {
         _postgresContext = postgresContext;
@@ -44,6 +52,8 @@ public class Controller : ControllerBase
         _userAuthService = userAuthService;
         _postOrCommentLikingService = postOrCommentLikingService;
         _postInfoFetchingService = postInfoFetchingService;
+        _captionService = captionService;
+        _userInfoFetchingService = UserInfoFetchingService;
 
         _httpClient = httpClientFactory.CreateClient();
         _httpClientWithMutualTLS = httpClientFactory.CreateClient("HttpClientWithMutualTLS");
@@ -55,10 +65,13 @@ public class Controller : ControllerBase
             {"NOT_FOUND", 404},
             {"INTERNAL_SERVER_ERROR", 500},
         };
+        
+        _redisCachingDatabase = redisClient.GetDatabase(0);
     }
 
-    
+
     [HttpPost("getBatchOfLikersOfPostOrComment/{authUserId}/{overallPostId?}/{commentId?}")]
+    [EnableRateLimiting("6PerMinute")]
     public async Task<IActionResult> GetBatchOfLikersOfPostOrComment(
         int authUserId, string? overallPostId, int? commentId, [FromBody] int[]? likersToExclude
     )
@@ -268,24 +281,20 @@ public class Controller : ControllerBase
 
             try
             {
-                byte[]? encryptedDataEncryptionKey = _postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                (
+                    overallPostId,
+                    _postgresContext,
+                    _encryptionAndDecryptionService,
+                    _redisCachingDatabase
                 );
             }
             catch
             {
                 return StatusCode(
                     500,
-                    @"There was trouble in the process of getting the encryptedDataEncryptionKey and then decrypting
-                    that to get the plaintextDataEncryptionKey in order to decrypt each of the likers of this
-                    private-post/private-post-comment."
+                    @"There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
+                    that in order to decrypt the data of this encrypted post."
                 );
             }
             
@@ -450,6 +459,7 @@ public class Controller : ControllerBase
     }
 
 
+    [EnableRateLimiting("12PerMinute")]
     [HttpPost("addLikeToPostOrComment/{authUserId}/{overallPostId?}/{commentId?}")]
     public async Task<IActionResult> AddLikeToPostOrComment(
         int authUserId, string? overallPostId, int? commentId
@@ -561,16 +571,24 @@ public class Controller : ControllerBase
                             .FirstOrDefault();
                     }
                     
-                    byte[]? encryptedDataEncryptionKey = await _postgresContext
-                        .captionsCommentsAndLikesEncryptionInfo
-                        .Where(x => x.overallPostId == overallPostId)
-                        .Select(x => x.encryptedDataEncryptionKey)
-                        .FirstOrDefaultAsync();
-                    
-                    plaintextDataEncryptionKey = await _encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                        encryptedDataEncryptionKey!,
-                        $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                    );
+                    try
+                    {
+                        plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                        (
+                            overallPostId!,
+                            _postgresContext,
+                            _encryptionAndDecryptionService,
+                            _redisCachingDatabase
+                        );
+                    }
+                    catch
+                    {
+                        return StatusCode(
+                            500,
+                            @"There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
+                            that in order to decrypt the data of this encrypted post."
+                        );
+                    }
 
                     foreach (var encryptedLikerInfo in likersOfEncryptedPostOrComment)
                     {
@@ -662,16 +680,24 @@ public class Controller : ControllerBase
             isEncrypted = authorsAndPostEncryptionStatusIfUserHasAccessToPostSuccessOutput;
             if (isEncrypted && plaintextDataEncryptionKey==null)
             {
-                byte[]? encryptedDataEncryptionKey = _postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                );
+                try
+                {
+                    plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                    (
+                        overallPostId,
+                        _postgresContext,
+                        _encryptionAndDecryptionService,
+                        _redisCachingDatabase
+                    );
+                }
+                catch
+                {
+                    return StatusCode(
+                        500,
+                        @"There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
+                        that in order to decrypt the data of this encrypted post."
+                    );
+                }
             }
         }
         
@@ -689,6 +715,7 @@ public class Controller : ControllerBase
         );
     
     }
+
 
     [RequireMutualTLS]
     [HttpPost("addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost/{overallPostId}")]
@@ -718,6 +745,20 @@ public class Controller : ControllerBase
             await _postgresContext
                 .captionsCommentsAndLikesEncryptionInfo
                 .AddAsync(newCaptionCommentAndLikeEncryptionInfo);
+            
+            try
+            {
+                await _redisCachingDatabase.HashSetAsync(
+                    "Posts and their Encrypted Data-Encryption-Keys",
+                    overallPostId,
+                    encryptedDataEncryptionKey
+                );
+            }
+            catch
+            {
+                //pass
+            }
+
             return Ok(true);
         }
         catch
@@ -732,6 +773,7 @@ public class Controller : ControllerBase
     }
 
     
+    [EnableRateLimiting("12PerMinute")]
     [HttpPatch("toggleLikeToPostOrComment/{authUserId}/{overallPostId?}/{commentId?}")]
     public async Task<IActionResult> ToggleLikeToPostOrComment(
         int authUserId, string? overallPostId, int? commentId
@@ -865,16 +907,24 @@ public class Controller : ControllerBase
             isEncrypted = authorsAndPostEncryptionStatusIfUserHasAccessToPostSuccessOutput;
             if (isEncrypted)
             {
-                byte[]? encryptedDataEncryptionKey = _postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                );
+                try
+                {
+                    plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                    (
+                        overallPostId,
+                        _postgresContext,
+                        _encryptionAndDecryptionService,
+                        _redisCachingDatabase
+                    );
+                }
+                catch
+                {
+                    return StatusCode(
+                        500,
+                        @"There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
+                        that in order to decrypt the data of this encrypted post."
+                    );
+                }
             }
         }
 
@@ -932,21 +982,34 @@ public class Controller : ControllerBase
         {
             try
             {
-                byte[]? encryptedDataEncryptionKey = _postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-                
-                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                );
+               try
+                {
+                    plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                    (
+                        overallPostId,
+                        _postgresContext,
+                        _encryptionAndDecryptionService,
+                        _redisCachingDatabase
+                    );
+                }
+                catch
+                {
+                    return StatusCode(
+                        500,
+                        @"There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
+                        that in order to decrypt the data of this encrypted post."
+                    );
+                }
                 
                 await _postgresContext
                     .captionsCommentsAndLikesEncryptionInfo
                     .Where(x => x.overallPostId == overallPostId)
                     .ExecuteDeleteAsync();
+                
+                await _redisCachingDatabase.HashDeleteAsync(
+                    "Posts and their Encrypted Data-Encryption-Keys",
+                    overallPostId
+                );
                 
                 await _encryptionAndDecryptionService.DeleteCustomerMasterKey(
                     $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
@@ -986,7 +1049,20 @@ public class Controller : ControllerBase
                 await _postgresContext
                     .captionsCommentsAndLikesEncryptionInfo
                     .AddAsync(newCaptionCommentAndLikeEncryptionInfo);
+
+                try
+                {
+                    await _redisCachingDatabase.HashSetAsync(
+                        "Posts and their Encrypted Data-Encryption-Keys",
+                        overallPostId,
+                        encryptedDataEncryptionKey
+                    );
                 }
+                catch
+                {
+                    //pass
+                }
+            }
             catch
             {
                 return StatusCode(
@@ -1444,6 +1520,7 @@ public class Controller : ControllerBase
     }
 
 
+    [EnableRateLimiting("12PerMinute")]
     [HttpDelete("removeLikeFromPostOrComment/{authUserId}/{overallPostId?}/{commentId?}")]
     public async Task<IActionResult> RemoveLikeFromPostOrComment(
          int authUserId, string? overallPostId, int? commentId
@@ -1578,16 +1655,24 @@ public class Controller : ControllerBase
 
             if (isEncrypted)
             {
-                byte[]? encryptedDataEncryptionKey = _postgresContext
-                    .captionsCommentsAndLikesEncryptionInfo
-                    .Where(x => x.overallPostId == overallPostId)
-                    .Select(x => x.encryptedDataEncryptionKey)
-                    .FirstOrDefault();
-
-                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
-                    encryptedDataEncryptionKey!,
-                    $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                );
+                try
+                {
+                    plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                    (
+                        overallPostId,
+                        _postgresContext,
+                        _encryptionAndDecryptionService,
+                        _redisCachingDatabase
+                    );
+                }
+                catch
+                {
+                    return StatusCode(
+                        500,
+                        @"There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
+                        that in order to decrypt the data of this encrypted post."
+                    );
+                }
             }
         }
 
@@ -1746,6 +1831,11 @@ public class Controller : ControllerBase
                     .captionsCommentsAndLikesEncryptionInfo
                     .Where(x => x.overallPostId == overallPostId)
                     .ExecuteDeleteAsync();
+                
+                await _redisCachingDatabase.HashDeleteAsync(
+                    "Posts and their Encrypted Data-Encryption-Keys",
+                    overallPostId
+                );
 
                 await _encryptionAndDecryptionService.DeleteCustomerMasterKey(
                     $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
@@ -1769,79 +1859,203 @@ public class Controller : ControllerBase
     }
 
     [RequireMutualTLS]
-    [HttpPost("getCaptionsOfMultiplePosts/{overallPostId}")]
+    [HttpPost("getCaptionsOfMultiplePosts")]
     public async Task<IActionResult> GetCaptionsOfMultiplePosts(
         [FromBody] Dictionary<string, bool> overallPostIdsAndIfTheyAreEncrypted
     )
     {
         string[] overallPostIds = overallPostIdsAndIfTheyAreEncrypted.Keys.ToArray();
 
-        HashSet<string> setOfOverallPostIdsOfEncryptedPosts = new HashSet<string>();
-        HashSet<string> setOfOverallPostIdsOfUnencryptedPosts = new HashSet<string>();
 
-        foreach(string overallPostId in overallPostIds)
-        {
-            if (overallPostIdsAndIfTheyAreEncrypted[overallPostId])
-            {
-                setOfOverallPostIdsOfEncryptedPosts.Add(overallPostId);
-            }
-            else
-            {
-                setOfOverallPostIdsOfUnencryptedPosts.Add(overallPostId);
-            }
-        }
+        Dictionary<string, UnencryptedCaptionOfPost?> overallPostIdsAndTheirCaptions =
+        new Dictionary<string, UnencryptedCaptionOfPost?>();
 
+        Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDataEncryptionKeys =
+        new Dictionary<string, byte[]>();
 
-        Dictionary<string, UnencryptedCaptionOfPost?> overallPostIdsAndTheirCaptions = new Dictionary<string,
-        UnencryptedCaptionOfPost?>();
         foreach (string overallPostId in overallPostIds)
         {
             overallPostIdsAndTheirCaptions[overallPostId] = null;
         }
 
         string errorMessage = "";
-
-        if (setOfOverallPostIdsOfEncryptedPosts.Count > 0)
+        HashSet<string> setOfOverallPostIdsOfUncachedUnencryptedCaptions = new HashSet<string>();
+        HashSet<string> setOfOverallPostIdsOfUncachedEncryptedCaptions = new HashSet<string>();
+        RedisValue[] redisOverallPostIdFields = Array.ConvertAll(overallPostIds, field => (RedisValue) field);
+        RedisValue[] redisCaptionValues = [];
+        bool redisCachedCaptionsHaveBeenFetchedSuccessfully = true;
+        try
         {
-            Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDataEncryptionKeys = new Dictionary<string,
-            byte[]>();
+            redisCaptionValues = await _redisCachingDatabase.HashGetAsync(
+                "Posts and their Captions",
+                redisOverallPostIdFields
+            );
+        }
+        catch
+        {
+            errorMessage += "• There was trouble getting the Redis-cached captions of each of the posts.\n";  
 
+            foreach(string overallPostId in overallPostIds)
+            {
+                if (overallPostIdsAndIfTheyAreEncrypted[overallPostId])
+                {
+                    setOfOverallPostIdsOfUncachedEncryptedCaptions.Add(overallPostId);
+                }
+                else
+                {
+                    setOfOverallPostIdsOfUncachedUnencryptedCaptions.Add(overallPostId);
+                }
+            }  
+            redisCachedCaptionsHaveBeenFetchedSuccessfully = false; 
+        }
+
+        if (redisCachedCaptionsHaveBeenFetchedSuccessfully)
+        {
+            for (int i = 0; i < overallPostIds.Length; i++)
+            {
+                string overallPostId = overallPostIds[i];
+                bool postIsEncrypted = overallPostIdsAndIfTheyAreEncrypted[overallPostId];
+                string? stringifiedCaptionInfoOfPost = redisCaptionValues[i];
+                
+                if (stringifiedCaptionInfoOfPost == null)
+                {
+                    if (postIsEncrypted)
+                    {
+                        setOfOverallPostIdsOfUncachedEncryptedCaptions.Add(overallPostId);
+                    }
+                    else
+                    {
+                        setOfOverallPostIdsOfUncachedUnencryptedCaptions.Add(overallPostId);
+                    }
+                }
+                else if (stringifiedCaptionInfoOfPost == "N/A")
+                {
+                    overallPostIdsAndTheirCaptions[overallPostId] = null;
+                }
+                else
+                {
+                    Dictionary<string, object>? captionInfoOfPost = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                        stringifiedCaptionInfoOfPost
+                    );
+
+                    bool captionHasBeenDecryptedSuccessfully = false;
+
+                    if (postIsEncrypted)
+                    {
+                        byte[] plaintextDataEncryptionKey = [];
+
+                        bool plaintextDataEncryptionKeyWasFound = true;
+
+                        if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostId))
+                        {
+                            plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId];
+                        }
+                        else
+                        {
+                            try
+                            {
+                                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                                (
+                                    overallPostId,
+                                    _postgresContext,
+                                    _encryptionAndDecryptionService,
+                                    _redisCachingDatabase
+                                );
+
+                                overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
+                            }
+                            catch
+                            {
+                                plaintextDataEncryptionKeyWasFound = false;
+                            }
+                        }
+
+                        if (!plaintextDataEncryptionKeyWasFound)
+                        {
+                            errorMessage += @$"• There was trouble decrypting the caption of the encrypted post with id
+                            {overallPostId}\n";
+                        }
+                        else
+                        {
+                           string authorIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                                (byte[]) captionInfoOfPost!["encryptedAuthorId"],
+                                plaintextDataEncryptionKey,
+                                (byte[]) captionInfoOfPost!["encryptionIv"],
+                                (byte[]) captionInfoOfPost!["encryptionAuthTag"]
+                            );
+                            int authorId = int.Parse(authorIdAsString);
+
+                            captionInfoOfPost!["authorId"] = authorId;
+                            
+                            string captionContent = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                                (byte[]) captionInfoOfPost!["encryptedContent"],
+                                plaintextDataEncryptionKey,
+                                (byte[]) captionInfoOfPost!["encryptionIv"],
+                                (byte[]) captionInfoOfPost!["encryptionAuthTag"]
+                            );
+
+                            captionInfoOfPost!["authorId"] = authorId;
+                            captionHasBeenDecryptedSuccessfully = true;
+                        }
+                    }
+
+                    if (!postIsEncrypted || (postIsEncrypted && captionHasBeenDecryptedSuccessfully))
+                    {
+                        overallPostIdsAndTheirCaptions[overallPostId] = new UnencryptedCaptionOfPost(
+                            overallPostId,
+                            (bool) captionInfoOfPost!["isEdited"],
+                            (DateTime) captionInfoOfPost!["datetimeOfCaption"],
+                            (int) captionInfoOfPost!["authorId"],
+                            (string) captionInfoOfPost!["content"]
+                        );
+                    }
+                }
+            }
+        }
+            
+        List<HashEntry> newEntriesForRedisCaptionCaching = new List<HashEntry>();
+        
+        if (setOfOverallPostIdsOfUncachedEncryptedCaptions.Count > 0)
+        {
             try
             {
                 List<EncryptedCaptionOfPost> encryptedCaptionsOfPosts = await _sqlServerContext
                     .encryptedCaptionsOfPosts
-                    .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId))
+                    .Where(x => setOfOverallPostIdsOfUncachedEncryptedCaptions.Contains(x.overallPostId))
                     .ToListAsync();
                 
                 foreach (EncryptedCaptionOfPost encryptedCaptionOfPost in encryptedCaptionsOfPosts)
                 {
                     string overallPostId = encryptedCaptionOfPost.overallPostId;
+                    newEntriesForRedisCaptionCaching.Add(
+                        new HashEntry(overallPostId, JsonSerializer.Serialize(encryptedCaptionOfPost))
+                    );
                     byte[] plaintextDataEncryptionKey = [];
-                    byte[]? encryptedDataEncryptionKey = [];
 
-                    bool plaintextDataEncryptionKeyWasFound = false;
+                    bool plaintextDataEncryptionKeyWasFound = true;
 
                     if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostId))
                     {
                         plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId];
-                        plaintextDataEncryptionKeyWasFound = true;
                     }
                     else
                     {
-                        encryptedDataEncryptionKey = _postgresContext
-                            .captionsCommentsAndLikesEncryptionInfo
-                            .Where(x => x.overallPostId == overallPostId)
-                            .Select(x => x.encryptedDataEncryptionKey)
-                            .FirstOrDefault(); 
-                        
-                        plaintextDataEncryptionKey = await _encryptionAndDecryptionService
-                        .DecryptEncryptedDataEncryptionKey(
-                            encryptedDataEncryptionKey!,
-                            $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                        );
+                        try
+                        {
+                            plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                            (
+                                overallPostId,
+                                _postgresContext,
+                                _encryptionAndDecryptionService,
+                                _redisCachingDatabase
+                            );
 
-                        overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
-                        plaintextDataEncryptionKeyWasFound = true;
+                            overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
+                        }
+                        catch
+                        {
+                            plaintextDataEncryptionKeyWasFound = false;
+                        }
                     }
 
                     if (!plaintextDataEncryptionKeyWasFound)
@@ -1883,11 +2097,10 @@ public class Controller : ControllerBase
                         }
                     }
                 }
-
             }
             catch
             {
-                foreach (string overallPostId in setOfOverallPostIdsOfEncryptedPosts)
+                foreach (string overallPostId in setOfOverallPostIdsOfUncachedEncryptedCaptions)
                 {
                     errorMessage += @$"• There was trouble retrieving the caption of the encrypted post with id
                     {overallPostId}\n";
@@ -1895,23 +2108,29 @@ public class Controller : ControllerBase
             }
         }
 
-        if (setOfOverallPostIdsOfUnencryptedPosts.Count > 0)
+        if (setOfOverallPostIdsOfUncachedUnencryptedCaptions.Count > 0)
         {
             try
             {
                 List<UnencryptedCaptionOfPost> unencryptedCaptionsOfPosts = await _sqlServerContext
                     .unencryptedCaptionsOfPosts
-                    .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId))
+                    .Where(x => setOfOverallPostIdsOfUncachedUnencryptedCaptions.Contains(x.overallPostId))
                     .ToListAsync();
                 
                 foreach (UnencryptedCaptionOfPost unencryptedCaptionOfPost in unencryptedCaptionsOfPosts)
                 {
+                    newEntriesForRedisCaptionCaching.Add(
+                        new HashEntry(
+                            unencryptedCaptionOfPost.overallPostId,
+                            JsonSerializer.Serialize(unencryptedCaptionOfPost)
+                        )
+                    );
                     overallPostIdsAndTheirCaptions[unencryptedCaptionOfPost.overallPostId] = unencryptedCaptionOfPost;
                 }
             }
             catch
             {
-                foreach (string overallPostId in setOfOverallPostIdsOfUnencryptedPosts)
+                foreach (string overallPostId in setOfOverallPostIdsOfUncachedUnencryptedCaptions)
                 {
                     errorMessage += @$"• There was trouble retrieving the caption of the unencrypted post with id
                     {overallPostId}\n";
@@ -1919,9 +2138,1353 @@ public class Controller : ControllerBase
             }
         }
 
+        if (newEntriesForRedisCaptionCaching.Count > 0)
+        {
+            try
+            {
+                await _redisCachingDatabase.HashSetAsync(
+                    "Posts and their Captions",
+                    newEntriesForRedisCaptionCaching.ToArray()
+                );
+            }
+            catch
+            {
+                //pass
+            }
+        }
+
+
         return Ok(new Dictionary<string, object> {
             { "overallPostIdsAndTheirCaptions", overallPostIdsAndTheirCaptions },
             { "errorMessage", errorMessage }
+        });
+    }
+
+
+    [RequireMutualTLS]
+    [HttpPost("addCaptionToPost/{authUserId}/{overallPostId}/{isEncrypted}")]
+    public async Task<IActionResult> AddCaptionToPost(
+        int authUserId, string overallPostId, bool isEncrypted, [FromBody] Dictionary<string, string> captionInfo
+    )
+    {
+        string content = captionInfo["content"];
+
+         var addCaptionToPostResult = await _captionService.AddCaptionToPost(
+            authUserId, overallPostId, content, isEncrypted, _encryptionAndDecryptionService,
+            _postgresContext, _redisCachingDatabase, _sqlServerContext
+        );
+
+        if (addCaptionToPostResult is Tuple<string, string> addCaptionToPostResultErrorOutput)
+        {
+            return StatusCode(
+                _stringLabelToIntStatusCodeMappings[addCaptionToPostResultErrorOutput.Item2],
+                addCaptionToPostResultErrorOutput.Item1
+            );
+        }
+        return Ok(true);
+    }
+
+
+    [RequireMutualTLS]
+    [HttpPatch("editCaptionOfPost/{overallPostId}/{isEncrypted}")]
+    public async Task<IActionResult> EditCaptionOfPost(
+        string overallPostId, bool isEncrypted, [FromBody] Dictionary<string, string> captionInfo
+    )
+    {
+        string newContent = captionInfo["newContent"];
+
+        var editCaptionOfPostResult = await _captionService.EditCaptionOfPost(
+            overallPostId, newContent, isEncrypted, _encryptionAndDecryptionService,
+            _postgresContext, _redisCachingDatabase, _sqlServerContext
+        );
+
+        if (editCaptionOfPostResult is Tuple<string, string> editCaptionOfPostResultErrorOutput)
+        {
+            return StatusCode(
+                _stringLabelToIntStatusCodeMappings[editCaptionOfPostResultErrorOutput.Item2],
+                editCaptionOfPostResultErrorOutput.Item1
+            );
+        }
+        
+        return Ok((bool) editCaptionOfPostResult);
+    }
+
+
+    [RequireMutualTLS]
+    [HttpDelete("deleteCaptionOfPost/{overallPostId}/{isEncrypted}")]
+    public async Task<IActionResult> DeleteCaptionOfPost(
+        string overallPostId, bool isEncrypted
+    )
+    {
+        var deleteCaptionOfPostResult = await _captionService.DeleteCaptionOfPost(
+            overallPostId, isEncrypted, _redisCachingDatabase, _sqlServerContext
+        );
+
+        if (deleteCaptionOfPostResult is Tuple<string, string> deleteCaptionOfPostResultErrorOutput)
+        {
+            return StatusCode(
+                _stringLabelToIntStatusCodeMappings[deleteCaptionOfPostResultErrorOutput.Item2],
+                deleteCaptionOfPostResultErrorOutput.Item1
+            );
+        }
+        
+        return Ok((bool) deleteCaptionOfPostResult);
+    }
+
+
+    [RequireMutualTLS]
+    [HttpPost("getNumLikesNumCommentsAndAtMost3LikersFollowedByAuthUserForMultiplePosts/{authUserId}")]
+    public async Task<IActionResult> GetNumLikesNumCommentsAndAtMost3LikersFollowedByAuthUserForMultiplePosts(
+        int authUserId, [FromBody] Dictionary<string, bool> overallPostIdsAndIfTheyAreEncrypted
+    )
+    {
+        bool authUserIsAnonymousGuest = authUserId == -1;
+        string[] overallPostIds = overallPostIdsAndIfTheyAreEncrypted.Keys.ToArray();
+        HashSet<string> setOfOverallPostIdsOfEncryptedPosts = new HashSet<string>();
+        HashSet<string> setOfOverallPostIdsOfUnencryptedPosts = new HashSet<string>();
+        Dictionary<string, Dictionary<string, object>> postsAndTheirWantedInfo =
+        new Dictionary<string, Dictionary<string, object>>();
+
+        foreach(string overallPostId in overallPostIds)
+        {
+            postsAndTheirWantedInfo[overallPostId] = new Dictionary<string, object> {
+                {"numLikes", 0},
+                {"numComments", 0},
+                {"likersFollowedByAuthUser", new List<int>()}
+            };
+
+            if (overallPostIdsAndIfTheyAreEncrypted[overallPostId])
+            {
+                setOfOverallPostIdsOfEncryptedPosts.Add(overallPostId);
+            }
+            else
+            {
+                setOfOverallPostIdsOfUnencryptedPosts.Add(overallPostId);
+            }
+        }
+
+        string errorMessage = "";
+
+        if (setOfOverallPostIdsOfEncryptedPosts.Count > 0)
+        {
+            try
+            {
+                Dictionary<string, int> overallPostIdsAndTheirNumLikes = await _postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfEncryptedPosts.Contains(x.overallPostId ?? ""))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostId in overallPostIdsAndTheirNumLikes.Keys)
+                {
+                    postsAndTheirWantedInfo[overallPostId]["numLikes"] = overallPostIdsAndTheirNumLikes[overallPostId];
+                }
+            }
+            catch
+            {
+                errorMessage += "• There was trouble getting the numLikes of each of the encrypted posts\n";
+            }
+
+            try
+            {
+                Dictionary<string, int> overallPostIdsAndTheirNumComments = await _sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfEncryptedPosts.Contains(x.overallPostId))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostId in overallPostIdsAndTheirNumComments.Keys)
+                {
+                    postsAndTheirWantedInfo[overallPostId]["numComments"] = overallPostIdsAndTheirNumComments[overallPostId];
+                }
+            }
+            catch
+            {
+                errorMessage += "• There was trouble getting the numComments of each of the encrypted posts\n";
+            }
+        }
+
+
+        if (setOfOverallPostIdsOfUnencryptedPosts.Count > 0)
+        {
+            try
+            {
+                Dictionary<string, int> overallPostIdsAndTheirNumLikes = await _postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? ""))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostId in overallPostIdsAndTheirNumLikes.Keys)
+                {
+                    postsAndTheirWantedInfo[overallPostId]["numLikes"] = overallPostIdsAndTheirNumLikes[overallPostId];
+                }
+            }
+            catch
+            {
+                errorMessage += "• There was trouble getting the numLikes of each of the unencrypted posts\n";
+            }
+
+            try
+            {
+                Dictionary<string, int> overallPostIdsAndTheirNumComments = await _sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? ""))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostId in overallPostIdsAndTheirNumComments.Keys)
+                {
+                    postsAndTheirWantedInfo[overallPostId]["numComments"] = overallPostIdsAndTheirNumComments[overallPostId];
+                }
+            }
+            catch
+            {
+                errorMessage += "• There was trouble getting the numComments of each of the unencrypted posts\n";
+            }
+        }
+
+
+        int[]? followingsOfAuthUser = null;
+        if (!authUserIsAnonymousGuest)
+        {
+            try
+            {
+                HttpRequestMessage request = new HttpRequestMessage(
+                    HttpMethod.Get,
+                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/getFollowingsOfAuthUser/{authUserId}"
+                );
+                HttpResponseMessage response = await _httpClientWithMutualTLS.SendAsync(request);            
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorMessage += "• The djangoBackend2 server had trouble retrieving the followings of the authUser.\n";
+                }
+                else
+                {
+                    string stringifiedResponseData = await response.Content.ReadAsStringAsync();
+                    followingsOfAuthUser = JsonSerializer.Deserialize<int[]>(
+                        stringifiedResponseData
+                    );
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble connecting to the djangoBackend2 server to get the followings
+                of the authUser.\n";
+            }
+        }
+
+        if (!authUserIsAnonymousGuest && followingsOfAuthUser != null && followingsOfAuthUser.Length > 0)
+        {
+            HashSet<int> setOfFollowingsOfAuthUser = new HashSet<int>(followingsOfAuthUser);
+
+            if (setOfOverallPostIdsOfEncryptedPosts.Count > 0)
+            {
+
+                Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDataEncryptionKeys =
+                new Dictionary<string,byte[]>();
+                HashSet<string> setOverallPostIdsThatAlreadyFound3LikersFollowedByAuthUser = new HashSet<string>();
+                int numberOfOverallPostIdsInTotal = overallPostIds.Length;
+                
+                try
+                {
+                   var atMost3LikersFollowedByAuthUserOfEachPost = await _postgresContext
+                        .encryptedPostOrCommentLikes
+                        .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? ""))
+                        .OrderByDescending(x => x.datetimeOfLike)
+                        .Select(x => new { x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag})
+                        .ToListAsync();
+                    
+                    foreach(var authUserFollowedLikeOfPost in atMost3LikersFollowedByAuthUserOfEachPost)
+                    {
+                        string overallPostIdOfLikedPost = authUserFollowedLikeOfPost.overallPostId!;
+                        if (
+                            setOverallPostIdsThatAlreadyFound3LikersFollowedByAuthUser.Contains(overallPostIdOfLikedPost)
+                        )
+                        {
+                            continue;
+                        }
+
+                        byte[] plaintextDataEncryptionKey = [];
+                        bool plaintextDataEncryptionKeyWasFound = true;
+
+                        if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostIdOfLikedPost))
+                        {
+                            plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[
+                                overallPostIdOfLikedPost
+                            ];
+                        }
+                        else
+                        {
+                            try
+                            {
+                                plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                                (
+                                    overallPostIdOfLikedPost,
+                                    _postgresContext,
+                                    _encryptionAndDecryptionService,
+                                    _redisCachingDatabase
+                                );
+                                overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostIdOfLikedPost] =
+                                plaintextDataEncryptionKey;
+                            }
+                            catch
+                            {
+                                errorMessage += @$"There was trouble getting the plaintextDataEncryptionKey for decrypting
+                                one of the likers of the post with this overallPostId: {overallPostIdOfLikedPost}";
+                                plaintextDataEncryptionKeyWasFound = false;
+                            }
+                        }
+
+                        if (plaintextDataEncryptionKeyWasFound)
+                        {
+                            string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                                authUserFollowedLikeOfPost.encryptedLikerId,
+                                plaintextDataEncryptionKey,
+                                authUserFollowedLikeOfPost.encryptionIv,
+                                authUserFollowedLikeOfPost.encryptionAuthTag
+                            );
+                            int likerId = int.Parse(likerIdAsString);
+
+                            if (setOfFollowingsOfAuthUser.Contains(likerId))
+                            {
+                                ((List<int>)postsAndTheirWantedInfo[overallPostIdOfLikedPost]["likersFollowedByAuthUser"])
+                                .Add(likerId);
+
+                                if (
+                                    ((List<int>)postsAndTheirWantedInfo[overallPostIdOfLikedPost]["likersFollowedByAuthUser"])
+                                    .Count ==3
+                                )
+                                {
+                                    setOverallPostIdsThatAlreadyFound3LikersFollowedByAuthUser.Add(overallPostIdOfLikedPost);
+
+                                    if (
+                                        setOverallPostIdsThatAlreadyFound3LikersFollowedByAuthUser.Count ==
+                                        numberOfOverallPostIdsInTotal
+                                    )
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    errorMessage += @"• There was trouble getting the likersFollowedByAuthUser of each of the
+                    encrypted posts.\n";
+                }
+            }
+
+            if (setOfOverallPostIdsOfUnencryptedPosts.Count > 0)
+            {
+                try
+                {
+                    var atMost3LikersFollowedByAuthUserOfEachPost = await _postgresContext
+                        .unencryptedPostOrCommentLikes
+                        .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? "") &&
+                            setOfFollowingsOfAuthUser.Contains(x.likerId)
+                        )
+                        .OrderByDescending(x => x.datetimeOfLike)
+                        .GroupBy(x => x.overallPostId)
+                        .Select(g => g.Take(3))
+                        .SelectMany(g => g)
+                        .Select(x => new {x.overallPostId, x.likerId})
+                        .ToListAsync();
+                    
+                    foreach(var authUserFollowedLikerOfPost in atMost3LikersFollowedByAuthUserOfEachPost)
+                    {
+                        string overallPostIdOfLikedPost = authUserFollowedLikerOfPost.overallPostId!;
+
+                        ((List<int>)postsAndTheirWantedInfo[overallPostIdOfLikedPost]["likersFollowedByAuthUser"])
+                        .Add(authUserFollowedLikerOfPost.likerId);
+                    }
+                }
+                catch
+                {
+                    errorMessage += @"• There was trouble getting the likersFollowedByAuthUser of
+                    each of the unencrypted posts.\n";
+                }
+            }
+        }
+
+        return Ok(new Dictionary<string, object> {
+            { "errorMessage", errorMessage },
+            { "postsAndTheirWantedInfo", postsAndTheirWantedInfo }
+        });
+    }
+
+
+    [RequireMutualTLS]
+    [HttpGet("forHomePageFeedGetTheTopUsersBasedOnNumLikesNumCommentsNumPostViewsAndNumAdLinkClicks/{authUserId}")]
+    public async Task<IActionResult> ForHomePageFeedGetTheTopUsersBasedOnNumLikesNumCommentsNumPostViewsAndNumAdLinkClicks(
+        int authUserId
+    )
+    {
+        List<int> top10UsersThatAuthUserFollowsAndEngagesWithTheMost = new List<int>();
+        List<int> top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost = new List<int>();
+
+        string errorMessage = "";
+
+        int[] userIdsOfAllPublicAccounts = [];
+        int[] authUserFollowings = [];
+        HashSet<int> setOfAuthUserFollowings = new HashSet<int>();
+        int[] authUserBlockings = [];
+        HashSet<int> setOfAuthUserBlockings = new HashSet<int>();
+        Dictionary<int, Dictionary<string, int>> usersAndTheirStats = new Dictionary<int, Dictionary<string, int>>();
+    
+        int[] usersWithSponsoredPostsThatAuthUserCanView = [];
+        HashSet<int> setOfUsersWithSponsoredPostsThatAuthUserCanView = new HashSet<int>();
+        HashSet<string> setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView  = new HashSet<string>();
+
+        Dictionary<string, int[]> overallPostIdsAndTheirAuthors = new Dictionary<string, int[]>();
+        HashSet<string> setOfOverallPostIdsOfAuthUserFollowings = new HashSet<string>();
+
+        bool authUserIsAnonymousGuest = authUserId == -1;
+
+        if (authUserIsAnonymousGuest)
+        {
+            var resultOfGettingUserIdsOfAllPublicAccounts = await _userInfoFetchingService.GetTheUserIdsOfAllThePublicAccounts(
+                _httpClientWithMutualTLS
+            );
+            if (resultOfGettingUserIdsOfAllPublicAccounts is Tuple<string, string>
+            resultOfGettingUserIdsOfAllPublicAccountsErrorOutput)
+            {
+                return StatusCode(
+                    _stringLabelToIntStatusCodeMappings[resultOfGettingUserIdsOfAllPublicAccountsErrorOutput.Item2],
+                    resultOfGettingUserIdsOfAllPublicAccountsErrorOutput.Item1
+                );
+            }
+            userIdsOfAllPublicAccounts = (int[]) resultOfGettingUserIdsOfAllPublicAccounts;
+            
+
+            var resultOfGettingTop500MostFollowedPublicUsers = await _userInfoFetchingService.GetTheMostFollowedUsersInList(
+                _httpClientWithMutualTLS, userIdsOfAllPublicAccounts, 500
+            );
+            if (resultOfGettingTop500MostFollowedPublicUsers is Tuple<string, string>
+            resultOfGettingTop500MostFollowedPublicUsersErrorOutput)
+            {
+                return StatusCode(
+                    _stringLabelToIntStatusCodeMappings[resultOfGettingTop500MostFollowedPublicUsersErrorOutput.Item2],
+                    resultOfGettingTop500MostFollowedPublicUsersErrorOutput.Item1 + @" of all the public accounts"
+                );
+            }
+            authUserFollowings = (int[]) resultOfGettingTop500MostFollowedPublicUsers;
+            setOfAuthUserFollowings = new HashSet<int>(authUserFollowings);
+            foreach(int userFollowedByAuthUser in authUserFollowings)
+            {
+                usersAndTheirStats[userFollowedByAuthUser] = new Dictionary<string, int> {
+                    {"numLikes", 0},
+                    {"numComments", 0},
+                    {"numPostViews", 0}
+                };
+            }
+
+            var resultOfGettingOverallPostIdsOfEachUserInList = await _postInfoFetchingService
+            .GetOverallPostIdsOfEachUserInList(
+                _httpClientWithMutualTLS, authUserFollowings, 2, true
+            );
+            if (resultOfGettingOverallPostIdsOfEachUserInList is Tuple<string, string>
+            resultOfGettingOverallPostIdsOfEachUserInListErrorOutput)
+            {
+                errorMessage += "• " + resultOfGettingOverallPostIdsOfEachUserInListErrorOutput.Item1 + @" of the top-500 most
+                followed public accounts\n";
+
+                return Ok(new Dictionary<string, object> {
+                    { "errorMessage", errorMessage },
+                    { "authUserFollowings", authUserFollowings },
+                    { "usersWithSponsoredPostsThatAuthUserCanView", new List<int>()},
+                    { "top10UsersThatAuthUserFollowsAndEngagesWithTheMost", authUserFollowings.ToList().Slice(0,10) },
+                    { "top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost", new List<int>() }
+                });
+            }
+            overallPostIdsAndTheirAuthors = (Dictionary<string, int[]>) resultOfGettingOverallPostIdsOfEachUserInList;
+            setOfOverallPostIdsOfAuthUserFollowings = new HashSet<string>(overallPostIdsAndTheirAuthors.Keys);
+
+            try
+            {
+                Dictionary<string, int> numUnencryptedLikesReceivedByPostsMadeByUsersInAuthUserFollowings = await
+                _postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId!))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                foreach(string overallPostIdOfUnencryptedLikedPost in
+                numUnencryptedLikesReceivedByPostsMadeByUsersInAuthUserFollowings.Keys)
+                {
+                    int[] authorsOfUnencryptedLikedPostThatAreFollowedByAuthUser = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedLikedPost
+                    ];
+                    int numLikesOfUnencryptedLikedPost = numUnencryptedLikesReceivedByPostsMadeByUsersInAuthUserFollowings[
+                        overallPostIdOfUnencryptedLikedPost
+                    ];
+
+                    foreach(int author in authorsOfUnencryptedLikedPostThatAreFollowedByAuthUser)
+                    {
+                        usersAndTheirStats[author]["numLikes"] += numLikesOfUnencryptedLikedPost;
+                    }
+                }
+                
+                Dictionary<string, int> numEncryptedLikesReceivedByPostsMadeByUsersInAuthUserFollowings = await
+                _postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId!))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostIdOfEncryptedLikedPost in
+                numEncryptedLikesReceivedByPostsMadeByUsersInAuthUserFollowings.Keys)
+                {
+                    int[] authorsOfEncryptedLikedPostThatAreFollowedByAuthUser = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfEncryptedLikedPost
+                    ];
+                    int numLikesOfEncryptedLikedPost = numEncryptedLikesReceivedByPostsMadeByUsersInAuthUserFollowings[
+                        overallPostIdOfEncryptedLikedPost
+                    ];
+                    foreach(int author in authorsOfEncryptedLikedPostThatAreFollowedByAuthUser)
+                    {
+                        usersAndTheirStats[author]["numLikes"] += numLikesOfEncryptedLikedPost;
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the numLikes received by each of the top-500 most followed public
+                accounts.\n";
+            }
+
+            try
+            {
+                Dictionary<string, int> numUnencryptedCommentsReceivedByPostsMadeByUsersInAuthUserFollowings = await
+                _sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId))
+                    .GroupBy(x => x.overallPostId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                foreach(string overallPostIdOfUnencryptedCommentedPost in
+                numUnencryptedCommentsReceivedByPostsMadeByUsersInAuthUserFollowings.Keys)
+                {
+                    int[] authorsOfUnencryptedCommentedPostThatAreFollowedByAuthUser = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+                    int numCommentsOfUnencryptedCommentedPost = numUnencryptedCommentsReceivedByPostsMadeByUsersInAuthUserFollowings[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+                    foreach(int author in authorsOfUnencryptedCommentedPostThatAreFollowedByAuthUser)
+                    {
+                        usersAndTheirStats[author]["numComments"] += numCommentsOfUnencryptedCommentedPost;
+                    }
+                }
+                
+                Dictionary<string, int> numEncryptedCommentsReceivedByPostsMadeByUsersInAuthUserFollowings = await
+                _sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId))
+                    .GroupBy(x => x.overallPostId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostIdOfEncryptedCommentedPost in
+                numEncryptedCommentsReceivedByPostsMadeByUsersInAuthUserFollowings.Keys)
+                {
+                    int[] authorsOfEncryptedCommentedPostThatAreFollowedByAuthUser = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfEncryptedCommentedPost
+                    ];
+                    int numCommentsOfEncryptedCommentedPost = numEncryptedCommentsReceivedByPostsMadeByUsersInAuthUserFollowings[
+                        overallPostIdOfEncryptedCommentedPost
+                    ];
+                    foreach(int author in authorsOfEncryptedCommentedPostThatAreFollowedByAuthUser)
+                    {
+                        usersAndTheirStats[author]["numComments"] += numCommentsOfEncryptedCommentedPost;
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the numComments received by each of the top-500
+                most followed public accounts.\n";
+            }
+            
+            var resultOfGettingNumPostViewsOfEachOverallPostIdInList = await _postInfoFetchingService
+            .GetNumPostViewsOfEachOverallPostIdInList(
+                _httpClientWithMutualTLS, setOfOverallPostIdsOfAuthUserFollowings.ToList()
+            );
+            if (resultOfGettingNumPostViewsOfEachOverallPostIdInList is Tuple<string, string>
+            resultOfGettingNumPostViewsOfEachOverallPostIdInListErrorOutput)
+            {
+                errorMessage += "• " + resultOfGettingNumPostViewsOfEachOverallPostIdInListErrorOutput.Item1 + @" of posts
+                made by the top-500 most followed public accounts\n";
+            }
+            else
+            {
+                Dictionary<string, int> overallPostIdsAndTheirNumViews = (Dictionary<string, int>)
+                resultOfGettingNumPostViewsOfEachOverallPostIdInList;
+
+                foreach(string overallPostId in overallPostIdsAndTheirNumViews.Keys)
+                {
+                    int[] authorsOfPost = overallPostIdsAndTheirAuthors[overallPostId];
+                    int numViewsOfPost = overallPostIdsAndTheirNumViews[overallPostId];
+                    foreach(int author in authorsOfPost)
+                    {
+                        usersAndTheirStats[author]["numPostViews"] += numViewsOfPost;
+                    }
+                }
+            }
+
+            foreach(int userFollowedByAuthUser in usersAndTheirStats.Keys)
+            {
+                usersAndTheirStats[userFollowedByAuthUser]["sumOfNumLikesNumCommentsAndNumPostViews"] =
+                usersAndTheirStats[userFollowedByAuthUser]["numLikes"] + 
+                usersAndTheirStats[userFollowedByAuthUser]["numComments"] +
+                usersAndTheirStats[userFollowedByAuthUser]["numPostsViews"];
+            }
+
+            top10UsersThatAuthUserFollowsAndEngagesWithTheMost = usersAndTheirStats
+                .OrderByDescending(dict => dict.Value["sumOfNumLikesNumCommentsAndNumPostViews"])
+                .Select(dict => dict.Key)
+                .Take(10)
+                .ToList();
+    
+
+            var resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPost = await _postInfoFetchingService.
+            GetOverallPostIdsOfEachSponsoredPostThatAuthUserCanView(
+                _httpClientWithMutualTLS, new List<int>(), new List<int>(), 2
+            );
+            if (resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPost is Tuple<string, string>
+            resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPostErrorOutput)
+            {
+                errorMessage += "• " +  resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPostErrorOutput.Item1 + "\n";
+                return Ok(new Dictionary<string, object> {
+                    { "errorMessage", errorMessage },
+                    { "authUserFollowings", authUserFollowings },
+                    { "usersWithSponsoredPostsThatAuthUserCanView", new List<int>()},
+                    { "top10UsersThatAuthUserFollowsAndEngagesWithTheMost", top10UsersThatAuthUserFollowsAndEngagesWithTheMost },
+                    { "top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost", new List<int>() }
+                });
+            }
+            overallPostIdsAndTheirAuthors = (Dictionary<string, int[]>) resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPost;
+            
+            setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView = new HashSet<string>(
+                overallPostIdsAndTheirAuthors.Keys
+            );
+            foreach(string overallPostId in setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView)
+            {
+                int[] authorsOfSponsoredPost = overallPostIdsAndTheirAuthors[overallPostId];
+                setOfUsersWithSponsoredPostsThatAuthUserCanView.UnionWith(authorsOfSponsoredPost);
+            }
+
+            usersWithSponsoredPostsThatAuthUserCanView = setOfUsersWithSponsoredPostsThatAuthUserCanView.ToArray();
+            usersAndTheirStats = new Dictionary<int, Dictionary<string, int>>();
+            foreach(int userWithSponsoredPostThatAuthUserCanView in usersWithSponsoredPostsThatAuthUserCanView)
+            {
+                usersAndTheirStats[userWithSponsoredPostThatAuthUserCanView] = new Dictionary<string, int>
+                {
+                    {"numLikes", 0},
+                    {"numComments", 0},
+                    {"numAdLinkClicks", 0}
+                };
+            }
+
+            try
+            {
+                var numUnencryptedLikesReceivedBySponsoredPostsThatAuthUserCanView = await _postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId!))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                foreach(string overallPostIdOfUnencryptedLikedPost in
+                numUnencryptedLikesReceivedBySponsoredPostsThatAuthUserCanView.Keys)
+                {
+                    int[] authorsOfUnencryptedLikedSponsoredPost = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedLikedPost
+                    ];
+                    int numLikesOfUnencryptedLikedPost = numUnencryptedLikesReceivedBySponsoredPostsThatAuthUserCanView[
+                        overallPostIdOfUnencryptedLikedPost
+                    ];
+                    foreach(int author in authorsOfUnencryptedLikedSponsoredPost)
+                    {
+                        usersAndTheirStats[author]["numLikes"] += numLikesOfUnencryptedLikedPost;
+                    }
+                }
+                
+                var numEncryptedLikesReceivedBySponsoredPostsThatAuthUserCanView = await _postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId!))
+                    .GroupBy(x => x.overallPostId!)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostIdOfEncryptedLikedPost in
+                numEncryptedLikesReceivedBySponsoredPostsThatAuthUserCanView.Keys)
+                {
+                    int[] authorsOfEncryptedLikedSponsoredPost = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfEncryptedLikedPost
+                    ];
+                    int numLikesOfEncryptedLikedSponsoredPost = numEncryptedLikesReceivedBySponsoredPostsThatAuthUserCanView[
+                        overallPostIdOfEncryptedLikedPost
+                    ];
+                    foreach(int author in authorsOfEncryptedLikedSponsoredPost)
+                    {
+                        usersAndTheirStats[author]["numLikes"] += numLikesOfEncryptedLikedSponsoredPost;
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the total numLikes of sponsored-posts for each of the users who
+                have posted sponsored posts in the last two months that are visible to the authUser.\n";
+            }
+
+            try
+            {
+                var numUnencryptedCommentsReceivedBySponsoredPostsThatAuthUserCanView = await _sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId))
+                    .GroupBy(x => x.overallPostId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                foreach(string overallPostIdOfUnencryptedCommentedPost in
+                numUnencryptedCommentsReceivedBySponsoredPostsThatAuthUserCanView.Keys)
+                {
+                    int[] authorsOfUnencryptedCommentedSponsoredPost = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+                    int numCommentsOfUnencryptedCommentedSponsoredPost = numUnencryptedCommentsReceivedBySponsoredPostsThatAuthUserCanView[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+                    foreach(int author in authorsOfUnencryptedCommentedSponsoredPost)
+                    {
+                        usersAndTheirStats[author]["numComments"] += numCommentsOfUnencryptedCommentedSponsoredPost;
+                    }
+                }
+                
+                var numEncryptedCommentsReceivedBySponsoredPostsThatAuthUserCanView = await _sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId))
+                    .GroupBy(x => x.overallPostId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+                
+                foreach(string overallPostIdOfEncryptedCommentedPost in
+                numEncryptedCommentsReceivedBySponsoredPostsThatAuthUserCanView.Keys)
+                {
+                    int[] authorsOfEncryptedCommentedSponsoredPost = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfEncryptedCommentedPost
+                    ];
+                    int numCommentsOfEncryptedCommentedSponsoredPost = numEncryptedCommentsReceivedBySponsoredPostsThatAuthUserCanView[
+                        overallPostIdOfEncryptedCommentedPost
+                    ];
+                    foreach(int author in authorsOfEncryptedCommentedSponsoredPost)
+                    {
+                        usersAndTheirStats[author]["numComments"] += numCommentsOfEncryptedCommentedSponsoredPost;
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the total numComments of sponsored-posts for each of the users who
+                have posted sponsored posts in the last two months that are visible to the authUser.\n";
+            }
+
+
+            var resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostId = await _postInfoFetchingService
+            .GetNumAdLinkClicksOfEachSponsoredOverallPostIdInList(
+                _httpClientWithMutualTLS, setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.ToList()
+            );
+            if (resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostId is Tuple<string, string>
+            resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostIdErrorOutput)
+            {
+                errorMessage += @"• " + resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostIdErrorOutput.Item1
+                + " of sponsored posts that were made at-most 2 months ago and are visible to the authUser.\n";
+            }
+            else
+            {
+                Dictionary<string, int> overallPostIdsAndTheirAdLinkClicks = (Dictionary<string, int>)
+                resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostId;
+
+                foreach(string overallPostId in overallPostIdsAndTheirAdLinkClicks.Keys)
+                {
+                    int[] authorsOfPost = overallPostIdsAndTheirAuthors[overallPostId];
+                    int numAdLinkClicksOfPost = overallPostIdsAndTheirAdLinkClicks[overallPostId];
+
+                    foreach(int author in authorsOfPost)
+                    {
+                        usersAndTheirStats[author]["numAdLinkClicks"] += numAdLinkClicksOfPost;
+                    }
+                }
+            }
+
+            foreach(int user in usersAndTheirStats.Keys)
+            {
+                usersAndTheirStats[user]["sumOfNumLikesNumCommentsAndNumAdLinkClicks"] =
+                usersAndTheirStats[user]["numLikes"] + 
+                usersAndTheirStats[user]["numComments"] +
+                usersAndTheirStats[user]["numAdLinkClicks"];
+            }
+
+            top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost = usersAndTheirStats
+                .OrderByDescending(dict => dict.Value["sumOfNumLikesNumCommentsAndNumAdLinkClicks"])
+                .Select(dict => dict.Key)
+                .Take(10)
+                .ToList();
+        }
+        else
+        {
+            var resultOfGettingFollowingsAndBlockingsOfAuthUser = await _userInfoFetchingService
+            .GetTheFollowingsAndBlockingsOfUser(
+                _httpClientWithMutualTLS, authUserId
+            );
+            if (resultOfGettingFollowingsAndBlockingsOfAuthUser is Tuple<string, string>
+            resultOfGettingFollowingsAndBlockingsOfAuthUserErrorOutput)
+            {
+                return StatusCode(
+                    _stringLabelToIntStatusCodeMappings[
+                        resultOfGettingFollowingsAndBlockingsOfAuthUserErrorOutput.Item2
+                    ],
+                    resultOfGettingFollowingsAndBlockingsOfAuthUserErrorOutput.Item1
+                );
+            }
+            Dictionary<string, int[]> followingsAndBlockingsInfo = (Dictionary<string, int[]>)
+            resultOfGettingFollowingsAndBlockingsOfAuthUser;
+
+            authUserFollowings = followingsAndBlockingsInfo["followings"];
+            setOfAuthUserFollowings = new HashSet<int>(authUserFollowings);
+            
+            foreach(int userFollowedByAuthUser in authUserFollowings)
+            {
+                usersAndTheirStats[userFollowedByAuthUser] = new Dictionary<string, int> {
+                    {"numLikes", 0},
+                    {"numComments", 0},
+                    {"numPostViews", 0}
+                };
+            }
+
+            authUserBlockings = followingsAndBlockingsInfo["blockings"];
+            setOfAuthUserBlockings = new HashSet<int>(authUserBlockings);
+
+            var resultOfGettingOverallPostIdsOfEachUserInList = await _postInfoFetchingService
+            .GetOverallPostIdsOfEachUserInList(
+                _httpClientWithMutualTLS, authUserFollowings, 2, true
+            );
+            if (resultOfGettingOverallPostIdsOfEachUserInList is Tuple<string, string>
+            resultOfGettingOverallPostIdsOfEachUserInListErrorOutput)
+            {
+                errorMessage += "• " + resultOfGettingOverallPostIdsOfEachUserInListErrorOutput.Item1 + @" of the accounts
+                followed by the authUser\n";
+
+                return Ok(new Dictionary<string, object> {
+                    { "errorMessage", errorMessage },
+                    { "authUserFollowings", authUserFollowings },
+                    { "usersWithSponsoredPostsThatAuthUserCanView", new List<int>() },
+                    { "top10UsersThatAuthUserFollowsAndEngagesWithTheMost", new List<int>() },
+                    { "top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost", new List<int>() }
+                });
+            }
+            overallPostIdsAndTheirAuthors = (Dictionary<string, int[]>) resultOfGettingOverallPostIdsOfEachUserInList;
+            setOfOverallPostIdsOfAuthUserFollowings = new HashSet<string>(overallPostIdsAndTheirAuthors.Keys);
+
+            Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDataEncryptionKeys = new Dictionary<string, byte[]>();
+            try
+            {
+                List<string> unencryptedLikesByAuthUserToByPostsMadeByUsersInAuthUserFollowings = await _postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => x.likerId == authUserId && setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId!))
+                    .Select(x => x.overallPostId!)
+                    .ToListAsync();
+
+                foreach(string overallPostIdOfUnencryptedLikedPost in
+                unencryptedLikesByAuthUserToByPostsMadeByUsersInAuthUserFollowings)
+                {
+                    int[] authorsOfUnencryptedPostThatIsLikedByAuthUser = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedLikedPost
+                    ];
+                    foreach(int author in authorsOfUnencryptedPostThatIsLikedByAuthUser)
+                    {
+                        usersAndTheirStats[author]["numLikes"]++;
+                    }
+                }
+
+                var encryptedLikesOfPostsMadeByUsersInAuthUserFollowings = await _postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId!))
+                    .Select(x => new { x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag})
+                    .ToListAsync();
+                
+                foreach(var encryptedPostLike in encryptedLikesOfPostsMadeByUsersInAuthUserFollowings)
+                {
+                    string overallPostId = encryptedPostLike.overallPostId!;
+                    byte[] plaintextDataEncryptionKey = [];
+                    bool plaintextDataEncryptionKeyWasFound = true;
+
+                    if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostId))
+                    {
+                        plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId];
+                    }
+                    else
+                    {
+                        try
+                        {
+                            plaintextDataEncryptionKey = await _encryptionAndDecryptionService
+                            .getPlaintextDataEncryptionKeyOfPost
+                            (
+                                overallPostId,
+                                _postgresContext,
+                                _encryptionAndDecryptionService,
+                                _redisCachingDatabase
+                            );
+                            overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
+                        }
+                        catch
+                        {
+                            plaintextDataEncryptionKeyWasFound = false;
+                        }
+                    }
+
+                    if (plaintextDataEncryptionKeyWasFound)
+                    {
+                        string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                            encryptedPostLike.encryptedLikerId,
+                            plaintextDataEncryptionKey,
+                            encryptedPostLike.encryptionIv,
+                            encryptedPostLike.encryptionAuthTag
+                        );
+                        int likerId = int.Parse(likerIdAsString);
+                        if (likerId == authUserId)
+                        {
+                            int[] authorsOfUnencryptedPostThatIsLikedByAuthUser = overallPostIdsAndTheirAuthors[
+                                overallPostId
+                            ];
+                            foreach(int author in authorsOfUnencryptedPostThatIsLikedByAuthUser)
+                            {
+                                usersAndTheirStats[author]["numLikes"]++;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the numLikes given by the authUser to each of those followed by
+                the authUser.\n";
+            }
+
+            try
+            {
+                Dictionary<string, int> numUnencryptedCommentsByAuthUserToPostsMadeByUsersInAuthUserFollowings = await _sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => x.authorId == authUserId && setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId))
+                    .GroupBy(x => x.overallPostId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                foreach(string overallPostIdOfUnencryptedCommentedPost in
+                numUnencryptedCommentsByAuthUserToPostsMadeByUsersInAuthUserFollowings.Keys)
+                {
+                    int[] authorsOfUnencryptedCommentedPostThatAreFollowedByAuthUser = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+
+                    int numCommentsMadeByAuthUserInUnencryptedPost = numUnencryptedCommentsByAuthUserToPostsMadeByUsersInAuthUserFollowings[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+                    
+                    foreach(int author in authorsOfUnencryptedCommentedPostThatAreFollowedByAuthUser)
+                    {
+                        usersAndTheirStats[author]["numComments"] += numCommentsMadeByAuthUserInUnencryptedPost;
+                    }
+                }
+
+                var encryptedCommentsOfPostsMadeByUsersInAuthUserFollowings = await _sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId))
+                    .Select(x => new { x.overallPostId, x.encryptedAuthorId, x.encryptionIv, x.encryptionAuthTag})
+                    .ToListAsync();
+                
+                foreach(var encryptedComment in encryptedCommentsOfPostsMadeByUsersInAuthUserFollowings)
+                {
+                    string overallPostId = encryptedComment.overallPostId!;
+                    byte[] plaintextDataEncryptionKey = [];
+                    bool plaintextDataEncryptionKeyWasFound = true;
+
+                    if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostId))
+                    {
+                        plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId];
+                    }
+                    else
+                    {
+                        try
+                        {
+                            plaintextDataEncryptionKey = await _encryptionAndDecryptionService
+                            .getPlaintextDataEncryptionKeyOfPost
+                            (
+                                overallPostId,
+                                _postgresContext,
+                                _encryptionAndDecryptionService,
+                                _redisCachingDatabase
+                            );
+                            overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
+                        }
+                        catch
+                        {
+                            plaintextDataEncryptionKeyWasFound = false;
+                        }
+                    }
+
+                    if (plaintextDataEncryptionKeyWasFound)
+                    {
+                        string authorIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                            encryptedComment.encryptedAuthorId,
+                            plaintextDataEncryptionKey,
+                            encryptedComment.encryptionIv,
+                            encryptedComment.encryptionAuthTag
+                        );
+                        int authorId = int.Parse(authorIdAsString);
+                        
+                        if (authorId == authUserId)
+                        {
+                            int[] authorsOfUnencryptedPostThatIsCommentedByAuthUser = overallPostIdsAndTheirAuthors[
+                                overallPostId
+                            ];
+                            foreach(int author in authorsOfUnencryptedPostThatIsCommentedByAuthUser)
+                            {
+                                usersAndTheirStats[author]["numComments"]++;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the numComments given by the authUser to each of those followed by
+                the authUser.\n";
+            }
+
+            var resultOfGettingNumPostViewsOfEachOverallPostIdInList = await _postInfoFetchingService
+            .GetNumPostViewsOfEachOverallPostIdInList(
+                _httpClientWithMutualTLS, setOfOverallPostIdsOfAuthUserFollowings.ToList()
+            );
+            if (resultOfGettingNumPostViewsOfEachOverallPostIdInList is Tuple<string, string>
+            resultOfGettingNumPostViewsOfEachOverallPostIdInListErrorOutput)
+            {
+                errorMessage += "• " + resultOfGettingNumPostViewsOfEachOverallPostIdInListErrorOutput.Item1 + @" of posts
+                made by accounts that the authUser follows.\n";
+            }
+            else
+            {
+                Dictionary<string, int> overallPostIdsAndTheirNumViews = (Dictionary<string, int>)
+                resultOfGettingNumPostViewsOfEachOverallPostIdInList;
+
+                foreach(string overallPostId in overallPostIdsAndTheirNumViews.Keys)
+                {
+                    int[] authorsOfPost = overallPostIdsAndTheirAuthors[overallPostId];
+                    int numViewsOfPost = overallPostIdsAndTheirNumViews[overallPostId];
+                    foreach(int author in authorsOfPost)
+                    {
+                        usersAndTheirStats[author]["numPostViews"] += numViewsOfPost;
+                    }
+                }
+            }
+
+            foreach(int userFollowedByAuthUser in usersAndTheirStats.Keys)
+            {
+                usersAndTheirStats[userFollowedByAuthUser]["sumOfNumLikesNumCommentsAndNumPostViews"] =
+                usersAndTheirStats[userFollowedByAuthUser]["numLikes"] + 
+                usersAndTheirStats[userFollowedByAuthUser]["numComments"] +
+                usersAndTheirStats[userFollowedByAuthUser]["numPostsViews"];
+            }
+
+            top10UsersThatAuthUserFollowsAndEngagesWithTheMost = usersAndTheirStats
+                .OrderByDescending(dict => dict.Value["sumOfNumLikesNumCommentsAndNumPostViews"])
+                .Select(dict => dict.Key)
+                .Take(10)
+                .ToList();
+            
+            
+            var resultOfGettingUserIdsOfAllPublicAccounts = await _userInfoFetchingService.GetTheUserIdsOfAllThePublicAccounts(
+                _httpClientWithMutualTLS
+            );
+            if (resultOfGettingUserIdsOfAllPublicAccounts is Tuple<string, string>
+            resultOfGettingUserIdsOfAllPublicAccountsErrorOutput)
+            {
+                errorMessage += "• " + resultOfGettingUserIdsOfAllPublicAccountsErrorOutput.Item1 + "\n";
+                return Ok(new Dictionary<string, object> {
+                    { "errorMessage", errorMessage },
+                    { "authUserFollowings", authUserFollowings },
+                    { "usersWithSponsoredPostsThatAuthUserCanView", new List<int>() },
+                    { "top10UsersThatAuthUserFollowsAndEngagesWithTheMost", top10UsersThatAuthUserFollowsAndEngagesWithTheMost },
+                    { "top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost", new List<int>() }
+                });
+                
+            }
+            userIdsOfAllPublicAccounts = (int[]) resultOfGettingUserIdsOfAllPublicAccounts;
+
+            var resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPost = await _postInfoFetchingService.
+            GetOverallPostIdsOfEachSponsoredPostThatAuthUserCanView(
+                _httpClientWithMutualTLS, authUserFollowings.ToList(), authUserBlockings.ToList(), 2
+            );
+            if (resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPost is Tuple<string, string>
+            resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPostErrorOutput)
+            {
+                errorMessage += "• " +  resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPostErrorOutput.Item1 + "\n";
+                return Ok(new Dictionary<string, object> {
+                    { "errorMessage", errorMessage },
+                    { "authUserFollowings", authUserFollowings },
+                    { "usersWithSponsoredPostsThatAuthUserCanView", new List<int>()},
+                    { "top10UsersThatAuthUserFollowsAndEngagesWithTheMost", top10UsersThatAuthUserFollowsAndEngagesWithTheMost },
+                    { "top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost", new List<int>() }
+                });
+            }
+            overallPostIdsAndTheirAuthors = (Dictionary<string, int[]>) resultOfGettingTheOverallPostIdsOfEachVisibleSponsoredPost;
+
+            setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView = new HashSet<string>(
+                overallPostIdsAndTheirAuthors.Keys
+            );
+
+            foreach(string overallPostId in overallPostIdsAndTheirAuthors.Keys)
+            {
+                int[] authorsOfSponsoredPost = overallPostIdsAndTheirAuthors[overallPostId];
+                setOfUsersWithSponsoredPostsThatAuthUserCanView.UnionWith(authorsOfSponsoredPost);
+            }
+
+            usersWithSponsoredPostsThatAuthUserCanView = setOfUsersWithSponsoredPostsThatAuthUserCanView.ToArray();
+            
+            usersAndTheirStats = new Dictionary<int, Dictionary<string, int>>();
+            foreach(int userWithSponsoredPostThatAuthUserCanView in usersWithSponsoredPostsThatAuthUserCanView)
+            {
+                usersAndTheirStats[userWithSponsoredPostThatAuthUserCanView] = new Dictionary<string, int>
+                {
+                    {"numLikes", 0},
+                    {"numComments", 0},
+                    {"numAdLinkClicks", 0}
+                };
+            }
+
+            try
+            {
+                List<string> unencryptedLikesFromAuthUserToSponsoredPostsThatAuthUserCanView = await _postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => x.likerId == authUserId && setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(
+                        x.overallPostId!
+                    ))
+                    .Select(x => x.overallPostId!)
+                    .ToListAsync();
+
+                foreach(string overallPostIdOfUnencryptedLikedPost in unencryptedLikesFromAuthUserToSponsoredPostsThatAuthUserCanView)
+                {
+                    int[] authorsOfUnencryptedLikedPost = overallPostIdsAndTheirAuthors[overallPostIdOfUnencryptedLikedPost];
+
+                    foreach(int author in authorsOfUnencryptedLikedPost)
+                    {
+                        usersAndTheirStats[author]["numLikes"]++;
+                    }
+                }
+
+                var encryptedLikesOfSponsoredPostsThatAuthUserCanView = await _postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId!))
+                    .Select(x => new {x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag})
+                    .ToListAsync();
+                
+                foreach(var encryptedPostLike in encryptedLikesOfSponsoredPostsThatAuthUserCanView)
+                {
+                    string overallPostId = encryptedPostLike.overallPostId!;
+                    byte[] plaintextDataEncryptionKey = [];
+                    bool plaintextDataEncryptionKeyWasFound = true;
+
+                    if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostId))
+                    {
+                        plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId];
+                    }
+                    else
+                    {
+                        try
+                        {
+                            plaintextDataEncryptionKey = await _encryptionAndDecryptionService
+                            .getPlaintextDataEncryptionKeyOfPost
+                            (
+                                overallPostId,
+                                _postgresContext,
+                                _encryptionAndDecryptionService,
+                                _redisCachingDatabase
+                            );
+                            overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
+                        }
+                        catch
+                        {
+                            plaintextDataEncryptionKeyWasFound = false;
+                        }
+                    }
+
+                    if (plaintextDataEncryptionKeyWasFound)
+                    {
+                        string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                            encryptedPostLike.encryptedLikerId,
+                            plaintextDataEncryptionKey,
+                            encryptedPostLike.encryptionIv,
+                            encryptedPostLike.encryptionAuthTag
+                        );
+                        int likerId = int.Parse(likerIdAsString);
+                        if (likerId == authUserId)
+                        {
+                            int[] authorsOfUnencryptedPostThatIsLikedByAuthUser = overallPostIdsAndTheirAuthors[
+                                overallPostId
+                            ];
+                            foreach(int author in authorsOfUnencryptedPostThatIsLikedByAuthUser)
+                            {
+                                usersAndTheirStats[author]["numLikes"]++;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the total numLikes from authUser to sponsored-posts for each of
+                the users who have posted sponsored posts that are visible to the authUser.\n";
+            }
+
+            try
+            {
+                Dictionary<string, int> numUnencryptedCommentsByAuthUserToSponsoredPosts = await _sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => x.authorId == authUserId &&setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(
+                        x.overallPostId
+                    ))
+                    .GroupBy(x => x.overallPostId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+                foreach(string overallPostIdOfUnencryptedCommentedPost in numUnencryptedCommentsByAuthUserToSponsoredPosts.Keys)
+                {
+                    int[] authorsOfUnencryptedCommentedSponsoredPost = overallPostIdsAndTheirAuthors[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+
+                    int numCommentsMadeByAuthUserInUnencryptedSponsoredPost = numUnencryptedCommentsByAuthUserToSponsoredPosts[
+                        overallPostIdOfUnencryptedCommentedPost
+                    ];
+                    
+                    foreach(int author in authorsOfUnencryptedCommentedSponsoredPost)
+                    {
+                        usersAndTheirStats[author]["numComments"] += numCommentsMadeByAuthUserInUnencryptedSponsoredPost;
+                    }
+                }
+
+                var encryptedCommentsOfPostsMadeInSponsoredPostsVisibleToAuthUser = await _sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId))
+                    .Select(x => new { x.overallPostId, x.encryptedAuthorId, x.encryptionIv, x.encryptionAuthTag})
+                    .ToListAsync();
+                
+                foreach(var encryptedComment in encryptedCommentsOfPostsMadeInSponsoredPostsVisibleToAuthUser)
+                {
+                    string overallPostId = encryptedComment.overallPostId!;
+                    byte[] plaintextDataEncryptionKey = [];
+                    bool plaintextDataEncryptionKeyWasFound = true;
+
+                    if (overallPostIdsAndTheirPlaintextDataEncryptionKeys.ContainsKey(overallPostId))
+                    {
+                        plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId];
+                    }
+                    else
+                    {
+                        try
+                        {
+                            plaintextDataEncryptionKey = await _encryptionAndDecryptionService
+                            .getPlaintextDataEncryptionKeyOfPost
+                            (
+                                overallPostId,
+                                _postgresContext,
+                                _encryptionAndDecryptionService,
+                                _redisCachingDatabase
+                            );
+                            overallPostIdsAndTheirPlaintextDataEncryptionKeys[overallPostId] = plaintextDataEncryptionKey;
+                        }
+                        catch
+                        {
+                            plaintextDataEncryptionKeyWasFound = false;
+                        }
+                    }
+
+                    if (plaintextDataEncryptionKeyWasFound)
+                    {
+                        string authorIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                            encryptedComment.encryptedAuthorId,
+                            plaintextDataEncryptionKey,
+                            encryptedComment.encryptionIv,
+                            encryptedComment.encryptionAuthTag
+                        );
+                        int authorId = int.Parse(authorIdAsString);
+                        
+                        if (authorId == authUserId)
+                        {
+                            int[] authorsOfUnencryptedSponsoredPostThatIsCommentedByAuthUser = overallPostIdsAndTheirAuthors[
+                                overallPostId
+                            ];
+                            foreach(int author in authorsOfUnencryptedSponsoredPostThatIsCommentedByAuthUser)
+                            {
+                                usersAndTheirStats[author]["numComments"]++;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the numComments from authUser to sponsored-posts for
+                each of the users who have posted sponsored posts that are visible to the authUser.\n";
+            }
+
+
+            var resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostId = await _postInfoFetchingService
+            .GetNumAdLinkClicksByAuthUserForEachSponsoredOverallPostIdInList(
+                _httpClientWithMutualTLS, setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.ToList(),
+                authUserId
+            );
+            if (resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostId is Tuple<string, string>
+            resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostIdErrorOutput)
+            {
+                errorMessage += @"• " + resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostIdErrorOutput.Item1
+                + " of sponsored posts that were made at-most 2 months ago and are visible to the authUser.\n";
+            }
+            else
+            {
+                Dictionary<string, int> overallPostIdsAndTheirAdLinkClicks = (Dictionary<string, int>)
+                resultOfGettingNumAdLinkClicksOfEachVisibleSponsoredOverallPostId;
+
+                foreach(string overallPostId in overallPostIdsAndTheirAdLinkClicks.Keys)
+                {
+                    int[] authorsOfPost = overallPostIdsAndTheirAuthors[overallPostId];
+                    int numAdLinkClicksOfPost = overallPostIdsAndTheirAdLinkClicks[overallPostId];
+
+                    foreach(int author in authorsOfPost)
+                    {
+                        usersAndTheirStats[author]["numAdLinkClicks"] += numAdLinkClicksOfPost;
+                    }
+                }
+            }
+
+            foreach(int user in usersAndTheirStats.Keys)
+            {
+                usersAndTheirStats[user]["sumOfNumLikesNumCommentsAndNumAdLinkClicks"] =
+                usersAndTheirStats[user]["numLikes"] + 
+                usersAndTheirStats[user]["numComments"] +
+                usersAndTheirStats[user]["numAdLinkClicks"];
+            }
+
+            top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost = usersAndTheirStats
+                .OrderByDescending(dict => dict.Value["sumOfNumLikesNumCommentsAndNumAdLinkClicks"])
+                .Select(dict => dict.Key)
+                .Take(10)
+                .ToList();
+        }
+
+        return Ok(new Dictionary<string, object> {
+            { "errorMessage", errorMessage },
+            { "authUserFollowings", authUserFollowings },
+            { "usersWithSponsoredPostsThatAuthUserCanView", usersWithSponsoredPostsThatAuthUserCanView },
+            { "top10UsersThatAuthUserFollowsAndEngagesWithTheMost", top10UsersThatAuthUserFollowsAndEngagesWithTheMost },
+            { "top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost", top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost }
         });
     }
 }

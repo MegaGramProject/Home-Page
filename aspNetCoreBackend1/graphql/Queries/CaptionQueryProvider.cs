@@ -3,10 +3,12 @@ using aspNetCoreBackend1.Services;
 using aspNetCoreBackend1.Models.SqlServer.Caption;
 
 using System.Text.Json;
-using System.Text;
 
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
+using StackExchange.Redis;
+using Microsoft.AspNetCore.RateLimiting;
+
 
 namespace aspNetCoreBackend1.graphql.Queries;
 
@@ -17,12 +19,13 @@ public class CaptionQueryProvider
 
     [UseProjection]
     [UseFiltering]
-    public async Task<UnencryptedCaptionOfPost> GetCaptionOfPost(
+    [EnableRateLimiting("5PerMinute")]
+    public async Task<UnencryptedCaptionOfPost?> GetCaptionOfPost(
         int? authUserId, string overallPostId,
         [Service] SqlServerContext sqlServerContext, [Service] IHttpContextAccessor httpContextAccessor,
         [Service] UserAuthService userAuthService, [Service] IHttpClientFactory httpClientFactory,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService encryptionAndDecryptionService,
-        [Service] PostInfoFetchingService postInfoFetchingService
+        [Service] PostInfoFetchingService postInfoFetchingService, [Service] IConnectionMultiplexer redisClient
     )
     {
         if (!ObjectId.TryParse(overallPostId, out _))
@@ -112,9 +115,53 @@ public class CaptionQueryProvider
             isEncrypted = authorsAndPostEncryptionStatusIfUserHasAccessToPostSuccessOutput;
         }
 
+        Dictionary<string, object>? captionInfo = new Dictionary<string, object>();
+        bool redisCachedCaptionHasBeenFetchedSuccessfully = true;
+        IDatabase? redisCachingDatabase = null;
         UnencryptedCaptionOfPost? unencryptedCaptionOfPost = new UnencryptedCaptionOfPost();
 
-        if (isEncrypted)
+        try
+        {
+            redisCachingDatabase =  redisClient.GetDatabase(0);
+            string? stringifiedCaptionInfo = await redisCachingDatabase.HashGetAsync(
+                "Posts and their Captions",
+                overallPostId
+            );
+            if (stringifiedCaptionInfo != null)
+            {
+                if (stringifiedCaptionInfo == "N/A")
+                {
+                    unencryptedCaptionOfPost = null;
+                }
+                else
+                {
+                    captionInfo = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                        stringifiedCaptionInfo
+                    );
+                    if (!isEncrypted)
+                    {
+                        unencryptedCaptionOfPost = new UnencryptedCaptionOfPost(
+                            overallPostId,
+                            (bool) captionInfo!["isEdited"],
+                            (DateTime) captionInfo!["datetimeOfCaption"],
+                            (int) captionInfo!["authorId"],
+                            (string) captionInfo!["content"]
+                        );
+                    }
+                }
+            }
+            else
+            {
+                redisCachedCaptionHasBeenFetchedSuccessfully = false;
+            }
+        }
+        catch
+        {
+            redisCachedCaptionHasBeenFetchedSuccessfully = false;
+        }
+
+
+        if (!redisCachedCaptionHasBeenFetchedSuccessfully && isEncrypted)
         {
             try
             {
@@ -125,40 +172,43 @@ public class CaptionQueryProvider
                 
                 if (encryptedCaptionOfPost != null)
                 {
-                    unencryptedCaptionOfPost.isEdited = encryptedCaptionOfPost.isEdited;
-                    unencryptedCaptionOfPost.datetimeOfCaption = encryptedCaptionOfPost.datetimeOfCaption;
+                    captionInfo!["overallPostId"] = encryptedCaptionOfPost!.overallPostId;
+                    captionInfo!["isEdited"] = encryptedCaptionOfPost!.isEdited;
+                    captionInfo!["datetimeOfCaption"] = encryptedCaptionOfPost!.datetimeOfCaption;
+                    captionInfo!["encryptedAuthorId"] = encryptedCaptionOfPost!.encryptedAuthorId;
+                    captionInfo!["encryptedContent"] = encryptedCaptionOfPost!.encryptedContent;
+                    captionInfo!["encryptionIv"] = encryptedCaptionOfPost!.encryptionIv;
+                    captionInfo!["encryptionAuthTag"] = encryptedCaptionOfPost!.encryptionAuthTag;
 
-                    byte[]? encryptedDataEncryptionKey = postgresContext
-                        .captionsCommentsAndLikesEncryptionInfo
-                        .Where(x => x.overallPostId == overallPostId)
-                        .Select(x => x.encryptedDataEncryptionKey)
-                        .FirstOrDefault();
-
-                    byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService
-                    .DecryptEncryptedDataEncryptionKey(
-                        encryptedDataEncryptionKey!,
-                        $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
-                    );
-
-                    string captionAuthorIdAsString = encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
-                        encryptedCaptionOfPost.encryptedAuthorId,
-                        plaintextDataEncryptionKey,
-                        encryptedCaptionOfPost.encryptionIv,
-                        encryptedCaptionOfPost.encryptionAuthTag
-                    );
-
-                    unencryptedCaptionOfPost.authorId = int.Parse(captionAuthorIdAsString);
-
-                    unencryptedCaptionOfPost.content = encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
-                        encryptedCaptionOfPost.encryptedContent,
-                        plaintextDataEncryptionKey,
-                        encryptedCaptionOfPost.encryptionIv,
-                        encryptedCaptionOfPost.encryptionAuthTag
-                    );
+                    try
+                    {
+                        await redisCachingDatabase!.HashSetAsync(
+                            "Posts and their Captions",
+                            overallPostId,
+                            JsonSerializer.Serialize(captionInfo)
+                        );
+                    }
+                    catch
+                    {
+                        //pass
+                    }
                 }
                 else
                 {
-                    unencryptedCaptionOfPost = null!;
+                    unencryptedCaptionOfPost = null;
+
+                    try
+                    {
+                        await redisCachingDatabase!.HashSetAsync(
+                            "Posts and their Captions",
+                            overallPostId,
+                            "N/A"
+                        );
+                    }
+                    catch
+                    {
+                        //pass
+                    }
                 }
             }
             catch
@@ -168,9 +218,8 @@ public class CaptionQueryProvider
                     "INTERNAL_SERVER_ERROR"
                 )); 
             }
-
         }
-        else
+        else if (!redisCachedCaptionHasBeenFetchedSuccessfully)
         {
             try
             {
@@ -186,9 +235,71 @@ public class CaptionQueryProvider
                     "INTERNAL_SERVER_ERROR"
                 )); 
             }
+
+            if (unencryptedCaptionOfPost != null)
+            {
+                try
+                {
+                    await redisCachingDatabase!.HashSetAsync(
+                        "Posts and their Captions",
+                        overallPostId,
+                        JsonSerializer.Serialize(unencryptedCaptionOfPost)
+                    );
+                }
+                catch
+                {
+                    //pass
+                }
+            }
+            else
+            {
+                try
+                {
+                    await redisCachingDatabase!.HashSetAsync(
+                        "Posts and their Captions",
+                        overallPostId,
+                        "N/A"
+                    );
+                }
+                catch
+                {
+                    //pass
+                }
+            }
         }
 
-        return unencryptedCaptionOfPost!;
+        if (isEncrypted)
+        {
+            unencryptedCaptionOfPost!.overallPostId = overallPostId;
+            unencryptedCaptionOfPost!.isEdited = (bool) captionInfo!["isEdited"];
+            unencryptedCaptionOfPost!.datetimeOfCaption = (DateTime) captionInfo["datetimeOfCaption"];
+
+            byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+            (
+                overallPostId!,
+                postgresContext,
+                encryptionAndDecryptionService,
+                redisCachingDatabase!
+            );
+
+            string captionAuthorIdAsString = encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                (byte[]) captionInfo["encryptedAuthorId"],
+                plaintextDataEncryptionKey,
+                (byte[]) captionInfo["encryptionIv"],
+                (byte[]) captionInfo["encryptionAuthTag"]
+            );
+
+            unencryptedCaptionOfPost.authorId = int.Parse(captionAuthorIdAsString);
+
+            unencryptedCaptionOfPost.content = encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                (byte[]) captionInfo["encryptedContent"],
+                plaintextDataEncryptionKey,
+                (byte[]) captionInfo["encryptionIv"],
+                (byte[]) captionInfo["encryptionAuthTag"]
+            );
+        }
+
+        return unencryptedCaptionOfPost;
     }
 
 }

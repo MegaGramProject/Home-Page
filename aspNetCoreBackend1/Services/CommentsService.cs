@@ -148,7 +148,6 @@ public class CommentsService
                 .Where(x => setOfIdsOfCommentsNotMadeByOthers.Contains(x.parentCommentId ?? -1))
                 .GroupBy(x => x.parentCommentId!.Value)
                 .ToDictionary(g => g.Key, g => g.Count());
-
         }
         else
         {
@@ -173,7 +172,7 @@ public class CommentsService
             if (setOfIdsOfCommentsNotMadeByOthers.Contains(commentId))
             {
                 output.Add(new CommentWithNumLikesAndNumReplies(
-                    singleCommentFromBatch.id,
+                    commentId,
                     singleCommentFromBatch.overallPostId,
                     singleCommentFromBatch.parentCommentId,
                     singleCommentFromBatch.isEdited,
@@ -187,7 +186,7 @@ public class CommentsService
             else
             {
                 output.Add(new CommentWithNumLikesAndNumReplies(
-                    singleCommentFromBatch.id,
+                    commentId,
                     singleCommentFromBatch.overallPostId,
                     singleCommentFromBatch.parentCommentId,
                     singleCommentFromBatch.isEdited,

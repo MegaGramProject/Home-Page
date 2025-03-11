@@ -1,8 +1,15 @@
+using aspNetCoreBackend1.Contexts;
+
 using System.Text;
 using System.Security.Cryptography;
+using System.Text.Json;
+
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Identity;
+using Microsoft.EntityFrameworkCore.Storage;
+using StackExchange.Redis;
+
 
 namespace aspNetCoreBackend1.Services;
 
@@ -10,6 +17,8 @@ namespace aspNetCoreBackend1.Services;
 public class EncryptionAndDecryptionService
 {
     private readonly KeyClient _azureKMSClient;
+
+
     public EncryptionAndDecryptionService(KeyClient azureKMSClient)
     {
         _azureKMSClient = azureKMSClient;
@@ -115,5 +124,60 @@ public class EncryptionAndDecryptionService
 
             return Encoding.UTF8.GetString(decryptedData);
         }
+    }
+
+    public async Task<byte[]> getPlaintextDataEncryptionKeyOfPost(
+        string overallPostId, PostgresContext postgresContext,
+        EncryptionAndDecryptionService encryptionAndDecryptionService,
+        StackExchange.Redis.IDatabase redisCachingDatabase
+    )
+    {
+        byte[]? encryptedDataEncryptionKey = null;
+        byte[]? redisEncryptedDEKValue = null;
+
+        try
+        {
+            redisEncryptedDEKValue = await redisCachingDatabase.HashGetAsync(
+                "Posts and their Encrypted Data-Encryption-Keys",
+                overallPostId
+            );
+        }
+        catch
+        {
+            //pass
+        }
+
+        if (redisEncryptedDEKValue != null)
+        {
+            encryptedDataEncryptionKey = redisEncryptedDEKValue;
+        }
+        else
+        {
+            encryptedDataEncryptionKey = postgresContext
+                .captionsCommentsAndLikesEncryptionInfo
+                .Where(x => x.overallPostId == overallPostId)
+                .Select(x => x.encryptedDataEncryptionKey)
+                .FirstOrDefault();
+            
+            try
+            {
+                await redisCachingDatabase.HashSetAsync(
+                    "Posts and their Encrypted Data-Encryption-Keys",
+                    overallPostId,
+                    encryptedDataEncryptionKey
+                );
+            }
+            catch
+            {
+                //pass
+            }
+        }
+
+        byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.DecryptEncryptedDataEncryptionKey(
+            encryptedDataEncryptionKey!,
+            $"captionCommentsAndLikesOfPostDEKCMK/{overallPostId}"
+        );
+
+        return plaintextDataEncryptionKey;
     }
 }

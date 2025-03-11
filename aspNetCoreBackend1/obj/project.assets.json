@@ -1458,6 +1458,27 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "Microsoft.AspNetCore.RateLimiting/7.0.0-rc.2.22476.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "7.0.0-rc.2.22472.3",
+          "Microsoft.Extensions.Options": "7.0.0-rc.2.22472.3",
+          "System.Threading.RateLimiting": "7.0.0-rc.2.22472.3"
+        },
+        "compile": {
+          "lib/net7.0/Microsoft.AspNetCore.RateLimiting.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net7.0/Microsoft.AspNetCore.RateLimiting.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "Microsoft.AspNetCore.Razor/2.3.0": {
         "type": "package",
         "dependencies": {
@@ -2617,6 +2638,22 @@
           }
         }
       },
+      "Pipelines.Sockets.Unofficial/2.2.8": {
+        "type": "package",
+        "dependencies": {
+          "System.IO.Pipelines": "5.0.1"
+        },
+        "compile": {
+          "lib/net5.0/Pipelines.Sockets.Unofficial.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net5.0/Pipelines.Sockets.Unofficial.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.2": {
         "type": "package",
         "runtimeTargets": {
@@ -2826,6 +2863,23 @@
         },
         "runtime": {
           "lib/netstandard2.1/Sprache.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "StackExchange.Redis/2.8.31": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "6.0.0",
+          "Pipelines.Sockets.Unofficial": "2.2.8"
+        },
+        "compile": {
+          "lib/net8.0/StackExchange.Redis.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/StackExchange.Redis.dll": {
             "related": ".xml"
           }
         }
@@ -4366,6 +4420,22 @@
         },
         "runtime": {
           "lib/netstandard1.3/System.Threading.dll": {}
+        }
+      },
+      "System.Threading.RateLimiting/7.0.0-rc.2.22472.3": {
+        "type": "package",
+        "compile": {
+          "lib/net7.0/System.Threading.RateLimiting.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net7.0/System.Threading.RateLimiting.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net6.0/_._": {}
         }
       },
       "System.Threading.Tasks/4.3.0": {
@@ -6009,6 +6079,21 @@
         "lib/net8.0/Microsoft.AspNetCore.OpenApi.xml",
         "microsoft.aspnetcore.openapi.8.0.6.nupkg.sha512",
         "microsoft.aspnetcore.openapi.nuspec"
+      ]
+    },
+    "Microsoft.AspNetCore.RateLimiting/7.0.0-rc.2.22476.2": {
+      "sha512": "k3SEHb6sqJE4c4mOxgxhJGD05WoXYRcobZJYgVW8YFDkPf1x418ys8KoMIlsCuqDeiMy7ro54Vn9g36PcVORNQ==",
+      "type": "package",
+      "path": "microsoft.aspnetcore.ratelimiting/7.0.0-rc.2.22476.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "THIRD-PARTY-NOTICES.TXT",
+        "lib/net7.0/Microsoft.AspNetCore.RateLimiting.dll",
+        "lib/net7.0/Microsoft.AspNetCore.RateLimiting.xml",
+        "microsoft.aspnetcore.ratelimiting.7.0.0-rc.2.22476.2.nupkg.sha512",
+        "microsoft.aspnetcore.ratelimiting.nuspec"
       ]
     },
     "Microsoft.AspNetCore.Razor/2.3.0": {
@@ -7741,6 +7826,29 @@
         "postgresql.png"
       ]
     },
+    "Pipelines.Sockets.Unofficial/2.2.8": {
+      "sha512": "zG2FApP5zxSx6OcdJQLbZDk2AVlN2BNQD6MorwIfV6gVj0RRxWPEp2LXAxqDGZqeNV1Zp0BNPcNaey/GXmTdvQ==",
+      "type": "package",
+      "path": "pipelines.sockets.unofficial/2.2.8",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net461/Pipelines.Sockets.Unofficial.dll",
+        "lib/net461/Pipelines.Sockets.Unofficial.xml",
+        "lib/net472/Pipelines.Sockets.Unofficial.dll",
+        "lib/net472/Pipelines.Sockets.Unofficial.xml",
+        "lib/net5.0/Pipelines.Sockets.Unofficial.dll",
+        "lib/net5.0/Pipelines.Sockets.Unofficial.xml",
+        "lib/netcoreapp3.1/Pipelines.Sockets.Unofficial.dll",
+        "lib/netcoreapp3.1/Pipelines.Sockets.Unofficial.xml",
+        "lib/netstandard2.0/Pipelines.Sockets.Unofficial.dll",
+        "lib/netstandard2.0/Pipelines.Sockets.Unofficial.xml",
+        "lib/netstandard2.1/Pipelines.Sockets.Unofficial.dll",
+        "lib/netstandard2.1/Pipelines.Sockets.Unofficial.xml",
+        "pipelines.sockets.unofficial.2.2.8.nupkg.sha512",
+        "pipelines.sockets.unofficial.nuspec"
+      ]
+    },
     "runtime.debian.8-x64.runtime.native.System.Security.Cryptography.OpenSsl/4.3.2": {
       "sha512": "7VSGO0URRKoMEAq0Sc9cRz8mb6zbyx/BZDEWhgPdzzpmFhkam3fJ1DAGWFXBI4nGlma+uPKpfuMQP5LXRnOH5g==",
       "type": "package",
@@ -8024,6 +8132,29 @@
         "lib/sl5/Sprache.xml",
         "sprache.2.3.1.nupkg.sha512",
         "sprache.nuspec"
+      ]
+    },
+    "StackExchange.Redis/2.8.31": {
+      "sha512": "RCHVQa9Zke8k0oBgJn1Yl6BuYy8i6kv+sdMObiH60nOwD6QvWAjxdDwOm+LO78E8WsGiPqgOuItkz98fPS6haQ==",
+      "type": "package",
+      "path": "stackexchange.redis/2.8.31",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/net461/StackExchange.Redis.dll",
+        "lib/net461/StackExchange.Redis.xml",
+        "lib/net472/StackExchange.Redis.dll",
+        "lib/net472/StackExchange.Redis.xml",
+        "lib/net6.0/StackExchange.Redis.dll",
+        "lib/net6.0/StackExchange.Redis.xml",
+        "lib/net8.0/StackExchange.Redis.dll",
+        "lib/net8.0/StackExchange.Redis.xml",
+        "lib/netcoreapp3.1/StackExchange.Redis.dll",
+        "lib/netcoreapp3.1/StackExchange.Redis.xml",
+        "lib/netstandard2.0/StackExchange.Redis.dll",
+        "lib/netstandard2.0/StackExchange.Redis.xml",
+        "stackexchange.redis.2.8.31.nupkg.sha512",
+        "stackexchange.redis.nuspec"
       ]
     },
     "Swashbuckle.AspNetCore/6.4.0": {
@@ -11811,6 +11942,33 @@
         "system.threading.nuspec"
       ]
     },
+    "System.Threading.RateLimiting/7.0.0-rc.2.22472.3": {
+      "sha512": "p+KDWsVR4HvIgpo6SkXFli7oX1Jy9INmd8AbMN3fEckaiCSCz+3Scr0M2VVbpLmBGdFaMbepn9Mk+mGDObAWSQ==",
+      "type": "package",
+      "path": "system.threading.ratelimiting/7.0.0-rc.2.22472.3",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Threading.RateLimiting.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net6.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Threading.RateLimiting.targets",
+        "lib/net462/System.Threading.RateLimiting.dll",
+        "lib/net462/System.Threading.RateLimiting.xml",
+        "lib/net6.0/System.Threading.RateLimiting.dll",
+        "lib/net6.0/System.Threading.RateLimiting.xml",
+        "lib/net7.0/System.Threading.RateLimiting.dll",
+        "lib/net7.0/System.Threading.RateLimiting.xml",
+        "lib/netstandard2.0/System.Threading.RateLimiting.dll",
+        "lib/netstandard2.0/System.Threading.RateLimiting.xml",
+        "system.threading.ratelimiting.7.0.0-rc.2.22472.3.nupkg.sha512",
+        "system.threading.ratelimiting.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
     "System.Threading.Tasks/4.3.0": {
       "sha512": "LbSxKEdOUhVe8BezB/9uOGGppt+nZf6e1VFyw6v3DN6lqitm0OSn2uXMOdtP0M3W4iMcqcivm2J6UgqiwwnXiA==",
       "type": "package",
@@ -12401,10 +12559,12 @@
       "HotChocolate.Types >= 15.0.3",
       "Microsoft.AspNetCore.Mvc >= 2.3.0",
       "Microsoft.AspNetCore.OpenApi >= 8.0.6",
+      "Microsoft.AspNetCore.RateLimiting >= 7.0.0-rc.2.22476.2",
       "Microsoft.EntityFrameworkCore >= 9.0.2",
       "Microsoft.EntityFrameworkCore.SqlServer >= 9.0.2",
       "MongoDB.Driver >= 3.2.1",
       "Npgsql.EntityFrameworkCore.PostgreSQL >= 9.0.3",
+      "StackExchange.Redis >= 2.8.31",
       "Swashbuckle.AspNetCore >= 6.4.0"
     ]
   },
@@ -12494,6 +12654,10 @@
             "target": "Package",
             "version": "[8.0.6, )"
           },
+          "Microsoft.AspNetCore.RateLimiting": {
+            "target": "Package",
+            "version": "[7.0.0-rc.2.22476.2, )"
+          },
           "Microsoft.EntityFrameworkCore": {
             "target": "Package",
             "version": "[9.0.2, )"
@@ -12509,6 +12673,10 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": {
             "target": "Package",
             "version": "[9.0.3, )"
+          },
+          "StackExchange.Redis": {
+            "target": "Package",
+            "version": "[2.8.31, )"
           },
           "Swashbuckle.AspNetCore": {
             "target": "Package",
