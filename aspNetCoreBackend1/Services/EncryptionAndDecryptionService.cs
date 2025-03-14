@@ -7,8 +7,6 @@ using System.Text.Json;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Identity;
-using Microsoft.EntityFrameworkCore.Storage;
-using StackExchange.Redis;
 
 
 namespace aspNetCoreBackend1.Services;
@@ -16,6 +14,8 @@ namespace aspNetCoreBackend1.Services;
 
 public class EncryptionAndDecryptionService
 {
+
+
     private readonly KeyClient _azureKMSClient;
 
 

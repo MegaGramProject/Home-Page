@@ -52,6 +52,12 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
     ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("redisConnectionString")!)
 );
 
+builder.Services.AddSingleton<KeyClient>(provider =>
+{
+    var keyVaultUrl = new Uri("https://your-keyvault-name.vault.azure.net/");
+    return new KeyClient(keyVaultUrl, new DefaultAzureCredential());
+});
+
 builder.Services.AddSingleton<EncryptionAndDecryptionService>();
 
 builder.Services.AddSingleton<UserAuthService>();
@@ -65,12 +71,6 @@ builder.Services.AddSingleton<PostInfoFetchingService>();
 builder.Services.AddSingleton<CaptionService>();
 
 builder.Services.AddSingleton<UserInfoFetchingService>();
-
-builder.Services.AddSingleton<KeyClient>(provider =>
-{
-    var keyVaultUrl = new Uri("https://your-keyvault-name.vault.azure.net/");
-    return new KeyClient(keyVaultUrl, new DefaultAzureCredential());
-});
 
 builder.Services.AddHttpClient();
 

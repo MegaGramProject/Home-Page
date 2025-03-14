@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
+
 namespace aspNetCoreBackend1.Services;
 
 
@@ -101,6 +102,14 @@ public class PostInfoFetchingService
 
             authorsOfPost = (int[]) parsedResponseData!["authorsOfPost"];
             isEncrypted = (bool) parsedResponseData["isEncrypted"];
+
+            foreach(int author in authorsOfPost)
+            {
+                if (author == authUserId)
+                {
+                    return isEncrypted;
+                }
+            }
         }
         catch
         {

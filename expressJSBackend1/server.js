@@ -2932,6 +2932,7 @@ app.patch('/logout/:authUserId', threePerMinuteRateLimiter, async (req, res) => 
     res.sendStatus(200);
 });
 
+
 app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', enforceMutualTLS, async (req, res) => {
     const { overallPostId } = req.params;
     let authorsOfPost = [];
