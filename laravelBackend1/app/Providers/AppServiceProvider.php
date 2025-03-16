@@ -32,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
             return new PostInfoFetchingService();
         });
 
+        $this->app->singleton(PostVidSubtitlesService::class, function ($app) {
+            return new PostVidSubtitlesService();
+        });
+
         $this->app->singleton(UserAuthService::class, function ($app) {
             return new UserAuthService();
         });

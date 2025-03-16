@@ -130,7 +130,7 @@ class EncryptionAndDecryptionService
     }
 
 
-    public function getPlaintextDataEncryptionKeyOfPost(string $overallPostId, $redisClient) {
+    public function getPlaintextDataEncryptionKeyOfPost(string $overallPostId, $redisClient, $encryptionAndDecryptionService) {
         $encryptedDataEncryptionKey = null;
         $encryptedDataEncryptionKeyFromRedis = null;
 
@@ -165,11 +165,87 @@ class EncryptionAndDecryptionService
             }
         }
 
-        $plaintextDataEncryptionKey = self::decryptEncryptedDataEncryptionKey(
+        $plaintextDataEncryptionKey = $encryptionAndDecryptionService->decryptEncryptedDataEncryptionKey(
             $encryptedDataEncryptionKey,
             "postBgMusicAndVidSubtitlesDEKCMK/{overallPostId}"
         );
 
         return $plaintextDataEncryptionKey;
+    }
+
+    public function getPlaintextDataEncryptionKeysOfMultiplePosts(string $overallPostIds, $redisClient,
+    $encryptionAndDecryptionService) {
+        $encryptedDataEncryptionKey = null;
+        $encryptedDataEncryptionKeyFromRedis = null;
+
+        $overallPostIdsAndTheirDataEncryptionKeys = [];
+
+        try {
+            $redisClient->multi(\Redis::PIPELINE);
+            foreach ($overallPostIds as $overallPostId) {
+                $redisClient->hGet(
+                    'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
+                    $overallPostId
+                );
+            }
+            $redisResults = $redisClient->exec();
+
+            $newOverallPostIds = [];
+            for ($i=0; $i<count($redisResults); $i++) {
+                $redisResult = $redisResults[i];
+                $overallPostId = $overallPostIds[i];
+
+                if ($redisResult !== null) {
+                    $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId] = $redisResult;
+                }
+                else {
+                    $newOverallPostIds[] = $overallPostId;
+                }
+            }
+
+            $overallPostIds = $newOverallPostIds;
+        }
+        catch (\Exception $e) {
+            //pass
+        }
+
+        if (count($overallPostIds) > 0) {
+            $encryptedDEKs = PostBgMusicAndVidSubtitlesEncryptionInfo
+                ::whereIn('overallPostId', $overallPostIds)
+                ->toArray();
+
+            foreach ($encryptedDEKs as $encryptedDEK) {
+                $overallPostId = $encryptedDEK->$overallPostId;
+                $encryptedDataEncryptionKey = $encryptedDEK->$encryptedDataEncryptionKey;
+
+                $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId] = $encryptedDataEncryptionKey;
+            }
+
+            try {
+                $redisClient->multi(\Redis::PIPELINE);
+                foreach ($overallPostIds as $overallPostId) {
+                    $redisClient->hSet(
+                        'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
+                        $overallPostId,
+                        $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId]
+                    );
+                }
+                $redisResults = $redisClient->exec();
+            }
+            catch (\Exception $e) {
+                //pass
+            }
+        }
+
+
+        foreach ($overallPostIds as $overallPostId) {
+            $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId] =
+            $encryptionAndDecryptionService->decryptEncryptedDataEncryptionKey(
+                $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId],
+                "postBgMusicAndVidSubtitlesDEKCMK/{overallPostId}"
+            );
+        }
+
+        return $overallPostIdsAndTheirDataEncryptionKeys;
     }
 }

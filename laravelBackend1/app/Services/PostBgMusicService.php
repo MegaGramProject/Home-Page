@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Oracle\PostBgMusicInfo\UnencryptedPostBgMusicInfo;
+use App\Models\Oracle\PostBgMusicInfo\EncryptedPostBgMusicInfo;
+
 use Illuminate\Support\Facades\Redis;
 
 
@@ -84,7 +87,7 @@ class PostBgMusicService {
             return [
                 "There was trouble getting the relevant info for the background-music of post
                 $overallPostId",
-                'INTERNAL_SERVER_ERROR'
+                'BAD_GATEWAY'
             ];
         }
 
@@ -192,27 +195,25 @@ class PostBgMusicService {
             return [
                 "There was trouble getting the relevant info for the background-music of the list of
                 posts",
-                'INTERNAL_SERVER_ERROR'
+                'BAD_GATEWAY'
             ];
         }
 
-        if (count($nonRedisResults) > 0) {
-            try {
-                $redisClient->multi(\Redis::PIPELINE);
-                foreach ($nonRedisResults as $nonRedisResult) {
-                    $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
-                    unset($nonRedisResult['overallPostId']);
-    
-                    $redisClient->hMSet(
-                        "bgMusicMetadataForPost$overallPostIdOfNonRedisResult",
-                        $nonRedisResult
-                    );
-                }
-                $redisClient->exec();
+        try {
+            $redisClient->multi(\Redis::PIPELINE);
+            foreach ($nonRedisResults as $nonRedisResult) {
+                $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
+                unset($nonRedisResult['overallPostId']);
+
+                $redisClient->hMSet(
+                    "bgMusicMetadataForPost$overallPostIdOfNonRedisResult",
+                    $nonRedisResult
+                );
             }
-            catch (\Exception $e) {
-                //pass
-            }
+            $redisClient->exec();
+        }
+        catch (\Exception $e) {
+            //pass
         }
         
         for ($i = 0; $i < count($nonRedisResults); $i++) {
@@ -240,7 +241,7 @@ class PostBgMusicService {
             return [
                 "There was trouble checking whether or not post $overallPostId has background-music
                 associated with it",
-                'INTERNAL_SERVER_ERROR'
+                'BAD_GATEWAY'
             ];
         }
 
@@ -251,7 +252,7 @@ class PostBgMusicService {
         catch (\Exception $e) {
             return [
                 "There was trouble getting the audio-file of the background-music of post $overallPostId",
-                'INTERNAL_SERVER_ERROR'
+                'BAD_GATEWAY'
             ];
         }
     }

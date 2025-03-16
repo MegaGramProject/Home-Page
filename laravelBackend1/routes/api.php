@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\BackendController;
 
-Route::middleware('throttle:4,1')::get(
+Route::middleware('throttle:4,1')->get(
     '/getBgMusicOfPost/{authUserId}/{overallPostId}',
     [BackendController::class, 'getBgMusicOfPost']
 );
@@ -16,7 +16,7 @@ Route::post(
 );
 
 Route::post(
-    '/addBgMusicToPost/{authUserId}/{overallPostId}/{isEncrypted}',
+    '/addBgMusicToPost/{overallPostId}/{isEncrypted}',
     [BackendController::class, 'addBgMusicToPost']
 );
 
@@ -26,11 +26,42 @@ Route::post(
 );
 
 Route::patch(
-    '/updateBgMusicOfPost/{authUserId}/{overallPostId}/{isEncrypted}',
+    '/updateBgMusicOfPost/{overallPostId}/{isEncrypted}',
     [BackendController::class, 'updateBgMusicOfPost']
 );
 
 Route::delete(
-    '/removeBgMusicFromPost/{authUserId}/{overallPostId}/{isEncrypted}',
+    '/removeBgMusicFromPost/{overallPostId}/{isEncrypted}',
     [BackendController::class, 'removeBgMusicFromPost']
+);
+
+
+Route::middleware('throttle:4,1')->get(
+    '/getVidSubtitlesOfPost/{authUserId}/{overallPostId}',
+    [BackendController::class, 'getVidSubtitlesOfPost']
+);
+
+Route::post(
+    '/getVidSubtitlesOfMultiplePosts',
+    [BackendController::class, 'getVidSubtitlesOfMultiplePosts']
+);
+
+Route::post(
+    '/addVidSubtitleFilesToPost/{overallPostId}/{isEncrypted}',
+    [BackendController::class, 'addVidSubtitleFilesToPost']
+);
+
+Route::middleware('throttle:4,1')->patch(
+    '/setOrUnsetDefaultVidSubtitleFilesOfPost/{authUserId}/{overallPostId}',
+    [BackendController::class, 'setOrUnsetDefaultVidSubtitleFilesOfPost']
+);
+
+Route::delete(
+    '/removeSpecifiedVidSubtitleFilesFromPost/{overallPostId}/{isEncrypted}',
+    [BackendController::class, 'removeSpecifiedVidSubtitleFilesFromPost']
+);
+
+Route::delete(
+    '/removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion/{overallPostId}/{isEncrypted}',
+    [BackendController::class, 'removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion']
 );

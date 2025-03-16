@@ -12,7 +12,15 @@ return [
             'username'       => 'rishavry',
             'password'       => env('ORACLE_SQL_CLOUD_PASSWORD'),
         ],
-        
+
+        'awsApacheCassandra' => [
+            'driver'         => 'cassandra',
+            'host'           => '',
+            'port'           => '9142',
+            'keyspace'       => '',
+            'username'       => 'rishavry',
+            'password'       => env('AWS_APACHE_CASSANDRA_PASSWORD')
+        ],
     ],
 
     'redis' => [
@@ -22,7 +30,7 @@ return [
             'url' => '',
             'host' => '',
             'username' => 'rishavry',
-            'password' => env('REDIS_PASSWORD'),
+            'password' => env('REDIS_CLOUD_PASSWORD'),
             'port' => '6739',
             'database' => '0'
         ],

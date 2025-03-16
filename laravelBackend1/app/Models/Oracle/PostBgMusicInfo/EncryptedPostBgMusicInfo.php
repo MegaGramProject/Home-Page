@@ -14,14 +14,18 @@ class EncryptedPostBgMusicInfo extends Model {
 
     protected $fillable = [
         'overallPostId',
+
         'audioEncryptionIv',
         'audioEncryptionAuthTag',
+
         'encryptedTitle',
         'titleEncryptionIv',
         'titleEncryptionAuthTag',
+
         'encryptedArtist',
         'artistEncryptionIv',
         'artistEncryptionAuthTag',
+        
         'startTime',
         'endTime',
     ];
