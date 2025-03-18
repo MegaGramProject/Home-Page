@@ -8,9 +8,7 @@ use Illuminate\Support\Facades\Http;
 class PostInfoFetchingService {
 
 
-    public function getPostEncryptionStatusIfUserHasAccessToPost(
-        int $authUserId, string $overallPostId
-    ) {  
+    public function getPostEncryptionStatusIfUserHasAccessToPost(int $authUserId, string $overallPostId) {  
         $authorsOfPost = [];
         $isEncrypted = false;
 
@@ -22,7 +20,7 @@ class PostInfoFetchingService {
 
             
             if ($response->failed()) {
-                if ($response->status() == Response::HTTP_NOT_FOUND) {
+                if ($response->status() == 404) {
                     return [
                         "There doesn't currently exist a post with the overallPostId that you provided.",
                         'NOT_FOUND'
@@ -42,7 +40,7 @@ class PostInfoFetchingService {
             $authorsOfPost = $parsedResponseData["authorsOfPost"];
             $isEncrypted = $parsedResponseData["isEncrypted"];
             
-            if (in_array($authorsOfPost, $authUserId)) {
+            if (in_array($authUserId, $authorsOfPost)) {
                 return $isEncrypted;
             }
         }
@@ -146,7 +144,7 @@ class PostInfoFetchingService {
             );
 
             if ($response->failed()) {
-                if ($response->status() == Response::HTTP_NOT_FOUND) {
+                if ($response->status() == 404) {
                     return [
                         "There doesn't currently exist a post with the overallPostId that you provided.",
                         'NOT_FOUND'
@@ -166,7 +164,7 @@ class PostInfoFetchingService {
             $authorsOfPost = $parsedResponseData["authorsOfPost"];
             $isEncrypted = $parsedResponseData["isEncrypted"];
             
-            if (in_array($authorsOfPost, $authUserId)) {
+            if (in_array($authUserId, $authorsOfPost)) {
                 return $isEncrypted;
             }
             return [

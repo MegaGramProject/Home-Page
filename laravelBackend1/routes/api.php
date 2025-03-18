@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route; 
 
 use App\Http\Controllers\BackendController;
@@ -52,7 +51,7 @@ Route::post(
 );
 
 Route::middleware('throttle:4,1')->patch(
-    '/setOrUnsetDefaultVidSubtitleFilesOfPost/{authUserId}/{overallPostId}',
+    '/setOrUnsetDefaultVidSubtitleFilesOfPost/{overallPostId}',
     [BackendController::class, 'setOrUnsetDefaultVidSubtitleFilesOfPost']
 );
 

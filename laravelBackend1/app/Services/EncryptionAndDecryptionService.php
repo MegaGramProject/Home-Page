@@ -6,19 +6,14 @@ use App\Models\Oracle\PostBgMusicAndVidSubtitlesEncryptionInfo;
 
 use Google\Cloud\Kms\V1\KeyManagementServiceClient;
 use Google\Cloud\Core\Exception\ServiceException;
-use Illuminate\Support\Facades\Log;
 use Exception;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Redis;
 
 
-class EncryptionAndDecryptionService
-{
-    private $kmsClient;
-    private $projectId;
-    private $locationId;
-    private $keyRingId;
+class EncryptionAndDecryptionService {
+    protected $kmsClient;
+    protected $projectId;
+    protected $locationId;
 
 
     public function __construct(KeyManagementServiceClient $kmsClient) {
@@ -26,16 +21,15 @@ class EncryptionAndDecryptionService
         
         $this->projectId = "megagram_428802";
         $this->locationId = "global";
-        $this->keyRingId = "cmksForBgMusicAndVidSubsOfPosts";
     }
 
 
-    public function createNewCustomerMasterKey(string $keyAlias) {
+    public function createNewCustomerMasterKey(string $keyRingId, string $keyAlias) {
         try {
             $keyName = $this->kmsClient->keyRingName(
                 $this->projectId,
                 $this->locationId,
-                $this->keyRingId
+                $keyRingId
             );
 
             $this->kmsClient->createCryptoKey($keyName, $keyAlias, [
@@ -44,37 +38,37 @@ class EncryptionAndDecryptionService
 
             return true;
         }
-        catch (ServiceException $e) {
+        catch (ServiceException) {
             return false;
         }
     }
 
 
-    public function deleteCustomerMasterKey(string $keyAlias) {
+    public function deleteCustomerMasterKey(string $keyRingId, string $keyAlias) {
         try {
             $keyName = $this->kmsClient->cryptoKeyName(
                 $this->projectId,
                 $this->locationId,
-                $this->keyRingId,
+                $keyRingId,
                 $keyAlias
             );
 
             $this->kmsClient->destroyCryptoKeyVersion($keyName);
             return true;
         }
-        catch (ServiceException $e) {
+        catch (ServiceException) {
             return false;
         }
     }
 
 
-    public function createAndEncryptNewDataEncryptionKey(string $keyAlias) {
+    public function createAndEncryptNewDataEncryptionKey(string $keyRingId, string $keyAlias) {
         $plaintextDataEncryptionKey = random_bytes(32);
 
         $keyName = $this->kmsClient->cryptoKeyName(
             $this->projectId,
             $this->locationId,
-            $this->keyRingId,
+            $keyRingId,
             $keyAlias
         );
 
@@ -85,11 +79,11 @@ class EncryptionAndDecryptionService
     }
 
 
-    public function decryptEncryptedDataEncryptionKey($encryptedKey, string $keyAlias) {
+    public function decryptEncryptedDataEncryptionKey($encryptedKey, string $keyRingId, string $keyAlias) {
         $keyName = $this->kmsClient->cryptoKeyName(
             $this->projectId,
             $this->locationId,
-            $this->keyRingId,
+            $keyRingId,
             $keyAlias
         );
 
@@ -114,9 +108,7 @@ class EncryptionAndDecryptionService
     }
 
 
-    public function decryptDataWithDataEncryptionKey(
-        $encryptedBuffer, $plaintextDataEncryptionKey, $iv, $authTag
-    ) {
+    public function decryptDataWithDataEncryptionKey($encryptedBuffer, $plaintextDataEncryptionKey, $iv, $authTag) {
         $decryptedData = openssl_decrypt(
             $encryptedBuffer,
             'aes-256-gcm',
@@ -140,7 +132,7 @@ class EncryptionAndDecryptionService
                 $overallPostId
             );
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             //pass
         }
 
@@ -160,20 +152,21 @@ class EncryptionAndDecryptionService
                     $encryptedDataEncryptionKey
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 //pass
             }
         }
 
         $plaintextDataEncryptionKey = $encryptionAndDecryptionService->decryptEncryptedDataEncryptionKey(
             $encryptedDataEncryptionKey,
-            "postBgMusicAndVidSubtitlesDEKCMK/{overallPostId}"
+            "bgMusicAndVidSubsOfPosts",
+            "post$overallPostId",
         );
 
         return $plaintextDataEncryptionKey;
     }
 
-    public function getPlaintextDataEncryptionKeysOfMultiplePosts(string $overallPostIds, $redisClient,
+    public function getPlaintextDataEncryptionKeysOfMultiplePosts($overallPostIds, $redisClient,
     $encryptionAndDecryptionService) {
         $encryptedDataEncryptionKey = null;
         $encryptedDataEncryptionKeyFromRedis = null;
@@ -181,19 +174,19 @@ class EncryptionAndDecryptionService
         $overallPostIdsAndTheirDataEncryptionKeys = [];
 
         try {
-            $redisClient->multi(\Redis::PIPELINE);
-            foreach ($overallPostIds as $overallPostId) {
-                $redisClient->hGet(
-                    'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
-                    $overallPostId
-                );
-            }
-            $redisResults = $redisClient->exec();
+            $redisResults = Redis::pipeline(function () use ($overallPostIds, $redisClient) {
+                foreach ($overallPostIds as $overallPostId) {
+                    $redisClient->hGet(
+                        'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
+                        $overallPostId
+                    );
+                }
+            });
 
             $newOverallPostIds = [];
             for ($i=0; $i<count($redisResults); $i++) {
-                $redisResult = $redisResults[i];
-                $overallPostId = $overallPostIds[i];
+                $redisResult = $redisResults[$i];
+                $overallPostId = $overallPostIds[$i];
 
                 if ($redisResult !== null) {
                     $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId] = $redisResult;
@@ -205,13 +198,14 @@ class EncryptionAndDecryptionService
 
             $overallPostIds = $newOverallPostIds;
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             //pass
         }
 
         if (count($overallPostIds) > 0) {
             $encryptedDEKs = PostBgMusicAndVidSubtitlesEncryptionInfo
                 ::whereIn('overallPostId', $overallPostIds)
+                ->get()
                 ->toArray();
 
             foreach ($encryptedDEKs as $encryptedDEK) {
@@ -222,17 +216,18 @@ class EncryptionAndDecryptionService
             }
 
             try {
-                $redisClient->multi(\Redis::PIPELINE);
-                foreach ($overallPostIds as $overallPostId) {
-                    $redisClient->hSet(
-                        'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
-                        $overallPostId,
-                        $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId]
-                    );
-                }
-                $redisResults = $redisClient->exec();
+                $redisResults = Redis::pipeline(function () use ($overallPostIds, $redisClient,
+                $overallPostIdsAndTheirDataEncryptionKeys) {
+                    foreach ($overallPostIds as $overallPostId) {
+                        $redisClient->hSet(
+                            'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
+                            $overallPostId,
+                            $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId]
+                        );
+                    }
+                });
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 //pass
             }
         }
@@ -242,7 +237,8 @@ class EncryptionAndDecryptionService
             $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId] =
             $encryptionAndDecryptionService->decryptEncryptedDataEncryptionKey(
                 $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId],
-                "postBgMusicAndVidSubtitlesDEKCMK/{overallPostId}"
+                "bgMusicAndVidSubsOfPosts",
+                "post$overallPostId"
             );
         }
 

@@ -21,6 +21,15 @@ return [
             'username'       => 'rishavry',
             'password'       => env('AWS_APACHE_CASSANDRA_PASSWORD')
         ],
+
+        'localMySQL' => [
+            'driver'         => 'mysql',
+            'host'           => '',
+            'port'           => '3306',
+            'database'       => 'Megagram',
+            'username'       => 'rishavry',
+            'password'       => env('LOCAL_MYSQL_PASSWORD'),
+        ],
     ],
 
     'redis' => [

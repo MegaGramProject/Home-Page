@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Services\PostBgMusicService;
 use App\Services\UserAuthService;
+use App\Services\PostVidSubtitlesService;
+use App\Services\PostInfoFetchingService;
+use App\Services\EncryptionAndDecryptionService;
 
 use App\Models\Oracle\PostBgMusicInfo\UnencryptedPostBgMusicInfo;
 use App\Models\Oracle\PostBgMusicInfo\EncryptedPostBgMusicInfo;
@@ -13,8 +16,8 @@ use App\Models\Oracle\PostBgMusicAndVidSubtitlesEncryptionInfo;
 use App\Models\Cassandra\EncryptedPostVidSubtitlesInfo;
 
 use Illuminate\Support\Facades\Redis;
-
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Request;
 
 
 class BackendController extends Controller {
@@ -57,7 +60,7 @@ class BackendController extends Controller {
 
 
     public function getBgMusicOfPost(Request $request, int $authUserId, string $overallPostId) {
-        if ($authUserId < 0 && $authUserId !== -1) {
+        if ($authUserId < 1 && $authUserId !== -1) {
             return response('There does not exist a user with the provided userId. If you are just an anonymous guest,
             you must set the authUserId to -1.', 400);
         }
@@ -69,7 +72,7 @@ class BackendController extends Controller {
         $authUserIsAnonymousGuest = $authUserId == -1;
 
         if (!$authUserIsAnonymousGuest) {
-            $userAuthenticationResult =  $userAuthService->authenticateUser(
+            $userAuthenticationResult =  $this->userAuthService->authenticateUser(
                 $authUserId, $request
             );
 
@@ -92,7 +95,7 @@ class BackendController extends Controller {
 
                 setcookie(
                     "authToken$authUserId",
-                    $authToken,
+                    $refreshedAuthToken,
                     $expirationDate,
                     '/',
                     '',
@@ -105,15 +108,15 @@ class BackendController extends Controller {
         $plaintextDataEncryptionKey = [];
         $isEncrypted = false;
 
-        $authorsAndPostEncryptionStatusIfUserHasAccessToPost = $postInfoFetchingService->
+        $authorsAndPostEncryptionStatusIfUserHasAccessToPost = $this->postInfoFetchingService->
         getPostEncryptionStatusIfUserHasAccessToPost(
             $authUserId,
             $overallPostId
         );
-        if (isIndexedArray($authorsAndPostEncryptionStatusIfUserHasAccessToPost)) {
+        if (self::isIndexedArray($authorsAndPostEncryptionStatusIfUserHasAccessToPost)) {
             return response(
                 $authorsAndPostEncryptionStatusIfUserHasAccessToPost[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $authorsAndPostEncryptionStatusIfUserHasAccessToPost[1]
                 ],
             );  
@@ -126,7 +129,7 @@ class BackendController extends Controller {
                     $overallPostId, $this->redisClient, $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     "There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
                     that in order to decrypt the relevant data of this encrypted post.",
@@ -135,7 +138,7 @@ class BackendController extends Controller {
             }
         }
 
-        $bgMusicAudio = $postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
+        $bgMusicAudio = $this->postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
             $this->gcsBgMusicOfPostsBucket, $overallPostId
         );
         if ($bgMusicAudio==null) {
@@ -144,10 +147,10 @@ class BackendController extends Controller {
                 404
             );
         }
-        else if (isIndexedArray($bgMusicAudio)) {
+        else if (self::isIndexedArray($bgMusicAudio)) {
             return response(
                 $bgMusicAudio[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $bgMusicAudio[1]
                 ],
             );  
@@ -155,17 +158,17 @@ class BackendController extends Controller {
 
         $errorMessage = "";
 
-        $postBgMusicInfo = $postBgMusicService->getMetadataOfPostsBgMusic(
+        $postBgMusicInfo = $this->postBgMusicService->getMetadataOfPostsBgMusic(
             $overallPostId, $isEncrypted, $this->redisClient
         );
-        if (isIndexedArray($postBgMusicInfo)) {
+        if (self::isIndexedArray($postBgMusicInfo)) {
             $postBgMusicInfo = null;
             $errorMessage .= $postBgMusicInfo[0];
         }
         $bgMusicOfPost = [];
 
         if ($isEncrypted && $postBgMusicInfo !== null) {
-            $bgMusicOfPost['audio'] = this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
+            $bgMusicOfPost['audio'] = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
                 $bgMusicAudio,
                 $plaintextDataEncryptionKey,
                 $postBgMusicInfo['audioEncryptionIv'],
@@ -242,11 +245,11 @@ class BackendController extends Controller {
 
         if (count($setOfOverallPostIdsOfUnencryptedPosts) > 0) {
             foreach ($setOfOverallPostIdsOfUnencryptedPosts as $overallPostIdOfUnencryptedPost) {
-                $bgMusicAudio = $postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
+                $bgMusicAudio = $this->postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
                     $this->gcsBgMusicOfPostsBucket, $overallPostIdOfUnencryptedPost
                 );
 
-                if (isIndexedArray($bgMusicAudio)) {
+                if (self::isIndexedArray($bgMusicAudio)) {
                     $errorMessage.= "• " . $bgMusicAudio[0] . "\n";
                 }
                 else if ($bgMusicAudio !== null) {
@@ -262,14 +265,14 @@ class BackendController extends Controller {
             }
 
             if (count($setOfOverallPostIdsOfUnencryptedPostsThatHaveBgMusic) > 0) {
-                $resultOfGettingMetadataOfMultiplePosts = $postBgMusicService->
+                $resultOfGettingMetadataOfMultiplePosts = $this->postBgMusicService->
                 getMetadataOfBgMusicOfMultiplePosts(
                     $setOfOverallPostIdsOfUnencryptedPostsThatHaveBgMusic,
                     false,
                     $this->redisClient
                 );
 
-                if (isIndexedArray($resultOfGettingMetadataOfMultiplePosts)) {
+                if (self::isIndexedArray($resultOfGettingMetadataOfMultiplePosts)) {
                     $errorMessage.= '• There was trouble getting the metadata of the background-music of
                     each of the unencrypted posts\n';
                 }
@@ -298,11 +301,11 @@ class BackendController extends Controller {
                 $overallPostIdsAndTheirPlaintextDataEncryptionKeys = $this->encryptionAndDecryptionService
                 ->getPlaintextDataEncryptionKeysOfMultiplePosts(
                     $setOfOverallPostIdsOfEncryptedPosts,
-                    $redisClient,
+                    $this->redisClient,
                     $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage.= '• There was trouble getting the plaintext data-encryption-keys required
                 to decrypt the relevant data of each of the posts\n';
                 $canDecryptEachPostsBgMusic = false;
@@ -310,11 +313,11 @@ class BackendController extends Controller {
 
             if ($canDecryptEachPostsBgMusic) {
                 foreach ($setOfOverallPostIdsOfEncryptedPosts as $overallPostIdOfEncryptedPost) {
-                    $bgMusicAudio = $postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
+                    $bgMusicAudio = $this->postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
                         $this->gcsBgMusicOfPostsBucket, $overallPostIdOfEncryptedPost
                     );
 
-                    if (isIndexedArray($bgMusicAudio)) {
+                    if (self::isIndexedArray($bgMusicAudio)) {
                         $errorMessage.= "• " . $bgMusicAudio[0] . "\n";
                     }
                     else if ($bgMusicAudio !== null) {
@@ -327,14 +330,14 @@ class BackendController extends Controller {
             }
 
             if (count($setOfOverallPostIdsOfEncryptedPostsThatHaveBgMusic) > 0) {
-                $resultOfGettingMetadataOfMultiplePosts = $postBgMusicService->
+                $resultOfGettingMetadataOfMultiplePosts = $this->postBgMusicService->
                 getMetadataOfBgMusicOfMultiplePosts(
                     $setOfOverallPostIdsOfEncryptedPostsThatHaveBgMusic,
                     true,
                     $this->redisClient
                 );
 
-                if (isIndexedArray($resultOfGettingMetadataOfMultiplePosts)) {
+                if (self::isIndexedArray($resultOfGettingMetadataOfMultiplePosts)) {
                     $errorMessage.= '• There was trouble getting the metadata of the background-music of
                     each of the encrypted posts\n';
 
@@ -349,7 +352,7 @@ class BackendController extends Controller {
                         $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['audio'] =
                         $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
                             $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['audio'],
-                            $plaintextDataEncryptionKey,
+                            $overallPostIdsAndTheirPlaintextDataEncryptionKeys[$overallPostIdOfEncryptedPost],
                             $bgMusicMetadataOfEncryptedPost['audioEncryptionIv'],
                             $bgMusicMetadataOfEncryptedPost['audioEncryptionAuthTag']
                         );
@@ -357,7 +360,7 @@ class BackendController extends Controller {
                         $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['title'] =
                         $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
                             $bgMusicMetadataOfEncryptedPost['encryptedTitle'],
-                            $plaintextDataEncryptionKey,
+                            $overallPostIdsAndTheirPlaintextDataEncryptionKeys[$overallPostIdOfEncryptedPost],
                             $bgMusicMetadataOfEncryptedPost['titleEncryptionIv'],
                             $bgMusicMetadataOfEncryptedPost['titleEncryptionAuthTag']
                         );
@@ -365,7 +368,7 @@ class BackendController extends Controller {
                         $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['artist'] =
                         $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
                             $bgMusicMetadataOfEncryptedPost['encryptedArtist'],
-                            $plaintextDataEncryptionKey,
+                            $overallPostIdsAndTheirPlaintextDataEncryptionKeys[$overallPostIdOfEncryptedPost],
                             $bgMusicMetadataOfEncryptedPost['artistEncryptionIv'],
                             $bgMusicMetadataOfEncryptedPost['artistEncryptionAuthTag']
                         );
@@ -387,14 +390,14 @@ class BackendController extends Controller {
     }
 
 
-    public function addBgMusicToPost(Request $request, string $overallPostId, bool $isEncrypted) {
+    public function addBgMusicToPost(string $overallPostId, bool $isEncrypted) {
         $bgMusicAudioFile = request()->file('bgMusicAudioFile');
         $bgMusicAudioFileBuffer = file_get_contents($bgMusicAudioFile->getRealPath());
 
-        $postBgMusicInfo = $postBgMusicService->getMetadataOfPostsBgMusic(
+        $postBgMusicInfo = $this->postBgMusicService->getMetadataOfPostsBgMusic(
             $overallPostId, $isEncrypted, $this->redisClient
         );
-        if (isIndexedArray($postBgMusicInfo)) {
+        if (self::isIndexedArray($postBgMusicInfo)) {
             return response(
                 "There was trouble checking whether or not the provided post already has background
                 -music",
@@ -414,7 +417,7 @@ class BackendController extends Controller {
                     $overallPostId, $this->redisClient, $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     "There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
                     that in order to encrypt the relevant data of this encrypted post.",
@@ -461,7 +464,7 @@ class BackendController extends Controller {
                     $overallPostId . '.mp3', $encryptedBgMusicAudioFileBuffer
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble adding the encrypted audio-file into the database.\n";
                 return response($errorMessage, 502);
             }
@@ -491,7 +494,7 @@ class BackendController extends Controller {
                     $postBgMusicInfo
                 ); 
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble adding the encrypted metadata of the post's new background-
                 music.\n";
             }
@@ -502,7 +505,7 @@ class BackendController extends Controller {
                     $overallPostId . '.mp3', $bgMusicAudioFileBuffer
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble adding the audio-file into the database.\n";
                 return response($errorMessage, 502);
             }
@@ -512,7 +515,7 @@ class BackendController extends Controller {
                     $postBgMusicInfo
                 ); 
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble adding the metadata of the post's new background-
                 music.\n";
             } 
@@ -528,19 +531,20 @@ class BackendController extends Controller {
                 $postBgMusicInfo
             );
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             $errorMessage .= "• There was trouble caching the metadata of the post's newly added
             background-music\n";
         }
 
-        return response.json([
+        return response()->json([
             'errorMessage' => $errorMessage
-        ], 200);
+        ], 200);        
     }
 
 
     public function addEncryptionInfoForBgMusicAndVidSubsOfNewlyUploadedEncryptedPost(string $overallPostId) {
         $newCMKWasSuccessfullyCreated = $this->encryptionAndDecryptionService->createNewCustomerMasterKey(
+            'bgMusicAndVidSubsOfPosts',
             $overallPostId
         );
 
@@ -556,12 +560,13 @@ class BackendController extends Controller {
         try {
             $resultOfCreatingAndEncryptingDEK = $this->encryptionAndDecryptionService->
             createAndEncryptNewDataEncryptionKey(
+                'bgMusicAndVidSubsOfPosts',
                 $overallPostId
             );
             
             $encryptedDataEncryptionKey = $resultOfCreatingAndEncryptingDEK[1];
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response(
                 "There was trouble encrypting the newly generated data-encryption-key for the
                 vid-subs and background-music of this encrypted post",
@@ -579,7 +584,7 @@ class BackendController extends Controller {
                 201
             );
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response(
                 "There was trouble adding the encryption-info into the database",
                 502
@@ -588,7 +593,7 @@ class BackendController extends Controller {
     }
 
 
-    public function updateBgMusicOfPost(Request $request, string $overallPostId, bool $isEncrypted) {
+    public function updateBgMusicOfPost(string $overallPostId, bool $isEncrypted) {
         $bgMusicAudioFile = request()->file('bgMusicAudioFile');
         $bgMusicAudioFileBuffer = null;
         if ($bgMusicAudioFile !== null) {
@@ -597,10 +602,10 @@ class BackendController extends Controller {
 
         $plaintextDataEncryptionKey = [];
 
-        $postBgMusicInfo = $postBgMusicService->getMetadataOfPostsBgMusic(
+        $postBgMusicInfo = $this->postBgMusicService->getMetadataOfPostsBgMusic(
             $overallPostId, $isEncrypted, $this->redisClient
         );
-        if (isIndexedArray($postBgMusicInfo)) {
+        if (self::isIndexedArray($postBgMusicInfo)) {
             return response(
                 "There was trouble checking whether or not the provided post already has background
                 -music",
@@ -617,7 +622,7 @@ class BackendController extends Controller {
                     $overallPostId, $this->redisClient, $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     "There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
                     that in order to encrypt the updated data of this encrypted post.",
@@ -664,7 +669,7 @@ class BackendController extends Controller {
                     );
                     $bgMusicWasUpdatedSuccessfully = true;
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "• There was trouble updating the audio-file of the post's background
                     -music.\n";
                 }
@@ -696,11 +701,11 @@ class BackendController extends Controller {
             }
 
             try {
-                $newPostBgMusicInfo = EncryptedPostBgMusicInfo
+                EncryptedPostBgMusicInfo
                     ::where('overallPostId', $overallPostId)
                     ->update($postBgMusicInfo);
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble updating the metadata of the post's background-
                 music.\n";
                 if ($bgMusicWasUpdatedSuccessfully) {
@@ -715,18 +720,18 @@ class BackendController extends Controller {
                         $overallPostId . '.mp3', $bgMusicAudioFileBuffer
                     );
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "• There was trouble updating the audio-file of the background-music of the
                     post.\n";
                 }
             }
 
             try {
-                $newPostBgMusicInfo = UnencryptedPostBgMusicInfo
+                UnencryptedPostBgMusicInfo
                     ::where('overallPostId', $overallPostId)
                     ->update($postBgMusicInfo);
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble updating the metadata of the post's background-
                 music.\n";
             } 
@@ -735,20 +740,20 @@ class BackendController extends Controller {
         try {
             $this->redisClient->del("bgMusicMetadataForPost$overallPostId");
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             $errorMessage .= '• There was trouble deleting the original bgMusic-metadata from the
             cache.\n';
             return response($errorMessage, 502);
 
         }
 
-        return response.json([
+        return response()->json([
             'errorMessage' => $errorMessage
         ], 200);
     }
 
 
-    public function removeBgMusicFromPost(Request $request, string $overallPostId, bool $isEncrypted) {
+    public function removeBgMusicFromPost(string $overallPostId, bool $isEncrypted) {
         $audioFileNameToDelete = $overallPostId . '.mp3';
 
         try {
@@ -759,14 +764,14 @@ class BackendController extends Controller {
                 return false;
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             //pass
         }
 
         try {
             $this->gcsBgMusicOfPostsBucket->delete($audioFileNameToDelete);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response('There was trouble deleting the audio-file from the database', 502);
         }
 
@@ -778,7 +783,7 @@ class BackendController extends Controller {
         
                 return response()->json($numRowsDeleted==1, 200);
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response('There was trouble deleting the encrypted background-music metadata from
                 the database', 502);
             }
@@ -791,7 +796,7 @@ class BackendController extends Controller {
         
                 return response()->json($numRowsDeleted==1, 200);
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response('There was trouble deleting the unencrypted background-music metadata
                 from the database.', 502);
             }
@@ -800,7 +805,7 @@ class BackendController extends Controller {
         try {
             $this->redisClient->del("bgMusicMetadataForPost$overallPostId");
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response('There was trouble deleting the post\'s cached bg-music Metadata.', 502);
         }
 
@@ -809,7 +814,7 @@ class BackendController extends Controller {
 
 
     public function getVidSubtitlesOfPost(Request $request, int $authUserId, string $overallPostId) {
-        if ($authUserId < 0 && $authUserId !== -1) {
+        if ($authUserId < 1 && $authUserId !== -1) {
             return response('There does not exist a user with the provided userId. If you are just an anonymous guest,
             you must set the authUserId to -1.', 400);
         }
@@ -821,7 +826,7 @@ class BackendController extends Controller {
         $authUserIsAnonymousGuest = $authUserId == -1;
 
         if (!$authUserIsAnonymousGuest) {
-            $userAuthenticationResult =  $userAuthService->authenticateUser(
+            $userAuthenticationResult =  $this->userAuthService->authenticateUser(
                 $authUserId, $request
             );
 
@@ -844,7 +849,7 @@ class BackendController extends Controller {
 
                 setcookie(
                     "authToken$authUserId",
-                    $authToken,
+                    $refreshedAuthToken,
                     $expirationDate,
                     '/',
                     '',
@@ -857,15 +862,15 @@ class BackendController extends Controller {
         $plaintextDataEncryptionKey = [];
         $isEncrypted = false;
 
-        $authorsAndPostEncryptionStatusIfUserHasAccessToPost = $postInfoFetchingService->
+        $authorsAndPostEncryptionStatusIfUserHasAccessToPost = $this->postInfoFetchingService->
         getPostEncryptionStatusIfUserHasAccessToPost(
             $authUserId,
             $overallPostId
         );
-        if (isIndexedArray($authorsAndPostEncryptionStatusIfUserHasAccessToPost)) {
+        if (self::isIndexedArray($authorsAndPostEncryptionStatusIfUserHasAccessToPost)) {
             return response(
                 $authorsAndPostEncryptionStatusIfUserHasAccessToPost[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $authorsAndPostEncryptionStatusIfUserHasAccessToPost[1]
                 ],
             );  
@@ -878,7 +883,7 @@ class BackendController extends Controller {
                     $overallPostId, $this->redisClient, $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     "There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
                     that in order to decrypt the relevant data of this encrypted post.",
@@ -887,7 +892,7 @@ class BackendController extends Controller {
             }
         }
 
-        $allVidSubtitlesOfPost = $postBgMusicService->getPostsVidSubtitleFiles(
+        $allVidSubtitlesOfPost = $this->postVidSubtitlesService->getPostsVidSubtitleFiles(
             $this->s3VidSubtitlesForPostsBucket, $overallPostId
         );
         if (count($allVidSubtitlesOfPost) == 0) {
@@ -899,7 +904,7 @@ class BackendController extends Controller {
         else if (is_string($allVidSubtitlesOfPost[0])) {
             return response(
                 $allVidSubtitlesOfPost[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $allVidSubtitlesOfPost[1]
                 ],
             );  
@@ -907,31 +912,31 @@ class BackendController extends Controller {
 
         if ($isEncrypted) {
             $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict =
-            $postVidSubtitlesService->getEncryptionInfoOfVidSubtitleFilesOfPost(
-                $redisClient,
+            $this->postVidSubtitlesService->getEncryptionInfoOfVidSubtitleFilesOfPost(
+                $this->redisClient,
                 $overallPostId,
                 $allVidSubtitlesOfPost
             );
-            if (isIndexedArray($encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict)) {
+            if (self::isIndexedArray($encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict)) {
                 return response(
                     $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict[0],
-                    $stringLabelToIntStatusCodeMappings[
+                    $this->stringLabelToIntStatusCodeMappings[
                         $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict[1]
                     ],
                 );  
             }
 
             for ($i=0; $i<count($allVidSubtitlesOfPost); $i++) {
-                $slideNumber = $allVidSubtitlesOfPost[i]['slideNumber'];
-                $langCode = $allVidSubtitlesOfPost[i]['langCode'];
-                $encryptedSubtitlesFileBuffer = $allVidSubtitlesOfPost[i]['subtitles'];
+                $slideNumber = $allVidSubtitlesOfPost[$i]['slideNumber'];
+                $langCode = $allVidSubtitlesOfPost[$i]['langCode'];
+                $encryptedSubtitlesFileBuffer = $allVidSubtitlesOfPost[$i]['subtitles'];
                 
                 $fileEncryptionIv = $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict[$slideNumber]
                 [$langCode]['fileEncryptionIv'];
                 $fileEncryptionAuthTag = $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict[$slideNumber]
                 [$langCode]['fileEncryptionAuthTag'];
 
-                $allVidSubtitlesOfPost[i]['subtitles'] = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
+                $allVidSubtitlesOfPost[$i]['subtitles'] = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
                     $encryptedSubtitlesFileBuffer,
                     $plaintextDataEncryptionKey,
                     $fileEncryptionIv,
@@ -957,9 +962,9 @@ class BackendController extends Controller {
 
         $namesOfVidSubtitleFilesOfAllPostsInQuestion = [];
         try {
-            $namesOfVidSubtitleFilesOfAllPosts = $s3VidSubtitlesForPostsBucket->files('');
+            $namesOfVidSubtitleFilesOfAllPosts = $this->s3VidSubtitlesForPostsBucket->files('');
 
-            $namesOfVidSubtitleFilesOfAllPostsInQuestion = $namesOfAllVidSubtitleFilesOfPost =
+            $namesOfVidSubtitleFilesOfAllPostsInQuestion =
             array_filter($namesOfVidSubtitleFilesOfAllPosts, function ($fileName) use ($overallPostIds) {
                 foreach ($overallPostIds as $overallPostId) {
                     if (str_starts_with($fileName, (string) $overallPostId)) {
@@ -976,7 +981,7 @@ class BackendController extends Controller {
                 );
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response(
                 "There was trouble fetching the file-names of all the subtitle-files, if any, of the video-slides of 
                 the posts in the list",
@@ -984,13 +989,14 @@ class BackendController extends Controller {
             );
         }
 
-        $overallPostIdsAndTheirVidSubtitles = $postVidSubtitlesService->getVidSubtitleFilesOfMultiplePosts(
-            $namesOfVidSubtitleFilesOfAllPostsInQuestion
+        $overallPostIdsAndTheirVidSubtitles = $this->postVidSubtitlesService->getVidSubtitleFilesOfMultiplePosts(
+            $namesOfVidSubtitleFilesOfAllPostsInQuestion,
+            $this->s3VidSubtitlesForPostsBucket
         );
-        if (isIndexedArray($overallPostIdsAndTheirVidSubtitles)) {
+        if (self::isIndexedArray($overallPostIdsAndTheirVidSubtitles)) {
             return response(
                 $overallPostIdsAndTheirVidSubtitles[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $overallPostIdsAndTheirVidSubtitles[1]
                 ],
             );
@@ -1001,30 +1007,29 @@ class BackendController extends Controller {
         if (count($setOfOverallPostIdsOfEncryptedPosts) > 0) {
             $canDecryptEachOfTheEncryptedSubtitleFiles = true;
             $overallPostIdsAndTheirPlaintextDataEncryptionKeys = null;
-            $canDecryptEachPostsBgMusic = true;
 
             try {
                 $overallPostIdsAndTheirPlaintextDataEncryptionKeys = $this->encryptionAndDecryptionService
                 ->getPlaintextDataEncryptionKeysOfMultiplePosts(
                     $setOfOverallPostIdsOfEncryptedPosts,
-                    $redisClient,
+                    $this->redisClient,
                     $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage.= '• There was trouble getting the plaintext data-encryption-keys required
                 to decrypt the relevant data of each of the posts\n';
                 $canDecryptEachOfTheEncryptedSubtitleFiles = false;
             }
 
             if ($canDecryptEachOfTheEncryptedSubtitleFiles) {
-                $overallPostIdsAndTheirVidSubtitlesEncryptionInfo = $postVidSubtitlesService
+                $overallPostIdsAndTheirVidSubtitlesEncryptionInfo = $this->postVidSubtitlesService
                 ->getEncryptionInfoOfVidSubtitleFilesOfMultiplePosts(
-                    $redisClient,
+                    $this->redisClient,
                     $setOfOverallPostIdsOfEncryptedPosts,
                     $overallPostIdsAndTheirVidSubtitles
                 );
-                if (isIndexedArray($overallPostIdsAndTheirVidSubtitlesEncryptionInfo)) {
+                if (self::isIndexedArray($overallPostIdsAndTheirVidSubtitlesEncryptionInfo)) {
                     $errorMessage .= $overallPostIdsAndTheirVidSubtitlesEncryptionInfo[0];
                     $canDecryptEachOfTheEncryptedSubtitleFiles = false;
                 }
@@ -1069,7 +1074,7 @@ class BackendController extends Controller {
                     $overallPostId, $this->redisClient, $this->encryptionAndDecryptionService
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     "There was trouble in the process of obtaining the encryptedDataEncryptionKey and decrypting
                     that in order to encrypt the relevant data of this encrypted post.",
@@ -1078,13 +1083,14 @@ class BackendController extends Controller {
             }
         }
 
-        $rudimentaryInfoOnVidSubtitlesOfPost = $postVidSubtitlesService->getRudimentaryInfoOnVidSubtitlesOfPost(
-            $overallPostId
+        $rudimentaryInfoOnVidSubtitlesOfPost = $this->postVidSubtitlesService->getRudimentaryInfoOnVidSubtitlesOfPost(
+            $overallPostId,
+            $this->s3VidSubtitlesForPostsBucket
         );
         if (is_string($rudimentaryInfoOnVidSubtitlesOfPost[0])) {
             return response(
                 $rudimentaryInfoOnVidSubtitlesOfPost[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $rudimentaryInfoOnVidSubtitlesOfPost[1]
                 ]
             );
@@ -1138,6 +1144,8 @@ class BackendController extends Controller {
 
         $slideNumbersOfSubtitleFilesThatCouldNotBeUnDefaulted = [];
         $slideNumbersToUnsetDefaultSubtitles = array_keys($slideNumbersAndTheirLangCodesToUnsetDefault);
+        $errorMessage = '';
+
         if (count($slideNumbersToUnsetDefaultSubtitles) > 0) {
             foreach($slideNumbersToUnsetDefaultSubtitles as $slideNumber) {
                 $langCode = $slideNumbersAndTheirLangCodesToUnsetDefault[$slideNumber];
@@ -1150,7 +1158,7 @@ class BackendController extends Controller {
                         "$overallPostId/$slideNumber/$langCode"
                     );
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "• There was trouble un-setting the default-status of the post's vid-subtitle file for
                     slide-number $slideNumber and lang-code $langCode. Hence, the post's new vid-subtitle file provided for
                     that combo of slide-number and lang-code cannot be set as the default for that slide-number\n";
@@ -1177,7 +1185,7 @@ class BackendController extends Controller {
                 try {
                     $this->s3VidSubtitlesForPostsBucket->delete($nameOfSubtitleFileToRemove);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "• There was trouble removing the post's vid-subtitle file for slide-number
                     $slideNumber and lang-code $langCode. Hence, the post's new vid-subtitle file provided for that
                     combo of slide-number and lang-code could not be added.\n";
@@ -1194,8 +1202,6 @@ class BackendController extends Controller {
         $newSubtitleFilesThatHaveBeenUploadedSuccessfully = [];
 
         if ($isEncrypted) {
-            $slideNumbersToLangCodesToEncryptionInfoOfNewSubtitleFiles = [];
-
             foreach(array_keys($slideNumbersToLangCodesToNewSubtitleFileMappings) as $slideNumber) {
                 foreach(array_keys($slideNumbersToLangCodesToNewSubtitleFileMappings[$slideNumber]) as $langCode) {
                     $newSubtitlesFileBuffer = $slideNumbersToLangCodesToNewSubtitleFileMappings[$slideNumber][$langCode];
@@ -1221,7 +1227,7 @@ class BackendController extends Controller {
                         $nameOfSubtitleFileToAdd .= '/default';
                     }
 
-                    $subtitlesFileEncryptionInfo = $encryptionAndDecryptionService->encryptDataWithDataEncryptionKey(
+                    $subtitlesFileEncryptionInfo = $this->encryptionAndDecryptionService->encryptDataWithDataEncryptionKey(
                         $newSubtitlesFileBuffer,
                         $plaintextDataEncryptionKey
                     );
@@ -1248,7 +1254,7 @@ class BackendController extends Controller {
     
                             $newSubtitleFilesThatHaveBeenUploadedSuccessfully[] = $newEncryptedPostVidSubtitlesInfo;
                         }
-                        catch (\Exception $e) {
+                        catch (\Exception) {
                             $errorMessage .= "• There was trouble adding the info required to decrypt the new encrypted
                             vid-subtitle file for slide-number $slideNumber and lang-code $langCode.\n";
                             return response(
@@ -1257,7 +1263,7 @@ class BackendController extends Controller {
                             );
                         }
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         $errorMessage .= "• There was trouble adding the new vid-subtitle file for slide-number
                         $slideNumber and lang-code $langCode.\n";
                     }
@@ -1266,23 +1272,25 @@ class BackendController extends Controller {
 
             if (count($newSubtitleFilesThatHaveBeenUploadedSuccessfully) > 0) {
                 try {
-                    $redisClient->multi(\Redis::PIPELINE);
-                    foreach ($newSubtitleFilesThatHaveBeenUploadedSuccessfully as $newlyUploadedSubtitleFile) {
-                        $slideNumber = $newlyUploadedSubtitleFile['slideNumber'];
-                        $langCode = $newlyUploadedSubtitleFile['langCode'];
-                        $encryptedVidSubtitlesInfo = [
-                            'fileEncryptionIv' => $newlyUploadedSubtitleFile['fileEncryptionIv'],
-                            'fileEncryptionAuthTag' => $newlyUploadedSubtitleFile['fileEncryptionAuthTag']
-                        ];
 
-                        $redisClient->hMSet(
-                            "encryptedVidSubtitlesInfoForPost$overallPostId@slideNumber$slideNumber@langCode$langCode",
-                            $encryptedVidSubtitlesInfo
-                        );
-                    }
-                    $redisResults = $redisClient->exec();
+                    Redis::pipeline(function () use ($newSubtitleFilesThatHaveBeenUploadedSuccessfully,
+                    $overallPostId) {
+                        foreach ($newSubtitleFilesThatHaveBeenUploadedSuccessfully as $newlyUploadedSubtitleFile) {
+                            $slideNumber = $newlyUploadedSubtitleFile['slideNumber'];
+                            $langCode = $newlyUploadedSubtitleFile['langCode'];
+                            $encryptedVidSubtitlesInfo = [
+                                'fileEncryptionIv' => $newlyUploadedSubtitleFile['fileEncryptionIv'],
+                                'fileEncryptionAuthTag' => $newlyUploadedSubtitleFile['fileEncryptionAuthTag']
+                            ];
+    
+                            $this->redisClient->hMSet(
+                                "encryptedVidSubtitlesInfoForPost$overallPostId@slideNumber$slideNumber@langCode$langCode",
+                                $encryptedVidSubtitlesInfo
+                            );
+                        }
+                    });
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "• There was trouble updating the cache of posts and their encrypted-vid-subtitles
                     info\n";
                 }
@@ -1326,7 +1334,7 @@ class BackendController extends Controller {
                             'langCode' => $langCode
                         ];
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         $errorMessage .= "• There was trouble adding the new vid-subtitle file for slide-number
                         $slideNumber and lang-code $langCode.\n";
                     }
@@ -1341,16 +1349,17 @@ class BackendController extends Controller {
     }
 
 
-    public function setOrUnsetDefaultVidSubtitleFilesOfPost(Request $request, int $authUserId, string $overallPostId) {
+    public function setOrUnsetDefaultVidSubtitleFilesOfPost(Request $request, string $overallPostId) {
         $slideNumbersToNewDefaultLangCodes = $request->input('slideNumbersToNewDefaultLangCodes');
 
-        $rudimentaryInfoOnVidSubtitlesOfPost = $postVidSubtitlesService->getRudimentaryInfoOnVidSubtitlesOfPost(
-            $overallPostId
+        $rudimentaryInfoOnVidSubtitlesOfPost = $this->postVidSubtitlesService->getRudimentaryInfoOnVidSubtitlesOfPost(
+            $overallPostId,
+            $this->s3VidSubtitlesForPostsBucket
         );
         if (is_string($rudimentaryInfoOnVidSubtitlesOfPost[0])) {
             return response(
                 $rudimentaryInfoOnVidSubtitlesOfPost[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $rudimentaryInfoOnVidSubtitlesOfPost[1]
                 ]
             );
@@ -1407,7 +1416,7 @@ class BackendController extends Controller {
                         "$overallPostId/$slideNumberToUnsetDefault/$langCodeToUnsetDefault"
                     );
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "There was trouble un-setting the default vid-subtitles-file for this post at
                     slide-number $slideNumberToUnsetDefault. This also means that if you tried to set the default
                     lang-code for this slide-number to something else, that cannot take place since each slide
@@ -1435,7 +1444,7 @@ class BackendController extends Controller {
                         "$overallPostId/$slideNumberToSetDefault/$langCodeToSetDefault/default"
                     );
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     $errorMessage .= "There was trouble setting the default vid-subtitles-file for this post at
                     slide-number $slideNumberToSetDefault to the lang-code $langCodeToSetDefault";
                 }
@@ -1451,13 +1460,14 @@ class BackendController extends Controller {
     public function removeSpecifiedVidSubtitleFilesFromPost(Request $request, string $overallPostId, bool $isEncrypted) {
         $slideNumbersToListOfLangCodesToRemove = $request->input('slideNumberToListOfLangCodesToRemoveMappings');
 
-        $rudimentaryInfoOnVidSubtitlesOfPost = $postVidSubtitlesService->getRudimentaryInfoOnVidSubtitlesOfPost(
-            $overallPostId
+        $rudimentaryInfoOnVidSubtitlesOfPost = $this->postVidSubtitlesService->getRudimentaryInfoOnVidSubtitlesOfPost(
+            $overallPostId,
+            $this->s3VidSubtitlesForPostsBucket
         );
         if (is_string($rudimentaryInfoOnVidSubtitlesOfPost[0])) {
             return response(
                 $rudimentaryInfoOnVidSubtitlesOfPost[0],
-                $stringLabelToIntStatusCodeMappings[
+                $this->stringLabelToIntStatusCodeMappings[
                     $rudimentaryInfoOnVidSubtitlesOfPost[1]
                 ]
             );
@@ -1558,7 +1568,7 @@ class BackendController extends Controller {
                     'default' => $default,
                 ];
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= "• There was trouble deleting the vid-subtitle file of the post at slide $slideNumber
                 and langCode $langCode\n";
                 $slideNumbersOfDefaultSubtitleFilesThatDidNotSuccessfullyDelete[$slideNumber] = true;
@@ -1574,7 +1584,7 @@ class BackendController extends Controller {
                         ->delete();
                 }
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $errorMessage .= '• There was trouble deleting the encryption-info of each of the successfully deleted
                 vid-subtitles of this encrypted post\n';
 
@@ -1591,16 +1601,18 @@ class BackendController extends Controller {
     }
 
 
-    public function removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion(Request $request, string $overallPostId,
-    bool $isEncrypted) {
+    public function removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion(string $overallPostId, bool $isEncrypted) {
 
         $numVidSubtitlesDeleted = 0;
         try {
-            $namesOfVidSubtitleFilesOfAllPosts = $s3VidSubtitlesForPostsBucket->files('');
+            $namesOfVidSubtitleFilesOfAllPosts = $this->s3VidSubtitlesForPostsBucket->files('');
 
-            $namesOfAllVidSubtitleFilesOfPost = array_filter($namesOfVidSubtitleFilesOfAllPosts, function ($fileName) {
-                return str_starts_with($fileName, $overallPostId);
-            });
+            $namesOfAllVidSubtitleFilesOfPost = array_filter(
+                $namesOfVidSubtitleFilesOfAllPosts,
+                function ($fileName) use ($overallPostId) {
+                    return str_starts_with($fileName, $overallPostId);
+                }
+            );
 
             foreach($namesOfAllVidSubtitleFilesOfPost as $nameOfVidSubtitlesFileToDelete) {
                 $this->s3VidSubtitlesForPostsBucket->delete($nameOfVidSubtitlesFileToDelete);
@@ -1608,7 +1620,7 @@ class BackendController extends Controller {
 
             $numVidSubtitlesDeleted = count($namesOfAllVidSubtitleFilesOfPost);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response(
                 "There was trouble deleting all the vid-subtitle files of the post",
                 502
@@ -1620,7 +1632,7 @@ class BackendController extends Controller {
                 EncryptedPostVidSubtitlesInfo::where('overallPostId', $overallPostId)
                     ->delete();
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     "There was trouble deleting the encryption info of each of the subtitles of the post",
                     502
@@ -1639,7 +1651,7 @@ class BackendController extends Controller {
                 $this->gcsBgMusicOfPostsBucket->delete($filenameOfAudioFileToDelete);
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return response(
                 'There was trouble deleting the audio-file, if any, that is associated with the background-music of this
                 post',
@@ -1651,7 +1663,7 @@ class BackendController extends Controller {
             try {
                 $this->redisClient->del("bgMusicMetadataForPost$overallPostId");
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     'There was trouble deleting the caching, if any, associated with the metadata of the background-music
                     of this post',
@@ -1666,7 +1678,7 @@ class BackendController extends Controller {
                     ::where('overallPostId', $overallPostId)
                     ->delete();
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     'There was trouble deleting metadata associated with the background-music of this post.',
                     502
@@ -1679,7 +1691,7 @@ class BackendController extends Controller {
                     ::where('overallPostId', $overallPostId)
                     ->delete();
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     'There was trouble deleting metadata associated with the background-music of this post.',
                     502
@@ -1693,7 +1705,7 @@ class BackendController extends Controller {
                     where('overallPostId', $overallPostId)
                     ->delete();
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     'There was trouble deleting the encrypted data-encryption-keys that were used for the encryption/
                     decryption of vid-subtitle-files and background-music of this post',
@@ -1702,12 +1714,12 @@ class BackendController extends Controller {
             }
 
             try {
-                $redisClient->hDel(
+                $this->redisClient->hDel(
                     'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
                     $overallPostId
                 );
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return response(
                     'There was trouble deleting the caching of the encrypted data-encryption-keys that were used for the
                     encryption/decryption of vid-subtitle-files and background-music of this post',
@@ -1721,7 +1733,6 @@ class BackendController extends Controller {
             'postHadBgMusic' => $postHadBgMusic
         ], 200);
     }
-
 
     private function isIndexedArray($array) {
         if (!is_array($array)) {

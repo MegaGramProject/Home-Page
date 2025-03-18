@@ -6,6 +6,7 @@ use App\Services\EncryptionAndDecryptionService;
 use App\Services\PostBgMusicService;
 use App\Services\PostInfoFetchingService;
 use App\Services\UserAuthService;
+use App\Services\PostVidSubtitlesService;
 
 use Illuminate\Support\ServiceProvider;
 use Google\Cloud\Kms\V1\KeyManagementServiceClient;
@@ -21,7 +22,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(EncryptionAndDecryptionService::class, function ($app) {
-            return new EncryptionAndDecryptionService();
+            return new EncryptionAndDecryptionService($app->make(KeyManagementServiceClient::class));
         });
 
         $this->app->singleton(PostBgMusicService::class, function ($app) {

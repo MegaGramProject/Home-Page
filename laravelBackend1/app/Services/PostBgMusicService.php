@@ -11,8 +11,7 @@ use Illuminate\Support\Facades\Redis;
 class PostBgMusicService {
 
 
-    public function getMetadataOfPostsBgMusic(string $overallPostId, bool $isEncrypted,
-    $redisClient) {
+    public function getMetadataOfPostsBgMusic(string $overallPostId, bool $isEncrypted, $redisClient) {
         try {
             $postBgMusicInfo = $redisClient->hGetAll("bgMusicMetadataForPost$overallPostId");
             if (array_key_exists('startTime', $postBgMusicInfo)) {
@@ -21,7 +20,7 @@ class PostBgMusicService {
                 return $postBgMusicInfo;
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             //pass
         }
 
@@ -54,7 +53,7 @@ class PostBgMusicService {
                 try {
                     $redisClient->hMSet("bgMusicMetadataForPost$overallPostId", $postBgMusicInfo);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     //pass
                 } 
             }
@@ -78,12 +77,12 @@ class PostBgMusicService {
                 try {
                     $redisClient->hMSet("bgMusicMetadataForPost$overallPostId", $postBgMusicInfo);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     //pass
                 }
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return [
                 "There was trouble getting the relevant info for the background-music of post
                 $overallPostId",
@@ -98,21 +97,20 @@ class PostBgMusicService {
     }
 
 
-    public function getMetadataOfBgMusicOfMultiplePosts(array $overallPostIds, bool $allAreEncrypted,
-    $redisClient) {
+    public function getMetadataOfBgMusicOfMultiplePosts(array $overallPostIds, bool $allAreEncrypted, $redisClient) {
         $bgMusicInfos = [];
 
         try {
-            $redisClient->multi(\Redis::PIPELINE);
-            foreach ($overallPostIds as $overallPostId) {
-                $redisClient->hGetAll("bgMusicMetadataForPost$overallPostId");
-            }
-            $phpRedisResults = $redisClient->exec();
+            $redisResults = Redis::pipeline(function () use ($overallPostIds, $redisClient) {
+                foreach ($overallPostIds as $overallPostId) {
+                    $redisClient->hGetAll("bgMusicMetadataForPost$overallPostId");
+                }
+            });
 
             $newOverallPostIds = [];
 
-            for ($i = 0; $i < count($phpRedisResults); $i++) {
-                $phpRedisResult = $phpRedisResults[i];
+            for ($i = 0; $i < count($redisResults); $i++) {
+                $phpRedisResult = $redisResults[$i];
                 if (array_key_exists('startTime', $phpRedisResult)) {
                     $bgMusicInfo = [];
 
@@ -128,7 +126,7 @@ class PostBgMusicService {
                     $bgMusicInfos[] = $bgMusicInfo;
                 }
                 else {
-                    $newOverallPostIds[] = $overallPostIds[i];
+                    $newOverallPostIds[] = $overallPostIds[$i];
                 }
             }
 
@@ -138,7 +136,7 @@ class PostBgMusicService {
 
             $overallPostIds = $newOverallPostIds;
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             //pass
         }
 
@@ -148,12 +146,13 @@ class PostBgMusicService {
             if ($allAreEncrypted) {
                 $nonRedisResults = EncryptedPostBgMusicInfo
                     ::whereIn('overallPostId', $overallPostIds)
+                    ->get()
                     ->toArray(); 
                 
                 
                 for ($i = 0; $i < count($nonRedisResults); $i++) {
-                    $nonRedisResult = $nonRedisResults[i];
-                    $nonRedisResults[i] = [
+                    $nonRedisResult = $nonRedisResults[$i];
+                    $nonRedisResults[$i] = [
                         'overallPostId' => $nonRedisResult->overallPostId,
 
                         'audioEncryptionIv' => $nonRedisResult->audioEncryptionIv,
@@ -175,11 +174,12 @@ class PostBgMusicService {
             else {
                 $nonRedisResults = UnencryptedPostBgMusicInfo
                     ::whereIn('overallPostId', $overallPostIds)
+                    ->get()
                     ->toArray(); 
                 
                 for ($i = 0; $i < count($nonRedisResults); $i++) {
-                    $nonRedisResult = $nonRedisResults[i];
-                    $nonRedisResults[i] = [
+                    $nonRedisResult = $nonRedisResults[$i];
+                    $nonRedisResults[$i] = [
                         'overallPostId' => $nonRedisResult->overallPostId,
     
                         'title' => $nonRedisResult->title,
@@ -191,7 +191,7 @@ class PostBgMusicService {
                 }
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return [
                 "There was trouble getting the relevant info for the background-music of the list of
                 posts",
@@ -200,24 +200,24 @@ class PostBgMusicService {
         }
 
         try {
-            $redisClient->multi(\Redis::PIPELINE);
-            foreach ($nonRedisResults as $nonRedisResult) {
-                $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
-                unset($nonRedisResult['overallPostId']);
-
-                $redisClient->hMSet(
-                    "bgMusicMetadataForPost$overallPostIdOfNonRedisResult",
-                    $nonRedisResult
-                );
-            }
-            $redisClient->exec();
+            Redis::pipeline(function () use ($nonRedisResults, $redisClient) {
+                foreach ($nonRedisResults as $nonRedisResult) {
+                    $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
+                    unset($nonRedisResult['overallPostId']);
+    
+                    $redisClient->hMSet(
+                        "bgMusicMetadataForPost$overallPostIdOfNonRedisResult",
+                        $nonRedisResult
+                    );
+                }
+            });
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             //pass
         }
         
         for ($i = 0; $i < count($nonRedisResults); $i++) {
-            $nonRedisResult = $nonRedisResults[i];
+            $nonRedisResult = $nonRedisResults[$i];
             $nonRedisResult['startTime'] = (float) $nonRedisResult['startTime'];
             $nonRedisResult['endTime'] = (float) $nonRedisResult['endTime'];
             $bgMusicInfos[] = $nonRedisResult;
@@ -226,9 +226,7 @@ class PostBgMusicService {
     }
 
 
-    public function getPostsBgMusicIfExistsNullOtherwise(
-        $gcsBgMusicOfPostsBucket, string $overallPostId
-    ) {
+    public function getPostsBgMusicIfExistsNullOtherwise($gcsBgMusicOfPostsBucket, string $overallPostId) {
         $bgMusicFilePath = $overallPostId . '.mp3';
 
         try {
@@ -237,7 +235,7 @@ class PostBgMusicService {
                 return null;
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return [
                 "There was trouble checking whether or not post $overallPostId has background-music
                 associated with it",
@@ -249,7 +247,7 @@ class PostBgMusicService {
             $postBgMusicAudio = $gcsBgMusicOfPostsBucket->get($bgMusicFilePath);
             return $postBgMusicAudio;
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return [
                 "There was trouble getting the audio-file of the background-music of post $overallPostId",
                 'BAD_GATEWAY'
