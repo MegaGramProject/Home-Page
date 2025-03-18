@@ -15,9 +15,12 @@ use App\Models\Oracle\PostBgMusicAndVidSubtitlesEncryptionInfo;
 
 use App\Models\Cassandra\EncryptedPostVidSubtitlesInfo;
 
+use App\Models\MongoDB_Atlas\ProfilePhoto;
+
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 
 class BackendController extends Controller {
@@ -1733,6 +1736,507 @@ class BackendController extends Controller {
             'postHadBgMusic' => $postHadBgMusic
         ], 200);
     }
+
+
+    public function getProfilePhotoOfUser(Request $request, int $authUserId, int $userId) {
+        if ($authUserId < 1 && $authUserId !== -1) {
+            return response('There does not exist a user with the provided authUserId. If you are just an anonymous guest,
+            you must set the authUserId to -1.', 400);
+        }
+
+        if ($userId < 1) {
+            return response('There does not exist a user with the provided userId.', 400);
+        }
+
+        $authUserIsAnonymousGuest = $authUserId == -1;
+
+        if (!$authUserIsAnonymousGuest) {
+            $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+                $authUserId, $request
+            );
+
+            if (is_bool($userAuthenticationResult)) {
+                if (!$userAuthenticationResult) {
+                    return response("The expressJSBackend1 server could not verify you as having the proper
+                    credentials to be logged in as $authUserId", 403);
+                }
+            }
+            else if (is_string($userAuthenticationResult)) {  
+                if ($userAuthenticationResult === 'The provided authUser token, if any, in your cookies has an
+                invalid structure.')  {  
+                    return response($userAuthenticationResult, 403);  
+                }  
+                return response($userAuthenticationResult, 502);  
+            }  
+            else {  
+                $refreshedAuthToken = $userAuthenticationResult[0];  
+                $expirationDate = $userAuthenticationResult[1];  
+
+                setcookie(
+                    "authToken$authUserId",
+                    $refreshedAuthToken,
+                    $expirationDate,
+                    '/',
+                    '',
+                    true,
+                    true
+                );
+            }  
+        }
+
+        if (!$authUserIsAnonymousGuest) {
+            try {
+                $response = Http::get(
+                    "http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserIsInBlockingsOfAuthUser/$authUserId/$userId"
+                );
+    
+                
+                if ($response->failed()) {
+                    return response(
+                        "The djangoBackend2 server had trouble checking whether or not user $userId is in your blockings",
+                        502
+                    );
+                }
+    
+                $stringifiedResponseData = $response->body();
+                $userIsInBlockingsOfAuthUser = json_decode($stringifiedResponseData);
+                
+                if ($userIsInBlockingsOfAuthUser) {
+                    return response("The profile photo of user $userId, if they even exist, could not be found", 404);
+                }
+            }
+            catch (\Exception) {
+                return response(
+                    "There was trouble connecting to the djangoBackend2 server to check whether or not user $userId is in your
+                    blockings",
+                    502
+                );
+            }
+        }
+
+        $usersProfilePhotoStatusIsCached = false;
+
+        try {
+            $redisResult = $this->redisClient->hGet(
+                "dataForUser$userId",
+                'hasProfilePhoto'
+            );
+
+            if ($redisResult == false) {
+                return response("The profile photo of user $userId could not be found", 404);
+            }
+
+            $usersProfilePhotoStatusIsCached = true;
+        }
+        catch (\Exception) {
+            //pass
+        }
+
+        $profilePhoto = null;
+
+        try {
+            $profilePhoto = ProfilePhoto::where('userId', $userId)
+                ->value('profilePhoto');
+        }
+        catch (\Exception) {
+            return response("There was trouble fetching the profile-photo of user $userId.", 502);
+        }
+
+
+        if (!$usersProfilePhotoStatusIsCached) {
+            try {
+                $this->redisClient->hSet(
+                    "dataForUser$userId",
+                    'hasProfilePhoto',
+                    $profilePhoto !== null ? 'true' : 'false'
+                );
+            }
+            catch (\Exception) {
+                //pass
+            }
+        }
+
+        if ($profilePhoto == null) {
+            return response("The profile photo of user $userId, if they even exist, could not be found", 404);
+        }
+
+        return response($profilePhoto, 200);
+    }
+
+
+    public function getProfilePhotosOfMultipleUsers(array $userIds) {
+        $usersAndTheirProfilePhotos = [];
+        $userIdsWhoseProfilePhotoStatusesAreNotCached = [];
+
+        try {
+            $redisResults = Redis::pipeline(function () use ($userIds) {
+                foreach ($userIds as $userId) {
+                    $this->redisClient->hGet(
+                        "dataForUser$userId",
+                        'hasProfilePhoto'
+                    );
+                }
+            });
+
+            $newUserIds = [];
+
+            for ($i=0; $i<count($redisResults); $i++) {
+                $redisResult = $redisResults[$i];
+
+                if ($redisResult !== false) {
+                    $userId = $userIds[$i];
+                    $newUserIds[] = $userId;
+
+                    if ($redisResult == null) {
+                        $userIdsWhoseProfilePhotoStatusesAreNotCached[] = $userId;
+                    }
+                }
+            }
+
+            if (count($newUserIds) == 0) {
+                return $usersAndTheirProfilePhotos;
+            }
+            $userIds = $newUserIds;
+        }
+        catch (\Exception) {
+            //pass
+        }
+
+        $usersAndTheirProfilePhotos = [];
+
+        try {
+            $usersAndTheirProfilePhotos = ProfilePhoto::whereIn('userId', $userIds)
+                ->select(['userId', 'profilePhoto'])
+                ->pluck('profilePhoto', 'userId')
+                ->toArray();
+        }
+        catch (\Exception) {
+            return response("There was trouble fetching the profile-photos", 502);
+        }
+
+        if (count($userIdsWhoseProfilePhotoStatusesAreNotCached) > 0) {
+            try {
+                Redis::pipeline(function () use ($userIdsWhoseProfilePhotoStatusesAreNotCached, $usersAndTheirProfilePhotos) {
+                    foreach ($userIdsWhoseProfilePhotoStatusesAreNotCached as $userId) {
+                        $this->redisClient->hSet(
+                            "dataForUser$userId",
+                            'hasProfilePhoto',
+                            array_key_exists($userId, $usersAndTheirProfilePhotos) ? 'true' : 'false'
+                        );
+                    }
+                });
+            }
+            catch (\Exception) {
+                //pass
+            }
+        }
+
+        return response($$usersAndTheirProfilePhotos, 200);
+    }
+
+
+    public function addOwnProfilePhoto(Request $request, int $authUserId) {
+        if ($authUserId < 1) {
+            return response('There does not exist a user with the provided authUserId.', 400);
+        }
+
+        $request->validate([
+            'profilePhoto' => 'required|image|mimes:jpeg,png,jpg|max:8192',
+        ]);        
+        $profilePhotoFile = request()->file('profilePhoto');
+        $profilePhotoFileBuffer = file_get_contents($profilePhotoFile->getRealPath());
+
+        $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+            $authUserId, $request
+        );
+
+        if (is_bool($userAuthenticationResult)) {
+            if (!$userAuthenticationResult) {
+                return response("The expressJSBackend1 server could not verify you as having the proper
+                credentials to be logged in as $authUserId", 403);
+            }
+        }
+        else if (is_string($userAuthenticationResult)) {  
+            if ($userAuthenticationResult === 'The provided authUser token, if any, in your cookies has an
+            invalid structure.')  {  
+                return response($userAuthenticationResult, 403);  
+            }  
+            return response($userAuthenticationResult, 502);  
+        }  
+        else {  
+            $refreshedAuthToken = $userAuthenticationResult[0];  
+            $expirationDate = $userAuthenticationResult[1];  
+
+            setcookie(
+                "authToken$authUserId",
+                $refreshedAuthToken,
+                $expirationDate,
+                '/',
+                '',
+                true,
+                true
+            );
+        }  
+
+        $authUserHasProfilePhoto = null;
+
+        try {
+            $authUserHasProfilePhoto = $this->redisClient->hGet(
+                "dataForUser$authUserId",
+                'hasProfilePhoto'
+            );
+
+            if ($authUserHasProfilePhoto == true) {
+                return response(
+                    'You already have a profile-photo. If you would like to update or delete it, you must use the corresponding
+                    endpoint, not this one',
+                    409
+                );
+            }
+        }
+        catch (\Exception) {
+            //pass
+        }
+
+        if ($authUserHasProfilePhoto == null) {
+            try {
+                $profilePhotoOfAuthUser = ProfilePhoto::where('userId', $authUserId)
+                    ->value('profilePhoto');
+                
+                if ($profilePhotoOfAuthUser !== null) {
+                    return response(
+                        'You already have a profile-photo. If you would like to update or delete it, you must use the corresponding
+                        endpoint, not this one',
+                        409
+                    );
+                }
+            }
+            catch (\Exception) {
+                return response(
+                    'There was trouble checking whether or not you already have a profile-photo.',
+                    502
+                );
+            }
+        }
+
+        try {
+            ProfilePhoto::create([
+                'userId' => $authUserId,
+                'profilePhoto' => $profilePhotoFileBuffer
+            ]);
+        }   
+        catch (\Exception) {
+            return response(
+                "There was trouble adding your profile-photo",
+                502
+            );
+        }
+
+        try {
+            $this->redisClient->hSet(
+                "dataForUser$authUserId",
+                'hasProfilePhoto',
+                'true'
+            );
+        }
+        catch (\Exception) {
+            return response(
+                "There was trouble updating the caching of the 'hasProfilePhoto' attribute of the data for user $authUserId",
+                502
+            );
+        }
+
+        return response(true, 201);
+    }
+
+
+    public function updateOwnProfilePhoto(Request $request, int $authUserId) {
+        if ($authUserId < 1) {
+            return response('There does not exist a user with the provided authUserId.', 400);
+        }
+
+        $request->validate([
+            'profilePhoto' => 'required|image|mimes:jpeg,png,jpg|max:8192',
+        ]);        
+        $profilePhotoFile = request()->file('profilePhoto');
+        $profilePhotoFileBuffer = file_get_contents($profilePhotoFile->getRealPath());
+
+        $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+            $authUserId, $request
+        );
+
+        if (is_bool($userAuthenticationResult)) {
+            if (!$userAuthenticationResult) {
+                return response("The expressJSBackend1 server could not verify you as having the proper
+                credentials to be logged in as $authUserId", 403);
+            }
+        }
+        else if (is_string($userAuthenticationResult)) {  
+            if ($userAuthenticationResult === 'The provided authUser token, if any, in your cookies has an
+            invalid structure.')  {  
+                return response($userAuthenticationResult, 403);  
+            }  
+            return response($userAuthenticationResult, 502);  
+        }  
+        else {  
+            $refreshedAuthToken = $userAuthenticationResult[0];  
+            $expirationDate = $userAuthenticationResult[1];  
+
+            setcookie(
+                "authToken$authUserId",
+                $refreshedAuthToken,
+                $expirationDate,
+                '/',
+                '',
+                true,
+                true
+            );
+        }  
+
+        $authUserHasProfilePhoto = null;
+
+        try {
+            $authUserHasProfilePhoto = $this->redisClient->hGet(
+                "dataForUser$authUserId",
+                'hasProfilePhoto'
+            );
+
+            if ($authUserHasProfilePhoto == false) {
+                return response(
+                    'You do not already have a profile-photo. If you would like to add one you must use the corresponding endpoint, not
+                    this one',
+                    400
+                );
+            }
+        }
+        catch (\Exception) {
+            //pass
+        }
+
+        if ($authUserHasProfilePhoto == null) {
+            try {
+                $profilePhotoOfAuthUser = ProfilePhoto::where('userId', $authUserId)
+                    ->value('profilePhoto');
+                
+                if ($profilePhotoOfAuthUser == null) {
+                    return response(
+                        'You do not already have a profile-photo. If you would like to add one you must use the corresponding endpoint,
+                        not this one',
+                        400
+                    );
+                }
+            }
+            catch (\Exception) {
+                return response(
+                    'There was trouble checking whether or not you already have a profile-photo.',
+                    502
+                );
+            }
+        }
+
+        try {
+            ProfilePhoto::where('userId', $authUserId)->update([
+                'profilePhoto' => $profilePhotoFileBuffer
+            ]);            
+        }   
+        catch (\Exception) {
+            return response(
+                "There was trouble updating your profile-photo",
+                502
+            );
+        }
+        
+        return response(true, 200);
+    }
+
+
+    public function deleteOwnProfilePhoto(Request $request, int $authUserId) {
+        if ($authUserId < 1) {
+            return response('There does not exist a user with the provided authUserId.', 400);
+        }
+
+        $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+            $authUserId, $request
+        );
+
+        if (is_bool($userAuthenticationResult)) {
+            if (!$userAuthenticationResult) {
+                return response("The expressJSBackend1 server could not verify you as having the proper
+                credentials to be logged in as $authUserId", 403);
+            }
+        }
+        else if (is_string($userAuthenticationResult)) {  
+            if ($userAuthenticationResult === 'The provided authUser token, if any, in your cookies has an
+            invalid structure.')  {  
+                return response($userAuthenticationResult, 403);  
+            }  
+            return response($userAuthenticationResult, 502);  
+        }  
+        else {  
+            $refreshedAuthToken = $userAuthenticationResult[0];  
+            $expirationDate = $userAuthenticationResult[1];  
+
+            setcookie(
+                "authToken$authUserId",
+                $refreshedAuthToken,
+                $expirationDate,
+                '/',
+                '',
+                true,
+                true
+            );
+        }  
+
+        try {
+            $redisResult = $this->redisClient->hGet(
+                "dataForUser$authUserId",
+                'hasProfilePhoto'
+            );
+
+            if ($redisResult == false) {
+                return response(false, 200);
+            }
+        }
+        catch (\Exception) {
+            //pass
+        }
+
+        $profilePhotoWasFoundAndDeleted = false;
+
+        try {
+            $numProfilePhotosDeleted = ProfilePhoto::where('userId', $authUserId)
+                ->delete();
+            $profilePhotoWasFoundAndDeleted = $numProfilePhotosDeleted == 1;
+        }   
+        catch (\Exception) {
+            return response(
+                "There was trouble deleting your profile-photo",
+                502
+            );
+        }
+
+        if ($profilePhotoWasFoundAndDeleted) {
+            try {
+                $this->redisClient->hSet(
+                    "dataForUser$authUserId",
+                    'hasProfilePhoto',
+                    'false'
+                );
+            }
+            catch (\Exception) {
+                return response(
+                    "There was trouble updating the caching of the 'hasProfilePhoto' attribute of the data for user $authUserId",
+                    502
+                );
+            }
+        }
+
+        return response(
+            $profilePhotoWasFoundAndDeleted,
+            200
+        );
+    }
+
 
     private function isIndexedArray($array) {
         if (!is_array($array)) {

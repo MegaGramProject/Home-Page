@@ -64,3 +64,28 @@ Route::delete(
     '/removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion/{overallPostId}/{isEncrypted}',
     [BackendController::class, 'removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion']
 );
+
+Route::middleware('throttle:8,1')->get(
+    '/getProfilePhotoOfUser/{authUserId}/{userId}',
+    [BackendController::class, 'getProfilePhotoOfUser']
+);
+
+Route::post(
+    '/getProfilePhotosOfMultipleUsers',
+    [BackendController::class, 'getProfilePhotosOfMultipleUsers']
+);
+
+Route::middleware('throttle:3,1')->post(
+    '/addOwnProfilePhoto/{authUserId}',
+    [BackendController::class, 'addOwnProfilePhoto']
+);
+
+Route::middleware('throttle:3,1')->patch(
+    '/updateOwnProfilePhoto/{authUserId}',
+    [BackendController::class, 'updateOwnProfilePhoto']
+);
+
+Route::middleware('throttle:3,1')->delete(
+    '/deleteOwnProfilePhoto/{authUserId}',
+    [BackendController::class, 'deleteOwnProfilePhoto']
+);

@@ -29,6 +29,11 @@ class DeleteOwnAccount extends Mutation {
     }
 
 
+    public function middleware(array $middleware) {
+        return array_merge($middleware, ['throttle:graphql_rate-limit-3-per-min']);
+    }
+
+
     public function type(): Type {
         return Type::boolean();
     }

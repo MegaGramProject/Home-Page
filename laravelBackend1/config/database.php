@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Support\Str;
-
 return [
     'connections' => [
         'oracleSQLCloud' => [
@@ -29,6 +27,16 @@ return [
             'database'       => 'Megagram',
             'username'       => 'rishavry',
             'password'       => env('LOCAL_MYSQL_PASSWORD'),
+        ],
+
+        'mongodbAtlas' => [
+            'driver'   => 'mongodb',
+            'dsn'      => '',
+            'host'     => '',
+            'port'     => '27017',
+            'database' => 'Megagram',
+            'username' => 'rishavry',
+            'password' => env('MONGODB_ATLAS_PASSWORD'),
         ],
     ],
 

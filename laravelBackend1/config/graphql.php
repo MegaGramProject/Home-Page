@@ -91,7 +91,8 @@ return [
                 'Datetime' => App\GraphQL\Scalars\Datetime::class,
             ],            
 
-            'middleware' => null,
+            'middleware' => ['throttle:graphql_rate-limit-3-per-min', 'throttle:graphql_rate-limit-8-per-min',
+            'throttle:graphql_rate-limit-10-per-min'],
 
             'method' => ['GET', 'POST'],
 

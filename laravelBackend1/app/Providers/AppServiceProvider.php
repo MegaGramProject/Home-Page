@@ -10,6 +10,9 @@ use App\Services\PostVidSubtitlesService;
 
 use Illuminate\Support\ServiceProvider;
 use Google\Cloud\Kms\V1\KeyManagementServiceClient;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,8 +46,17 @@ class AppServiceProvider extends ServiceProvider
     }
 
     
-    public function boot(): void
-    {
-        
+    public function boot(): void {
+        RateLimiter::for('graphql_rate-limit-3-per-min', function () {
+            return Limit::perMinute(3);
+        });
+    
+        RateLimiter::for('graphql_rate-limit-8-per-min', function () {
+            return Limit::perMinute(8);
+        });
+
+        RateLimiter::for('graphql_rate-limit-10-per-min', function () {
+            return Limit::perMinute(10);
+        });
     }
 }

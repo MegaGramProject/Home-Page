@@ -34,6 +34,11 @@ class GetInDepthInfoOnUser extends Query {
         $this->userAuthService = $userAuthService;
         $this->encryptionAndDecryptionService = $encryptionAndDecryptionService;
     }
+
+
+    public function middleware(array $middleware) {
+        return array_merge($middleware, ['throttle:graphql_rate-limit-8-per-min']);
+    }
     
 
     public function type(): Type {

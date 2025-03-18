@@ -30,6 +30,11 @@ class GetBasicInfoOnUser extends Query {
         $this->userAuthService = $userAuthService;
     }
 
+
+    public function middleware(array $middleware) {
+        return array_merge($middleware, ['throttle:graphql_rate-limit-10-per-min']);
+    }
+
     
     public function type(): Type {
         return GraphQL::type('basicUserInfo');
