@@ -16,8 +16,21 @@ public class UserInfoFetchingService
         try
         {
             HttpRequestMessage request = new HttpRequestMessage(
-                HttpMethod.Get,
-                "http://34.111.89.101/api/Home-Page/laravelBackend1/getTheUserIdsOfAllThePublicAccounts"
+                HttpMethod.Post,
+                "http://34.111.89.101/api/Home-Page/laravelBackend1/graphql"
+            );
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(
+                    new {
+                        query =
+                        @"query {
+                            getIdsOfAllPublicUsers
+                        }",
+                    }
+                ),
+                Encoding.UTF8,
+                "application/json"
             );
 
             HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);
@@ -31,9 +44,12 @@ public class UserInfoFetchingService
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            int[]? userIdsOfAllPublicAccounts = JsonSerializer.Deserialize<int[]>(
+            Dictionary<string, Dictionary<string, int[]>>? parsedResponseData = JsonSerializer.Deserialize<
+            Dictionary<string, Dictionary<string, int[]>>>(
                 stringifiedResponseData
             );
+            
+            int[]? userIdsOfAllPublicAccounts = parsedResponseData!["data"]["getIdsOfAllPublicUsers"];
             return userIdsOfAllPublicAccounts!;
         }
         catch

@@ -174,9 +174,9 @@ class EncryptionAndDecryptionService {
         $overallPostIdsAndTheirDataEncryptionKeys = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($overallPostIds, $redisClient) {
+            $redisResults = $redisClient->pipeline(function ($pipe) use ($overallPostIds) {
                 foreach ($overallPostIds as $overallPostId) {
-                    $redisClient->hGet(
+                    $pipe->hGet(
                         'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
                         $overallPostId
                     );
@@ -216,10 +216,10 @@ class EncryptionAndDecryptionService {
             }
 
             try {
-                $redisResults = Redis::pipeline(function () use ($overallPostIds, $redisClient,
+                $redisResults = $redisClient->pipeline(function ($pipe) use ($overallPostIds,
                 $overallPostIdsAndTheirDataEncryptionKeys) {
                     foreach ($overallPostIds as $overallPostId) {
-                        $redisClient->hSet(
+                        $pipe->hSet(
                             'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
                             $overallPostId,
                             $overallPostIdsAndTheirDataEncryptionKeys[$overallPostId]

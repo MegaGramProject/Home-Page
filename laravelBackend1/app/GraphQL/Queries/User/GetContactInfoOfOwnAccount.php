@@ -20,7 +20,7 @@ class GetContactInfoOfOwnAccount extends Query {
     protected $encryptionAndDecryptionService;
 
     protected $attributes = [
-        'name' => 'GetContactInfoOfOwnAccount',
+        'name' => 'getContactInfoOfOwnAccount',
     ];
 
 

@@ -25,6 +25,11 @@ Route::post(
 );
 
 Route::patch(
+    '/toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost/{overallPostId}/{originallyIsEncrypted}',
+    [BackendController::class, 'toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost']
+);
+
+Route::patch(
     '/updateBgMusicOfPost/{overallPostId}/{isEncrypted}',
     [BackendController::class, 'updateBgMusicOfPost']
 );
@@ -88,4 +93,9 @@ Route::middleware('throttle:3,1')->patch(
 Route::middleware('throttle:3,1')->delete(
     '/deleteOwnProfilePhoto/{authUserId}',
     [BackendController::class, 'deleteOwnProfilePhoto']
+);
+
+Route::post(
+    '/getUsernamesOfMultipleUserIds/{authUserId}',
+    [BackendController::class, 'getUsernamesOfMultipleUserIds']
 );

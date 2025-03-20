@@ -11,8 +11,6 @@ const {
     KMSClient, DecryptCommand, CreateKeyCommand, CreateAliasCommand,
     GenerateDataKeyCommand, ScheduleKeyDeletionCommand
 } = require("@aws-sdk/client-kms");
-const https = require('https');
-const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
@@ -153,14 +151,6 @@ const languageCodeToLabelMappings = {
     "zu": "Zulu"
 };
 const listOfValidLangCodes = Object.keys(languageCodeToLabelMappings);
-  
-const mutualTLSAgent = new https.Agent({
-    key: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-key.pem'),
-    cert: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-cert.pem'),
-    ca: fs.readFileSync('../pemFilesForMutualTLS/Home-Page-ca-cert.pem'),
-    requestCert: true,
-    rejectUnauthorized: false
-});
 
 const threePerMinuteRateLimiter = rateLimit({
     windowMs: 60_000,
@@ -172,10 +162,10 @@ const fivePerMinuteRateLimiter = rateLimit({
     max: 5,
     message: `You've exceeded the rate-limit of this endpoint(5/min). Please try again later.`,
 });
-const thirtyPerMinuteRateLimiter = rateLimit({
+const userAuthenticationRateLimiter = rateLimit({
     windowMs: 60_000,
-    max: 30,
-    message: `You've exceeded the rate-limit of this endpoint(30/min). Please try again later.`,
+    max: 45,
+    message: `You've exceeded the rate-limit of this endpoint(45/min). Please try again later.`,
 });
 
 
@@ -232,9 +222,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
     let authUserFollowings = [];
     try {
         const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/
-        forHomePageFeedGetTheTopUsersBasedOnNumLikesNumCommentsNumPostViewsAndNumAdLinkClicks/${authUserId}`, {
-            agent: mutualTLSAgent
-        });
+        forHomePageFeedGetTheTopUsersBasedOnNumLikesNumCommentsNumPostViewsAndNumAdLinkClicks/${authUserId}`);
         if (!response.ok) {
             errorMessage += `• The server is supposed to provide the list of top 10 users you follow and whose posts you engage with
             the most(based on numLikes/numComments/numPostViews). Furthermore, it's supposed to provide the list of the top 10 users
@@ -263,7 +251,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
     let orderedListOfOverallPostIdsForAuthUsersFeed = [];
     const overallPostIdToPostInfoMappings = {};
     try {
-        const response1 = await fetch(`http:/34.111.89.101/api/Home-Page/laravelBackend1/
+        const response1 = await fetch(`http:/34.111.89.101/api/Home-Page/springBootBackend2/
         getOrderedListOfOverallPostIdsOfBatchForHomePageFeed/${authUserId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -272,8 +260,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
                 usersWithSponsoredPostsThatAuthUserCanView: usersWithSponsoredPostsThatAuthUserCanView,
                 top10UsersThatAuthUserFollowsAndEngagesWithTheMost: top10UsersThatAuthUserFollowsAndEngagesWithTheMost,
                 top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost: top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost
-            }),
-            agent: mutualTLSAgent
+            })
         });
         if (!response1.ok) {
             errorMessage += `• The server had trouble getting the ordered list of overallPostIds of the batch of posts for your
@@ -469,8 +456,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 overallPostIdsAndIfTheyAreEncrypted: overallPostIdsAndIfTheyAreEncrypted
-            }),
-            agent: mutualTLSAgent
+            })
         });
 
         if (!response2.ok) {
@@ -506,58 +492,24 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
     }
 
     try {
-        const response3 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getBackgroundMusicOfMultiplePosts`, {
+        const response3 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getBgMusicOfMultiplePosts`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                overallPostIds: orderedListOfOverallPostIdsForAuthUsersFeed
-            }),
-            agent: mutualTLSAgent
+                overallPostIdsAndIfTheyAreEncrypted: overallPostIdsAndIfTheyAreEncrypted
+            })
         });
         if (!response3.ok) {
             errorMessage += `• The server had trouble fetching the background-music of each of the posts for your feed\n`;
         }
         else {
-            const overallPostIdToBackgroundMusicMappings = await response3.json();
+            let overallPostIdsAndTheirBgMusic = await response3.json();
+            overallPostIdsAndTheirBgMusic = overallPostIdsAndTheirBgMusic.overallPostIdsAndTheirBgMusic;
+            
             for (let overallPostId of Object.keys(overallPostIdToBackgroundMusicMappings)) {
-                if (overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey==null) {
-                    overallPostIdToPostInfoMappings[overallPostId].backgroundMusic = overallPostIdToBackgroundMusicMappings[
-                        overallPostId
-                    ];
-                }
-                else {
-                    overallPostIdToPostInfoMappings[overallPostId].backgroundMusic = {
-                        startTime: overallPostIdToBackgroundMusicMappings[overallPostId].startTime,
-                        endTime: overallPostIdToBackgroundMusicMappings[overallPostId].endTime
-                    }
-
-                    const backgroundMusicEncryptionInfo = overallPostIdToBackgroundMusicMappings[overallPostId]
-                    .backgroundMusicEncryptionInfo;
-
-                    const encryptedAudioFileBuffer = overallPostIdToBackgroundMusicMappings[overallPostId].audio;
-                    overallPostIdToPostInfoMappings[overallPostId].backgroundMusic.src = decryptFileBufferWithAWSDataEncryptionKey(
-                        encryptedAudioFileBuffer,
-                        overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey,
-                        backgroundMusicEncryptionInfo.iv,
-                        backgroundMusicEncryptionInfo.authTag
-                    );
-
-                    const encryptedTitle = overallPostIdToBackgroundMusicMappings[overallPostId].title;
-                    overallPostIdToPostInfoMappings[overallPostId].backgroundMusic.title = decryptTextWithAWSDataEncryptionKey(
-                        encryptedTitle,
-                        overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey,
-                        backgroundMusicEncryptionInfo.iv,
-                        backgroundMusicEncryptionInfo.authTag
-                    );
-
-                    const encryptedArtist = overallPostIdToBackgroundMusicMappings[overallPostId].artist;
-                    overallPostIdToPostInfoMappings[overallPostId].backgroundMusic.artist = decryptTextWithAWSDataEncryptionKey(
-                        encryptedArtist,
-                        overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey,
-                        backgroundMusicEncryptionInfo.iv,
-                        backgroundMusicEncryptionInfo.authTag
-                    );
-                }
+                overallPostIdToPostInfoMappings[overallPostId].backgroundMusic = overallPostIdToBackgroundMusicMappings[
+                    overallPostId
+                ];
             }
             successMessage += `• The background-music of each of the posts for your feed has been fetched successfully\n`;
         }
@@ -568,55 +520,46 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
     }
 
     try {
-        const response4 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getVideoSubtitleFilesOfMultiplePosts`, {
+        const response4 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getVidSubtitlesOfMultiplePosts`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                overallPostIds: orderedListOfOverallPostIdsForAuthUsersFeed
-            }),
-            agent: mutualTLSAgent
+                overallPostIdsAndIfTheyAreEncrypted: overallPostIdsAndIfTheyAreEncrypted
+            })
         });
         if (!response4.ok) {
             errorMessage += `• The server had trouble fetching the video-subtitle-files of each of the posts of your feed\n`;
         }
         else {
-            const overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings = await response4.json();
-            for (let overallPostId of Object.keys(overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings)) {
-                const subtitlesFileEncryptionInfo = overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings[overallPostId]
-                .subtitlesFileEncryptionInfo;
-                const plaintextDataEncryptionKey = overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey;
-                
-                for (let slideNumber of Object.keys(overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings[overallPostId])) {
-                    if (isNaN(slideNumber)) {
-                        continue;
-                    }
-                    overallPostIdToPostInfoMappings[overallPostId].slides[slideNumber].subtitles = [];
-                    
-                    for (let langCode of Object.keys(overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings[overallPostId][slideNumber]
-                    [langCode])) {
-                        const newSubtitlesFileInfo = {
-                            langCode: langCode
-                        };
-                        if (plaintextDataEncryptionKey==null) {
-                            newSubtitlesFileInfo.src = overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings[overallPostId][slideNumber]
-                            [langCode].data;
-                        }
-                        else {
-                            const encryptedSubtitlesFileBuffer = overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings
-                            [overallPostId][slideNumber][langCode].data;
+            let overallPostIdsAndTheirVidSubtitles = await response4.json();
+            overallPostIdsAndTheirVidSubtitles = overallPostIdsAndTheirVidSubtitles.overallPostIdsAndTheirVidSubtitles;
+            for (let overallPostId of Object.keys(overallPostIdsAndTheirVidSubtitles)) {
+                const allVidSubtitlesOfPost = overallPostIdsAndTheirVidSubtitles[overallPostId];
+                for(let vidSubtitlesInfo of allVidSubtitlesOfPost) {
+                    const subtitlesSlideNumber = vidSubtitlesInfo['slideNumber'];
+                    const subtitlesLangCode = vidSubtitlesInfo['langCode'];
+                    const subtitlesFileBuffer = vidSubtitlesInfo['subtitles'];
+                    let subtitlesFileIsDefault = 'isDefault' in vidSubtitlesInfo;
 
-                            newSubtitlesFileInfo.src = decryptFileBufferWithAWSDataEncryptionKey(
-                                encryptedSubtitlesFileBuffer,
-                                plaintextDataEncryptionKey,
-                                subtitlesFileEncryptionInfo.iv,
-                                subtitlesFileEncryptionInfo.authTag
-                            );
-                        }
-                        if ('isDefault' in overallPostIdToSlideNumberToLangCodeToSubtitleFileMappings[overallPostId][slideNumber][
-                        langCode]) {
-                            newSubtitlesFileInfo.default = true;
-                        }
-                        overallPostIdToPostInfoMappings[overallPostId].slides[slideNumber].subtitles.push(newSubtitlesFileInfo);
+                    if (!('subtitles' in  overallPostIdToPostInfoMappings[overallPostId].slides[subtitlesSlideNumber])) {
+                        overallPostIdToPostInfoMappings[overallPostId].slides[subtitlesSlideNumber].subtitles = [];
+                    }
+
+                    const newSubtitlesFileInfo = {
+                        langCode: subtitlesLangCode,
+                        src: subtitlesFileBuffer
+                    };
+                    if (subtitlesFileIsDefault) {
+                        newSubtitlesFileInfo.default = true;
+                        overallPostIdToPostInfoMappings[overallPostId].slides[subtitlesSlideNumber].subtitles = [
+                            newSubtitlesFileInfo, ...overallPostIdToPostInfoMappings[overallPostId].slides[subtitlesSlideNumber]
+                            .subtitles
+                        ];
+                    }
+                    else {
+                        overallPostIdToPostInfoMappings[overallPostId].slides[subtitlesSlideNumber].subtitles.push(
+                            newSubtitlesFileInfo
+                        );
                     }
                 }
             }
@@ -634,8 +577,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         /getNumLikesNumCommentsAndAtMost3LikersFollowedByAuthUserForMultiplePosts/${authUserId}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(overallPostIdsAndIfTheyAreEncrypted),
-            agent: mutualTLSAgent
+            body: JSON.stringify(overallPostIdsAndIfTheyAreEncrypted)
         });
         if (!response5.ok) {
             errorMessage += `• There server had trouble fetching the numLikes/numComments/likersFollowedByAuthUser of each of
@@ -675,14 +617,14 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
 
     let userIdToUsernameMappings = null;
     try {
-        const response6 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getUsernamesOfMultipleUserIds/${authUserId}`,
+        const response6 = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getUsernamesOfMultipleUserIds
+        /${authUserId}`,
         {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 userIds: [...setOfUserIdsToGetUsernamesOf]
-            }),
-            agent: mutualTLSAgent
+            })
         });
         if (!response6.ok) {
             errorMessage += `• The server had trouble fetching the usernames associated with the
@@ -690,6 +632,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
         else {
             userIdToUsernameMappings = await response6.json();
+            userIdToUsernameMappings = userIdToUsernameMappings['userIdsAndTheirUsernames'];
             successMessage += `• The usernames associated with the authors/slideTaggedAccounts/likersFollowedByYou of each of the posts
             for your feed have been fetched successfully\n`;
         }
@@ -856,7 +799,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         authors = [authUserId]
     }
 
-    isPrivateStatusesOfAuthors = await getIsPrivateStatusesOfMultipleUsers(authUserId, authors);
+    isPrivateStatusesOfAuthors = await getIsPrivateStatusesOfListOfUsers(authUserId, authors);
     if (typeof isPrivateStatusesOfAuthors === 'string') {
         errorMessage += `• ${isPrivateStatusesOfAuthors}. For context, that list was interpreted
         as the authors of the post.\n`; 
@@ -1458,7 +1401,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
     if (isEncrypted)
     {
         const encryptionInfoForCaptionCommentsAndLikesWasSuccessfullyAdded = await
-        addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost(
+        addEncryptionInfoForCaptionCommentsAndLikesOfNewlyUploadedEncryptedPost(
             newOverallPostIdAsString
         );
 
@@ -1466,6 +1409,30 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         {
             errorMessage += `• There was trouble adding the encryption-info for the caption/comments/likes
             of your newly uploaded private-post.\n`;
+
+            if (successMessage.length == 0) {
+                return res.status(500).send(errorMessage);
+            }
+            return res.status(500).send(
+                'There was a mix of success and Errors in this API-request...\n' + 
+                newOverallPostIdAsString.length > 0 ? 
+                `This is the overallPostId of your newly uploaded post: ${newOverallPostIdAsString}\n` : 
+                '' +
+                'Here are the Successes:\n' + successMessage +
+                '& Here are the Errors:\n' + errorMessage
+            );
+        }
+
+
+        const encryptionInfoForBgMusicAndVidSubsWasSuccessfullyAdded = await
+        addEncryptionInfoForBgMusicAndVidSubsOfNewlyUploadedEncryptedPost(
+            newOverallPostIdAsString
+        );
+
+        if (!encryptionInfoForBgMusicAndVidSubsWasSuccessfullyAdded)
+        {
+            errorMessage += `• There was trouble adding the encryption-info for the background-music and video-subtitles
+            of this post.\n`;
 
             if (successMessage.length == 0) {
                 return res.status(500).send(errorMessage);
@@ -1499,9 +1466,8 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
     }
 
     if (Object.keys(vidSlideNumbersAndTheirSubtitleFiles).length > 0) {
-        const vidSubtitleFilesWereSuccessfullyAdded = await addVideoSubtitleFilesToPost(
-            vidSlideNumbersAndTheirSubtitleFiles, newOverallPostIdAsString, isEncrypted,
-            plaintextDataEncryptionKey
+        const vidSubtitleFilesWereSuccessfullyAdded = await addVidSubtitleFilesToPost(
+            vidSlideNumbersAndTheirSubtitleFiles, newOverallPostIdAsString, isEncrypted
         );
         if (vidSubtitleFilesWereSuccessfullyAdded) {
             successMessage += `• Your vid-subtitle-files have been added to your post successfully\n`;
@@ -1513,7 +1479,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
 
     if (backgroundMusicInfo!==null) {
         const backgroundMusicWasSuccessfullyAdded = await addBackgroundMusicToPost(
-            backgroundMusicInfo, newOverallPostIdAsString, isEncrypted, plaintextDataEncryptionKey
+            backgroundMusicInfo, newOverallPostIdAsString, isEncrypted
         );
         if (backgroundMusicWasSuccessfullyAdded) {
             successMessage += `• Your post-background-music has been added successfully\n`;
@@ -2362,6 +2328,54 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
     }
 
+    if (dataForEntirePost.isOriginallyEncrypted !== isToBeEncrypted) {
+        const encryptionStatusUpdatedSuccessfullyForCaptionCommentsAndLikesOfPost = await
+        toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost(overallPostId, dataForEntirePost.isOriginallyEncrypted);
+        
+        if (encryptionStatusUpdatedSuccessfullyForCaptionCommentsAndLikesOfPost) {
+            successMessage += `• The encryption-status has successfully been updated for the caption, comments, and
+            likes of the post.\n`;
+        }
+        else {
+            errorMessage += `• There was trouble updating the encryption-status for the caption, comments, and
+            likes of the post.\n`;
+            if (successMessage.length == 0 ) {
+                return res.status(500).send(errorMessage);
+            }
+            else {
+                return res.status(500).send(
+                    'There was a mix of success and Errors in this API-request...\n' + 
+                    'Here are the Successes:\n' + successMessage +
+                    '& Here are the Errors:\n' + errorMessage
+                );
+            }
+
+        }
+
+        const encryptionStatusUpdatedSuccessfullyForBgMusicAndVidSubtitlesOfPost = await
+        toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost(overallPostId, dataForEntirePost.isOriginallyEncrypted);
+        
+        if (encryptionStatusUpdatedSuccessfullyForBgMusicAndVidSubtitlesOfPost) {
+            successMessage += `• The encryption-status has successfully been updated for the subtitles and background-music
+            of this post.\n`;
+        }
+        else {
+            errorMessage += `• There was trouble updating the encryption-status for the subtitles and background-music
+            of this post..\n`;
+            if (successMessage.length == 0 ) {
+                return res.status(500).send(errorMessage);
+            }
+            else {
+                return res.status(500).send(
+                    'There was a mix of success and Errors in this API-request...\n' + 
+                    'Here are the Successes:\n' + successMessage +
+                    '& Here are the Errors:\n' + errorMessage
+                );
+            }
+
+        }
+    }
+
     if (dataForEntirePost.isOriginallyEncrypted && !isToBeEncrypted) {
         try {
             await deleteAWSCustomerMasterKey(`post${overallPostId}`);
@@ -2506,7 +2520,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
 
     let postBackgroundMusicWasSuccessfullyRemoved = false
     if ('removePostBackgroundMusic' in req.body) {
-        postBackgroundMusicWasSuccessfullyRemoved = await removeBackgroundMusicFromPost(overallPostId);
+        postBackgroundMusicWasSuccessfullyRemoved = await removeBackgroundMusicFromPost(overallPostId, isToBeEncrypted);
         if (postBackgroundMusicWasSuccessfullyRemoved) {
             successMessage += `• Your post's background-music has been removed successfully\n`;
         }
@@ -2530,8 +2544,8 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 return false;
             });
             if (subtitleFilesToRemove.length > 0) {
-                subtitleFilesWereSuccessfullyRemoved = await removeSpecifiedVideoSubtitleFilesFromPost(overallPostId,
-                subtitleFilesToRemove);
+                subtitleFilesWereSuccessfullyRemoved = await removeSpecifiedVidSubtitleFilesFromPost(overallPostId,
+                subtitleFilesToRemove, isToBeEncrypted);
                 if (subtitleFilesWereSuccessfullyRemoved) {
                     successMessage += `• Your post's specified subtitle-files has been removed successfully\n`;
                 }
@@ -2652,7 +2666,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
     let backgroundMusicWasSuccessfullyUpdated = false;
     if ('data' in backgroundMusicInfo) {
         backgroundMusicWasSuccessfullyUpdated = await updateBackgroundMusicOfPost(backgroundMusicInfo, overallPostId,
-        isToBeEncrypted, plaintextDataEncryptionKey);
+        isToBeEncrypted);
 
         if (backgroundMusicWasSuccessfullyUpdated) {
             successMessage += `• The background-music of this post has successfully been updated.\n`;
@@ -2665,8 +2679,8 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
 
     let vidSubtitleFilesWereSuccessfullyUpdated = false;
     if (Object.keys(slideNumbersAndTheirUpdatedSubtitleFiles).length > 0) {
-        vidSubtitleFilesWereSuccessfullyUpdated = await addVideoSubtitleFilesToPost(slideNumbersAndTheirUpdatedSubtitleFiles,
-        overallPostId, isToBeEncrypted, plaintextDataEncryptionKey)
+        vidSubtitleFilesWereSuccessfullyUpdated = await addVidSubtitleFilesToPost(slideNumbersAndTheirUpdatedSubtitleFiles,
+        overallPostId, isToBeEncrypted)
 
         if (vidSubtitleFilesWereSuccessfullyUpdated) {
             successMessage += `• The subtitle-files of this post has successfully been added. Keep in mind,,
@@ -2675,72 +2689,6 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         }
         else {
             errorMessage += `• There was trouble updating the subtitle-files of this post.\n`;
-        }
-    }
-
-    if (dataForEntirePost.isOriginallyEncrypted !== isToBeEncrypted) {
-        const encryptionStatusUpdatedSuccessfullyForCaptionCommentsAndLikesOfPost = await
-        toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost(overallPostId, dataForEntirePost.isOriginallyEncrypted);
-        
-        if (encryptionStatusUpdatedSuccessfullyForCaptionCommentsAndLikesOfPost) {
-            successMessage += `• The encryption-status has successfully been updated for the caption, comments, and
-            likes of the post.\n`;
-        }
-        else {
-            errorMessage += `• There was trouble updating the encryption-status for the caption, comments, and
-            likes of the post.\n`;
-            if (successMessage.length == 0 ) {
-                return res.status(500).send(errorMessage);
-            }
-            else {
-                return res.status(500).send(
-                    'There was a mix of success and Errors in this API-request...\n' + 
-                    'Here are the Successes:\n' + successMessage +
-                    '& Here are the Errors:\n' + errorMessage
-                );
-            }
-
-        }
-    }
-
-    if (!backgroundMusicWasSuccessfullyUpdated && (dataForEntirePost.isOriginallyEncrypted !== isToBeEncrypted)) {
-        backgroundMusicWasSuccessfullyUpdated = await toggleEncryptionStatusOfBackgroundMusicOfPost(overallPostId, plaintextDataEncryptionKey);
-        if (backgroundMusicWasSuccessfullyUpdated) {
-            successMessage += `• The encryption-status of the post's background-music has successfully been altered.\n`;
-        }
-        else {
-            errorMessage += `• There was trouble altering the encryption-status of the post's background-music.\n`;
-            if (successMessage.length == 0 ) {
-                return res.status(500).send(errorMessage);
-            }
-            else {
-                return res.status(500).send(
-                    'There was a mix of success and Errors in this API-request...\n' + 
-                    'Here are the Successes:\n' + successMessage +
-                    '& Here are the Errors:\n' + errorMessage
-                );
-            }
-
-        }
-    }
-
-    if (!vidSubtitleFilesWereSuccessfullyUpdated && (dataForEntirePost.isOriginallyEncrypted !== isToBeEncrypted)) {
-        vidSubtitleFilesWereSuccessfullyUpdated = await toggleEncryptionStatusOfVideoSubtitleFiles(overallPostId, plaintextDataEncryptionKey);
-        if (vidSubtitleFilesWereSuccessfullyUpdated) {
-            successMessage += `• The encryption-status of the post's video-slide-subtitle-files has successfully been altered.\n`;
-        }
-        else {
-            errorMessage += `• There was trouble altering the encryption-status of this post's video-slide-subtitle-files.\n`;
-            if (successMessage.length == 0) {
-                return res.status(500).send(errorMessage);
-            }
-            else {
-                return res.status(500).send(
-                    'There was a mix of success and Errors in this API-request...\n' + 
-                    'Here are the Successes:\n' + successMessage +
-                    '& Here are the Errors:\n' + errorMessage
-                );
-            }
         }
     }
 
@@ -2842,25 +2790,16 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
         );
     }
 
-    const backgroundMusicOfPostWasSuccessfullyRemoved = await removeBackgroundMusicFromPost(overallPostId);
-    if (backgroundMusicOfPostWasSuccessfullyRemoved) {
-        successMessage += `• The background-music of your post has been removed successfully from the database.\n`;
+    const vidSubtitlesAndBgMusicWereSuccessfullyRemoved = await removeBgMusicAndVidSubtitlesFromPost(
+        overallPostId, isEncrypted
+    );
+    if (vidSubtitlesAndBgMusicWereSuccessfullyRemoved) {
+        successMessage += `• The vid-subtitles and background-music of your post has been removed successfully from the
+        database.\n`;
     }
     else {
-        errorMessage = `• There was trouble removing the background-music of your post from the database.\n`;
-        return res.status(500).send(
-            'There was a mix of success and Errors in this API-request...\n' + 
-            'Here are the Successes:\n' + successMessage +
-            '& Here are the Errors:\n' + errorMessage
-        );
-    }
-
-    const videoSubtitleFilesOfPostWereSuccessfullyRemoved = await removeAllVideoSubtitleFilesOfPost(overallPostId);
-    if (videoSubtitleFilesOfPostWereSuccessfullyRemoved) {
-        successMessage += `• The video-subtitle-files of your post have been removed successfully from the database.\n`;
-    }
-    else {
-        errorMessage = `• There was trouble removing the video-subtitle-files of your post from the database.\n`;
+        errorMessage = `• There was trouble removing the vid-subtitles and background-music of your post from the
+        database.\n`;
         return res.status(500).send(
             'There was a mix of success and Errors in this API-request...\n' + 
             'Here are the Successes:\n' + successMessage +
@@ -2881,7 +2820,7 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
 });
 
 
-app.get('/authenticateUser/:authUserId', thirtyPerMinuteRateLimiter, async (req, res) => {
+app.get('/authenticateUser/:authUserId', userAuthenticationRateLimiter, async (req, res) => {
     const { authUserId } = req.params;
     const userTokenValidationResult = validateUserAuthToken(authUserId, req.cookies);
 
@@ -2933,7 +2872,7 @@ app.patch('/logout/:authUserId', threePerMinuteRateLimiter, async (req, res) => 
 });
 
 
-app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', enforceMutualTLS, async (req, res) => {
+app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', async (req, res) => {
     const { overallPostId } = req.params;
     let authorsOfPost = [];
     let isEncrypted = false;
@@ -3012,8 +2951,7 @@ app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', enforceMutualTLS,
 });
 
 
-app.post('/getTheOverallPostIdsOfEachUserInList/:postsFromAtMostThisManyMonthsAgo/:allUsersArePublic', enforceMutualTLS,
-async (req, res) => {
+app.post('/getTheOverallPostIdsOfEachUserInList/:postsFromAtMostThisManyMonthsAgo/:allUsersArePublic', async (req, res) => {
     const { postsFromAtMostThisManyMonthsAgo, allUsersArePublic } = req.params;
     const { listOfUserIds } = req.body;
     const setOfUsersInList = new Set(listOfUserIds);
@@ -3104,7 +3042,7 @@ async (req, res) => {
 });
 
 
-app.post('/getTheOverallPostIdsOfEverySponsoredPostThatAuthUserCanView/:postsFromAtMostThisManyMonthsAgo', enforceMutualTLS,
+app.post('/getTheOverallPostIdsOfEverySponsoredPostThatAuthUserCanView/:postsFromAtMostThisManyMonthsAgo',
 async (req, res) => {
     const { postsFromAtMostThisManyMonthsAgo } = req.params;
     const { authUserFollowings, authUserBlockings } = req.body;
@@ -3227,14 +3165,6 @@ async (req, res) => {
         overallPostIdsAndTheirAuthors: overallPostIdsAndTheirAuthors
     });
 });
-
-
-function enforceMutualTLS(req, res, next) {
-    if (!req.connection.authorized) {
-        return res.status(401).send('Unauthorized: Invalid client certificate');
-    }
-    next();
-}
 
 
 async function validateUserAuthToken(userId, requestCookies) {
@@ -3360,24 +3290,29 @@ function generateToken(byteLength) {
 }
 
 
-async function getIsPrivateStatusesOfMultipleUsers(authUserId, userIds) {
+async function getIsPrivateStatusesOfListOfUsers(authUserId, userIds) {
     try {
-        const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getIsPrivateStatusesOfMultipleUserIds
-        /${authUserId}`, {
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                userIds: userIds
-            }),
-            agent: mutualTLSAgent
+                query:  `query getIsPrivateStatuses($authUserId: Int!, $userIds: [Int!]!) {
+                    getIsPrivateStatusesOfList(authUserId: $authUserId, userIds: $userIds)
+                }`,
+                variables: {
+                    authUserId: authUserId,  
+                    userIds: userIds  
+                }
+            })
         });
         if (!response.ok) {
             return `The server had trouble getting the isPrivate and existence statuses of the users in
             the list ${JSON.stringify(userIds)}.`
         }
         else {
-            const output = await response.json();
-            return output;
+            let isPrivateStatusesOfList = await response.json();
+            return isPrivateStatusesOfList = isPrivateStatusesOfList.data.getIsPrivateStatusesOfList;
         }
     }
     catch (error) {
@@ -3415,22 +3350,29 @@ async function getValidatedImageSlideTaggedAccounts(authUserId, taggedAccounts) 
         if (Object.keys(userIdToTaggedAccountPositionMappings).length > 0) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/laravelBackend1/getTheUserIdsThatExistGivenListOfPotentialIds/${authUserId}`, {
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        userIds: Object.keys(userIdToTaggedAccountPositionMappings)
-                    }),
-                    agent: mutualTLSAgent
+                        query:  `query getValidUserIds($authUserId: Int!, $userIds: [Int!]!) {
+                            getTheUserIdsThatExistInList(authUserId: $authUserId, userIds: $userIds)
+                        }`,
+                        variables: {
+                            authUserId: authUserId,  
+                            userIds: userIdToTaggedAccountPositionMappings  
+                        }
+                    })
                 });
                 if (!response.ok) {
                     return `The server had trouble validating the existence of the userIds in this list:
                     ${JSON.stringify(taggedAccounts)}. For context, this list was provided as the taggedAccounts
                     for one of the image-slides.`;
                 }
-    
-                const validUsers = await response.json();
+
+                let validUsers = await response.json();
+                validUsers = validUsers.data.getTheUserIdsThatExistInList;
                 const validatedTaggedAccounts = [];
+
                 for (let validUser of validUsers) {
                     const validUsersTaggedAccountPosition = userIdToTaggedAccountPositionMappings[validUser];
                     validatedTaggedAccounts.push(
@@ -3467,21 +3409,27 @@ async function getValidatedVideoSlideTaggedAccounts(authUserId, taggedAccounts) 
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/laravelBackend1/getTheUserIdsThatExistGivenListOfPotentialIds/${authUserId}`, {
+            `http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    userIds: potentiallyValidTaggedAccounts
-                }),
-                agent: mutualTLSAgent
+                    query:  `query getValidUserIds($authUserId: Int!, $userIds: [Int!]!) {
+                        getTheUserIdsThatExistInList(authUserId: $authUserId, userIds: $userIds)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,  
+                        userIds: potentiallyValidTaggedAccounts  
+                    }
+                })
             });
             if (!response.ok) {
                 return `The server had trouble validating the existence of the userIds in this list:
                 ${JSON.stringify(taggedAccounts)}. For context, this list was provided as the taggedAccounts
                 for one of the video-slides.`;
             }
+            let validatedTaggedAccounts = await response.json();
 
-            const validatedTaggedAccounts = await response.json();
+            validatedTaggedAccounts = validatedTaggedAccounts.data.getTheUserIdsThatExistInList;
             return validatedTaggedAccounts.slice(0,20);
         }
         catch (error) {
@@ -3532,8 +3480,7 @@ async function addCaptionToPost(authUserId, captionContent, overallPostId, isEnc
             },
             body: JSON.stringify({
                 content: captionContent,
-            }),
-            agent: mutualTLSAgent
+            })
         });
         if (!response.ok) {
             return false;
@@ -3557,8 +3504,7 @@ async function editCaptionOfPost(authUserId, newCaptionContent, overallPostId, i
             },
             body: JSON.stringify({
                 newContent: newCaptionContent
-            }),
-            agent: mutualTLSAgent
+            })
         });
         if (!response.ok) {
             return false;
@@ -3576,8 +3522,7 @@ async function toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost(overallPost
         const response = await fetch(
         `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost
         /${overallPostId}/${originallyIsEncrypted}`, {
-            method: 'PATCH',
-            agent: mutualTLSAgent
+            method: 'PATCH'
         });
         if (!response.ok) {
             return false;
@@ -3594,8 +3539,7 @@ async function deleteCaptionOfPost(overallPostId, isEncrypted) {
     try {
         const response = await fetch(
         `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/deleteCaptionOfPost/${overallPostId}/${isEncrypted}`, {
-            method: 'DELETE',
-            agent: mutualTLSAgent
+            method: 'DELETE'
         });
         if (!response.ok) {
             return false;
@@ -3613,8 +3557,7 @@ async function removeCaptionCommentsAndLikesOfPostAfterDeletingPost(overallPostI
         const response = await fetch(
         `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
         /removeCaptionCommentsAndLikesOfPostAfterItsDeletion/${overallPostId}/${wasEncrypted}`, {
-            method: 'DELETE',
-            agent: mutualTLSAgent
+            method: 'DELETE'
         });
         if (!response.ok) {
             return false;
@@ -3627,380 +3570,18 @@ async function removeCaptionCommentsAndLikesOfPostAfterDeletingPost(overallPostI
 }
 
 
-async function addBackgroundMusicToPost(backgroundMusicInfo, overallPostId, isToBeEncrypted, plaintextDataEncryptionKey) {
+async function addBackgroundMusicToPost(backgroundMusicInfo, overallPostId, isEncrypted) {
     try {
-        let bgMusicData = backgroundMusicInfo.audio;
-        let bgMusicStartTime = backgroundMusicInfo.startTime;
-        let bgMusicEndTime = backgroundMusicInfo.endTime;
-        let bgMusicTitle = backgroundMusicInfo.title;
-        let bgMusicArtist = backgroundMusicInfo.artist;
-        let bgMusicEncryptionInfo = {};
-
-        if (isToBeEncrypted) {
-            const encryptedAudioFileInfo = encryptFileBufferWithAWSDataEncryptionKey(
-                bgMusicData,
-                plaintextDataEncryptionKey
-            );
-
-            bgMusicData = encryptedAudioFileInfo.encryptedFileBuffer;
-            bgMusicEncryptionInfo = {
-                iv: encryptedAudioFileInfo.iv,
-                authTag: encryptedAudioFileInfo.authTag
-            }
-
-            bgMusicTitle = encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                bgMusicTitle,
-                plaintextDataEncryptionKey,
-                bgMusicEncryptionInfo.iv,
-                bgMusicEncryptionInfo.authTag
-            );
-
-            bgMusicArtist = encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                bgMusicArtist,
-                plaintextDataEncryptionKey,
-                bgMusicEncryptionInfo.iv,
-                bgMusicEncryptionInfo.authTag
-            );
-        }
-
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/addBackgroundMusicToPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/addBgMusicToPost/${overallPostId}/${isEncrypted}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                data: bgMusicData,
-                startTime: bgMusicStartTime,
-                endTime: bgMusicEndTime,
-                title: bgMusicTitle,
-                artist: bgMusicArtist,
-                encryptionInfo: bgMusicEncryptionInfo
-            }),
-            agent: mutualTLSAgent
-        });
-        if (!response.ok) {
-            return false;
-        }
-        return true;
-    }
-    catch (error) {
-        return false;
-    }
-}
-
-
-async function updateBackgroundMusicOfPost(backgroundMusicInfo, overallPostId, isToBeEncrypted, plaintextDataEncryptionKey) {
-    try {
-        let bgMusicAudio = backgroundMusicInfo.audio;
-        let bgMusicStartTime = backgroundMusicInfo.startTime;
-        let bgMusicEndTime = backgroundMusicInfo.endTime;
-        let bgMusicTitle = backgroundMusicInfo.title;
-        let bgMusicArtist = backgroundMusicInfo.artist;
-        let bgMusicEncryptionInfo = {};
-
-        if (isToBeEncrypted) {
-            const encryptedAudioFileInfo = encryptFileBufferWithAWSDataEncryptionKey(
-                bgMusicData,
-                plaintextDataEncryptionKey
-            );
-
-            bgMusicData = encryptedAudioFileInfo.encryptedFileBuffer;
-            bgMusicEncryptionInfo = {
-                iv: encryptedAudioFileInfo.iv,
-                authTag: encryptedAudioFileInfo.authTag,
-            }
-
-            bgMusicTitle = encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                bgMusicTitle,
-                plaintextDataEncryptionKey,
-                bgMusicEncryptionInfo.iv,
-                bgMusicEncryptionInfo.authTag
-            );
-
-            bgMusicArtist = encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                bgMusicArtist,
-                plaintextDataEncryptionKey,
-                bgMusicEncryptionInfo.iv,
-                bgMusicEncryptionInfo.authTag
-            );
-        }
-
-        const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/updateBackgroundMusicOfPost/${overallPostId}`, {
-            method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                audio: bgMusicAudio,
-                startTime: bgMusicStartTime,
-                endTime: bgMusicEndTime,
-                title: bgMusicTitle,
-                artist: bgMusicArtist,
-                encryptionInfo: bgMusicEncryptionInfo
-            }),
-            agent: mutualTLSAgent
-        });
-        if (!response.ok) {
-            return false;
-        }
-        return true;
-    }
-    catch (error) {
-        return false;
-    }
-}
-
-
-async function toggleEncryptionStatusOfBackgroundMusicOfPost(overallPostId, plaintextDataEncryptionKey) {
-    let backgroundMusicOfPost;
-    try {
-        const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/laravelBackend1/getBackgroundMusicOfPost/${overallPostId}`, {
-                agent: mutualTLSAgent
-            }
-        );
-        if (!response.ok) {
-            if (response.status == 404) {
-                return true;
-            }
-            return false;
-        }
-        backgroundMusicOfPost = await response.json();
-    }
-    catch (error) {
-        return false;
-    }
-
-    try {
-        let newBackgroundMusicOfPost = {
-            encryptionInfo: {}
-        };
-        if ('backgroundMusicEncryptionInfo' in backgroundMusicOfPost) {
-            const { iv, authTag } = backgroundMusicOfPost.backgroundMusicEncryptionInfo;
-            const decryptedAudioFileBuffer = decryptFileBufferWithAWSDataEncryptionKey(
-                backgroundMusicOfPost.audio,
-                plaintextDataEncryptionKey,
-                iv,
-                authTag
-            );
-            newBackgroundMusicOfPost.audio = decryptedAudioFileBuffer;
-
-            const decryptedTitle = decryptTextWithAWSDataEncryptionKey(
-                backgroundMusicOfPost.title,
-                plaintextDataEncryptionKey,
-                iv,
-                authTag
-            );
-            newBackgroundMusicOfPost.title = decryptedTitle;
-
-            const decryptedArtist = decryptTextWithAWSDataEncryptionKey(
-                backgroundMusicOfPost.artist,
-                plaintextDataEncryptionKey,
-                iv,
-                authTag
-            );
-            newBackgroundMusicOfPost.artist = decryptedArtist;
-        }
-        else {
-            const encryptedAudioFileBuffer = encryptFileBufferWithAWSDataEncryptionKey(
-                backgroundMusicOfPost.audio,
-                plaintextDataEncryptionKey,
-            );
-            newBackgroundMusicOfPost.audio = encryptedAudioFileBuffer.encryptedFileBuffer;
-            newBackgroundMusicOfPost.encryptionInfo = {
-                iv: encryptedAudioFileBuffer.iv,
-                authTag: encryptedAudioFileBuffer.authTag
-            };
-
-            newBackgroundMusicOfPost.title = encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                backgroundMusicOfPost.title,
-                plaintextDataEncryptionKey,
-                newBackgroundMusicOfPost.encryptionInfo.iv,
-                newBackgroundMusicOfPost.encryptionInfo.authTag
-            );
-
-            newBackgroundMusicOfPost.artist = encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                backgroundMusicOfPost.artist,
-                plaintextDataEncryptionKey,
-                newBackgroundMusicOfPost.encryptionInfo.iv,
-                newBackgroundMusicOfPost.encryptionInfo.authTag
-            );
-        }
-
-        const response1 = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/updateBackgroundMusicOfPost/${overallPostId}`, {
-            method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                audio: newBackgroundMusicOfPost.audio,
-                title: newBackgroundMusicOfPost.title,
-                artist: newBackgroundMusicOfPost.artist,
-                encryptionInfo: newBackgroundMusicOfPost.encryptionInfo
-            }),
-            agent: mutualTLSAgent
-        });
-        if (!response1.ok) {
-            return false;
-        }
-        return true;
-    }
-    catch (error) {
-        return false;
-    }
-}
-
-
-async function removeBackgroundMusicFromPost(overallPostId) {
-    try {
-        const response = await fetch(`
-        http://34.111.89.101/api/Home-Page/laravelBackend1/removeBackgroundMusicFromPost/${overallPostId}`, {
-            method: 'DELETE',
-            agent: mutualTLSAgent
-        });
-        if (!response.ok) {
-            return false;
-        }
-        return true;
-    }
-    catch (error) {
-        return false;
-    }
-}
-
-
-async function addVideoSubtitleFilesToPost(vidSlideNumbersAndTheirSubtitleFiles, overallPostId, isToBeEncrypted,
-plaintextDataEncryptionKey) {
-    try {
-        let postRequestData = {...vidSlideNumbersAndTheirSubtitleFiles};
-
-        if (isToBeEncrypted) {
-            for(const vidSlideNumber of Object.keys(vidSlideNumbersAndTheirSubtitleFiles)) {
-                for(const langCode of Object.keys(vidSlideNumbersAndTheirSubtitleFiles[vidSlideNumber])) {
-                    const subtitlesInfo = {...vidSlideNumbersAndTheirSubtitleFiles[vidSlideNumber][langCode]};
-                    let encryptedSubtitlesFileInfo;
-
-                    if (!('subtitlesFileEncryptionInfo' in postRequestData)) {
-                        encryptedSubtitlesFileInfo = encryptFileBufferWithAWSDataEncryptionKey(
-                            subtitlesInfo.data,
-                            plaintextDataEncryptionKey
-                        );
-            
-                        subtitlesInfo.data = encryptedSubtitlesFileInfo.encryptedFileBuffer;
-                        postRequestData.subtitlesFileEncryptionInfo = {
-                            iv: encryptedSubtitlesFileInfo.iv,
-                            authTag: encryptedSubtitlesFileInfo.authTag,
-                        }
-                    }
-                    else {
-                        subtitlesInfo.data = encryptFileBufferWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                            subtitlesInfo.data,
-                            plaintextDataEncryptionKey,
-                            postRequestData.subtitlesFileEncryptionInfo.iv,
-                            postRequestData.subtitlesFileEncryptionInfo.authTag
-                        );
-                    }
-                    postRequestData[vidSlideNumber][langCode] = subtitlesInfo;
-                }
-            }
-        }
-        const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/addVideoSubtitleFilesToPost/${overallPostId}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(postRequestData),
-            agent: mutualTLSAgent
-        });
-        if (!response.ok) {
-            return false;
-        }
-        return true;
-    }
-    catch (error) {
-        return false;
-    }
-}
-
-
-async function toggleEncryptionStatusOfVideoSubtitleFiles(overallPostId, plaintextDataEncryptionKey) {
-    let slideNumberToLangCodeToSubtitleFileMappings;
-    try {
-        const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/getVideoSubtitleFilesOfPost/${overallPostId}`, {
-            agent: mutualTLSAgent
-        });
-        if (!response.ok) {
-            return false;
-        }
-        slideNumberToLangCodeToSubtitleFileMappings = await response.json();
-        if (Object.keys(slideNumberToLangCodeToSubtitleFileMappings).length == 0) {
-            return true;
-        }
-    }
-    catch (error) {
-        return false;
-    }
-
-    try {
-        const newSlideNumberToLangCodeToSubtitleFileMappings = {};
-        let subtitlesFileEncryptionInfo = null;
-        let isToBeEncrypted = true;
-        if ('subtitlesFileEncryptionInfo' in slideNumberToLangCodeToSubtitleFileMappings) {
-            isToBeEncrypted = false;
-            subtitlesFileEncryptionInfo = slideNumberToLangCodeToSubtitleFileMappings.subtitlesFileEncryptionInfo;
-        }
-
-        for (let slideNumber of Object.keys(slideNumberToLangCodeToSubtitleFileMappings)) {
-            if (isNaN(slideNumber)) {
-                continue;
-            }
-            newSlideNumberToLangCodeToSubtitleFileMappings[slideNumber] = {};
-            for (let langCode of slideNumberToLangCodeToSubtitleFileMappings[slideNumber]) {
-                const subtitlesFileInfo = {...slideNumberToLangCodeToSubtitleFileMappings[slideNumber][langCode]};
-                const newSubtitlesFileInfo = {};
-                if ('isDefault' in subtitlesFileInfo) {
-                    newSubtitlesFileInfo.isDefault = true;
-                }
-
-                if (isToBeEncrypted) {
-                    if (subtitlesFileEncryptionInfo==null) {
-                        const encryptedSubtitlesFileInfo = encryptFileBufferWithAWSDataEncryptionKey(
-                            subtitlesFileInfo.data,
-                            plaintextDataEncryptionKey
-                        );
-                        newSubtitlesFileInfo.data = encryptedSubtitlesFileInfo.encryptedFileBuffer;
-                        subtitlesFileEncryptionInfo = {
-                            iv: encryptedSubtitlesFileInfo.iv,
-                            authTag: encryptedSubtitlesFileInfo.authTag
-                        }
-                        newSlideNumberToLangCodeToSubtitleFileMappings.subtitlesFileEncryptionInfo = subtitlesFileEncryptionInfo;
-                    }
-                    else {
-                        const encryptedSubtitlesFileBuffer = encryptFileBufferWithAWSDataEncryptionKeyGivenIvAndAuthTag(
-                            subtitlesFileInfo.data,
-                            plaintextDataEncryptionKey,
-                            subtitlesFileEncryptionInfo.iv,
-                            subtitlesFileEncryptionInfo.authTag
-                        );
-                        newSubtitlesFileInfo.data = encryptedSubtitlesFileBuffer;
-                    }
-                }
-                else {
-                    const decryptedSubtitlesFileBuffer = decryptFileBufferWithAWSDataEncryptionKey(
-                        subtitlesFileInfo.data,
-                        plaintextDataEncryptionKey,
-                        subtitlesFileEncryptionInfo.iv,
-                        subtitlesFileEncryptionInfo.authTag
-                    );
-                    newSubtitlesFileInfo.data = decryptedSubtitlesFileBuffer;
-                }
-                newSlideNumberToLangCodeToSubtitleFileMappings[slideNumber][langCode] = newSubtitlesFileInfo;
-            }
-        }
-
-        const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/toggleEncryptionStatusOfVideoSubtitleFilesOfPost/${overallPostId}`, {
-            method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                newSlideNumberToLangCodeToSubtitleFileMappings: newSlideNumberToLangCodeToSubtitleFileMappings
+                bgMusicAudioFileBuffer: backgroundMusicInfo.audio,
+                startTime: backgroundMusicInfo.startTime,
+                endTime: backgroundMusicInfo.endTime,
+                title: backgroundMusicInfo.title,
+                artist: backgroundMusicInfo.artist,
             })
         });
         if (!response.ok) {
@@ -4014,16 +3595,130 @@ async function toggleEncryptionStatusOfVideoSubtitleFiles(overallPostId, plainte
 }
 
 
-async function removeSpecifiedVideoSubtitleFilesFromPost(overallPostId, subtitleFilesToRemove) {
+async function updateBackgroundMusicOfPost(backgroundMusicInfo, overallPostId, isEncrypted) {
     try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/removeSpecifiedVideoSubtitleFilesFromPost/${overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/updateBgMusicOfPost/${overallPostId}/${isEncrypted}`, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                bgMusicAudioFileBuffer: backgroundMusicInfo.audio,
+                startTime: backgroundMusicInfo.startTime,
+                endTime: backgroundMusicInfo.endTime,
+                title: backgroundMusicInfo.title,
+                artist: backgroundMusicInfo.artist,
+            })
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
+
+async function removeBgMusicAndVidSubtitlesFromPost(overallPostId, isEncrypted) {
+    try {
+        const response = await fetch(`
+        http://34.111.89.101/api/Home-Page/laravelBackend1/removeBgMusicAndVidSubtitlesFromPostAfterItsDeletion
+        /${overallPostId}/${isEncrypted}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
+
+async function addVidSubtitleFilesToPost(vidSlideNumbersAndTheirSubtitleFiles, overallPostId, isToBeEncrypted) {
+    try {
+        const vidSubtitleFilesToAdd = [];
+        for(let slideNumber of Object.keys(vidSlideNumbersAndTheirSubtitleFiles)) {
+            for(let langCode of Object.keys(vidSlideNumbersAndTheirSubtitleFiles[slideNumber])) {
+                const vidSubtitlesInfo = vidSlideNumbersAndTheirSubtitleFiles[slideNumber][langCode];
+                
+                const newVidSubtitlesElement = {
+                    slideNumber: slideNumber,
+                    langCode: langCode,
+                    subtitles: vidSubtitlesInfo.data
+                };
+
+                if ('isDefault' in vidSubtitlesInfo) {
+                    newVidSubtitlesElement.default = true;
+                }
+                vidSubtitleFilesToAdd.push(newVidSubtitlesElement);
+            }
+        }
+
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/addVidSubtitleFilesToPost/${overallPostId}/${isToBeEncrypted}`,
+        {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                vidSubtitleFilesToAdd: vidSubtitleFilesToAdd
+            })
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
+
+async function toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost(overallPostId, originallyIsEncrypted) {
+    try {
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost
+        /${overallPostId}/${originallyIsEncrypted}`, {
+            method: 'PATCH'
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
+
+async function removeSpecifiedVidSubtitleFilesFromPost(overallPostId, subtitleFilesToRemove, isEncrypted) {
+    const slideNumberToListOfLangCodesToRemoveMappings = {};
+
+    for(let subtitleFile of subtitleFilesToRemove) {
+        const subtitleSlideNumber = subtitleFile['slideNumber'];
+        const subtitleLangCode = subtitleFile['langCode'];
+
+        if (!(subtitleSlideNumber in slideNumberToListOfLangCodesToRemoveMappings)) {
+            slideNumberToListOfLangCodesToRemoveMappings[subtitleSlideNumber] = [];
+        }
+
+        slideNumberToListOfLangCodesToRemoveMappings[subtitleSlideNumber].push(subtitleLangCode);
+    }
+
+    try {
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/removeSpecifiedVidSubtitleFilesFromPost/
+        ${overallPostId}/${isEncrypted}`, {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                subtitleFilesToRemove: subtitleFilesToRemove
-            }),
-            agent: mutualTLSAgent
+                slideNumberToListOfLangCodesToRemoveMappings: slideNumberToListOfLangCodesToRemoveMappings
+            })
         });
         if (!response.ok) {
             return false;
@@ -4035,30 +3730,13 @@ async function removeSpecifiedVideoSubtitleFilesFromPost(overallPostId, subtitle
     }
 }
 
-async function removeAllVideoSubtitleFilesOfPost(overallPostId) {
-    try {
-        const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/laravelBackend1/removeAllVideoSubtitleFilesFromPost/${overallPostId}`, {
-            method: 'DELETE',
-            agent: mutualTLSAgent
-        });
-        if (!response.ok) {
-            return false;
-        }
-        return true;
-    }
-    catch (error) {
-        return false;
-    }
-}
 
-async function addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost(overallPostId) {
+async function addEncryptionInfoForCaptionCommentsAndLikesOfNewlyUploadedEncryptedPost(overallPostId) {
     try {
         const response = await fetch(
         `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
-        /addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost/${overallPostId}`, {
-            method: 'POST',
-            agent: mutualTLSAgent
+        /addEncryptionInfoForCaptionCommentsAndLikesOfNewlyUploadedEncryptedPost/${overallPostId}`, {
+            method: 'POST'
         });
         if (!response.ok) {
             return false;
@@ -4069,6 +3747,25 @@ async function addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryp
         return false;
     }
 }
+
+
+async function addEncryptionInfoForBgMusicAndVidSubsOfNewlyUploadedEncryptedPost(overallPostId) {
+    try {
+        const response = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/addEncryptionInfoForBgMusicAndVidSubsOfNewlyUploadedEncryptedPost
+        /${overallPostId}`, {
+            method: 'POST'
+        });
+        if (!response.ok) {
+            return false;
+        }
+        return true;
+    }
+    catch (error) {
+        return false;
+    }
+}
+
 
 async function createNewAWSCustomerMasterKey(description, keyAlias) {
     const createKeyCommand = new CreateKeyCommand({
@@ -4181,16 +3878,7 @@ function decryptFileBufferWithAWSDataEncryptionKey(encryptedFileBuffer, plaintex
 }
 
 
-https.createServer(
-    {
-        key: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-key.pem'),
-        cert: fs.readFileSync('../pemFilesForMutualTLS/expressJSBackend1-cert.pem'),
-        ca: fs.readFileSync('../pemFilesForMutualTLS/Home-Page-ca-cert.pem'),
-        requestCert: true,
-        rejectUnauthorized: false
-    },
-    app
-).listen(8005, () => {
+app.listen(8005, () => {
     console.log('Server is running on https://localhost:8005');
 });
 

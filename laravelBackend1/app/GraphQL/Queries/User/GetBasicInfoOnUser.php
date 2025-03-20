@@ -21,7 +21,7 @@ class GetBasicInfoOnUser extends Query {
     protected $userAuthService;
 
     protected $attributes = [
-        'name' => 'GetBasicInfoOnUser',
+        'name' => 'getBasicInfoOnUser',
     ];
 
 

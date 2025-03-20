@@ -76,6 +76,9 @@ return [
                 'getInDepthInfoOnUser' => App\GraphQL\Queries\User\GetInDepthInfoOnUser::class,
                 'getInDepthInfoOnMultipleUsers' => App\GraphQL\Queries\User\GetInDepthInfoOnMultipleUsers::class,
                 'getContactInfoOfOwnAccount' => App\GraphQL\Queries\User\GetContactInfoOfOwnAccount::class,
+                'getTheUserIdsThatExistInList' => App\GraphQL\Queries\User\GetTheUserIdsThatExistInList::class,
+                'getIsPrivateStatusesOfList' => App\GraphQL\Queries\User\GetIsPrivateStatusesOfList::class,
+                'getIdsOfAllPublicUsers' => App\GraphQL\Queries\User\GetIdsOfAllPublicUsers::class
             ],
 
             'mutation' => [

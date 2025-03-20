@@ -14,8 +14,7 @@ class PostInfoFetchingService {
 
         try {
             $response = Http::get(
-                "http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost
-                /$overallPostId"
+                "http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost/$overallPostId"
             );
 
             
@@ -139,8 +138,7 @@ class PostInfoFetchingService {
     public function ifUserIsAnAuthorOfPostGetEncryptionStatus(int $authUserId, string $overallPostId) {
         try {
             $response = Http::get(
-                "http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost
-                /$overallPostId"
+                "http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost/$overallPostId"
             );
 
             if ($response->failed()) {

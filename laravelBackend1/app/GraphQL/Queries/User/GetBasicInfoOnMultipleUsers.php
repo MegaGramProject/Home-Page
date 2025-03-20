@@ -16,7 +16,7 @@ class GetBasicInfoOnMultipleUsers extends Query {
     protected $redisClient;
 
     protected $attributes = [
-        'name' => 'GetBasicInfoOnMultipleUsers',
+        'name' => 'getBasicInfoOnMultipleUsers',
     ];
 
 
@@ -42,9 +42,9 @@ class GetBasicInfoOnMultipleUsers extends Query {
         $output = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($userIds) {
+            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($userIds) {
                 foreach($userIds as $userId) {
-                    $this->redisClient->hMGet(
+                    $pipe->hMGet(
                         "dataForUser$userId",
                         ['username', 'fullName', 'isVerified', 'isPrivate', 'created']
                     );
@@ -144,10 +144,10 @@ class GetBasicInfoOnMultipleUsers extends Query {
         }
 
         try {
-            $redisResults = Redis::pipeline(function () use ($basicUserInfoOfMultipleUsers) {
+            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($basicUserInfoOfMultipleUsers) {
                 foreach($basicUserInfoOfMultipleUsers as $basicUserInfo) {
                     $userId = $basicUserInfo['id'];
-                    $this->redisClient->hMSet(
+                    $pipe->hMSet(
                         "dataForUser$userId",
                         [
                             'id' => $basicUserInfo['id'], 

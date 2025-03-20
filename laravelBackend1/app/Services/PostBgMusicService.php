@@ -5,8 +5,6 @@ namespace App\Services;
 use App\Models\Oracle\PostBgMusicInfo\UnencryptedPostBgMusicInfo;
 use App\Models\Oracle\PostBgMusicInfo\EncryptedPostBgMusicInfo;
 
-use Illuminate\Support\Facades\Redis;
-
 
 class PostBgMusicService {
 
@@ -67,11 +65,7 @@ class PostBgMusicService {
                 }
                 
                 $postBgMusicInfo = [
-                    'title' => $postBgMusicInfo->title,
-                    'artist' => $postBgMusicInfo->artist,
-
-                    'startTime' => strval($postBgMusicInfo->startTime),
-                    'endTime' => strval($postBgMusicInfo->endTime),
+                    9
                 ];
 
                 try {
@@ -101,9 +95,9 @@ class PostBgMusicService {
         $bgMusicInfos = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($overallPostIds, $redisClient) {
+            $redisResults = $redisClient->pipeline(function ($pipe) use ($overallPostIds) {
                 foreach ($overallPostIds as $overallPostId) {
-                    $redisClient->hGetAll("bgMusicMetadataForPost$overallPostId");
+                    $pipe->hGetAll("bgMusicMetadataForPost$overallPostId");
                 }
             });
 
@@ -200,12 +194,12 @@ class PostBgMusicService {
         }
 
         try {
-            Redis::pipeline(function () use ($nonRedisResults, $redisClient) {
+            $redisClient->pipeline(function ($pipe) use ($nonRedisResults) {
                 foreach ($nonRedisResults as $nonRedisResult) {
                     $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
                     unset($nonRedisResult['overallPostId']);
     
-                    $redisClient->hMSet(
+                    $pipe->hMSet(
                         "bgMusicMetadataForPost$overallPostIdOfNonRedisResult",
                         $nonRedisResult
                     );

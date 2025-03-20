@@ -19,7 +19,7 @@ class DeleteOwnAccount extends Mutation {
     protected $userAuthService;
 
     protected $attributes = [
-        'name' => 'DeleteOwnAccount',
+        'name' => 'deleteOwnAccount',
     ];
 
 

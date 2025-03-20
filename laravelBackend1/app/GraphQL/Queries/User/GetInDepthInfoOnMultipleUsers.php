@@ -19,7 +19,7 @@ class GetInDepthInfoOnMultipleUsers extends Query {
     protected $encryptionAndDecryptionService;
 
     protected $attributes = [
-        'name' => 'GetInDepthInfoOnMultipleUsers',
+        'name' => 'getInDepthInfoOnMultipleUsers',
     ];
 
 
@@ -46,9 +46,9 @@ class GetInDepthInfoOnMultipleUsers extends Query {
         $output = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($userIds) {
+            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($userIds) {
                 foreach($userIds as $userId) {
-                    $this->redisClient->hMGet(
+                    $pipe->hMGet(
                         "dataForUser$userId",
                         [
                             'username',
@@ -275,11 +275,11 @@ class GetInDepthInfoOnMultipleUsers extends Query {
         }
 
         try {
-            Redis::pipeline(function () use ($nonRedisResults, $userIdsThatArePublic) {
+            $this->redisClient->pipeline(function ($pipe) use ($nonRedisResults, $userIdsThatArePublic) {
                 foreach($nonRedisResults as $nonRedisResult) {
                     $userId = $nonRedisResult['id'];
                     if (array_key_exists($userId, $userIdsThatArePublic)) {
-                        $this->redisClient->hMSet(
+                        $pipe->hMSet(
                             "dataForUser$userId",
                             [
                                 'username' => $nonRedisResult['username'], 
@@ -293,7 +293,7 @@ class GetInDepthInfoOnMultipleUsers extends Query {
                         );
                     }
                     else {
-                        $this->redisClient->hMSet(
+                        $pipe->hMSet(
                             "dataForUser$userId",
                             [
                                 'username' => $nonRedisResult['username'], 

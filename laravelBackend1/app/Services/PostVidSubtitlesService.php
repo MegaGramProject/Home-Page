@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\Cassandra\EncryptedPostVidSubtitlesInfo;
 
-use Illuminate\Support\Facades\Redis;
-
 
 class PostVidSubtitlesService {
 
@@ -84,12 +82,12 @@ class PostVidSubtitlesService {
         $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($allVidSubtitlesOfPost, $redisClient, $overallPostId) {
+            $redisResults = $redisClient->pipeline(function ($pipe) use ($allVidSubtitlesOfPost, $overallPostId) {
                 foreach ($allVidSubtitlesOfPost as $vidSubtitlesOfPost) {
                     $slideNumber = $vidSubtitlesOfPost['slideNumber'];
                     $langCode = $vidSubtitlesOfPost['langCode'];
     
-                    $redisClient->hGetAll(
+                    $pipe->hGetAll(
                         "encryptedVidSubtitlesInfoForPost{$overallPostId}@slideNumber{$slideNumber}@langCode{$langCode}"
                     );
                 }
@@ -110,8 +108,8 @@ class PostVidSubtitlesService {
                     }
 
                     $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict[$slideNumber][$langCode] = [
-                        'fileEncryptionIv' => $redisResult['fileEncryptionIv'],
-                        'fileEncryptionAuthTag' => $redisResult['fileEncryptionAuthTag']
+                        'iv' => $redisResult['fileEncryptionIv'],
+                        'authTag' => $redisResult['fileEncryptionAuthTag']
                     ];
                 }
                 else {
@@ -158,8 +156,8 @@ class PostVidSubtitlesService {
                 }
 
                 $encryptionInfoOfEachSubtitleFileOfPostAsOrganizedDict[$slideNumber][$langCode] = [
-                    'fileEncryptionIv' => $fileEncryptionIv,
-                    'fileEncryptionAuthTag' => $fileEncryptionAuthTag
+                    'iv' => $fileEncryptionIv,
+                    'authTag' => $fileEncryptionAuthTag
                 ];
             }
         }
@@ -172,7 +170,7 @@ class PostVidSubtitlesService {
         }
 
         try {
-            Redis::pipeline(function () use ($nonRedisResults, $redisClient) {
+            $redisClient->pipeline(function ($pipe) use ($nonRedisResults) {
                 foreach ($nonRedisResults as $nonRedisResult) {
                     $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
                     $slideNumberOfNonRedisResult = $nonRedisResult['slideNumber'];
@@ -182,7 +180,7 @@ class PostVidSubtitlesService {
                     unset($nonRedisResult['slideNumber']);
                     unset($nonRedisResult['langCode']);
     
-                    $redisClient->hMSet(
+                    $pipe->hMSet(
                         "encryptedVidSubtitlesInfoForPost{$overallPostIdOfNonRedisResult}@slideNumber{$slideNumberOfNonRedisResult}
                         @langCode{$langCodeOfNonRedisResult}",
                         $nonRedisResult
@@ -205,15 +203,15 @@ class PostVidSubtitlesService {
         $allVidSubtitlesOfPostsInList = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($setOfOverallPostIdsOfEncryptedPosts, $overallPostIdsAndTheirVidSubtitles,
-            $redisClient) {
+            $redisResults = $redisClient->pipeline(function ($pipe) use ($setOfOverallPostIdsOfEncryptedPosts,
+            $overallPostIdsAndTheirVidSubtitles) {
                 foreach($setOfOverallPostIdsOfEncryptedPosts as $overallPostIdOfEncryptedPost) {
                     $allVidSubtitlesOfPost = $overallPostIdsAndTheirVidSubtitles[$overallPostIdOfEncryptedPost];
                     foreach ($allVidSubtitlesOfPost as $vidSubtitlesOfPost) {
                         $slideNumber = $vidSubtitlesOfPost['slideNumber'];
                         $langCode = $vidSubtitlesOfPost['langCode'];
         
-                        $redisClient->hGetAll(
+                        $pipe->hGetAll(
                             "encryptedVidSubtitlesInfoForPost{$overallPostIdOfEncryptedPost}@slideNumber{$slideNumber}@langCode{$langCode}"
                         );
     
@@ -314,7 +312,7 @@ class PostVidSubtitlesService {
         }
 
         try {
-            Redis::pipeline(function () use ($nonRedisResults, $redisClient) {
+            $redisClient->pipeline(function ($pipe) use ($nonRedisResults) {
                 foreach ($nonRedisResults as $nonRedisResult) {
                     $overallPostIdOfNonRedisResult = $nonRedisResult['overallPostId'];
                     $slideNumberOfNonRedisResult = $nonRedisResult['slideNumber'];
@@ -324,7 +322,7 @@ class PostVidSubtitlesService {
                     unset($nonRedisResult['slideNumber']);
                     unset($nonRedisResult['langCode']);
     
-                    $redisClient->hMSet(
+                    $pipe->hMSet(
                         "encryptedVidSubtitlesInfoForPost{$overallPostIdOfNonRedisResult}@slideNumber{$slideNumberOfNonRedisResult}
                         @langCode{$langCodeOfNonRedisResult}",
                         $nonRedisResult

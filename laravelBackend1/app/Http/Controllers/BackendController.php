@@ -17,6 +17,9 @@ use App\Models\Cassandra\EncryptedPostVidSubtitlesInfo;
 
 use App\Models\MongoDB_Atlas\ProfilePhoto;
 
+use App\Models\MySQL\User\PublicUser;
+use App\Models\MySQL\User\PrivateUser;
+
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -258,7 +261,7 @@ class BackendController extends Controller {
                 else if ($bgMusicAudio !== null) {
                     $setOfOverallPostIdsOfUnencryptedPostsThatHaveBgMusic[] = $overallPostIdOfUnencryptedPost;
                     $overallPostIdsAndTheirBgMusic[$overallPostIdOfUnencryptedPost] = [
-                        'audio' => $bgMusicAudio,
+                        'src' => $bgMusicAudio,
                         'title' => 'Unknown Title',
                         'artist' =>  'Unknown Artist',
                         'startTime' => 0,
@@ -284,7 +287,7 @@ class BackendController extends Controller {
                         $overallPostId = $bgMusicMetadataOfUnencryptedPost['overallPostId'];
 
                         $overallPostIdsAndTheirBgMusic[$overallPostId] = [
-                            'audio' => $overallPostIdsAndTheirBgMusic[$overallPostId]['audio'],
+                            'src' => $overallPostIdsAndTheirBgMusic[$overallPostId]['src'],
                             'title' => $bgMusicMetadataOfUnencryptedPost['title'],
                             'artist' =>  $bgMusicMetadataOfUnencryptedPost['artist'],
                             'startTime' => $bgMusicMetadataOfUnencryptedPost['startTime'],
@@ -326,7 +329,7 @@ class BackendController extends Controller {
                     else if ($bgMusicAudio !== null) {
                         $setOfOverallPostIdsOfEncryptedPostsThatHaveBgMusic[] = $overallPostIdOfEncryptedPost;
                         $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost] = [
-                            'audio' => $bgMusicAudio
+                            'src' => $bgMusicAudio
                         ];
                     }
                 }
@@ -352,9 +355,9 @@ class BackendController extends Controller {
                     foreach($resultOfGettingMetadataOfMultiplePosts as $bgMusicMetadataOfEncryptedPost) {
                         $overallPostIdOfEncryptedPost = $bgMusicMetadataOfEncryptedPost['overallPostId'];
                         
-                        $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['audio'] =
+                        $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['src'] =
                         $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
-                            $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['audio'],
+                            $overallPostIdsAndTheirBgMusic[$overallPostIdOfEncryptedPost]['src'],
                             $overallPostIdsAndTheirPlaintextDataEncryptionKeys[$overallPostIdOfEncryptedPost],
                             $bgMusicMetadataOfEncryptedPost['audioEncryptionIv'],
                             $bgMusicMetadataOfEncryptedPost['audioEncryptionAuthTag']
@@ -394,8 +397,7 @@ class BackendController extends Controller {
 
 
     public function addBgMusicToPost(string $overallPostId, bool $isEncrypted) {
-        $bgMusicAudioFile = request()->file('bgMusicAudioFile');
-        $bgMusicAudioFileBuffer = file_get_contents($bgMusicAudioFile->getRealPath());
+        $bgMusicAudioFileBuffer = request()->input('bgMusicAudioFile');
 
         $postBgMusicInfo = $this->postBgMusicService->getMetadataOfPostsBgMusic(
             $overallPostId, $isEncrypted, $this->redisClient
@@ -593,6 +595,652 @@ class BackendController extends Controller {
                 502
             );
         }
+    }
+
+
+    public function toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost(string $overallPostId, bool $originallyIsEncrypted)
+    {
+        $errorMessage = '';
+        
+        if ($originallyIsEncrypted) {
+            $plaintextDataEncryptionKey = null;
+
+            try {
+                $plaintextDataEncryptionKey =  $this->encryptionAndDecryptionService->getPlaintextDataEncryptionKeyOfPost(
+                    $overallPostId, $this->redisClient, $this->encryptionAndDecryptionService
+                );
+            }
+            catch (\Exception) {
+                $errorMessage .= '• There was trouble in the process of obtaining the encryptedDataEncryptionKey and
+                decrypting that in order to decrypt the encrypted bg-music and vid-subtitles, if any, of this post.\n';
+                
+                return response(
+                    $errorMessage,
+                    502
+                );
+            }
+
+            $encryptedBgMusicOfPost = $this->postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
+                $this->gcsBgMusicOfPostsBucket,
+                $overallPostId
+            );
+            if (self::isIndexedArray($encryptedBgMusicOfPost)) {
+                $errorMessage .= "• $encryptedBgMusicOfPost[0]\n";
+                return response(
+                    $errorMessage,
+                    $this->stringLabelToIntStatusCodeMappings[
+                        $encryptedBgMusicOfPost[1]
+                    ]
+                );
+            }
+
+            $decryptedBgMusicOfPost = null;
+            $decryptedMetadataOfBgMusicOfPost = [
+                'overallPostId' => $overallPostId
+            ];
+
+            if ($encryptedBgMusicOfPost !== null) {
+                $metadataOfBgMusicOfPost = $this->postBgMusicService->getMetadataOfPostsBgMusic(
+                    $overallPostId,
+                    true,
+                    $this->redisClient
+                );
+                if (self::isIndexedArray($metadataOfBgMusicOfPost)) {
+                    $errorMessage .= "• $metadataOfBgMusicOfPost[0]\n";
+                    return response(
+                        $errorMessage,
+                        $this->stringLabelToIntStatusCodeMappings[
+                            $metadataOfBgMusicOfPost[1]
+                        ]
+                    );
+                }
+
+                $decryptedBgMusicOfPost = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
+                    $encryptedBgMusicOfPost,
+                    $plaintextDataEncryptionKey,
+                    $metadataOfBgMusicOfPost['audioEncryptionIv'],
+                    $metadataOfBgMusicOfPost['audioEncryptionAuthTag']
+                );
+
+                $decryptedMetadataOfBgMusicOfPost = [
+                    'startTime' => $metadataOfBgMusicOfPost['startTime'],
+                    'endTime' => $metadataOfBgMusicOfPost['endTime']
+                ];
+
+                $decryptedMetadataOfBgMusicOfPost['title'] = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
+                    $metadataOfBgMusicOfPost['encryptedTitle'],
+                    $plaintextDataEncryptionKey,
+                    $metadataOfBgMusicOfPost['titleEncryptionIv'],
+                    $metadataOfBgMusicOfPost['titleEncryptionAuthTag']
+                );
+
+                $decryptedMetadataOfBgMusicOfPost['artist'] = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
+                    $metadataOfBgMusicOfPost['encryptedArtist'],
+                    $plaintextDataEncryptionKey,
+                    $metadataOfBgMusicOfPost['artistEncryptionIv'],
+                    $metadataOfBgMusicOfPost['artistEncryptionAuthTag']
+                );
+
+                try {
+                    $this->gcsBgMusicOfPostsBucket->delete($overallPostId . '.mp3');
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble deleting the encrypted audio-file from the database\n";
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    $this->gcsBgMusicOfPostsBucket->put($overallPostId . '.mp3', $decryptedBgMusicOfPost);
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble adding the unencrypted audio-file into the database\n";
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    EncryptedPostBgMusicInfo::where('overallPostId', $overallPostId)->delete();
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble deleting this post's encryption bg-music from the database\n";
+                    
+                    return response(
+                        $errorMessage,
+                        502
+                    );
+                }
+
+                try {
+                    UnencryptedPostBgMusicInfo::create($decryptedMetadataOfBgMusicOfPost);
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble adding this post's unencrypted bg-music into the database\n";
+                    
+                    return response(
+                        $errorMessage,
+                        502
+                    );
+                }
+
+                try {
+                    $this->redisClient->del("bgMusicMetadataForPost$overallPostId");
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble deleting the caching of the encrypted metadata of the bg-music
+                    of this post\n';
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    $decryptedMetadataOfBgMusicOfPost['startTime'] = strval($decryptedMetadataOfBgMusicOfPost['startTime']);
+                    $decryptedMetadataOfBgMusicOfPost['endTime'] = strval($decryptedMetadataOfBgMusicOfPost['endTime']);
+                    $this->redisClient->hMSet(
+                        "bgMusicMetadataForPost$overallPostId",
+                        $decryptedMetadataOfBgMusicOfPost
+                    );
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble adding the caching of the unencrypted metadata of the bg-music
+                    of this post\n';
+                }
+            }
+
+            try {
+                $this->encryptionAndDecryptionService->deleteCustomerMasterKey(
+                    'bgMusicAndVidSubsOfPosts',
+                    $overallPostId
+                );
+            }
+            catch (\Exception) {
+                $errorMessage .= "• There was trouble deleting the Google-Cloud KMS Customer-Master-Key that was used
+                to encrypt/decrypt the data-encryption-key that was used for the encryption of the vid-subs and
+                bg-music of this post\n";
+                
+                return response(
+                    $errorMessage,
+                    502
+                );
+            }
+
+            try {
+                PostBgMusicAndVidSubtitlesEncryptionInfo::where('overallPostId', $overallPostId)->delete();
+            }
+            catch (\Exception) {
+                $errorMessage .= "• There was trouble deleting the encryption-info of the vid-subtitles and bg-music of 
+                this post\n";
+                
+                return response(
+                    $errorMessage,
+                    502
+                );
+            }
+
+            try {
+                $this->redisClient->hDel(
+                    'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
+                    $overallPostId
+                );
+            }
+            catch (\Exception) {
+                $errorMessage .= '• There was trouble deleting the caching of "Posts and their EncryptedDEKS
+                for Bg-Music/Vid-Subs" for the this post.\n';
+                return response($errorMessage, 502);
+            }
+
+            $vidSubtitleFilesOfPost = [];
+
+            try {
+                $vidSubtitleFilesOfPost = $this->postVidSubtitlesService->getPostsVidSubtitleFiles(
+                    $this->s3VidSubtitlesForPostsBucket,
+                    $overallPostId
+                );
+            }
+            catch (\Exception) {
+                $errorMessage .= '• There was trouble fetching the encrypted vid-subtitle files of this post.\n';
+                return response($errorMessage, 502);
+            }
+
+            if (count($vidSubtitleFilesOfPost) > 0) {
+                $slideNumberToLangCodeToSubtitlesEncryptionInfo = [];
+                $slideNumberToLangCodeToSubtitlesEncryptionInfo = $this->postVidSubtitlesService
+                ->getEncryptionInfoOfVidSubtitleFilesOfPost(
+                    $this->redisClient,
+                    $overallPostId,
+                    $vidSubtitleFilesOfPost
+                );
+                if (self::isIndexedArray($slideNumberToLangCodeToSubtitlesEncryptionInfo)) {
+                    return response(
+                        $slideNumberToLangCodeToSubtitlesEncryptionInfo[0],
+                        $this->stringLabelToIntStatusCodeMappings[
+                            $slideNumberToLangCodeToSubtitlesEncryptionInfo[1]
+                        ],
+                    );  
+                }
+
+                try {
+                    $this->redisClient->pipeline(function ($pipe) use ($vidSubtitleFilesOfPost, $overallPostId) {
+                        foreach ($vidSubtitleFilesOfPost as $vidSubtitlesOfPost) {
+                            $slideNumber = $vidSubtitlesOfPost['slideNumber'];
+                            $langCode = $vidSubtitlesOfPost['langCode'];
+            
+                            $pipe->del(
+                                "encryptedVidSubtitlesInfoForPost{$overallPostId}@slideNumber{$slideNumber}@langCode{$langCode}"
+                            );
+                        }
+                    });
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble deleting the caching of the encrypted vid-subtitles info
+                    of each of the vid-subtitles of this post.\n';
+                    return response($errorMessage, 502);
+                }
+
+                $decryptedVidSubtitlesOfPost = [];
+                foreach($vidSubtitleFilesOfPost as $vidSubtitlesInfo) {
+                    $slideNumber = $vidSubtitlesInfo['slideNumber'];
+                    $langCode = $vidSubtitlesInfo['langCode'];
+                    $encryptedSubtitlesFileBuffer = $vidSubtitlesInfo['subtitles'];
+                    $subtitlesFileEncryptionIv = $slideNumberToLangCodeToSubtitlesEncryptionInfo[$slideNumber][$langCode]
+                    ['iv'];
+                    $subtitlesFileEncryptionAuthTag = $slideNumberToLangCodeToSubtitlesEncryptionInfo[$slideNumber][$langCode]
+                    ['authTag'];
+
+                    $decryptedSubtitlesFile = $this->encryptionAndDecryptionService->decryptDataWithDataEncryptionKey(
+                        $encryptedSubtitlesFileBuffer,
+                        $plaintextDataEncryptionKey,
+                        $subtitlesFileEncryptionIv,
+                        $subtitlesFileEncryptionAuthTag
+                    );
+
+                    if (array_key_exists('isDefault', $vidSubtitlesInfo)) {
+                        $decryptedVidSubtitlesOfPost[] = [
+                            'isDefault' => true,
+                            'slideNumber' => $slideNumber,
+                            'langCode' => $langCode,
+                            'subtitles' => $decryptedSubtitlesFile
+                        ];
+                    }
+                    else {
+                        $decryptedVidSubtitlesOfPost[] = [
+                            'slideNumber' => $slideNumber,
+                            'langCode' => $langCode,
+                            'subtitles' => $decryptedSubtitlesFile
+                        ];
+                    }
+                }
+
+                try {
+                    $namesOfVidSubtitleFilesOfAllPosts = $this->s3VidSubtitlesForPostsBucket->files('');
+
+                    $namesOfAllVidSubtitleFilesOfPost = array_filter($namesOfVidSubtitleFilesOfAllPosts, function ($fileName)
+                    use ($overallPostId) {
+                        return str_starts_with($fileName, $overallPostId);
+                    });
+
+                    foreach($namesOfAllVidSubtitleFilesOfPost as $nameOfVidSubtitleFileToDelete) {
+                        $this->s3VidSubtitlesForPostsBucket->delete($nameOfVidSubtitleFileToDelete);
+                    }
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble deleting the encrypted vid-subtitle-files of this post from the
+                    database.\n';
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    foreach($decryptedVidSubtitlesOfPost as $decryptedVidSubtitles) {
+                        $decryptedVidSubtitlesFileBuffer = $decryptedVidSubtitles['subtitles'];
+                        $slideNumber = $decryptedVidSubtitles['slideNumber'];
+                        $langCode = $decryptedVidSubtitles['langCode'];
+
+                        $nameOfUnencryptedVidSubtitlesFileToAdd = "$overallPostId/$slideNumber/$langCode";
+
+                        if (array_key_exists('isDefault', $decryptedVidSubtitles)) {
+                            $nameOfUnencryptedVidSubtitlesFileToAdd .= '/default';
+                        }
+
+                        $this->s3VidSubtitlesForPostsBucket->put(
+                            $nameOfUnencryptedVidSubtitlesFileToAdd,
+                            $decryptedVidSubtitlesFileBuffer
+                        );
+                    }
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble adding the now-decrypted vid-subtitle-files of this post into the
+                    database.\n';
+                    return response($errorMessage, 502);
+                }
+            }
+        }
+        else {
+            $resultOfCreatingNewCMK = $this->encryptionAndDecryptionService->createNewCustomerMasterKey(
+                'bgMusicAndVidSubsOfPosts',
+                $overallPostId
+            );
+            if (!$resultOfCreatingNewCMK) {
+                $errorMessage .= '• There was trouble creating a new Google-Cloud KMS Customer-Master-Key
+                for encrypting/decrypting the soon to be generated data-encryption-key for encrypting the bg-music
+                and vid-subtitles of this post.\n';
+                return response($errorMessage, 502);
+            }
+
+            $plaintextDataEncryptionKey = null;
+            $encryptedDataEncryptionKey = null;
+
+            try {
+                $newDEKInfo = $this->encryptionAndDecryptionService->createAndEncryptNewDataEncryptionKey(
+                    'bgMusicAndVidSubsOfPosts',
+                    $overallPostId
+                );
+                $plaintextDataEncryptionKey = $newDEKInfo[0];
+                $encryptedDataEncryptionKey = $newDEKInfo[0];
+            }
+            catch (\Exception) {
+                $errorMessage .= '• There was trouble in the process of generating and encrypting the new data-encryption-key
+                to be used for encrypting the bg-music and vid-subtitles of this post.\n';
+                return response($errorMessage, 502);
+            }
+
+            try {
+                PostBgMusicAndVidSubtitlesEncryptionInfo::create([
+                    'overallPostId' => $overallPostId,
+                    'encryptedDataEncryptionKey' => $encryptedDataEncryptionKey
+                ]);
+            }
+            catch (\Exception) {
+                $errorMessage .= "• There was trouble adding the encryption-info of the vid-subtitles and bg-music of 
+                this post\n";
+                
+                return response(
+                    $errorMessage,
+                    502
+                );
+            }
+
+            try {
+                $this->redisClient->hSet(
+                    'Posts and their EncryptedDEKs for Bg-Music/Vid-Subs',
+                    $overallPostId,
+                    $encryptedDataEncryptionKey
+                );
+            }
+            catch (\Exception) {
+                $errorMessage .= '• There was trouble adding the caching of "Posts and their EncryptedDEKS
+                for Bg-Music/Vid-Subs" for the this post.\n';
+            }
+
+            $unencryptedBgMusicOfPost = $this->postBgMusicService->getPostsBgMusicIfExistsNullOtherwise(
+                $this->gcsBgMusicOfPostsBucket,
+                $overallPostId
+            );
+            if (self::isIndexedArray($unencryptedBgMusicOfPost)) {
+                $errorMessage .= "• $unencryptedBgMusicOfPost[0]\n";
+                return response(
+                    $errorMessage,
+                    $this->stringLabelToIntStatusCodeMappings[
+                        $unencryptedBgMusicOfPost[1]
+                    ]
+                );
+            }
+
+            $encryptedBgMusicOfPost = null;
+            $encryptedMetadataOfBgMusicOfPost = [
+                'overallPostId' => $overallPostId
+            ];
+
+            if ($unencryptedBgMusicOfPost !== null) {
+                $metadataOfBgMusicOfPost = $this->postBgMusicService->getMetadataOfPostsBgMusic(
+                    $overallPostId,
+                    false,
+                    $this->redisClient
+                );
+                if (self::isIndexedArray($metadataOfBgMusicOfPost)) {
+                    $errorMessage .= "• $metadataOfBgMusicOfPost[0]\n";
+                    return response(
+                        $errorMessage,
+                        $this->stringLabelToIntStatusCodeMappings[
+                            $metadataOfBgMusicOfPost[1]
+                        ]
+                    );
+                }
+
+                $encryptedMetadataOfBgMusicOfPost = [
+                    'startTime' => $metadataOfBgMusicOfPost['startTime'],
+                    'endTime' => $metadataOfBgMusicOfPost['endTime']
+                ];
+
+                $bgMusicOfPostEncryptionInfo = $this->encryptionAndDecryptionService->encryptDataWithDataEncryptionKey(
+                    $unencryptedBgMusicOfPost,
+                    $plaintextDataEncryptionKey,
+                );
+                $encryptedBgMusicOfPost = $bgMusicOfPostEncryptionInfo[0];
+                $encryptedMetadataOfBgMusicOfPost['audioEncryptionIv'] = $bgMusicOfPostEncryptionInfo[1];
+                $encryptedMetadataOfBgMusicOfPost['audioEncryptionAuthTag'] = $bgMusicOfPostEncryptionInfo[2];
+
+                $bgMusicTitleEncryptionInfo = $this->encryptionAndDecryptionService->encryptDataWithDataEncryptionKey(
+                    $metadataOfBgMusicOfPost['title'],
+                    $plaintextDataEncryptionKey,
+                );
+                $encryptedMetadataOfBgMusicOfPost['encryptedTitle'] = $bgMusicTitleEncryptionInfo[0];
+                $encryptedMetadataOfBgMusicOfPost['titleEncryptionIv'] = $bgMusicTitleEncryptionInfo[1];
+                $encryptedMetadataOfBgMusicOfPost['titleEncryptionAuthTag'] = $bgMusicTitleEncryptionInfo[2];
+
+                $bgMusicArtistEncryptionInfo = $this->encryptionAndDecryptionService->encryptDataWithDataEncryptionKey(
+                    $metadataOfBgMusicOfPost['artist'],
+                    $plaintextDataEncryptionKey,
+                );
+                $encryptedMetadataOfBgMusicOfPost['encryptedArtist'] = $bgMusicArtistEncryptionInfo[0];
+                $encryptedMetadataOfBgMusicOfPost['artistEncryptionIv'] = $bgMusicArtistEncryptionInfo[1];
+                $encryptedMetadataOfBgMusicOfPost['artistEncryptionAuthTag'] = $bgMusicArtistEncryptionInfo[2];
+
+                try {
+                    $this->gcsBgMusicOfPostsBucket->delete($overallPostId . '.mp3');
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble deleting the unencrypted audio-file from the database\n";
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    $this->gcsBgMusicOfPostsBucket->put($overallPostId . '.mp3', $encryptedBgMusicOfPost);
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble adding the encrypted audio-file into the database\n";
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    UnencryptedPostBgMusicInfo::where('overallPostId', $overallPostId)->delete();
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble deleting this post's unencrypted bg-music from the database\n";
+                    
+                    return response(
+                        $errorMessage,
+                        502
+                    );
+                }
+
+                try {
+                    EncryptedPostBgMusicInfo::create($encryptedMetadataOfBgMusicOfPost);
+                }
+                catch (\Exception) {
+                    $errorMessage .= "• There was trouble adding the encryption-info of this post's bg-music into the
+                    database\n";
+                    
+                    return response(
+                        $errorMessage,
+                        502
+                    );
+                }
+
+                try {
+                    $this->redisClient->del("bgMusicMetadataForPost$overallPostId");
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble deleting the caching of the unencrypted metadata of the bg-music
+                    of this post\n';
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    $encryptedMetadataOfBgMusicOfPost['startTime'] = strval($encryptedMetadataOfBgMusicOfPost['startTime']);
+                    $encryptedMetadataOfBgMusicOfPost['endTime'] = strval($encryptedMetadataOfBgMusicOfPost['endTime']);
+                    $this->redisClient->hMSet(
+                        "bgMusicMetadataForPost$overallPostId",
+                        $encryptedMetadataOfBgMusicOfPost
+                    );
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble adding the caching of the encrypted metadata of the bg-music
+                    of this post\n';
+                }
+            }
+
+            $vidSubtitleFilesOfPost = [];
+
+            try {
+                $vidSubtitleFilesOfPost = $this->postVidSubtitlesService->getPostsVidSubtitleFiles(
+                    $this->s3VidSubtitlesForPostsBucket,
+                    $overallPostId
+                );
+            }
+            catch (\Exception) {
+                $errorMessage .= '• There was trouble fetching the unencrypted vid-subtitle files of this post.\n';
+                return response($errorMessage, 502);
+            }
+
+            if (count($vidSubtitleFilesOfPost) > 0) {
+                $encryptedVidSubtitlesOfPost = [];
+                foreach($vidSubtitleFilesOfPost as $vidSubtitlesInfo) {
+                    $slideNumber = $vidSubtitlesInfo['slideNumber'];
+                    $langCode = $vidSubtitlesInfo['langCode'];
+                    $subtitlesFileBuffer = $vidSubtitlesInfo['subtitles'];
+
+                    $subtitlesFileEncryptionInfo = $this->encryptionAndDecryptionService->encryptDataWithDataEncryptionKey(
+                        $subtitlesFileBuffer,
+                        $plaintextDataEncryptionKey,
+                    );
+                    $encryptedSubtitlesFileBuffer = $subtitlesFileEncryptionInfo[0];
+                    $subtitlesFileEncryptionIv = $subtitlesFileEncryptionInfo[1];
+                    $subtitlesFileEncryptionAuthTag = $subtitlesFileEncryptionInfo[1];
+
+                    if (array_key_exists('isDefault', $vidSubtitlesInfo)) {
+                        $encryptedVidSubtitlesOfPost[] = [
+                            'isDefault' => true,
+                            'slideNumber' => $slideNumber,
+                            'langCode' => $langCode,
+                            'subtitles' => $encryptedSubtitlesFileBuffer,
+                            'fileEncryptionIv' => $subtitlesFileEncryptionIv,
+                            'fileEncryptionAuthTag' => $subtitlesFileEncryptionAuthTag
+                        ];
+                    }
+                    else {
+                        $encryptedVidSubtitlesOfPost[] = [
+                            'slideNumber' => $slideNumber,
+                            'langCode' => $langCode,
+                            'subtitles' => $encryptedSubtitlesFileBuffer,
+                            'fileEncryptionIv' => $subtitlesFileEncryptionIv,
+                            'fileEncryptionAuthTag' => $subtitlesFileEncryptionAuthTag
+                        ];
+                    }
+                }
+
+                try {
+                    $namesOfVidSubtitleFilesOfAllPosts = $this->s3VidSubtitlesForPostsBucket->files('');
+
+                    $namesOfAllVidSubtitleFilesOfPost = array_filter($namesOfVidSubtitleFilesOfAllPosts, function ($fileName)
+                    use ($overallPostId) {
+                        return str_starts_with($fileName, $overallPostId);
+                    });
+
+                    foreach($namesOfAllVidSubtitleFilesOfPost as $nameOfVidSubtitleFileToDelete) {
+                        $this->s3VidSubtitlesForPostsBucket->delete($nameOfVidSubtitleFileToDelete);
+                    }
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble deleting the unencrypted vid-subtitle-files of this post from the
+                    database.\n';
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                    foreach($encryptedVidSubtitlesOfPost as $encryptedVidSubtitles) {
+                        $encryptedVidSubtitlesFileBuffer = $encryptedVidSubtitles['subtitles'];
+                        $slideNumber = $encryptedVidSubtitles['slideNumber'];
+                        $langCode = $encryptedVidSubtitles['langCode'];
+
+                        $nameOfEncryptedVidSubtitlesFileToAdd = "$overallPostId/$slideNumber/$langCode";
+
+                        if (array_key_exists('isDefault', $encryptedVidSubtitles)) {
+                            $nameOfEncryptedVidSubtitlesFileToAdd .= '/default';
+                        }
+
+                        $this->s3VidSubtitlesForPostsBucket->put(
+                            $nameOfEncryptedVidSubtitlesFileToAdd,
+                            $encryptedVidSubtitlesFileBuffer
+                        );
+                    }
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble adding the now-encrypted vid-subtitle-files of this post into the
+                    database\n';
+                    return response($errorMessage, 502);
+                }
+
+                $encryptedPostVidSubtitlesInfoToInsert = [];
+
+                foreach($encryptedVidSubtitlesOfPost as $encryptedVidSubtitles) {
+                    $encryptedVidSubtitlesFileBuffer = $encryptedVidSubtitles['subtitles'];
+                    $slideNumber = $encryptedVidSubtitles['slideNumber'];
+                    $langCode = $encryptedVidSubtitles['langCode'];
+                    $fileEncryptionIv = $encryptedVidSubtitles['fileEncryptionIv'];
+                    $fileEncryptionAuthTag = $encryptedVidSubtitles['fileEncryptionAuthTag'];
+
+                    $encryptedPostVidSubtitlesInfoToInsert[] = [
+                        'overallPostId' => $overallPostId,
+                        'slideNumber' => $slideNumber,
+                        'langCode' => $langCode,
+
+                        'fileEncryptionIv' => $fileEncryptionIv,
+                        'fileEncryptionAuthTag' => $fileEncryptionAuthTag,
+                    ];
+                }
+
+                try {
+                    EncryptedPostVidSubtitlesInfo::insert($encryptedPostVidSubtitlesInfoToInsert);
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble adding the encryption-info of all the now-encrypted vid-subtitle
+                    files of this post into the database\n';
+                    return response($errorMessage, 502);
+                }
+
+                try {
+                   $this->redisClient->pipeline(function ($pipe) use ($encryptedPostVidSubtitlesInfoToInsert, $overallPostId) {
+                    foreach ($encryptedPostVidSubtitlesInfoToInsert as $encryptedPostVidSubtitlesInfo) {
+                        $slideNumber = $encryptedPostVidSubtitlesInfo['slideNumber'];
+                        $langCode = $encryptedPostVidSubtitlesInfo['langCode'];
+                        $fileEncryptionIv = $encryptedPostVidSubtitlesInfo['fileEncryptionIv'];
+                        $fileEncryptionAuthTag = $encryptedPostVidSubtitlesInfo['fileEncryptionAuthTag'];
+        
+                        $pipe->hMSet(
+                            "encryptedVidSubtitlesInfoForPost{$overallPostId}@slideNumber{$slideNumber}@langCode{$langCode}",
+                            [
+                                'fileEncryptionIv' => $fileEncryptionIv,
+                                'fileEncryptionAuthTag' => $fileEncryptionAuthTag,
+                            ]
+                        );
+                    }
+                });
+                }
+                catch (\Exception) {
+                    $errorMessage .= '• There was trouble adding to the cache the encryption-info of each of the now-
+                    encrypted vid-subtitle files of this post\n';
+                }
+            }
+        }
+
+        return response($errorMessage, 200);
     }
 
 
@@ -967,8 +1615,8 @@ class BackendController extends Controller {
         try {
             $namesOfVidSubtitleFilesOfAllPosts = $this->s3VidSubtitlesForPostsBucket->files('');
 
-            $namesOfVidSubtitleFilesOfAllPostsInQuestion =
-            array_filter($namesOfVidSubtitleFilesOfAllPosts, function ($fileName) use ($overallPostIds) {
+            $namesOfVidSubtitleFilesOfAllPostsInQuestion = array_filter($namesOfVidSubtitleFilesOfAllPosts,
+            function ($fileName) use ($overallPostIds) {
                 foreach ($overallPostIds as $overallPostId) {
                     if (str_starts_with($fileName, (string) $overallPostId)) {
                         return true;
@@ -1042,7 +1690,8 @@ class BackendController extends Controller {
                 foreach($setOfOverallPostIdsOfEncryptedPosts as $overallPostIdOfEncryptedPost) {
                     $allVidSubtitlesOfPost = $overallPostIdsAndTheirVidSubtitles[$overallPostIdOfEncryptedPost];
                     
-                    foreach($allVidSubtitlesOfPost as $vidSubtitlesOfPost) {
+                    for ($i=0; $i<count($allVidSubtitlesOfPost); $i++) {
+                        $vidSubtitlesOfPost = $allVidSubtitlesOfPost[$i];
                         $slideNumber = $vidSubtitlesOfPost['slideNumber'];
                         $langCode = $vidSubtitlesOfPost['langCode'];
     
@@ -1059,12 +1708,18 @@ class BackendController extends Controller {
                             $fileEncryptionIv,
                             $fileEncryptionAuthTag
                         );
+                        $allVidSubtitlesOfPost[$i] = $vidSubtitlesOfPost;
                     }
+
+                    $overallPostIdsAndTheirVidSubtitles[$overallPostIdOfEncryptedPost] = $allVidSubtitlesOfPost;
                 }
             }
         }
 
-        return response()->json($overallPostIdsAndTheirVidSubtitles, 200);
+        return response()->json([
+            'overallPostIdsAndTheirVidSubtitles' => $overallPostIdsAndTheirVidSubtitles,
+            'errorMessage' => $errorMessage
+        ], 200);
     }
 
     
@@ -1103,13 +1758,13 @@ class BackendController extends Controller {
         $slideNumbersAndTheirLangCodesToUnsetDefault = [];
         $slideNumbersAndTheirNewDefaultLangCodes = [];
         $slideNumbersToLangCodesToNewSubtitleFileMappings = [];
+        $vidSubtitleFilesToAdd = $request->input('vidSubtitleFilesToAdd');
 
-        foreach ($request->allFiles() as $fieldName => $file) {
-            $partsOfFieldname = explode('/', $fieldName); 
-            $slideNumber = $partsOfFieldname[0];
-            $langCode = $partsOfFieldname[1];
-            $isDefault = count($partsOfFieldname) == 3;
-            $fileBuffer = file_get_contents($file->getRealPath());
+        foreach ($vidSubtitleFilesToAdd as $vidSubtitlesFile) {
+            $slideNumber = $vidSubtitlesFile['slideNumber'];
+            $langCode = $vidSubtitlesFile['langCode'];
+            $isDefault = array_key_exists('isDefault', $vidSubtitlesFile);
+            $fileBuffer = $vidSubtitlesFile['subtitles'];
 
             $defaultSubtitleFileWasRemovedForThis = false;
 
@@ -1121,7 +1776,7 @@ class BackendController extends Controller {
                     'wasDefault' => false
                 ];
                 
-                if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] === $langCode) {
+                if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] === $langCode) {
                     $defaultSubtitleFileWasRemovedForThis = true;
                     $infoOnSubtitleFileToRemove['wasDefault'] = true;
                 }
@@ -1130,10 +1785,10 @@ class BackendController extends Controller {
 
             if ($isDefault) {
                 if (!$defaultSubtitleFileWasRemovedForThis && array_key_exists($slideNumber,
-                $rudimentaryInfoOnVidSubtitlesOfPost) && $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] !== 
+                $rudimentaryInfoOnVidSubtitlesOfPost) && $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] !== 
                 null) {
                     $slideNumbersAndTheirLangCodesToUnsetDefault[$slideNumber] = $rudimentaryInfoOnVidSubtitlesOfPost
-                    [$slideNumber]['default'];
+                    [$slideNumber]['isDefault'];
                 }
                 $slideNumbersAndTheirNewDefaultLangCodes[$slideNumber] = $langCode;
             }
@@ -1220,7 +1875,7 @@ class BackendController extends Controller {
                         $newSubtitlesFileIsDefault = true;
                     }
 
-                    if ($$newSubtitlesFileIsDefault && array_key_exists($slideNumber,
+                    if ($newSubtitlesFileIsDefault && array_key_exists($slideNumber,
                     $slideNumbersOfSubtitleFilesThatCouldNotBeUnDefaulted))  {
                         $newSubtitlesFileIsDefault = false;
                     }
@@ -1276,7 +1931,7 @@ class BackendController extends Controller {
             if (count($newSubtitleFilesThatHaveBeenUploadedSuccessfully) > 0) {
                 try {
 
-                    Redis::pipeline(function () use ($newSubtitleFilesThatHaveBeenUploadedSuccessfully,
+                    $this->redisClient->pipeline(function ($pipe) use ($newSubtitleFilesThatHaveBeenUploadedSuccessfully,
                     $overallPostId) {
                         foreach ($newSubtitleFilesThatHaveBeenUploadedSuccessfully as $newlyUploadedSubtitleFile) {
                             $slideNumber = $newlyUploadedSubtitleFile['slideNumber'];
@@ -1286,7 +1941,7 @@ class BackendController extends Controller {
                                 'fileEncryptionAuthTag' => $newlyUploadedSubtitleFile['fileEncryptionAuthTag']
                             ];
     
-                            $this->redisClient->hMSet(
+                            $pipe->hMSet(
                                 "encryptedVidSubtitlesInfoForPost$overallPostId@slideNumber$slideNumber@langCode$langCode",
                                 $encryptedVidSubtitlesInfo
                             );
@@ -1315,7 +1970,7 @@ class BackendController extends Controller {
                         $newSubtitlesFileIsDefault = true;
                     }
 
-                    if ($$newSubtitlesFileIsDefault && array_key_exists($slideNumber,
+                    if ($newSubtitlesFileIsDefault && array_key_exists($slideNumber,
                     $slideNumbersOfSubtitleFilesThatCouldNotBeUnDefaulted))  {
                         $newSubtitlesFileIsDefault = false;
                     }
@@ -1346,7 +2001,7 @@ class BackendController extends Controller {
         }
 
 
-        return response([
+        return response()->json([
             $errorMessage => 'errorMessage'
         ], 201);
     }
@@ -1377,20 +2032,20 @@ class BackendController extends Controller {
 
             if (array_key_exists($slideNumber, $rudimentaryInfoOnVidSubtitlesOfPost)) {
                 if ($newDefaultLangCode === "") {
-                    if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] == null) {
+                    if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] == null) {
                         $errorMessage .= "• There are no default subtitle-files to unset for post $overallPostId at 
                         slide-number $slideNumber\n";
                     }
                     else {
                         $slideNumbersToLangCodesOfVidSubtitlesToUnsetDefault[$slideNumber] =
-                        $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'];
+                        $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'];
                     }
                 }
                 else {
                     if (array_key_exists($newDefaultLangCode, $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber])) {
-                        if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] !== null) {
+                        if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] !== null) {
                             $slideNumbersToLangCodesOfVidSubtitlesToUnsetDefault[$slideNumber] =
-                            $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'];
+                            $rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'];
                         }
 
                         $slideNumbersToLangCodesOfVidSubtitlesToSetDefault[$slideNumber] = $newDefaultLangCode;
@@ -1454,7 +2109,7 @@ class BackendController extends Controller {
            }
         }
 
-        return response([
+        return response()->json([
             'errorMessage' => $errorMessage
         ], 200);
     }
@@ -1483,19 +2138,19 @@ class BackendController extends Controller {
         if ($slideNumbersToListOfLangCodesToRemove === 'all') {
             foreach(array_keys($rudimentaryInfoOnVidSubtitlesOfPost) as $slideNumber) {
                 foreach($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber] as $langCode) {
-                    if ($langCode === 'default') {
+                    if ($langCode === 'isDefault') {
                         continue;
                     }
 
                     $infoOnSubtitleFileToDelete = [
                         'slideNumber' => $slideNumber,
                         'langCode' => $langCode,
-                        'default' => false
+                        'isDefault' => false
                     ];
     
-                    if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] === $langCode) {
+                    if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] === $langCode) {
                         $slideNumbersThatNoLongerHaveDefaultSubtitles[] = $slideNumber;
-                        $infoOnSubtitleFileToDelete['default'] = true;
+                        $infoOnSubtitleFileToDelete['isDefault'] = true;
                     }
     
                     $listOfVidSubtitleFilesToDelete[] = $infoOnSubtitleFileToDelete;
@@ -1507,19 +2162,19 @@ class BackendController extends Controller {
                 foreach($slideNumbersToListOfLangCodesToRemove[$slideNumber] as $langCode) {
                     if ($langCode === 'all') {
                         foreach($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber] as $languageCode) {
-                            if ($languageCode === 'default') {
+                            if ($languageCode === 'isDefault') {
                                 continue;
                             }
         
                             $infoOnSubtitleFileToDelete = [
                                 'slideNumber' => $slideNumber,
                                 'langCode' => $languageCode,
-                                'default' => false
+                                'isDefault' => false
                             ];
             
-                            if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] === $languageCode) {
+                            if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] === $languageCode) {
                                 $slideNumbersThatNoLongerHaveDefaultSubtitles[] = $slideNumber;
-                                $infoOnSubtitleFileToDelete['default'] = true;
+                                $infoOnSubtitleFileToDelete['isDefault'] = true;
                             }
             
                             $listOfVidSubtitleFilesToDelete[] = $infoOnSubtitleFileToDelete;
@@ -1536,12 +2191,12 @@ class BackendController extends Controller {
                             $infoOnSubtitleFileToDelete = [
                                 'slideNumber' => $slideNumber,
                                 'langCode' => $langCode,
-                                'default' => false
+                                'isDefault' => false
                             ];
             
-                            if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['default'] === $langCode) {
+                            if ($rudimentaryInfoOnVidSubtitlesOfPost[$slideNumber]['isDefault'] === $langCode) {
                                 $slideNumbersThatNoLongerHaveDefaultSubtitles[] = $slideNumber;
-                                $infoOnSubtitleFileToDelete['default'] = true;
+                                $infoOnSubtitleFileToDelete['isDefault'] = true;
                             }
             
                             $listOfVidSubtitleFilesToDelete[] = $infoOnSubtitleFileToDelete;
@@ -1556,7 +2211,7 @@ class BackendController extends Controller {
         foreach($listOfVidSubtitleFilesToDelete as $vidSubtitlesFileToDelete) {
             $slideNumber = $vidSubtitlesFileToDelete['slideNumber'];
             $langCode = $vidSubtitlesFileToDelete['langCode'];
-            $default = $vidSubtitlesFileToDelete['default'];
+            $default = $vidSubtitlesFileToDelete['isDefault'];
 
             $nameOfVidSubtitlesFileToDelete = "$overallPostId/$slideNumber/$langCode";
             if ($default) {
@@ -1568,7 +2223,7 @@ class BackendController extends Controller {
                 $subtitleFilesThatWereSuccessfullyDeleted[] = [
                     'slideNumber' => $slideNumber,
                     'langCode' => $langCode,
-                    'default' => $default,
+                    'isDefault' => $default,
                 ];
             }
             catch (\Exception) {
@@ -1598,7 +2253,7 @@ class BackendController extends Controller {
             }
         }
 
-        return response([
+        return response()->json([
             'errorMessage' => $errorMessage
         ], 200);
     }
@@ -1731,7 +2386,7 @@ class BackendController extends Controller {
             }
         }
 
-        return response([
+        return response()->json([
             'numVidSubtitlesDeleted' =>  $numVidSubtitlesDeleted,
             'postHadBgMusic' => $postHadBgMusic
         ], 200);
@@ -1869,9 +2524,9 @@ class BackendController extends Controller {
         $userIdsWhoseProfilePhotoStatusesAreNotCached = [];
 
         try {
-            $redisResults = Redis::pipeline(function () use ($userIds) {
+            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($userIds) {
                 foreach ($userIds as $userId) {
-                    $this->redisClient->hGet(
+                    $pipe->hGet(
                         "dataForUser$userId",
                         'hasProfilePhoto'
                     );
@@ -1916,9 +2571,10 @@ class BackendController extends Controller {
 
         if (count($userIdsWhoseProfilePhotoStatusesAreNotCached) > 0) {
             try {
-                Redis::pipeline(function () use ($userIdsWhoseProfilePhotoStatusesAreNotCached, $usersAndTheirProfilePhotos) {
+                $this->redisClient->pipeline(function ($pipe) use ($userIdsWhoseProfilePhotoStatusesAreNotCached,
+                $usersAndTheirProfilePhotos) {
                     foreach ($userIdsWhoseProfilePhotoStatusesAreNotCached as $userId) {
-                        $this->redisClient->hSet(
+                        $pipe->hSet(
                             "dataForUser$userId",
                             'hasProfilePhoto',
                             array_key_exists($userId, $usersAndTheirProfilePhotos) ? 'true' : 'false'
@@ -1931,7 +2587,7 @@ class BackendController extends Controller {
             }
         }
 
-        return response($$usersAndTheirProfilePhotos, 200);
+        return response($usersAndTheirProfilePhotos, 200);
     }
 
 
@@ -2235,6 +2891,157 @@ class BackendController extends Controller {
             $profilePhotoWasFoundAndDeleted,
             200
         );
+    }
+
+
+    public function getUsernamesOfMultipleUserIds(Request $request, int $authUserId) {
+        $userIds = $request->input('userIds');
+        $userIdsAndIfTheyAreInAuthUserBlockings = [];
+        $errorMessage = '';
+
+        try {
+            $response = Http::get(
+                "http://34.111.89.101/api/Home-Page/djangoBackend2/getBlockingsOfUser/$authUserId"
+            );
+
+            
+            if ($response->failed()) {
+                $errorMessage .= "• The djangoBackend2 server had trouble getting the blockings of $authUserId\n";
+                return response(
+                    $errorMessage,
+                    502
+                );
+            }
+
+            $stringifiedResponseData = $response->body();
+            $authUserBlockings = json_decode($stringifiedResponseData);
+
+            foreach($authUserBlockings as $userIdOfAuthUserBlocking) {
+                $userIdsAndIfTheyAreInAuthUserBlockings[$userIdOfAuthUserBlocking] = true;
+            }
+        }
+        catch (\Exception) {
+            $errorMessage .=  "• There was trouble connecting to the djangoBackend2 server to get the blockings of
+            $authUserId\n";
+            return response(
+                $errorMessage,
+                502
+            );
+        }
+
+        $userIdsAndTheirUsernames = [];
+        $userIds =  array_filter($userIds, function ($userId) use ($userIdsAndIfTheyAreInAuthUserBlockings) {
+            return !array_key_exists($userId, $userIdsAndIfTheyAreInAuthUserBlockings);
+        });
+
+        if (count($userIds) == 0) {
+            return response()->json([
+                'userIdsAndTheirUsernames' => $userIdsAndTheirUsernames,
+                'errorMessage' => $errorMessage
+            ], 200);
+        }
+
+        $userIdsAndIfTheirUsernamesWereCached = [];
+
+        try {
+            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($userIds) {
+                foreach ($userIds as $userId) {
+                    $pipe->hGet(
+                        "dataForUser$userId",
+                        'username'
+                    );
+                }
+            });
+
+            $newUserIds = [];
+            for ($i=0; $i<count($redisResults); $i++) {
+                $redisResult = $redisResults[$i];
+                $userId = $userIds[$i];
+
+                if ($redisResult == null) {
+                    $newUserIds[] = $userIds[$userId];
+                }
+                else {
+                    $userIdsAndTheirUsernames[$userId] = $redisResult;
+                    $userIdsAndIfTheirUsernamesWereCached[$userId] = true;
+                }
+            }
+
+            if (count($newUserIds) == 0) {
+                return response()->json([
+                    'userIdsAndTheirUsernames' => $userIdsAndTheirUsernames,
+                    'errorMessage' => $errorMessage
+                ], 200);  
+            }
+            $userIds = $newUserIds;
+        }
+        catch (\Exception) {
+            //pass
+            $errorMessage .= '• There was trouble retrieving the usernames from the Redis Cache\n';
+        }
+
+        try {
+            $infoOnThePublicUsernames = PublicUser::whereIn('id', $userIds)
+                ->select(['id', 'username'])
+                ->get()
+                ->toArray();
+            
+            foreach($infoOnThePublicUsernames as $publicUsernameInfo) {
+                $userIdsAndTheirUsernames[$publicUsernameInfo['id']] = $publicUsernameInfo['username'];
+            }
+
+            $userIds = array_filter($userIds, function ($userId) use ($userIdsAndTheirUsernames) {
+                return !array_key_exists($userId, $userIdsAndTheirUsernames);
+            });
+
+            if (count($userIds) > 0) {
+                $infoOnThePrivateUsernames = PrivateUser::whereIn('id', $userIds)
+                    ->select(['id', 'username'])
+                    ->get()
+                    ->toArray();
+            
+                foreach($infoOnThePrivateUsernames as $privateUsernameInfo) {
+                    $userIdsAndTheirUsernames[$privateUsernameInfo['id']] = $privateUsernameInfo['username'];
+                }
+            }
+        }
+        catch (\Exception) {
+            $errorMessage .= '• There was trouble getting the usernames of each of the users in the list\n';
+            
+            if (count(array_keys($userIdsAndTheirUsernames)) > 0) {
+                return response(
+                    $userIdsAndTheirUsernames,
+                    200
+                );
+            }
+            return response(
+                $errorMessage,
+                502
+            );
+        }
+
+        try {
+            $this->redisClient->pipeline(function ($pipe) use ($userIdsAndTheirUsernames,
+            $userIdsAndIfTheirUsernamesWereCached) {
+                foreach (array_keys($userIdsAndTheirUsernames) as $userId) {
+                    if (!array_key_exists($userId, $userIdsAndIfTheirUsernamesWereCached)) {
+                        $pipe->hSet(
+                            "dataForUser$userId",
+                            'username',
+                            $userIdsAndTheirUsernames[$userId]
+                        );
+                    }
+                }
+            });
+        }
+        catch (\Exception) {
+            //pass
+        }
+
+        return response()->json([
+            'userIdsAndTheirUsernames' => $userIdsAndTheirUsernames,
+            'errorMessage' => $errorMessage
+        ], 200);
     }
 
 

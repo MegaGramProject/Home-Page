@@ -24,7 +24,7 @@ class GetInDepthInfoOnUser extends Query {
     protected $encryptionAndDecryptionService;
 
     protected $attributes = [
-        'name' => 'GetInDepthInfoOnUser',
+        'name' => 'getInDepthInfoOnUser',
     ];
 
 

@@ -250,8 +250,7 @@ public class PostInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Get,
-                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost
-                /{overallPostId}"
+                @$"http://34.111.89.101/api/Home-Page/expressJSBackend1/getAuthorsAndEncryptionStatusOfPost/{overallPostId}"
             );
 
 

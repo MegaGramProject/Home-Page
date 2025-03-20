@@ -718,8 +718,8 @@ public class Controller : ControllerBase
 
 
     [RequireMutualTLS]
-    [HttpPost("addEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost/{overallPostId}")]
-    public async Task<IActionResult> AddEncryptionInfoForCaptionCommentsAndLikesForNewlyUploadedEncryptedPost(
+    [HttpPost("addEncryptionInfoForCaptionCommentsAndLikesOfNewlyUploadedEncryptedPost/{overallPostId}")]
+    public async Task<IActionResult> AddEncryptionInfoForCaptionCommentsAndLikesOfNewlyUploadedEncryptedPost(
         string overallPostId
     )
     {
