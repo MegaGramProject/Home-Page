@@ -1,5 +1,5 @@
-from .models import PostSave
-from .serializers import PostSaveSerializer
+from .models import PostSave, UserBlocking
+from .serializers import PostSaveSerializer, UserBlockingSerializer
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -25,7 +25,7 @@ def get_batch_of_savers_of_own_post(request, auth_user_id, overall_post_id):
           return Response('There does not exist a user with the provided auth_user_id', status=400)
     try:
         ObjectId(overall_post_id)
-    except Exception:
+    except:
         return Response('The provided overall_post_id is invalid', status=400)
 
 
@@ -74,7 +74,12 @@ def get_batch_of_savers_of_own_post(request, auth_user_id, overall_post_id):
     response = None
 
     try:
-        batch_of_savers_of_post = PostSave.objects.filter(overall_post_id=overall_post_id).exclude(saver_id__in=saver_ids_to_exclude)[:10]
+        batch_of_savers_of_post = (PostSave.objects
+            .filter(overall_post_id=overall_post_id)
+            .exclude(saver_id__in=saver_ids_to_exclude)
+            .values_list('saver_id', flat=True)
+            [:10]
+        )
         serialized_batch_of_savers_of_post = PostSaveSerializer(batch_of_savers_of_post, many=True) 
         response = Response(serialized_batch_of_savers_of_post.data)
     except:
@@ -100,7 +105,7 @@ def save_post(request, auth_user_id, overall_post_id):
         return Response('There does not exist a user with the provided auth_user_id', status=400)
     try:
         ObjectId(overall_post_id)
-    except Exception:
+    except:
         return Response('The provided overall_post_id is invalid', status=400)
 
 
@@ -135,7 +140,6 @@ def save_post(request, auth_user_id, overall_post_id):
             result_of_checking_if_auth_user_has_access_to_post[0],
             status=stringLabelToIntStatusCodeMappings[result_of_checking_if_auth_user_has_access_to_post[1]]
         )
-    
 
     new_post_save_serializer = PostSaveSerializer(data={
         'overall_post_id': overall_post_id,
@@ -147,8 +151,7 @@ def save_post(request, auth_user_id, overall_post_id):
     if new_post_save_serializer.is_valid():
         try:
             new_post_save = new_post_save_serializer.save()
-            id_of_new_post_save = new_post_save.id
-            response = Response(id_of_new_post_save, status=201)
+            response = Response(new_post_save.id, status=201)
         except:
             error_message += '• There was trouble adding your post-save into the database\n'
             response = Response(error_message, status=502)
@@ -171,7 +174,7 @@ def toggle_save_post(request, auth_user_id, overall_post_id):
           return Response('There does not exist a user with the provided auth_user_id', status=400)
     try:
         ObjectId(overall_post_id)
-    except Exception:
+    except:
         return Response('The provided overall_post_id is invalid', status=400)
 
 
@@ -260,7 +263,7 @@ def remove_save_from_post(request, auth_user_id, overall_post_id):
     
     try:
         ObjectId(overall_post_id)
-    except Exception:
+    except:
         return Response('The provided overall_post_id is invalid', status=400)
 
 
@@ -326,8 +329,256 @@ def remove_save_from_post(request, auth_user_id, overall_post_id):
     return response
 
 
+@api_view(['POST'])
+def get_batch_of_those_blocked_by_me(request, auth_user_id):
+    if auth_user_id < 1:
+        return Response('There does not exist a user with the provided auth_user_id', status=400)
+    
+    user_authentication_result = authenticate_user(request, auth_user_id)
+    refreshed_auth_token = None
+    expires_timestamp = None
+
+    if isinstance(user_authentication_result, bool):
+        if not user_authentication_result:
+            return Response(
+                f'''
+                The expressJSBackend1 server could not verify you as having the proper credentials
+                to be logged in as {auth_user_id}
+                ''', 
+                status=403
+            )
+    elif isinstance(user_authentication_result, str):
+        if user_authentication_result == 'The provided authUser token, if any, in your cookies has an invalid structure.':
+            return Response(user_authentication_result, status=403)
+        return Response(user_authentication_result, status=502)
+    else:
+        refreshed_auth_token, expiration_date = user_authentication_result
+        expires_timestamp = datetime.datetime.fromtimestamp(expiration_date).strftime('%a, %d-%b-%Y %H:%M:%S GMT')
+
+    ids_to_exclude = request.data.get('ids_to_exclude', [])
+    ids_to_exclude = [x for x in ids_to_exclude if x > 0]
+    ids_to_exclude = set(ids_to_exclude)
+    error_message = ''
+    response = None
+
+    try:
+        batch_of_those_blocked_by_me = (UserBlocking.objects
+            .filter(blocker=auth_user_id)
+            .exclude(blocked__in=ids_to_exclude)
+            .values_list('blocked', flat=True)
+            [:10]
+        )
+        serialized_batch_of_those_blocked_by_me = UserBlockingSerializer(batch_of_those_blocked_by_me, many=True) 
+        response = Response(serialized_batch_of_those_blocked_by_me.data)
+    except:
+        error_message += '• There was trouble fetching the batch of those blocked by you\n'
+        response = Response(error_message, status=502)
+    
+
+    if refreshed_auth_token is not None:
+        response.set_cookie(
+            f'authToken{auth_user_id}',
+            refreshed_auth_token,
+            expires=expires_timestamp,
+            path='/',
+            secure=True,
+            httponly=True
+        )
+    return response
+
+
+@api_view(['POST'])
+def block_user(request, auth_user_id, id_of_user_to_block):
+    if auth_user_id < 1 or id_of_user_to_block < 1:
+        return Response('There does not exist a user with the provided auth_user_id and/or id_of_user_to_block', status=400)
+    
+    user_authentication_result = authenticate_user(request, auth_user_id)
+    refreshed_auth_token = None
+    expires_timestamp = None
+
+    if isinstance(user_authentication_result, bool):
+        if not user_authentication_result:
+            return Response(
+                f'''
+                The expressJSBackend1 server could not verify you as having the proper credentials
+                to be logged in as {auth_user_id}
+                ''', 
+                status=403
+            )
+    elif isinstance(user_authentication_result, str):
+        if user_authentication_result == 'The provided authUser token, if any, in your cookies has an invalid structure.':
+            return Response(user_authentication_result, status=403)
+        return Response(user_authentication_result, status=502)
+    else:
+        refreshed_auth_token, expiration_date = user_authentication_result
+        expires_timestamp = datetime.datetime.fromtimestamp(expiration_date).strftime('%a, %d-%b-%Y %H:%M:%S GMT')
+
+
+    result_of_checking_if_user_exists = check_if_user_exists(auth_user_id, id_of_user_to_block)
+    if isinstance(result_of_checking_if_user_exists, list):
+         return Response(
+            result_of_checking_if_user_exists[0],
+            status=stringLabelToIntStatusCodeMappings[result_of_checking_if_user_exists[1]]
+        )
+
+
+    new_user_blocking_serializer = UserBlockingSerializer(data={
+        'blocker': auth_user_id,
+        'blocked': id_of_user_to_block
+    })
+    error_message = ''
+    response = None
+
+    if new_user_blocking_serializer.is_valid():
+        try:
+            new_user_blocking = new_user_blocking_serializer.save()
+            response = Response(new_user_blocking.id, status=201)
+        except:
+            error_message += '• There was trouble adding your blocking into the database\n'
+            response = Response(error_message, status=502)
+    
+    if refreshed_auth_token is not None:
+        response.set_cookie(
+            f'authToken{auth_user_id}',
+            refreshed_auth_token,
+            expires=expires_timestamp,
+            path='/',
+            secure=True,
+            httponly=True
+        )
+    return response
+
+
+@api_view(['PUT'])
+def toggle_block_user(request, auth_user_id, id_of_user_to_toggle_block):
+    if auth_user_id < 1 or id_of_user_to_toggle_block < 1:
+        return Response('There does not exist a user with the provided auth_user_id and/or id_of_user_to_toggle_block', status=400)
+    
+    user_authentication_result = authenticate_user(request, auth_user_id)
+    refreshed_auth_token = None
+    expires_timestamp = None
+
+    if isinstance(user_authentication_result, bool):
+        if not user_authentication_result:
+            return Response(
+                f'''
+                The expressJSBackend1 server could not verify you as having the proper credentials
+                to be logged in as {auth_user_id}
+                ''', 
+                status=403
+            )
+    elif isinstance(user_authentication_result, str):
+        if user_authentication_result == 'The provided authUser token, if any, in your cookies has an invalid structure.':
+            return Response(user_authentication_result, status=403)
+        return Response(user_authentication_result, status=502)
+    else:
+        refreshed_auth_token, expiration_date = user_authentication_result
+        expires_timestamp = datetime.datetime.fromtimestamp(expiration_date).strftime('%a, %d-%b-%Y %H:%M:%S GMT')
+
+    response = None
+    error_message = ''
+
+    try:
+        user_blocking_to_delete = UserBlocking.objects.get(
+            blocker = auth_user_id,
+            blocked = id_of_user_to_toggle_block
+        )
+        user_blocking_to_delete.delete()
+        response = Response(True)
+    except UserBlocking.DoesNotExist:
+        result_of_checking_if_user_exists = check_if_user_exists(auth_user_id, id_of_user_to_toggle_block)
+        if isinstance(result_of_checking_if_user_exists, list):
+            return Response(
+                result_of_checking_if_user_exists[0],
+                status=stringLabelToIntStatusCodeMappings[result_of_checking_if_user_exists[1]]
+            )
+    except:
+        error_message += '• There was trouble removing the user-blocking, if it even exists, from the database\n'
+        response = Response(error_message, status=502)
+    
+
+    if response is None:
+        new_user_blocking_serializer = UserBlockingSerializer(data={
+            'blocker': auth_user_id,
+            'blocked': id_of_user_to_toggle_block
+        })
+        if new_user_blocking_serializer.is_valid():
+            try:
+                new_user_blocking = new_user_blocking_serializer.save()
+                response = Response(new_user_blocking.id, status=201)
+            except:
+                error_message += '• There was trouble adding your blocking into the database\n'
+                response = Response(error_message, status=502)
+
+
+    if refreshed_auth_token is not None:
+        response.set_cookie(
+            f'authToken{auth_user_id}',
+            refreshed_auth_token,
+            expires=expires_timestamp,
+            path='/',
+            secure=True,
+            httponly=True
+        )
+    return response
+
+
+@api_view(['DELETE'])
+def unblock_user(request, auth_user_id, id_of_user_to_unblock):
+    if auth_user_id < 1 or id_of_user_to_unblock < 1:
+        return Response('There does not exist a user with the provided auth_user_id and/or id_of_user_to_unblock', status=400)
+    
+    user_authentication_result = authenticate_user(request, auth_user_id)
+    refreshed_auth_token = None
+    expires_timestamp = None
+
+    if isinstance(user_authentication_result, bool):
+        if not user_authentication_result:
+            return Response(
+                f'''
+                The expressJSBackend1 server could not verify you as having the proper credentials
+                to be logged in as {auth_user_id}
+                ''', 
+                status=403
+            )
+    elif isinstance(user_authentication_result, str):
+        if user_authentication_result == 'The provided authUser token, if any, in your cookies has an invalid structure.':
+            return Response(user_authentication_result, status=403)
+        return Response(user_authentication_result, status=502)
+    else:
+        refreshed_auth_token, expiration_date = user_authentication_result
+        expires_timestamp = datetime.datetime.fromtimestamp(expiration_date).strftime('%a, %d-%b-%Y %H:%M:%S GMT')
+    
+    response = None
+    error_message = ''
+
+    try:
+        user_blocking_to_delete = UserBlocking.objects.get(
+            blocker = auth_user_id,
+            blocked = id_of_user_to_unblock
+        )
+        user_blocking_to_delete.delete()
+        response = Response(True)
+    except UserBlocking.DoesNotExist:
+        response = Response(False)
+    except:
+        error_message += '• There was trouble removing the user-blocking from the database\n'
+        response = Response(error_message, status=502)
+
+    if refreshed_auth_token is not None:
+        response.set_cookie(
+            f'authToken{auth_user_id}',
+            refreshed_auth_token,
+            expires=expires_timestamp,
+            path='/',
+            secure=True,
+            httponly=True
+        )
+    return response
+
+
 #Helper methods start here!
-def authenticate_user(user_id, request):
+def authenticate_user(request, user_id):
     try:
         auth_token_val = request.COOKIES.get(f'authToken{user_id}')
         refresh_token_val = request.COOKIES.get(f'refreshToken{user_id}')
@@ -337,7 +588,7 @@ def authenticate_user(user_id, request):
             decoded_token_bytes = base64.b64decode(auth_token_val, validate=True)
             if not decoded_token_bytes or len(decoded_token_bytes) != 100:
                 auth_token_is_validly_structured = False
-        except Exception:
+        except:
             auth_token_is_validly_structured = False
 
         if not auth_token_is_validly_structured:
@@ -347,7 +598,7 @@ def authenticate_user(user_id, request):
             decoded_token_bytes = base64.b64decode(refresh_token_val, validate=True)
             if not decoded_token_bytes or len(decoded_token_bytes) != 100:
                 refresh_token_val = ''
-        except Exception:
+        except:
             refresh_token_val = ''
 
         cookies_text = f'authToken{user_id}={auth_token_val};'
@@ -385,13 +636,13 @@ def authenticate_user(user_id, request):
                                     refreshed_auth_token,
                                     refreshed_auth_token_cookie_expiration.strftime('%Y-%m-%d %H:%M:%S'),
                                 ]
-                            except Exception:
+                            except:
                                 break
                     break
 
         return True
 
-    except Exception:
+    except:
         return 'There was trouble connecting to the ExpressJS backend for user authentication'
     
 
@@ -418,7 +669,7 @@ def check_if_auth_user_is_an_author_of_post(auth_user_id, overall_post_id):
 
         return auth_user_id in authors_of_post
     
-    except Exception:
+    except:
         return [
             'There was trouble connecting to the expressJSBackend1 server to get the authors of the post.',
             'BAD_GATEWAY'
@@ -453,7 +704,7 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
         if auth_user_id in authors_of_post:
             return True
 
-    except Exception:
+    except:
         return [
             'There was trouble connecting to the expressJSBackend1 server to get the authors of the post.',
             'BAD_GATEWAY'
@@ -467,8 +718,8 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
 
             if not response1.ok:
                 return [
-                    f'The djangoBackend2 server had trouble verifying whether or not you follow at least one of the authors of this private
-                    post.',
+                    f'The djangoBackend2 server had trouble verifying whether or not you follow at least one of the authors of this
+                    private post.',
                     'BAD_GATEWAY'
                 ]
 
@@ -476,14 +727,15 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
 
             if not user_follows_at_least_one_author:
                 return [
-                    'You do not have access to any of the encrypted data of this post since you do not follow at least one of its authors.',
+                    f'You do not have access to any of the encrypted data of this post since you do not follow at least one of its
+                    authors.',
                     'UNAUTHORIZED'
                 ]
 
-        except Exception:
+        except:
             return [
-                f'There was trouble connecting to the djangoBackend2 server to verify whether or not you follow at least one of the authors
-                of this private post.',
+                f'There was trouble connecting to the djangoBackend2 server to verify whether or not you follow at least one of the
+                authors of this private post.',
                 'BAD_GATEWAY'
             ]
 
@@ -497,8 +749,8 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
 
             if not response2.ok:
                 return [
-                    f'The djangoBackend2 server had trouble checking whether or not each of the authors of this post either block you or are
-                    blocked by you.',
+                    f'The djangoBackend2 server had trouble checking whether or not each of the authors of this post either block
+                    you or are blocked by you.',
                     'BAD_GATEWAY'
                 ]
 
@@ -509,7 +761,7 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
                     'NOT_FOUND'
                 ]
 
-        except Exception:
+        except:
             return [
                 f'There was trouble connecting to the djangoBackend2 server to check whether or not each of the authors of this
                 unencrypted post either block you or are blocked by you.',
@@ -517,3 +769,39 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
             ]
 
     return True
+
+
+def check_user_exists(auth_user_id, user_id):
+    url = 'http://34.111.89.101/api/Home-Page/laravelBackend1/graphql'
+    
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    
+    query = '''
+    query ($authUserId: Int!, $userIds: [Int!]!) {
+        getTheUserIdsThatExistInList(authUserId: $authUserId, userIds: $userIds)
+    }
+    '''
+    
+    variables = {
+        "authUserId": auth_user_id,
+        "userIds": [user_id]
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json={'query': query, 'variables': variables})
+
+        if not response.ok:
+            return [
+                f'The laravelBackend1 server had trouble checking whether or not user {user_id} exists',
+                'BAD_GATEWAY'
+            ]
+        
+        response_data = response.json()
+        return len(response_data['data']['getTheUserIdsThatExistInList']) == 1
+    except:
+        return [
+            f'There was trouble connecting to the laravelBackend1 server to check whether or not user {id} exists',
+            'BAD_GATEWAY'
+        ]
