@@ -6,6 +6,8 @@ class UserBlocking(models.Model):
     blocker = models.IntegerField(db_column='blocker')
     blocked = models.IntegerField(db_column='blocked')
 
+
     class Meta:
+        app_label = 'azureFlexibleServerPSQL'
         db_table = 'user_blockings'
         unique_together = ('blocker', 'blocked')

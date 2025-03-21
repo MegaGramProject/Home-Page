@@ -59,13 +59,22 @@ WSGI_APPLICATION = 'djangoBackend2.wsgi.application'
 
 
 DATABASES = {
-    'default': {
+    'awsRDSMySQL': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'Megagram',
         'USER': 'rishavry',
-        'PASSWORD': os.environ.get('LOCAL_MYSQL_PASSWORD'),
-        'HOST': 'localhost',
+        'PASSWORD': os.environ.get('AWS_RDS_MYSQL_PASSWORD'),
+        'HOST': '',
         'POST': 3306
+    },
+
+     'azureFlexibleServerPSQL': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'Megagram',
+        'USER': 'rishavry',
+        'PASSWORD': os.environ.get('AZURE_FLEXIBLE_SERVER_PSQL_PASSWORD'),
+        'HOST': '',
+        'PORT': 5432,
     }
 }
 
@@ -112,3 +121,5 @@ TEMPLATES = [
 GRAPHENE = {
     "SCHEMA": "my_app.graphql.schema"
 }
+
+DATABASE_ROUTERS = ['djangoBackend2.db_router.DatabaseRouter']

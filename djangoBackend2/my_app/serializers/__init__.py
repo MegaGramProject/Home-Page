@@ -1,3 +1,4 @@
 from .PostSaveSerializer import PostSaveSerializer
 from .UserBlockingSerializer import UserBlockingSerializer
 from .UserFollowingSerializer import UserFollowingSerializer
+from .FollowRequestSerializer import FollowRequestSerializer

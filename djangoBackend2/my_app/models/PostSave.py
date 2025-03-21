@@ -6,6 +6,8 @@ class PostSave(models.Model):
     overall_post_id = models.CharField(db_column='overallPostId', max_length=24)
     saver_id = models.IntegerField(db_column='saverId')
 
+
     class Meta:
+        app_label = 'awsRDSMySQL'
         db_table = 'postSaves'
         unique_together = ('overall_post_id', 'saver_id')

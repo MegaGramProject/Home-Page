@@ -6,6 +6,8 @@ class UserFollowing(models.Model):
     follower = models.IntegerField(db_column='follower')
     followed = models.IntegerField(db_column='followed')
 
+
     class Meta:
+        app_label = 'azureFlexibleServerPSQL'
         db_table = 'user_followings'
         unique_together = ('follower', 'followed')
