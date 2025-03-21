@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class PostSave(models.Model):
     id = models.BigAutoField(primary_key=True)
     overall_post_id = models.CharField(db_column='overallPostId', max_length=24)

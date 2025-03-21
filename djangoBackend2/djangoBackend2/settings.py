@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_ratelimit',
+    'graphene_django',
 ]
 
 
@@ -70,8 +71,8 @@ DATABASES = {
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://34.111.89.101",
-    "http://localhost:8004"
+    'http://34.111.89.101',
+    'http://localhost:8004'
 ]
 
 
@@ -81,7 +82,7 @@ CORS_ALLOW_CREDENTIALS = True
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f"redis://rishavry:{os.environ.get('AWS_REDIS_PASSWORD')}@redis-14251.c261.us-east-1-4.ec2.redns.redis-cloud.com:14251",
+        'LOCATION': f'redis://rishavry:{os.environ.get('AWS_REDIS_PASSWORD')}@redis-14251.c261.us-east-1-4.ec2.redns.redis-cloud.com:14251',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
@@ -107,3 +108,7 @@ TEMPLATES = [
         },
     },
 ]
+
+GRAPHENE = {
+    "SCHEMA": "my_app.graphql.schema"
+}

@@ -69,14 +69,14 @@ def get_batch_of_savers_of_own_post(request, auth_user_id, overall_post_id):
 
     saver_ids_to_exclude = request.data.get('saverIdsToExclude', [])
     saver_ids_to_exclude = [x for x in saver_ids_to_exclude if x > 0]
-    saver_ids_to_exclude = set(saver_ids_to_exclude)
+    set_of_saver_ids_to_exclude = set(saver_ids_to_exclude)
     error_message = ''
     response = None
 
     try:
         batch_of_savers_of_post = (PostSave.objects
             .filter(overall_post_id=overall_post_id)
-            .exclude(saver_id__in=saver_ids_to_exclude)
+            .exclude(saver_id__in=set_of_saver_ids_to_exclude)
             .values_list('saver_id', flat=True)
             [:10]
         )
@@ -225,8 +225,7 @@ def toggle_save_post(request, auth_user_id, overall_post_id):
                 'id_of_new_post_save': id_of_new_post_save
             }, status=201)
         except IntegrityError:
-            #post is already saved; save needs to be removed instead of added
-            pass
+            pass #post is already saved; save needs to be removed instead of added
         except:
             error_message += '• There was trouble adding your post-save into the database\n'
             response = Response(error_message, status=502)
@@ -239,6 +238,8 @@ def toggle_save_post(request, auth_user_id, overall_post_id):
             )
             post_save_to_remove.delete()
             response = Response(True)
+        except PostSave.DoesNotExist:
+            response = Response(False)
         except:
             error_message += '• There was trouble removing your post-save from the database\n'
             response = Response(error_message, status=502)
@@ -357,14 +358,14 @@ def get_batch_of_those_blocked_by_me(request, auth_user_id):
 
     ids_to_exclude = request.data.get('ids_to_exclude', [])
     ids_to_exclude = [x for x in ids_to_exclude if x > 0]
-    ids_to_exclude = set(ids_to_exclude)
+    set_of_ids_to_exclude = set(ids_to_exclude)
     error_message = ''
     response = None
 
     try:
         batch_of_those_blocked_by_me = (UserBlocking.objects
             .filter(blocker=auth_user_id)
-            .exclude(blocked__in=ids_to_exclude)
+            .exclude(blocked__in=set_of_ids_to_exclude)
             .values_list('blocked', flat=True)
             [:10]
         )
@@ -420,6 +421,12 @@ def block_user(request, auth_user_id, id_of_user_to_block):
             result_of_checking_if_user_exists[0],
             status=stringLabelToIntStatusCodeMappings[result_of_checking_if_user_exists[1]]
         )
+    elif isinstance(result_of_checking_if_user_exists, bool):
+        if not result_of_checking_if_user_exists:
+            return Response(
+                'The user you are trying to block does not exist',
+                status=404
+            )
 
 
     new_user_blocking_serializer = UserBlockingSerializer(data={
@@ -492,6 +499,12 @@ def toggle_block_user(request, auth_user_id, id_of_user_to_toggle_block):
                 result_of_checking_if_user_exists[0],
                 status=stringLabelToIntStatusCodeMappings[result_of_checking_if_user_exists[1]]
             )
+        elif isinstance(result_of_checking_if_user_exists, bool):
+            if not result_of_checking_if_user_exists:
+                return Response(
+                    'The user you are trying to toggle-block does not exist',
+                    status=404
+                )
     except:
         error_message += '• There was trouble removing the user-blocking, if it even exists, from the database\n'
         response = Response(error_message, status=502)
@@ -641,7 +654,6 @@ def authenticate_user(request, user_id):
                     break
 
         return True
-
     except:
         return 'There was trouble connecting to the ExpressJS backend for user authentication'
     
@@ -771,7 +783,7 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
     return True
 
 
-def check_user_exists(auth_user_id, user_id):
+def check_if_user_exists(auth_user_id, user_id):
     url = 'http://34.111.89.101/api/Home-Page/laravelBackend1/graphql'
     
     headers = {
@@ -785,8 +797,8 @@ def check_user_exists(auth_user_id, user_id):
     '''
     
     variables = {
-        "authUserId": auth_user_id,
-        "userIds": [user_id]
+        'authUserId': auth_user_id,
+        'userIds': [user_id]
     }
     
     try:

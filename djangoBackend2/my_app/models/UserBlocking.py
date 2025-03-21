@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class UserBlocking(models.Model):
     id = models.BigAutoField(primary_key=True)
     blocker = models.IntegerField(db_column='blocker')
