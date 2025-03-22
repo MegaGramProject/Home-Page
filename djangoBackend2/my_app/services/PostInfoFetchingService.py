@@ -1,5 +1,8 @@
+from ..models import UserFollowing, UserBlocking
+
 import requests
 
+from django.db.models import Q
 
 def check_if_auth_user_is_an_author_of_post(auth_user_id, overall_post_id):
     try:
@@ -33,6 +36,7 @@ def check_if_auth_user_is_an_author_of_post(auth_user_id, overall_post_id):
 
 def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
     authors_of_post = []
+    set_of_authors_of_post = None
     is_encrypted = False
 
     try:
@@ -54,6 +58,7 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
 
         response_data = response.json()
         authors_of_post = response_data.get('authorsOfPost')
+        set_of_authors_of_post = set(authors_of_post)
         is_encrypted = response_data.get('isEncrypted')
 
         if auth_user_id in authors_of_post:
@@ -67,59 +72,46 @@ def check_if_auth_user_has_access_to_post(auth_user_id, overall_post_id):
 
     if is_encrypted:
         try:
-            response1 = requests.post(
-                f'http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserFollowsAtLeastOneInList/{auth_user_id}'
-            )
+            user_follows_at_least_one_post_author = UserFollowing.objects.filter(
+                follower=auth_user_id,
+                followed__in=set_of_authors_of_post 
+            ).exists()
 
-            if not response1.ok:
+
+            if not user_follows_at_least_one_post_author:
                 return [
-                    f'The djangoBackend2 server had trouble verifying whether or not you follow at least one of the authors of this
-                    private post.',
-                    'BAD_GATEWAY'
-                ]
-
-            user_follows_at_least_one_author = response1.json()
-
-            if not user_follows_at_least_one_author:
-                return [
-                    f'You do not have access to any of the encrypted data of this post since you do not follow at least one of its
-                    authors.',
+                    f'User {auth_user_id} does not follow at-least one of the authors of post {overall_post_id} and hence
+                    does not have the authority to access/modify this encrypted post\'s data',
                     'UNAUTHORIZED'
                 ]
 
         except:
             return [
-                f'There was trouble connecting to the djangoBackend2 server to verify whether or not you follow at least one of the
-                authors of this private post.',
+                f'There was trouble connecting checking whether or not user {auth_user_id} follows at-least one of the authors of
+                the post',
                 'BAD_GATEWAY'
             ]
 
     else:
         try:
-            response2 = requests.post(
-                f'http://34.111.89.101/api/Home-Page/djangoBackend2/isEachUserInListInTheBlockingsOfAuthUser/{auth_user_id}',
-                json={'listOfUsers': authors_of_post},
-                headers={'Content-Type': 'application/json'},
-            )
+            each_author_of_post_is_in_blockings_of_auth_user = (UserBlocking.objects
+                .filter(
+                    Q(blocker=auth_user_id, blocked__in=set_of_authors_of_post) |
+                    Q(blocker__in=set_of_authors_of_post, blocked=auth_user_id)
+                )
+                .count()
+            ) == len(set_of_authors_of_post)
 
-            if not response2.ok:
+            if each_author_of_post_is_in_blockings_of_auth_user:
                 return [
-                    f'The djangoBackend2 server had trouble checking whether or not each of the authors of this post either block
-                    you or are blocked by you.',
-                    'BAD_GATEWAY'
-                ]
-
-            each_post_author_is_in_auth_user_blockings = response2.json()
-            if each_post_author_is_in_auth_user_blockings:
-                return [
-                    'You are trying to access/modify the data of a post that does not exist.',
+                    'There doesn\'t currently exist a post with the overallPostId that you provided.',
                     'NOT_FOUND'
                 ]
 
         except:
             return [
-                f'There was trouble connecting to the djangoBackend2 server to check whether or not each of the authors of this
-                unencrypted post either block you or are blocked by you.',
+                f'There was trouble checking whether or not each of the authors of this unencrypted post either block you or are
+                blocked by you.',
                 'BAD_GATEWAY'
             ]
 

@@ -35,6 +35,21 @@ class Query(graphene.ObjectType):
         user_ids=graphene.List(graphene.Int, required=True)
     )
 
+    get_followings_of_user = graphene.List(
+        auth_user_id=graphene.Int(required=True)
+    )
+
+    check_if_user_follows_at_least_one_in_list = graphene.Boolean(
+        auth_user_id=graphene.Int(required=True),
+        user_ids=graphene.List(graphene.Int, required=True)
+    )
+
+    get_the_most_followed_users_in_list = graphene.List(
+        graphene.Int,
+        user_ids=graphene.List(graphene.Int, required=True),
+        limit=graphene.Int(required=False)
+    )
+
 
     def resolve_get_batch_of_followers_of_user(root, info, auth_user_id, user_id, follower_ids_to_exclude):
         if auth_user_id < 1 and auth_user_id != -1:
@@ -272,3 +287,49 @@ class Query(graphene.ObjectType):
 
 
         return num_followers_and_followings_of_each_user_in_order
+    
+
+    def resolve_get_followings_of_user(root, auth_user_id):
+        try:
+            all_followings_of_user = (UserFollowing.objects
+                .filter(follower=auth_user_id)
+                .values_list('followed', flat=True)
+            )
+            return all_followings_of_user
+        except:
+            raise GraphQLError(f'There was trouble getting all the followings of user {auth_user_id}')
+    
+
+    def resolve_check_if_user_follows_at_least_one_in_list(root, auth_user_id, user_ids):
+        set_of_user_ids = set(user_ids)
+
+        try:
+            user_follows_at_least_one_in_list = (UserFollowing.objects
+                .filter(follower=auth_user_id, followed__in=set_of_user_ids)
+                .exists()
+            )
+
+            return user_follows_at_least_one_in_list
+        except:
+            raise GraphQLError(f'There was trouble checking whether or not user {auth_user_id} follows at-least one user
+            in the list')
+    
+
+    def resolve_get_the_most_followed_users_in_list(root, user_ids, limit):
+        set_of_user_ids = set(user_ids)
+        if limit is None:
+            limit = 10
+
+        try:
+            most_followed_users_in_list = (UserFollowing.objects
+                .filter(followed__in=set_of_user_ids)
+                .values('followed')
+                .annotate(num_followers=Count('follower'))
+                .order_by('-num_followers')
+                .values_list('followed', flat=True)
+                [:limit]
+            )
+
+            return most_followed_users_in_list
+        except:
+            raise GraphQLError(f'There was trouble getting the most followed users in the list')

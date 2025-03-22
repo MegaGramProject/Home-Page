@@ -1,12 +1,14 @@
-from .models import PostSave, UserBlocking
+from .models import PostSave, UserBlocking, UserFollowing
 from .serializers import PostSaveSerializer, UserBlockingSerializer
 from .services import authenticate_user, check_if_auth_user_has_access_to_post, check_if_user_exists, check_if_auth_user_is_an_author_of_post
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from django.db.utils import IntegrityError 
 from bson.objectid import ObjectId
+
+from django.db.utils import IntegrityError 
+from django.db.models import Q, Case, When, F
 
 from datetime import datetime
 
@@ -588,3 +590,92 @@ def unblock_user(request, auth_user_id, id_of_user_to_unblock):
             httponly=True
         )
     return response
+
+
+@api_view('GET')
+def get_blockings_of_user(request, auth_user_id):
+    try:
+        all_blockings_of_user = (UserBlocking.objects
+            .filter(Q(blocker=auth_user_id) | Q(blocked=auth_user_id))
+            .annotate(
+                other_user=Case(
+                    When(blocker=auth_user_id, then=F('blocked')),
+                    When(blocked=auth_user_id, then=F('blocker'))
+                )
+            )
+            .values_list('other_user', flat=True)
+        )
+
+        return Response(all_blockings_of_user, status=200)
+    except:
+        return Response(f'There was trouble getting all the blockings of user {auth_user_id}', status=502)
+
+
+@api_view('GET')
+def is_each_user_in_list_in_the_blockings_of_auth_user(request, auth_user_id):
+    set_of_user_ids = set(request.data['user_ids'])
+
+    try:
+        each_user_in_list_in_the_blockings_of_auth_user = (UserBlocking.objects
+            .filter(
+                Q(blocker=auth_user_id, blocked__in=set_of_user_ids) | Q(blocker__in=set_of_user_ids, blocked=auth_user_id)
+            )
+            .count() == len(set_of_user_ids)
+        )
+
+        return Response(each_user_in_list_in_the_blockings_of_auth_user, status=200)
+    except:
+        raise Response(
+            f'There was trouble checking whether or not each user in the list is in the blockings of user {auth_user_id}',
+            502
+        )
+    
+    
+@api_view(['GET'])
+def get_followings_and_blockings_of_user(request, auth_user_id):
+    error_message = ''
+
+    followings_of_user = []
+    try:
+        followings_of_user = (UserFollowing.objects
+            .filter(follower=auth_user_id)
+            .values_list('followed', flat=True)
+        )
+    except:
+        error_message += '• There was trouble getting all the followings of user {auth_user_id}\n'
+    
+
+    blockings_of_user = []
+    try:
+       blockings_of_user = (UserBlocking.objects
+            .filter(Q(blocker=auth_user_id) | Q(blocked=auth_user_id))
+            .annotate(
+                other_user=Case(
+                    When(blocker=auth_user_id, then=F('blocked')),
+                    When(blocked=auth_user_id, then=F('blocker'))
+                )
+            )
+            .values_list('other_user', flat=True)
+        )
+    except:
+        error_message += '• There was trouble getting all the blockings of user {auth_user_id}\n'
+    
+    return Response({
+        'error_message': error_message,
+        'followings': followings_of_user,
+        'blockings': blockings_of_user
+    }, status=200)
+
+
+@api_view(['GET'])
+def check_if_user_is_in_blockings_of_auth_user(request, auth_user_id, user_id):
+    try:
+        user_is_in_blockings_of_auth_user = (UserBlocking.objects
+            .filter(Q(blocker=auth_user_id, blocked=user_id) | Q(blocker=user_id, blocked=auth_user_id))
+            .exists()
+        )
+       
+        return Response(user_is_in_blockings_of_auth_user, status=200)
+    except:
+        return Response('• There was trouble checking if user {user_id} is in the blockings fo user {auth_user_id}\n', status=502)
+    

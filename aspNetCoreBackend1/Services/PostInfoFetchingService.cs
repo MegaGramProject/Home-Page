@@ -135,15 +135,21 @@ public class PostInfoFetchingService
             {
                 HttpRequestMessage request1 = new HttpRequestMessage(
                     HttpMethod.Post,
-                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserFollowsAtLeastOneInList/{authUserId}"
+                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/graphql"
                 );
 
                 request1.Content = new StringContent(
-                    JsonSerializer.Serialize(
-                        new {
-                            listOfUsers = authorsOfPost
+                    JsonSerializer.Serialize(new
+                    {
+                        query = @"query ($authUserId: Int!, $userIds: [Int!]!) {
+                            checkIfUserFollowsAtLeastOneInList(authUserId: $authUserId, userIds: $userIds)
+                        }",
+                        variables = new
+                        {
+                            authUserId,
+                            userIds = authorsOfPost
                         }
-                    ),
+                    }),
                     Encoding.UTF8,
                     "application/json"
                 );
@@ -160,7 +166,12 @@ public class PostInfoFetchingService
                 }
 
                 string stringifiedDataForResponse1 = await response1.Content.ReadAsStringAsync();
-                bool userFollowsAtLeastOneAuthor = JsonSerializer.Deserialize<bool>(stringifiedDataForResponse1);
+                Dictionary<string, Dictionary<string, bool>>? parsedDataForResponse1 =  JsonSerializer.Deserialize<Dictionary<
+                string, Dictionary<string, bool>>>(
+                    stringifiedDataForResponse1
+                );
+
+                bool userFollowsAtLeastOneAuthor = parsedDataForResponse1!["data"]["checkIfUserFollowsAtLeastOneInList"];
                 if (!userFollowsAtLeastOneAuthor) {
                     return (
                         @"You do not have access to any of the encrypted-data of this post since you do not follow
@@ -317,11 +328,11 @@ public class PostInfoFetchingService
                 }
 
                 string stringifiedDataForResponse1 = await response1.Content.ReadAsStringAsync();
-                Dictionary<string, int[]>? parsedDataForResponse1 = JsonSerializer.Deserialize<Dictionary<string, int[]>>(
+                Dictionary<string, object>? parsedDataForResponse1 = JsonSerializer.Deserialize<Dictionary<string, object>>(
                     stringifiedDataForResponse1
                 );
-                setOfAuthUserFollowings = new HashSet<int>(parsedDataForResponse1!["followings"]);
-                setOfAuthUserBlockings = new HashSet<int>(parsedDataForResponse1!["blockings"]);
+                setOfAuthUserFollowings = new HashSet<int>((int[]) parsedDataForResponse1!["followings"]);
+                setOfAuthUserBlockings = new HashSet<int>((int[]) parsedDataForResponse1!["blockings"]);
             }
             catch
             {

@@ -2351,9 +2351,25 @@ public class Controller : ControllerBase
             try
             {
                 HttpRequestMessage request = new HttpRequestMessage(
-                    HttpMethod.Get,
-                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/getFollowingsOfAuthUser/{authUserId}"
+                    HttpMethod.Post,
+                    $"http://34.111.89.101/api/Home-Page/djangoBackend2/graphql"
                 );
+
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(new
+                    {
+                        query = @"query ($authUserId: Int!) {
+                            getFollowingsOfUser(authUserId: $authUserId)
+                        }",
+                        variables = new
+                        {
+                            authUserId
+                        }
+                    }),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
                 HttpResponseMessage response = await _httpClientWithMutualTLS.SendAsync(request);            
 
                 if (!response.IsSuccessStatusCode)

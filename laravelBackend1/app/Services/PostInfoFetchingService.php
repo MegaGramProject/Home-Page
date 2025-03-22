@@ -43,7 +43,7 @@ class PostInfoFetchingService {
                 return $isEncrypted;
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return [
                 "There was trouble connecting to the expressJSBackend1 server to get the authors and encryption-
                 status of the post.",
@@ -61,8 +61,19 @@ class PostInfoFetchingService {
             } 
 
             try {
-                $response1 = Http::post(
-                    "http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserFollowsAtLeastOneInList/$authUserId"
+                $response1 = Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                ])->post(
+                    "http://34.111.89.101/api/Home-Page/djangoBackend2/graphql",
+                    [
+                        'query' => 'query ($authUserId: Int!, $userIds: [Int!]!) {
+                            checkIfUserFollowsAtLeastOneInList(authUserId: $authUserId, userIds: $userIds)
+                        }',
+                        'variables' => [
+                            'authUserId' => $authUserId,
+                            'userIds' => $authorsOfPost
+                        ]
+                    ]
                 );
                 
                 if ($response1->failed()) {
@@ -73,8 +84,8 @@ class PostInfoFetchingService {
                     ]; 
                 }
 
-                $stringifiedResponse1Data = $response1->body();
-                $userFollowsAtLeastOneAuthor = (bool) $stringifiedResponse1Data;
+                $parsedResponse1Data = $response1->json();
+                $userFollowsAtLeastOneAuthor = (bool) $parsedResponse1Data['data']['checkIfUserFollowsAtLeastOneInList'];
 
                 if (!$userFollowsAtLeastOneAuthor) {
                     return [
@@ -84,7 +95,7 @@ class PostInfoFetchingService {
                     ]; 
                 }
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 return [
                     "There was trouble connecting to the djangoBackend2 server to verify whether or not you follow at-least 
                     one of the authors of this private-post.",
@@ -98,9 +109,9 @@ class PostInfoFetchingService {
                 {
                     $response2 = Http::withHeaders([
                         'Content-Type' => 'application/json'
-                    ])->post("http://34.111.89.101/api/Home-Page/djangoBackend2
-                    /isEachUserInListInTheBlockingsOfAuthUser/$authUserId", [
-                        'listOfUsers' => $authorsOfPost
+                    ])->post("http://34.111.89.101/api/Home-Page/djangoBackend2/isEachUserInListInTheBlockingsOfAuthUser
+                    /$authUserId", [
+                        'user_ids' => $authorsOfPost
                     ]);
 
                     if ($response2->failed()) {
@@ -121,7 +132,7 @@ class PostInfoFetchingService {
                         ];
                     }
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     return [
                         "There was trouble connecting to the djangoBackend2 server to check whether or not
                         each of the authors of this unencrypted post either block you or are blocked by you.",
@@ -170,7 +181,7 @@ class PostInfoFetchingService {
                 "UNAUTHORIZED"
             ];
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             return [
                 "There was trouble connecting to the expressJSBackend1 server to get the authors and encryption-
                 status of the post.",

@@ -69,15 +69,21 @@ public class UserInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"http://34.111.89.101/api/Home-Page/djangoBackend2/getTheMostFollowedUsersInList/{limit}"
+                $"http://34.111.89.101/api/Home-Page/djangoBackend2/graphql"
             );
 
             request.Content = new StringContent(
-                JsonSerializer.Serialize(
-                    new {
-                        list = userIdsOfAllPublicAccounts
+                JsonSerializer.Serialize(new
+                {
+                    query = @"query ($userIds: [Int!]!, $limit: Int) {
+                        getTheMostFollowedUsersInList(userIds: $userIds, limit: $limit)
+                    }",
+                    variables = new
+                    {
+                        userIds = userIdsOfAllPublicAccounts,
+                        limit
                     }
-                ),
+                }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -93,9 +99,11 @@ public class UserInfoFetchingService
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            int[]? topMostFollowedUsersInList = JsonSerializer.Deserialize<int[]>(
+            Dictionary<string, Dictionary<string, int[]>>? parsedResponseData = JsonSerializer.Deserialize<Dictionary<string,
+            Dictionary<string, int[]>>>(
                 stringifiedResponseData
             );
+            int[] topMostFollowedUsersInList = parsedResponseData!["data"]["getTheMostFollowedUsersInList"];
             return topMostFollowedUsersInList!;
         }
         catch
@@ -116,7 +124,7 @@ public class UserInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"http://34.111.89.101/api/Home-Page/djangoBackend2/getFollowingsAndBlockingsOfAuthUser/{authUserId}"
+                $"http://34.111.89.101/api/Home-Page/djangoBackend2/getFollowingsAndBlockingsOfUser/{authUserId}"
             );
             HttpResponseMessage response = await httpClientWithMutualTLS.SendAsync(request);            
 
@@ -130,7 +138,7 @@ public class UserInfoFetchingService
             else
             {
                 string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-                Dictionary<string, int[]>? followingsAndBlockingsInfo = JsonSerializer.Deserialize<Dictionary<string, int[]>>(
+                Dictionary<string, object>? followingsAndBlockingsInfo = JsonSerializer.Deserialize<Dictionary<string, object>>(
                     stringifiedResponseData
                 );
                 return followingsAndBlockingsInfo!;
