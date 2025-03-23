@@ -1,0 +1,16 @@
+type PostView {
+    id: Int!
+    viewerId: Id!
+    datetimeOfView: String!
+}
+
+
+type Query {
+    getBatchOfRecentPostViewersOfPost(authUserId: Int!, overallPostId: String!, idsToExclude: [Int!]):
+    [PostView!]!
+}
+
+
+type Mutation {
+    addViewToPost(authUserId: Int!, overallPostId: String!): Int!
+}

@@ -1,0 +1,26 @@
+package com.megagram.springBootBackend2.repositories.oracleSQL;
+
+import java.util.ArrayList;
+import java.util.Set;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import com.megagram.springBootBackend2.models.oracleSQL.PostView;
+
+@Repository
+public interface PostViewRepository extends JpaRepository<PostView, Integer> {
+
+
+    @Query(
+        "SELECT pv FROM PostView pv " +
+        "WHERE pv.id NOT IN :idsToExclude " +
+        "AND pv.overallPostId = :overallPostId " +
+        "ORDER BY pv.datetimeOfView DESC " +
+        "LIMIT :limit"
+    )
+    ArrayList<PostView> getBatchOfRecentViewsOfPost(
+        Set<Integer> idsToExclude, String overallPostId, int limit
+    );
+}
