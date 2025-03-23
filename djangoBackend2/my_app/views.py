@@ -611,7 +611,7 @@ def get_blockings_of_user(request, auth_user_id):
         return Response(f'There was trouble getting all the blockings of user {auth_user_id}', status=502)
 
 
-@api_view('GET')
+@api_view('POST')
 def is_each_user_in_list_in_the_blockings_of_auth_user(request, auth_user_id):
     set_of_user_ids = set(request.data['user_ids'])
 

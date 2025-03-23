@@ -4,25 +4,18 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
 
 import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 
 @Service
 public class PostInfoFetchingService {
 
-    
-    public PostInfoFetchingService() {}
-    
 
-    public Object checkIfAuthUserIsAnAuthorOfPost(int authUserId, String overallPostId) {
+    public Object checkIfPostIsSponsored(String overallPostId) {   
         try {
             URL url = new URL("http://34.111.89.101/api/Home-Page/expressJSBackend1/" +
-            "getAuthorsAndEncryptionStatusOfPost/"+overallPostId);
+            "checkIfPostIsSponsored/"+overallPostId);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
 
@@ -36,7 +29,7 @@ public class PostInfoFetchingService {
 
             if (responseCode == HttpURLConnection.HTTP_OK) {
                 return new String[]{
-                    "The expressJSBackend1 server had trouble getting the authors of the post.",
+                    "The expressJSBackend1 server had trouble checking if the post is sponsored",
                     "BAD_GATEWAY"
                 };
             }
@@ -50,18 +43,13 @@ public class PostInfoFetchingService {
             reader.close();
 
             String stringifiedResponseData = response.toString();
-            ObjectMapper objectMapper = new ObjectMapper();
-            HashMap<String, Object> parsedResponseData = objectMapper.readValue(
-                stringifiedResponseData, HashMap.class
-            );
-
-            List<Integer> authorsOfPost = (List<Integer>) parsedResponseData.get("authorsOfPost");
-
-            return authorsOfPost.contains(authUserId);
+            Boolean postIsSponsored = Boolean.parseBoolean(stringifiedResponseData);
+            return postIsSponsored;
         }
         catch (Exception e) {
-            return new String[]{
-                "There was trouble connecting to the expressJSBackend1 server to get the authors of the post.",
+            return new String[] {
+                "There was trouble connecting to the expressJSBackend1 server to check if the post is " +
+                "sponsored",
                 "BAD_GATEWAY"
             };
         }

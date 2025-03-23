@@ -1,4 +1,4 @@
-package com.megagram.springBootBackend2.Controllers.GraphQL.PostView;
+package com.megagram.springBootBackend2.Controllers.GraphQL.AdLinkClick;
 
 import org.apache.coyote.BadRequestException;
 import org.bson.types.ObjectId;
@@ -11,8 +11,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.megagram.springBootBackend2.exceptions.BadGatewayException;
 import com.megagram.springBootBackend2.exceptions.ForbiddenException;
-import com.megagram.springBootBackend2.models.oracleSQL.PostView;
-import com.megagram.springBootBackend2.repositories.oracleSQL.PostViewRepository;
+import com.megagram.springBootBackend2.models.mssqlServer.AdLinkClick;
+import com.megagram.springBootBackend2.repositories.mssqlServer.AdLinkClickRepository;
+import com.megagram.springBootBackend2.services.PostInfoFetchingService;
 import com.megagram.springBootBackend2.services.UserAuthService;
 import com.megagram.springBootBackend2.services.UserInfoFetchingService;
 
@@ -25,17 +26,19 @@ public class Mutations {
     @Autowired
     private UserAuthService userAuthService;
     @Autowired
-    private PostViewRepository postViewRepository;
+    private AdLinkClickRepository adLinkClickRepository;
     @Autowired 
     private UserInfoFetchingService userInfoFetchingService;
+    @Autowired
+    private PostInfoFetchingService postInfoFetchingService;
 
 
     public Mutations() {}
 
 
     @MutationMapping
-    public int addViewToPost(HttpServletRequest request, HttpServletResponse response, @RequestParam int
-    authUserId, @RequestParam String overallPostId) throws Exception {
+    public int addAdLinkClickToSponsoredPost(HttpServletRequest request, HttpServletResponse response,
+    @RequestParam int authUserId, @RequestParam String overallPostId) throws Exception {
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -81,7 +84,22 @@ public class Mutations {
             response.addHeader("Set-Cookie", cookie.toString());
         }
 
-        
+
+        Object resultOfCheckingIfPostIsSponsored = postInfoFetchingService
+        .checkIfPostIsSponsored(overallPostId);
+        if (resultOfCheckingIfPostIsSponsored instanceof String[]) {
+            if (((String[]) resultOfCheckingIfPostIsSponsored)[1].equals("BAD_GATEWAY")) {
+                throw new BadGatewayException(((String[]) resultOfCheckingIfPostIsSponsored)[0]);
+            }
+            throw new NotFoundException();
+        }
+        Boolean postIsSponsored = (Boolean) resultOfCheckingIfPostIsSponsored;
+        if (!postIsSponsored) {
+            throw new BadRequestException(
+                "You cannot add an ad-link-click to a post that is not sponsored"
+            );
+        }
+
         Object resultOfCheckingIfAuthUserHasAccessToPost = userInfoFetchingService
         .checkIfAuthUserHasAccessToPost(authUserId, overallPostId);
         if (resultOfCheckingIfAuthUserHasAccessToPost instanceof String[]) {
@@ -95,14 +113,14 @@ public class Mutations {
         }
 
         
-        PostView newPostView = new PostView(overallPostId, authUserId);
+        AdLinkClick newAdLinkClick = new AdLinkClick(overallPostId, authUserId);
         try {
-            postViewRepository.save(newPostView);
-            return newPostView.id;
+            adLinkClickRepository.save(newAdLinkClick);
+            return newAdLinkClick.id;
         }
         catch (Exception e) {
             throw new BadGatewayException(
-                "There was trouble adding your post-view into the database"
+                "There was trouble adding your add-link-click into the database"
             );
         }
     }

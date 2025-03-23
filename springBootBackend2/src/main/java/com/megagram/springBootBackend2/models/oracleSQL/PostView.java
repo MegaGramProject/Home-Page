@@ -16,15 +16,13 @@ public class PostView {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public int id;
-
     public String overallPostId;
-
     public int viewerId;
-
     public LocalDateTime datetimeOfView;
 
-    public PostView() {
-    }
+
+    public PostView() {}
+
 
     public PostView(String overallPostId, int viewerId) {
         this.overallPostId = overallPostId;

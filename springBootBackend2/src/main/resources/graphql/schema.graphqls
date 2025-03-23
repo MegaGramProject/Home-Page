@@ -4,13 +4,24 @@ type PostView {
     datetimeOfView: String!
 }
 
+type AdLinkClick {
+    id: Int!
+    clickerId: Id!
+    datetimeOfClick: String!
+}
+
 
 type Query {
     getBatchOfRecentPostViewersOfPost(authUserId: Int!, overallPostId: String!, idsToExclude: [Int!]):
     [PostView!]!
+
+    getBatchOfRecentAdLinkClicksOfSponsoredPost(authUserId: Int!, overallPostId: String!, idsToExclude:
+    [Int!]): [AdLinkClick!]!
 }
 
 
 type Mutation {
     addViewToPost(authUserId: Int!, overallPostId: String!): Int!
+
+    addAdLinkClickToSponsoredPost(authUserId: Int!, overallPostId: String!): Int!
 }

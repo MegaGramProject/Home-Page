@@ -1,4 +1,4 @@
-package com.megagram.springBootBackend2.Controllers.GraphQL.PostView;
+package com.megagram.springBootBackend2.Controllers.GraphQL.AdLinkClick;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.megagram.springBootBackend2.exceptions.BadGatewayException;
 import com.megagram.springBootBackend2.exceptions.ForbiddenException;
-import com.megagram.springBootBackend2.models.oracleSQL.PostView;
-import com.megagram.springBootBackend2.repositories.oracleSQL.PostViewRepository;
+import com.megagram.springBootBackend2.models.mssqlServer.AdLinkClick;
+import com.megagram.springBootBackend2.repositories.mssqlServer.AdLinkClickRepository;
 import com.megagram.springBootBackend2.services.UserAuthService;
 import com.megagram.springBootBackend2.services.UserInfoFetchingService;
 
@@ -33,16 +33,16 @@ public class Queries {
     @Autowired
     private UserAuthService userAuthService;
     @Autowired
-    private PostViewRepository postViewRepository;
+    private AdLinkClickRepository adLinkClickRepository;
 
 
     public Queries() {}
    
 
     @QueryMapping
-    public ArrayList<HashMap<String, Object>> getBatchOfRecentPostViewersOfPost(HttpServletRequest request,
-    HttpServletResponse response, @RequestParam int authUserId, @RequestParam String overallPostId,
-    @RequestParam List<Integer> idsToExclude) throws Exception {
+    public ArrayList<HashMap<String, Object>> getBatchOfRecentAdLinkClicksOfSponsoredPost(
+    HttpServletRequest request, HttpServletResponse response, @RequestParam int authUserId, @RequestParam
+    String overallPostId, @RequestParam List<Integer> idsToExclude) throws Exception {
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -52,7 +52,6 @@ public class Queries {
         if (ObjectId.isValid(overallPostId)) {
             throw new BadRequestException("The provided overallPostId is invalid");
         }
-
         
         Object userAuthenticationResult = userAuthService.authenticateUser(request, authUserId);
 
@@ -99,7 +98,7 @@ public class Queries {
         Boolean authUserIsPostAuthor = (Boolean) resultOfCheckingIfAuthUserIsPostAuthor;
         if (!authUserIsPostAuthor) {
             throw new ForbiddenException(
-                "You cannot check the viewers of a post that you are not an author of"
+                "You cannot check the ad-link-clickers of a post that you are not an author of"
             );
         }
 
@@ -109,10 +108,10 @@ public class Queries {
         }
         HashSet<Integer> setOfIdsToExclude = new HashSet<Integer>(idsToExclude);
         
-        ArrayList<PostView> batchOfRecentPostViewersOfPost  = new ArrayList<PostView>();
+        ArrayList<AdLinkClick> batchOfRecentAdLinkClickersOfSponsoredPost  = new ArrayList<AdLinkClick>();
         try {
-            batchOfRecentPostViewersOfPost = postViewRepository
-            .getBatchOfRecentViewsOfPost(
+            batchOfRecentAdLinkClickersOfSponsoredPost = adLinkClickRepository
+            .getBatchOfAdLinkClicksOfSponsoredPost(
                 setOfIdsToExclude, 
                 overallPostId,
                 25
@@ -120,21 +119,21 @@ public class Queries {
         }
         catch (Exception e) {
             throw new BadGatewayException(
-                "There was trouble getting the batch of recent post viewers of this post"
+                "There was trouble getting the batch of recent post ad-link-clickers of this post"
             );
         }
         
         ArrayList<HashMap<String, Object>> output = new  ArrayList<HashMap<String, Object>>();
-        for (PostView recentPostView : batchOfRecentPostViewersOfPost) {
-            HashMap<String, Object> relevantPostViewInfo = new HashMap<String, Object>();
-            relevantPostViewInfo.put("id", recentPostView.id);
-            relevantPostViewInfo.put("viewerId", recentPostView.viewerId);
+        for (AdLinkClick recentAdLinkClick : batchOfRecentAdLinkClickersOfSponsoredPost) {
+            HashMap<String, Object> relevantAdLinkClickInfo = new HashMap<String, Object>();
+            relevantAdLinkClickInfo.put("id", recentAdLinkClick.id);
+            relevantAdLinkClickInfo.put("clickerId", recentAdLinkClick.clickerId);
 
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            String datetimeOfViewAsString = recentPostView.datetimeOfView.format(formatter);
-            relevantPostViewInfo.put("datetimeOfView", datetimeOfViewAsString);
+            String datetimeOfClickAsString = recentAdLinkClick.datetimeOfClick.format(formatter);
+            relevantAdLinkClickInfo.put("datetimeOfClick", datetimeOfClickAsString);
 
-            output.add(relevantPostViewInfo);
+            output.add(relevantAdLinkClickInfo);
         }
 
         return output;
