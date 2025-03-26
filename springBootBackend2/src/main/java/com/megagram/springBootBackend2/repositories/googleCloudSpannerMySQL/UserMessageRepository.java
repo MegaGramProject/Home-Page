@@ -1,5 +1,6 @@
 package com.megagram.springBootBackend2.repositories.googleCloudSpannerMySQL;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -25,4 +26,39 @@ public interface UserMessageRepository extends JpaRepository<UserMessage, Intege
     );
 
 
+    @Query(
+        "SELECT um FROM UserMessage um " +
+        "WHERE um.convoId = :convoId " +
+        "AND um.id NOT IN :setOfMessageIdsToExclude " +
+        "LIMIT :batchSize"
+    )
+    ArrayList<UserMessage> fetchBatchOfMostRecentMessagesOfConvo(
+        @Param("batchSize") int batchSize,
+        @Param("convoId") int convoId,
+        @Param("setOfMessageIdsToExclude") HashSet<Integer> setOfMessageIdsToExclude
+    );
+
+
+    @Query(
+        "SELECT um FROM UserMessage um " +
+        "WHERE um.convoId = :convoId " +
+        "AND um.id NOT IN :setOfMessageIdsToExclude " +
+        "AND um.sentAt > :datetimeRestriction " +
+        "LIMIT :batchSize"
+    )
+    ArrayList<UserMessage> fetchBatchOfMostRecentMessagesOfConvoWithDatetimeRestriction(
+        @Param("batchSize") int batchSize,
+        @Param("convoId") int convoId,
+        @Param("setOfMessageIdsToExclude") HashSet<Integer> setOfMessageIdsToExclude,
+        @Param("datetimeRestriction") LocalDateTime datetimeRestriction
+    );
+
+
+    @Query(
+        "SELECT um.convoId FROM UserMessage um " +
+        "WHERE um.id = :messageId"
+    )
+    Integer getConvoIdOfMessage(
+        @Param("messageId") int messageId
+    );
 }

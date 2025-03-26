@@ -1524,13 +1524,12 @@ public class Mutations {
             if(membersOfConvo.get(i) == authUserId) {
                 authUserIsMemberOfConvo = true;
             }
+            else if (!setOfAuthUserBlockings.contains(membersOfConvo.get(i))) {
+                authUserIsBlockedByEachConvoMember = false;
+            }
             
             if (membersOfConvo.get(i) == acceptedOrRequestedMemberIdToRevoke) {
                 indexOfMemberToRemove = i;
-            }
-
-            if (membersOfConvo.get(i) != authUserId &&  !setOfAuthUserBlockings.contains(membersOfConvo.get(i))) {
-                authUserIsBlockedByEachConvoMember = false;
             }
         }
 
