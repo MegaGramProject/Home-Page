@@ -5,5 +5,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class Queries {
+
     
+    public Queries() {}
+
+    //getBatchOfMostRecentMessagesOfMyConvo
+    //getLatestMessageOfAllMyConvos
 }

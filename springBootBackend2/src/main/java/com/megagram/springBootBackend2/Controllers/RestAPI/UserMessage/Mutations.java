@@ -6,4 +6,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class Mutations {
     
+
+    public Mutations() {}
+
+    /*
+        sendMessage
+        unsendMessage
+    */
 }

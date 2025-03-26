@@ -3,7 +3,6 @@ package com.megagram.springBootBackend2.Controllers.GraphQL.AdLinkClick;
 import org.apache.coyote.BadRequestException;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Controller;
@@ -11,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import com.megagram.springBootBackend2.exceptions.BadGatewayException;
 import com.megagram.springBootBackend2.exceptions.ForbiddenException;
+import com.megagram.springBootBackend2.exceptions.ResourceDoesNotExistException;
 import com.megagram.springBootBackend2.models.mssqlServer.AdLinkClick;
 import com.megagram.springBootBackend2.repositories.mssqlServer.AdLinkClickRepository;
 import com.megagram.springBootBackend2.services.PostInfoFetchingService;
 import com.megagram.springBootBackend2.services.UserAuthService;
-import com.megagram.springBootBackend2.services.UserInfoFetchingService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,8 +26,6 @@ public class Mutations {
     private UserAuthService userAuthService;
     @Autowired
     private AdLinkClickRepository adLinkClickRepository;
-    @Autowired 
-    private UserInfoFetchingService userInfoFetchingService;
     @Autowired
     private PostInfoFetchingService postInfoFetchingService;
 
@@ -91,7 +88,8 @@ public class Mutations {
             if (((String[]) resultOfCheckingIfPostIsSponsored)[1].equals("BAD_GATEWAY")) {
                 throw new BadGatewayException(((String[]) resultOfCheckingIfPostIsSponsored)[0]);
             }
-            throw new NotFoundException();
+
+            throw new ResourceDoesNotExistException(((String[]) resultOfCheckingIfPostIsSponsored)[0]);
         }
         Boolean postIsSponsored = (Boolean) resultOfCheckingIfPostIsSponsored;
         if (!postIsSponsored) {
@@ -100,7 +98,7 @@ public class Mutations {
             );
         }
 
-        Object resultOfCheckingIfAuthUserHasAccessToPost = userInfoFetchingService
+        Object resultOfCheckingIfAuthUserHasAccessToPost = postInfoFetchingService
         .checkIfAuthUserHasAccessToPost(authUserId, overallPostId);
         if (resultOfCheckingIfAuthUserHasAccessToPost instanceof String[]) {
             if (((String[]) resultOfCheckingIfAuthUserHasAccessToPost)[1].equals("BAD_GATEWAY")) {
@@ -109,7 +107,8 @@ public class Mutations {
             else if (((String[]) resultOfCheckingIfAuthUserHasAccessToPost)[1].equals("UNAUTHORIZED")) {
                 throw new ForbiddenException(((String[]) resultOfCheckingIfAuthUserHasAccessToPost)[0]);
             }
-            throw new NotFoundException();
+            
+            throw new ResourceDoesNotExistException(((String[]) resultOfCheckingIfAuthUserHasAccessToPost)[0]);
         }
 
         

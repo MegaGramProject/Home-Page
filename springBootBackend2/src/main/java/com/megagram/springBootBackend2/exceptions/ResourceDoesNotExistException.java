@@ -4,11 +4,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 
-@ResponseStatus(HttpStatus.FORBIDDEN)
-public class ForbiddenException extends RuntimeException {
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceDoesNotExistException extends RuntimeException {
 
-    
-    public ForbiddenException(String message) {
+
+    public ResourceDoesNotExistException(String message) {
         super(message);
     }
 }

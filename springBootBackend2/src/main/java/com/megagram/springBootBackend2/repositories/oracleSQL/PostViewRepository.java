@@ -1,13 +1,15 @@
 package com.megagram.springBootBackend2.repositories.oracleSQL;
 
 import java.util.ArrayList;
-import java.util.Set;
+import java.util.HashSet;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.megagram.springBootBackend2.models.oracleSQL.PostView;
+
 
 @Repository
 public interface PostViewRepository extends JpaRepository<PostView, Integer> {
@@ -21,6 +23,8 @@ public interface PostViewRepository extends JpaRepository<PostView, Integer> {
         "LIMIT :limit"
     )
     ArrayList<PostView> getBatchOfRecentViewsOfPost(
-        Set<Integer> idsToExclude, String overallPostId, int limit
+        @Param("setOfIdsToExclude") HashSet<Integer> setOfIdsToExclude,
+        @Param("overallPostId") String overallPostId,
+        @Param("limit") int limit
     );
 }

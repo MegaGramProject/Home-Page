@@ -3824,14 +3824,6 @@ function encryptTextWithAWSDataEncryptionKey(plaintext, plaintextDataEncryptionK
     };
 }
 
-function encryptTextWithAWSDataEncryptionKeyGivenIvAndAuthTag(plaintext, plaintextDataEncryptionKey, iv, authTag) {
-    const cipher = crypto.createCipheriv("aes-256-gcm", plaintextDataEncryptionKey, iv);
-    cipher.setAuthTag(authTag);
-    const encryptedTextBuffer = Buffer.concat([cipher.update(plaintext, "utf-8"), cipher.final()]);
-
-    return encryptedTextBuffer;
-}
-
 
 function decryptTextWithAWSDataEncryptionKey(encryptedTextBuffer, plaintextDataEncryptionKey, iv, authTag) {
     const decipher = crypto.createDecipheriv("aes-256-gcm", plaintextDataEncryptionKey, iv);
@@ -3857,14 +3849,6 @@ function encryptFileBufferWithAWSDataEncryptionKey(plainfileBuffer, plaintextDat
         iv: iv,
         authTag: authTag,
     };
-}
-
-function encryptFileBufferWithAWSDataEncryptionKeyGivenIvAndAuthTag(plainfileBuffer, plaintextDataEncryptionKey, iv, authTag) {
-    const cipher = crypto.createCipheriv("aes-256-gcm", plaintextDataEncryptionKey, iv);
-    cipher.setAuthTag(authTag);
-    const encryptedFileBuffer = Buffer.concat([cipher.update(plainfileBuffer), cipher.final()]);
-
-    return encryptedFileBuffer;
 }
 
 
