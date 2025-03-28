@@ -1,11 +1,14 @@
 package com.megagram.springBootBackend2.Controllers.RestAPI.UserConvo;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.coyote.BadRequestException;
@@ -22,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.megagram.springBootBackend2.exceptions.BadGatewayException;
 import com.megagram.springBootBackend2.exceptions.ForbiddenException;
 import com.megagram.springBootBackend2.exceptions.ResourceDoesNotExistException;
+import com.megagram.springBootBackend2.exceptions.TooManyRequestsException;
 import com.megagram.springBootBackend2.models.googleCloudSpannerMySQL.UserConvo.UserConvo;
 import com.megagram.springBootBackend2.repositories.googleCloudSpannerMySQL.UserConvoRepository;
 import com.megagram.springBootBackend2.services.ConvoInfoFetchingService;
@@ -29,6 +33,9 @@ import com.megagram.springBootBackend2.services.EncryptionAndDecryptionService;
 import com.megagram.springBootBackend2.services.UserAuthService;
 import com.megagram.springBootBackend2.services.UserInfoFetchingService;
 
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -49,6 +56,8 @@ public class Mutations {
     @Autowired
     private UserConvoRepository userConvoRepository;
 
+    private final Map<String, Bucket> rateLimitBuckets = new ConcurrentHashMap<>();
+
     
     public Mutations() {}
 
@@ -56,6 +65,8 @@ public class Mutations {
     @PostMapping("/createNewConvo/{authUserId}")
     public HashMap<String, Object> createNewConvo(HttpServletRequest request, HttpServletResponse response,
     @RequestParam int authUserId, @RequestBody HashMap<String, Object> convoInfo) throws Exception {
+        this.processRequest(this.getClientIpAddress(request), "/createNewConvo");
+        
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -414,6 +425,8 @@ public class Mutations {
     public HashMap<String, Object> requestSomeoneToJoinConvo(HttpServletRequest request, HttpServletResponse
     response, @RequestParam int authUserId, @RequestParam int convoId, @RequestParam int newMemberId)
     throws Exception {
+        this.processRequest(this.getClientIpAddress(request), "/requestSomeoneToJoinConvo");
+
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -772,6 +785,8 @@ public class Mutations {
     public HashMap<String, Object> setTitleOfConvo(HttpServletRequest request, HttpServletResponse 
     response, @RequestParam int authUserId, @RequestParam int convoId, @RequestBody HashMap<String, 
     String> newTitleInfo) throws Exception {
+        this.processRequest(this.getClientIpAddress(request), "/setTitleOfConvo");
+
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -969,6 +984,8 @@ public class Mutations {
     @PatchMapping("/markConvoAsSeen/{authUserId}/{convoId}")
     public HashMap<String, Object> markConvoAsSeen(HttpServletRequest request, HttpServletResponse
     response, @RequestParam int authUserId, @RequestParam int convoId) throws Exception {
+        this.processRequest(this.getClientIpAddress(request), "/markConvoAsSeen");
+
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -1138,6 +1155,8 @@ public class Mutations {
     public HashMap<String, Object> updateMyStatusAsConvoMember(HttpServletRequest request,
     HttpServletResponse response, @RequestParam int authUserId, @RequestParam int convoId,
     @RequestParam int newStatus) throws Exception {
+        this.processRequest(this.getClientIpAddress(request), "/updateMyStatusAsConvoMember");
+
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -1411,6 +1430,8 @@ public class Mutations {
     HttpServletResponse response, @RequestParam int authUserId, @RequestParam int convoId, @RequestParam int
     acceptedOrRequestedMemberIdToRevoke) throws
     Exception {
+        this.processRequest(this.getClientIpAddress(request), "/revokeConvoMembershipOfUser");
+
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -1790,5 +1811,48 @@ public class Mutations {
         output.put("ErrorMessage", errorMessage);
 
         return output;
+    }
+
+
+    private void processRequest(String clientIPAddress, String endpoint) {
+        String key = clientIPAddress + ":" + endpoint;
+        Bucket bucket = this.rateLimitBuckets.computeIfAbsent(key, k -> createBucket(endpoint));
+
+        if (bucket.tryConsume(1)) {
+            //pass
+        }
+        else {
+            throw new TooManyRequestsException();
+        }
+    }
+
+
+    private Bucket createBucket(String endpoint) {
+        Bandwidth limit = null;
+
+        switch (endpoint) {
+            case "/createNewConvo":
+            case "/requestSomeoneToJoinConvo":
+            case "/setTitleOfConvo":
+            case "/revokeConvoMembershipOfUser":
+                limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(1)));
+            case "/markConvoAsSeen":
+            case "/updateMyStatusAsConvoMember":
+                limit = Bandwidth.classic(10, Refill.greedy(10, Duration.ofMinutes(1)));
+            
+            
+        }
+
+        return Bucket.builder().addLimit(limit).build();
+    }
+
+
+    private String getClientIpAddress(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty()) {
+            ip = request.getRemoteAddr();
+        }
+
+        return ip.split(",")[0].trim();
     }
 }

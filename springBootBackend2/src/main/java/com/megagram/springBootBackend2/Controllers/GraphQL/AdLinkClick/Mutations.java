@@ -31,7 +31,7 @@ public class Mutations {
 
 
     public Mutations() {}
-
+    
 
     @MutationMapping
     public int addAdLinkClickToSponsoredPost(HttpServletRequest request, HttpServletResponse response,

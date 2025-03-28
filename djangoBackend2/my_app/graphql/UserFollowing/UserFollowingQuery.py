@@ -36,6 +36,7 @@ class Query(graphene.ObjectType):
     )
 
     get_followings_of_user = graphene.List(
+        graphene.Int,
         auth_user_id=graphene.Int(required=True)
     )
 

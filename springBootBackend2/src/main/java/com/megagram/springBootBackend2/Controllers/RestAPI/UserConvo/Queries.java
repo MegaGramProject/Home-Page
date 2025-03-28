@@ -1,11 +1,14 @@
 package com.megagram.springBootBackend2.Controllers.RestAPI.UserConvo;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.coyote.BadRequestException;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.megagram.springBootBackend2.exceptions.BadGatewayException;
 import com.megagram.springBootBackend2.exceptions.ForbiddenException;
+import com.megagram.springBootBackend2.exceptions.TooManyRequestsException;
 import com.megagram.springBootBackend2.models.googleCloudSpannerMySQL.UserConvo.DecryptedUserConvo;
 import com.megagram.springBootBackend2.models.googleCloudSpannerMySQL.UserConvo.UserConvo;
 import com.megagram.springBootBackend2.models.googleCloudSpannerMySQL.UserMessage.DecryptedUserMessage;
@@ -30,6 +34,9 @@ import com.megagram.springBootBackend2.services.EncryptionAndDecryptionService;
 import com.megagram.springBootBackend2.services.UserAuthService;
 import com.megagram.springBootBackend2.services.UserInfoFetchingService;
 
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.Refill;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -50,6 +57,8 @@ public class Queries {
     @Autowired
     private EncryptionAndDecryptionService encryptionAndDecryptionService;
 
+    private final Map<String, Bucket> rateLimitBuckets = new ConcurrentHashMap<>();
+
     
     public Queries() {}
 
@@ -60,6 +69,8 @@ public class Queries {
     HttpServletRequest request, HttpServletResponse response, @RequestParam int authUserId,
     @RequestBody HashMap<String, List<Integer>> infoOnConvoIdsToExclude) throws
     Exception {
+        this.processRequest(this.getClientIpAddress(request), "/getBatchOfMyMostRecentConvos");
+
         if (authUserId < 1) {
             throw new BadRequestException(
                 "There does not exist a user with the provided authUserId"
@@ -398,5 +409,35 @@ public class Queries {
         batchOfMostRecentConvosOfAuthUser.put("ErrorMessage", errorMessage);
 
         return batchOfMostRecentConvosOfAuthUser;
+    }
+
+
+    private void processRequest(String clientIPAddress, String endpoint) {
+        String key = clientIPAddress + ":" + endpoint;
+        Bucket bucket = this.rateLimitBuckets.computeIfAbsent(key, k -> createBucket(endpoint));
+
+        if (bucket.tryConsume(1)) {
+            //pass
+        }
+        else {
+            throw new TooManyRequestsException();
+        }
+    }
+
+
+    private Bucket createBucket(String endpoint) {
+        Bandwidth limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(1)));
+
+        return Bucket.builder().addLimit(limit).build();
+    }
+
+
+    private String getClientIpAddress(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty()) {
+            ip = request.getRemoteAddr();
+        }
+
+        return ip.split(",")[0].trim();
     }
 }

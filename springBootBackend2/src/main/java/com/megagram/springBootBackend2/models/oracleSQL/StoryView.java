@@ -10,23 +10,24 @@ import java.time.LocalDateTime;
 
 
 @Entity
-@Table(name = "postViews")
-public class PostView {
+@Table(name = "storyViews")
+public class StoryView {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public int id;
-    public String overallPostId;
+    public String storyId;
     public int viewerId;
+    public int storyAuthorId;
     public LocalDateTime datetimeOfView;
 
 
-    public PostView() {}
+    public StoryView() {}
 
 
-    public PostView(String overallPostId, int viewerId) {
-        this.overallPostId = overallPostId;
+    public StoryView(String storyId, int storyAuthorId, int viewerId) {
+        this.storyId = storyId;
+        this.storyAuthorId = storyAuthorId;
         this.viewerId = viewerId;
         this.datetimeOfView = LocalDateTime.now(); 
     }
-
 }
