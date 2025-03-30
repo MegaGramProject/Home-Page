@@ -10,13 +10,18 @@ app.use(cookieParser());
 const server = http.createServer(app);
 const io = new Server(server);
 
-const userIdsAndTheirUsernames = {};
 const usersAndTheirOverallPostIds = {};
+const userIdsAndTheirUsernames = {};
 
-const overallPostIdsWhoseLikesAreMonitored = new Set();
+const overallPostIdsWhoseLikesAreMonitored = [];
 let datetimeForCheckingUpdatesOfPostLikes = null;
 let intervalIdForFetchingPostLikeUpdates = null;
 let isCurrentlyFetchingPostLikeUpdates = false;
+
+const overallPostIdsWhoseCommentsAreMonitored = [];
+let datetimeForCheckingUpdatesOfPostComments = null;
+let intervalIdForFetchingPostCommentUpdates = null;
+let isCurrentlyFetchingPostCommentUpdates = false;
 
 
 io.on('connection', (socket) => {
@@ -113,11 +118,24 @@ io.on('connection', (socket) => {
         usersAndTheirOverallPostIds[overallPostId] = overallPostIdsOfUser;
     }
 
+
+    const setOfOverallPostIdsWhoseLikesAreMonitored = new Set(overallPostIdsWhoseLikesAreMonitored);
+    const setOfOverallPostIdsWhoseCommentsAreMonitored = new Set(overallPostIdsWhoseCommentsAreMonitored);
+
     for (let overallPostId of overallPostIdsOfUser) {
         if (updatesToSubscribeTo.includes('post-likes')) {
+            setOfOverallPostIdsWhoseLikesAreMonitored.add(overallPostId);
             socket.join('subscribersToLikeUpdatesOfPost'+overallPostId);
         }
+
+        if (updatesToSubscribeTo.includes('post-comments')) {
+            setOfOverallPostIdsWhoseCommentsAreMonitored.add(overallPostId);
+            socket.join('subscribersToCommentUpdatesOfPost'+overallPostId);
+        }
     }
+
+    overallPostIdsWhoseLikesAreMonitored = [...setOfOverallPostIdsWhoseLikesAreMonitored];
+    overallPostIdsWhoseCommentsAreMonitored = [...setOfOverallPostIdsWhoseCommentsAreMonitored];
 
     if (updatesToSubscribeTo.includes('post-likes')) {
         socket.join('subscribersToLikeUpdatesOfAPost');
@@ -126,6 +144,15 @@ io.on('connection', (socket) => {
     if (updatesToSubscribeTo.includes('post-likes') && intervalIdForFetchingPostLikeUpdates==null) {
         datetimeForCheckingUpdatesOfPostLikes = new Date();
         intervalIdForFetchingPostLikeUpdates = setInterval(fetchPostLikeUpdates, 5000);
+    }
+
+    if (updatesToSubscribeTo.includes('post-comments')) {
+        socket.join('subscribersToCommentUpdatesOfAPost');
+    }
+
+    if (updatesToSubscribeTo.includes('post-comments') && intervalIdForFetchingPostCommentUpdates==null) {
+        datetimeForCheckingUpdatesOfPostComments = new Date();
+        intervalIdForFetchingPostCommentUpdates = setInterval(fetchPostCommentUpdates, 5000);
     }
 
     socket.on('disconnect', () => {
@@ -153,6 +180,22 @@ io.on('connection', (socket) => {
                 }
             }
 
+            if (updatesToSubscribeTo.includes('post-comments')) {
+                socket.leave('subscribersToCommentUpdatesOfPost'+overallPostId);
+
+                if (numSubscribersToPostCommentUpdatesOfThisPost==0) {
+                    overallPostIdsWhoseCommentsAreMonitored = overallPostIdsWhoseCommentsAreMonitored.filter(
+                        elem => elem !== overallPostId
+                    );
+
+                    if (overallPostIdsWhoseCommentsAreMonitored.length == 0) {
+                        clearInterval(intervalIdForFetchingPostCommentUpdates);
+                        intervalIdForFetchingPostCommentUpdates = null;
+                        datetimeForCheckingUpdatesOfPostComments = null;
+                    }
+                }
+            }
+
             if (numSubscribersToPostLikeUpdatesOfThisPost == 0 && numSubscribersToPostCommentUpdatesOfThisPost == 0) {
                 delete usersAndTheirOverallPostIds[userId];
             }
@@ -160,6 +203,10 @@ io.on('connection', (socket) => {
 
         if (updatesToSubscribeTo.includes('post-likes')) {
             socket.leave('subscribersToLikeUpdatesOfAPost');
+        }
+
+        if (updatesToSubscribeTo.includes('post-comments')) {
+            socket.leave('subscribersToCommentUpdatesOfAPost');
         }
     });
 });
@@ -194,9 +241,8 @@ async function fetchPostLikeUpdates() {
     }
     isCurrentlyFetchingPostLikeUpdates = true;
 
+    const newDatetimeForCheckingUpdatesOfPostLikes = new Date();
     try {
-        const newDatetimeForCheckingUpdatesOfPostLikes = new Date();
-
         let postLikeUpdates = [];
         const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/fetchUpdatesToLikesOfMultiplePosts`, {
             method: 'POST',
@@ -220,7 +266,7 @@ async function fetchPostLikeUpdates() {
 
         postLikeUpdates = await response.json();
         const userIdsToGetUsernamesOf = new Set();
-        const overallPostIdsWhoHaveLikersWithUnknownUsernames = new Set();
+        const overallPostIdsThatHaveLikersWithUnknownUsernames = new Set();
         const overallPostIdsAndTheirPostLikeUpdates = {};
 
         for(let postLikeUpdate of postLikeUpdates) {
@@ -229,22 +275,22 @@ async function fetchPostLikeUpdates() {
 
             if (!(likerId in userIdsAndTheirUsernames)) {
                 userIdsToGetUsernamesOf.add(likerId);
-                overallPostIdsWhoHaveLikersWithUnknownUsernames.add(overallPostId);
+                overallPostIdsThatHaveLikersWithUnknownUsernames.add(overallPostId);
             }
             else {
                 if (!(overallPostId in overallPostIdsAndTheirPostLikeUpdates)) {
-                    overallPostIdsAndTheirPostLikeUpdates[overallPostId] = new Set();
+                    overallPostIdsAndTheirPostLikeUpdates[overallPostId] = [];
                 }
 
-                overallPostIdsAndTheirPostLikeUpdates[overallPostId].add(likerId);
+                overallPostIdsAndTheirPostLikeUpdates[overallPostId].push(likerId);
             }
         }
 
         if (userIdsToGetUsernamesOf.size > 0) {
             const usernameForEachUserId = getUsernamesForListOfUserIds(userIdsToGetUsernamesOf);
             if (Array.isArray(usernameForEachUserId)) {
-                for(let overallPostId of overallPostIdsWhoHaveLikersWithUnknownUsernames) {
-                    const room = io.sockets.adapter.rooms.get('likesOfPost'+overallPostId);
+                for(let overallPostId of overallPostIdsThatHaveLikersWithUnknownUsernames) {
+                    const room = io.sockets.adapter.rooms.get('subscribersToLikeUpdatesOfPost'+overallPostId);
     
                     for (let socketId of room) {
                         io.sockets.sockets.get(socketId).join('subscribersToPostsThatHaveLikersWithUnknownUsernames');
@@ -270,10 +316,10 @@ async function fetchPostLikeUpdates() {
 
                     if (likerId in userIdsToGetUsernamesOf && likerId in usernameForEachUserId) {
                         if (!(overallPostId in overallPostIdsAndTheirPostLikeUpdates)) {
-                            overallPostIdsAndTheirPostLikeUpdates[overallPostId] = new Set();
+                            overallPostIdsAndTheirPostLikeUpdates[overallPostId] = [];
                         }
         
-                        overallPostIdsAndTheirPostLikeUpdates[overallPostId].add(likerId);
+                        overallPostIdsAndTheirPostLikeUpdates[overallPostId].push(likerId);
                     }
                 }
                 
@@ -305,6 +351,136 @@ async function fetchPostLikeUpdates() {
 
     datetimeForCheckingUpdatesOfPostLikes = newDatetimeForCheckingUpdatesOfPostLikes;
     isCurrentlyFetchingPostLikeUpdates = false;
+}
+
+
+async function fetchPostCommentUpdates() {
+    if (isCurrentlyFetchingPostCommentUpdates) {
+        return;
+    }
+    isCurrentlyFetchingPostCommentUpdates = true;
+
+    const newDatetimeForCheckingUpdatesOfPostComments = new Date();
+    try {
+        let postCommentUpdates = [];
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
+        /fetchUpdatesToCommentsOfMultiplePosts`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                datetimeForCheckingUpdatesOfPostComments: datetimeForCheckingUpdatesOfPostComments,
+                overallPostIds: overallPostIdsWhoseCommentsAreMonitored
+            })
+        });
+        if (!response.ok) {
+            io.to('subscribersToCommentUpdatesOfAPost').emit(
+                'PostCommentFetchingError',
+                `The aspNetCoreBackend1 server had trouble getting the updates to comments of all the posts whose comment-updates 
+                you are subscribed to`
+            );
+
+            datetimeForCheckingUpdatesOfPostComments = newDatetimeForCheckingUpdatesOfPostComments;
+            isCurrentlyFetchingPostCommentUpdates = false;
+            return;
+        }
+
+        postCommentUpdates = await response.json();
+        const userIdsToGetUsernamesOf = new Set();
+        const overallPostIdsThatHaveCommentersWithUnknownUsernames = new Set();
+        const overallPostIdsAndTheirPostCommentUpdates = {};
+
+        for(let postCommentUpdate of postCommentUpdates) {
+            const overallPostId = postCommentUpdate.overallPostId;
+            const commenterId = postCommentUpdate.commenterId;
+
+            if (!(commenterId in userIdsAndTheirUsernames)) {
+                userIdsToGetUsernamesOf.add(commenterId);
+                overallPostIdsThatHaveCommentersWithUnknownUsernames.add(overallPostId);
+            }
+            else {
+                if (!(overallPostId in overallPostIdsAndTheirPostCommentUpdates)) {
+                    overallPostIdsAndTheirPostCommentUpdates[overallPostId] = [];
+                }
+
+                const comment = postCommentUpdate.comment;
+
+                overallPostIdsAndTheirPostCommentUpdates[overallPostId].push({
+                    commenterId: commenterId,
+                    comment: comment
+                });
+            }
+        }
+
+        if (userIdsToGetUsernamesOf.size > 0) {
+            const usernameForEachUserId = getUsernamesForListOfUserIds(userIdsToGetUsernamesOf);
+            if (Array.isArray(usernameForEachUserId)) {
+                for(let overallPostId of overallPostIdsThatHaveCommentersWithUnknownUsernames) {
+                    const room = io.sockets.adapter.rooms.get('subscribersToCommentUpdatesOfPost'+overallPostId);
+    
+                    for (let socketId of room) {
+                        io.sockets.sockets.get(socketId).join('subscribersToPostsThatHaveCommentersWithUnknownUsernames');
+                    }
+                }
+
+                io.to('subscribersToPostsThatHaveCommentersWithUnknownUsernames').emit(
+                    'UsernameFetchingError',
+                    usernameForEachUserId[0] + ` in the non-empty list of updated-commenters of the post whose comment-updates
+                    you are subscribed to`
+                );
+
+                datetimeForCheckingUpdatesOfPostComments = newDatetimeForCheckingUpdatesOfPostComments;
+                isCurrentlyFetchingPostCommentUpdates = false;
+                deleteWebSocketRoom('subscribersToPostsThatHaveCommentersWithUnknownUsernames');
+                return;
+            }
+            else {
+                for(let postCommentUpdate of postCommentUpdates) {
+                    const overallPostId = postCommentUpdate.overallPostId;
+                    const commenterId = postCommentUpdate.likerId;
+
+                    if (commenterId in userIdsToGetUsernamesOf && commenterId in usernameForEachUserId) {
+                        if (!(overallPostId in overallPostIdsAndTheirPostCommentUpdates)) {
+                            overallPostIdsAndTheirPostCommentUpdates[overallPostId] = [];
+                        }
+
+                        const comment = postCommentUpdate.comment;
+        
+                        overallPostIdsAndTheirPostCommentUpdates[overallPostId].push({
+                            commenterId: commenterId,
+                            comment: comment
+                        });
+                    }
+                }
+                
+                for(let userId of Object.keys(usernameForEachUserId)) {
+                    userIdsAndTheirUsernames[userId] = usernameForEachUserId[userId];
+                }
+            }
+        }
+
+        for(let overallPostId of Object.keys(overallPostIdsAndTheirPostCommentUpdates)) {
+            const updatedCommentsForPost = overallPostIdsAndTheirPostCommentUpdates[overallPostId];
+            for(let i=0; i<updatedCommentsForPost.length; i++) {
+                updatedCommentsForPost[i].commenter = userIdsAndTheirUsernames[updatedCommentsForPost[i].commenterId];
+                delete updatedCommentsForPost[i].commenterId;
+            }
+
+            io.to('subscribersToCommentUpdatesOfPost'+overallPostId).emit(
+                'commentUpdatesOfPost',
+                updatedCommentsForPost
+            );
+        }
+    }
+    catch (error) {
+        io.to('subscribersToCommentUpdatesOfAPost').emit(
+            'PostCommentFetchingError',
+            `There was trouble connecting to the aspNetCoreBackend1 server to get the updates to comments of all the posts whose
+            comment-updates you are subscribed to`
+        );
+    }
+
+    datetimeForCheckingUpdatesOfPostComments = newDatetimeForCheckingUpdatesOfPostComments;
+    isCurrentlyFetchingPostCommentUpdates = false;
 }
 
 
