@@ -40,5 +40,4 @@ public interface StoryViewRepository extends JpaRepository<StoryView, Integer> {
         @Param("limit") int limit
 
     );
-
 }

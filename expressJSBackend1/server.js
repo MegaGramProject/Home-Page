@@ -256,10 +256,10 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                authUserFollowings: authUserFollowings,
-                usersWithSponsoredPostsThatAuthUserCanView: usersWithSponsoredPostsThatAuthUserCanView,
                 top10UsersThatAuthUserFollowsAndEngagesWithTheMost: top10UsersThatAuthUserFollowsAndEngagesWithTheMost,
-                top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost: top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost
+                authUserFollowings: authUserFollowings,
+                top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost: top10UsersThatAuthUserEngagesWithTheSponsoredPostsOfTheMost,
+                usersWithSponsoredPostsThatAuthUserCanView: usersWithSponsoredPostsThatAuthUserCanView,
             })
         });
         if (!response1.ok) {
@@ -275,6 +275,9 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         your home-page feed.\n`; 
 
         orderedListOfOverallPostIdsForAuthUsersFeed = await response1.json();
+        orderedListOfOverallPostIdsForAuthUsersFeed = orderedListOfOverallPostIdsForAuthUsersFeed[
+            'orderedListOfOverallPostIdsForBatchForHPFeed'
+        ];
         for (let overallPostId of orderedListOfOverallPostIdsForAuthUsersFeed) {
             overallPostIdToPostInfoMappings[overallPostId] = {
                 slides: {},

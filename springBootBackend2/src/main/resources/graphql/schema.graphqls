@@ -10,13 +10,26 @@ type AdLinkClick {
     datetimeOfClick: String!
 }
 
+type InfoOnNumPostViews {
+    overallPostId: String!
+    numViews: Int!
+}
+
+type InfoOnNumSponsoredPostAdLinkClicks {
+    overallPostId: String!
+    numAdLinkClicks: Int!
+}
+
 
 type Query {
-    getBatchOfRecentPostViewersOfPost(authUserId: Int!, overallPostId: String!, idsToExclude: [Int!]):
-    [PostView!]!
+    getBatchOfRecentPostViewersOfPost(authUserId: Int!, overallPostId: String!, idsToExclude: [Int!]): [PostView!]!
+    getNumPostViewsOfEachOverallPostIdInList(overallPostIds: [String!]!): [InfoOnNumPostViews!]!
+    getNumPostViewsByAuthUserForEachOverallPostIdInList(authUserId: Int!, overallPostIds: [String!]!): [InfoOnNumPostViews!]!
 
-    getBatchOfRecentAdLinkClicksOfSponsoredPost(authUserId: Int!, overallPostId: String!, idsToExclude:
-    [Int!]): [AdLinkClick!]!
+    getBatchOfRecentAdLinkClicksOfSponsoredPost(authUserId: Int!, overallPostId: String!, idsToExclude: [Int!]): [AdLinkClick!]!
+    getNumAdLinkClicksOfEachSponsoredPostInList(overallPostIds: [String!]!): [InfoOnNumSponsoredPostAdLinkClicks!]!
+    getNumAdLinkClicksByAuthUserToEachSponsoredPostInList(authUserId: Int!, overallPostIds: [String!]!):
+    [InfoOnNumSponsoredPostAdLinkClicks!]!
 }
 
 

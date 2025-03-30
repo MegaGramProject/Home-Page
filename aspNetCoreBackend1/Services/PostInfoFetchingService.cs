@@ -418,15 +418,20 @@ public class PostInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Post,
-                "http://34.111.89.101/api/Home-Page/springBootBackend2/getNumPostViewsOfEachOverallPostIdInList"
+                $"http://34.111.89.101/api/Home-Page/springBootBackend2/graphql"
             );
 
             request.Content = new StringContent(
-                JsonSerializer.Serialize(
-                    new {
-                        overallPostIds
+                JsonSerializer.Serialize(new
+                {
+                    query = @"query ($overallPostIds: [String!]!) {
+                        getNumPostViewsOfEachOverallPostIdInList(overallPostIds: $overallPostIds)
+                    }",
+                    variables = new
+                    {
+                        overallPostIds = overallPostIds
                     }
-                ),
+                }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -443,11 +448,24 @@ public class PostInfoFetchingService
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            Dictionary<string, int>? overallPostIdsAndTheirNumViews = JsonSerializer.Deserialize<Dictionary<string, int>>(
+            Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>? parsedResponseData = 
+            JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>>(
                 stringifiedResponseData
             );
 
-            return overallPostIdsAndTheirNumViews!;
+            List<Dictionary<string, object>> listOfInfoOnPostsAndTheirNumViews = parsedResponseData["data"][
+                "getNumPostViewsOfEachOverallPostIdInList"
+            ];
+
+            Dictionary<string, int> overallPostIdsAndTheirNumViews = new Dictionary<string, int>();
+            foreach (Dictionary<string, object> infoOnPostsAndItsNumViews in listOfInfoOnPostsAndTheirNumViews!) {
+                string overallPostId = (string) infoOnPostsAndItsNumViews["overallPostId"];
+                int numViewsOfPost = (int) infoOnPostsAndItsNumViews["numPostViews"];
+
+                overallPostIdsAndTheirNumViews[overallPostId] = numViewsOfPost;
+            }
+
+            return overallPostIdsAndTheirNumViews;
         }
         catch
         {
@@ -524,15 +542,20 @@ public class PostInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Post,
-                "http://34.111.89.101/api/Home-Page/springBootBackend2/getNumAdLinkClicksOfEachSponsoredOverallPostIdInList"
+                $"http://34.111.89.101/api/Home-Page/springBootBackend2/graphql"
             );
 
             request.Content = new StringContent(
-                JsonSerializer.Serialize(
-                    new {
-                        sponsoredOverallPostIds
+                JsonSerializer.Serialize(new
+                {
+                    query = @"query ($overallPostIds: [String!]!) {
+                        getNumAdLinkClicksOfEachSponsoredPostInList(overallPostIds: $overallPostIds)
+                    }",
+                    variables = new
+                    {
+                        overallPostIds = overallPostIds
                     }
-                ),
+                }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -542,18 +565,31 @@ public class PostInfoFetchingService
             if (!response.IsSuccessStatusCode)
             {
                 return (
-                    @"The springBootBackend2 server had trouble getting the numAdLinkClicks received by the sponsored posts
-                    of the list",
+                    @"The springBootBackend2 server had trouble getting the numAdLinkClicks received by the sponsored posts in the 
+                    list",
                     "BAD_GATEWAY"
                 ); 
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            Dictionary<string, int> overallPostIdsAndTheirAdLinkClicks = JsonSerializer.Deserialize<Dictionary<string, int>>(
+            Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>? parsedResponseData = 
+            JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>>(
                 stringifiedResponseData
-            )!;
+            );
 
-            return overallPostIdsAndTheirAdLinkClicks;
+            List<Dictionary<string, object>> listOfInfoOnPostsAndTheirNumAdLinkClicks = parsedResponseData["data"][
+                "getNumAdLinkClicksOfEachSponsoredPostInList"
+            ];
+
+            Dictionary<string, int> overallPostIdsAndTheirNumAdLinkClicks = new Dictionary<string, int>();
+            foreach (Dictionary<string, object> infoOnPostsAndItsNumAdLinkClicks in listOfInfoOnPostsAndTheirNumAdLinkClicks!) {
+                string overallPostId = (string) infoOnPostsAndItsNumAdLinkClicks["overallPostId"];
+                int numAdLinkClicksOfSponsoredPost = (int) infoOnPostsAndItsNumAdLinkClicks["numAdLinkClicks"];
+
+                overallPostIdsAndTheirNumAdLinkClicks[overallPostId] = numAdLinkClicksOfSponsoredPost;
+            }
+
+            return overallPostIdsAndTheirNumAdLinkClicks;
         }
         catch
         {
@@ -574,16 +610,23 @@ public class PostInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Post,
-                @$"http://34.111.89.101/api/Home-Page/springBootBackend2
-                /getNumPostViewsByAuthUserForEachOverallPostIdInList/{authUserId}"
+                $"http://34.111.89.101/api/Home-Page/springBootBackend2/graphql"
             );
 
             request.Content = new StringContent(
-                JsonSerializer.Serialize(
-                    new {
-                        overallPostIds
+                JsonSerializer.Serialize(new
+                {
+                    query = @"query ($authUserId: Int!, $overallPostIds: [String!]!) {
+                        getNumPostViewsByAuthUserForEachOverallPostIdInList(
+                            authUserId: $authUserId, overallPostIds: $overallPostIds
+                        )
+                    }",
+                    variables = new
+                    {
+                        authUserId,
+                        overallPostIds = overallPostIds
                     }
-                ),
+                }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -593,24 +636,38 @@ public class PostInfoFetchingService
             if (!response.IsSuccessStatusCode)
             {
                 return (
-                    @"The springBootBackend2 server had trouble getting the numPostViews by the authUser for each post in the 
-                    list",
+                    @"The springBootBackend2 server had trouble getting the numPostViews from the authUser to the posts
+                    in the list",
                     "BAD_GATEWAY"
                 ); 
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            Dictionary<string, int>? overallPostIdsAndTheirNumViews = JsonSerializer.Deserialize<Dictionary<string, int>>(
+            Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>? parsedResponseData = 
+            JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>>(
                 stringifiedResponseData
             );
 
-            return overallPostIdsAndTheirNumViews!;
+            List<Dictionary<string, object>> listOfInfoOnPostsAndTheirNumViewsByAuthUser = parsedResponseData["data"][
+                "getNumPostViewsByAuthUserForEachOverallPostIdInList"
+            ];
+
+            Dictionary<string, int> overallPostIdsAndTheirNumViewsByAuthUser = new Dictionary<string, int>();
+            foreach (Dictionary<string, object> infoOnPostsAndItsNumViewsByAuthUser in
+            listOfInfoOnPostsAndTheirNumViewsByAuthUser!) {
+                string overallPostId = (string) infoOnPostsAndItsNumViewsByAuthUser["overallPostId"];
+                int numViewsOfPostByAuthUser = (int) infoOnPostsAndItsNumViewsByAuthUser["numPostViews"];
+
+                overallPostIdsAndTheirNumViewsByAuthUser[overallPostId] = numViewsOfPostByAuthUser;
+            }
+
+            return overallPostIdsAndTheirNumViewsByAuthUser;
         }
         catch
         {
             return (
-                @"There was trouble connecting to the springBootBackend2 server to get the numPostViews by the authUser for
-                each post in the list",
+                @"There was trouble connecting to the springBootBackend2 server to get the numPostViews from the authUser to the
+                posts in the list",
                 "BAD_GATEWAY"
             );
         }
@@ -624,16 +681,23 @@ public class PostInfoFetchingService
         {
             HttpRequestMessage request = new HttpRequestMessage(
                 HttpMethod.Post,
-                @$"http://34.111.89.101/api/Home-Page/springBootBackend2
-                /GetNumAdLinkClicksByAuthUserForEachSponsoredOverallPostIdInList/{authUserId}"
+                $"http://34.111.89.101/api/Home-Page/springBootBackend2/graphql"
             );
 
             request.Content = new StringContent(
-                JsonSerializer.Serialize(
-                    new {
-                        sponsoredOverallPostIds
+                JsonSerializer.Serialize(new
+                {
+                    query = @"query ($authUserId: Int!, $overallPostIds: [String!]!) {
+                        getNumAdLinkClicksByAuthUserToEachSponsoredPostInList(
+                            authUserId: $authUserId, overallPostIds: $overallPostIds
+                        )
+                    }",
+                    variables = new
+                    {
+                        authUserId,
+                        overallPostIds = overallPostIds
                     }
-                ),
+                }),
                 Encoding.UTF8,
                 "application/json"
             );
@@ -643,24 +707,38 @@ public class PostInfoFetchingService
             if (!response.IsSuccessStatusCode)
             {
                 return (
-                    @"The springBootBackend2 server had trouble getting the numAdLinkClicks by the authUser for
-                    each sponsored post in the list",
+                    @"The springBootBackend2 server had trouble getting the numAdLinkClicks from the authUser to each of the
+                    sponsored posts in the list",
                     "BAD_GATEWAY"
                 ); 
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            Dictionary<string, int> overallPostIdsAndTheirAdLinkClicks = JsonSerializer.Deserialize<Dictionary<string, int>>(
+            Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>? parsedResponseData = 
+            JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, List<Dictionary<string, object>>>>>(
                 stringifiedResponseData
-            )!;
+            );
 
-            return overallPostIdsAndTheirAdLinkClicks;
+            List<Dictionary<string, object>> listOfInfoOnPostsAndTheirNumAdLinkClicksByAuthUser = parsedResponseData["data"][
+                "getNumAdLinkClicksByAuthUserToEachSponsoredPostInList"
+            ];
+
+            Dictionary<string, int> overallPostIdsAndTheirNumAdLinkClicksByAuthUser = new Dictionary<string, int>();
+            foreach (Dictionary<string, object> infoOnPostsAndItsNumAdLinkClicksByAuthUser in
+            listOfInfoOnPostsAndTheirNumAdLinkClicksByAuthUser!) {
+                string overallPostId = (string) infoOnPostsAndItsNumAdLinkClicksByAuthUser["overallPostId"];
+                int numAdLinkClicksOfSponsoredPostByAuthUser = (int) infoOnPostsAndItsNumAdLinkClicksByAuthUser["numAdLinkClicks"];
+
+                overallPostIdsAndTheirNumAdLinkClicksByAuthUser[overallPostId] = numAdLinkClicksOfSponsoredPostByAuthUser;
+            }
+
+            return overallPostIdsAndTheirNumAdLinkClicksByAuthUser;
         }
         catch
         {
             return (
-                @"There was trouble connecting to the springBootBackend2 server to get the numAdLinkClicks by the authUser for
-                each sponsored post in the list",
+                @"There was trouble connecting to the springBootBackend2 server to get the numAdLinkClicks from the authUser to
+                each of the sponsored posts in the list",
                 "BAD_GATEWAY"
             );
         }
