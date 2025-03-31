@@ -3170,6 +3170,79 @@ async (req, res) => {
 });
 
 
+app.get('/getOverallPostIdsOfUser/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    const overallPostIdsOfUser = [];
+    const errorMessage = '';
+    let allImageAndVidSlidesOfPosts = [];
+
+    try {
+        allImageAndVidSlidesOfPosts = await imageAndVideoSlidesOfPostsDotFilesCollection.find(
+            {
+                'metadata.slideNumber': 0
+            },
+            {
+                projection: {
+                    'metadata.overallPostId': 1,
+                    'metadata.authors': 1,
+                    'metadata.authorsEncryptionInfo': 1
+                }
+            }
+        ).toArray();
+    }
+    catch (error) {
+        errorMessage += `• There was trouble fetching all the image and vid-slides of posts
+        of Megagram from the database\n`;
+
+        res.status(502).send(errorMessage);
+    }
+
+    for(let imageOrVidSlideOfPost of allImageAndVidSlidesOfPosts) {
+        const { overallPostId } = imageOrVidSlideOfPost.metadata;
+        let { authors } = imageOrVidSlideOfPost.metadata;
+
+        if ('authorsEncryptionInfo' in imageOrVidSlideOfPost.metadata) {
+            const { encryptedDataEncryptionKey } = imageOrVidSlideOfPost.metadata
+            .authorsEncryptionInfo;
+
+            let plaintextDataEncryptionKey = null;
+
+            try {
+                const decryptResponse = await awsKMSClient.send(new DecryptCommand({
+                    CiphertextBlob: encryptedDataEncryptionKey,
+                }));
+
+                plaintextDataEncryptionKey = decryptResponse.Plaintext;
+            }
+            catch (error) {
+                errorMessage += `There was trouble getting the plaintextDEK for post
+                ${overallPostId}, which may or may not be a post of the user\n`;
+                continue;
+            }
+            
+            const decryptedAuthors = decryptTextWithAWSDataEncryptionKey(
+                authors,
+                plaintextDataEncryptionKey,
+                imageOrVidSlideOfPost.metadata.authorsEncryptionInfo.iv,
+                imageOrVidSlideOfPost.metadata.authorsEncryptionInfo.authTag,
+            );
+
+            authors = JSON.parse(decryptedAuthors);
+        }
+        
+        if (authors.includes(userId)){
+            overallPostIdsOfUser.push(overallPostId);
+        }
+    }
+    
+    res.send({
+        errorMessage: errorMessage,
+        overallPostIdsOfUser: overallPostIdsOfUser
+    });
+});
+
+
 async function validateUserAuthToken(userId, requestCookies) {
     const userAuthTokenCookie = `authToken${userId}`;
     const userRefreshTokenCookie = `refreshToken${userId}`;

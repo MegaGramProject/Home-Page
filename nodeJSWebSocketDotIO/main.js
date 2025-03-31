@@ -215,7 +215,8 @@ io.on('connection', (socket) => {
 async function fetchListOfOverallPostIdsOfUser(userId) {
     try {
         let overallPostIds = [];
-        const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/getOverallPostIdsOfUser/${userId}`);
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1
+        /getOverallPostIdsOfUser/${userId}`);
         if (!response.ok) {
             return [
                 `The expressJSBackend1 server had trouble fetching the list of overallPostIds of user ${userId}`,
@@ -224,11 +225,13 @@ async function fetchListOfOverallPostIdsOfUser(userId) {
         }
 
         overallPostIds = await response.json();
+        overallPostIds = overallPostIds['overallPostIds'];
         return overallPostIds;
     }
     catch (error) {
         return [
-            `There was trouble connecting to the expressJSBackend1 server to fetch the list of overallPostIds of user ${userId}`,
+            `There was trouble connecting to the expressJSBackend1 server to fetch the list of
+            overallPostIds of user ${userId}`,
             'BAD_GATEWAY'
         ];
     }
@@ -241,10 +244,10 @@ async function fetchPostLikeUpdates() {
     }
     isCurrentlyFetchingPostLikeUpdates = true;
 
-    const newDatetimeForCheckingUpdatesOfPostLikes = new Date();
     try {
         let postLikeUpdates = [];
-        const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/fetchUpdatesToLikesOfMultiplePosts`, {
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
+        /fetchUpdatesToLikesOfMultiplePosts`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -252,6 +255,9 @@ async function fetchPostLikeUpdates() {
                 overallPostIds: overallPostIdsWhoseLikesAreMonitored
             })
         });
+
+        const newDatetimeForCheckingUpdatesOfPostLikes = new Date();
+
         if (!response.ok) {
             io.to('subscribersToLikeUpdatesOfAPost').emit(
                 'PostLikeFetchingError',
@@ -265,6 +271,7 @@ async function fetchPostLikeUpdates() {
         }
 
         postLikeUpdates = await response.json();
+        postLikeUpdates = postLikeUpdates['postLikeUpdates'];
         const userIdsToGetUsernamesOf = new Set();
         const overallPostIdsThatHaveLikersWithUnknownUsernames = new Set();
         const overallPostIdsAndTheirPostLikeUpdates = {};
@@ -360,7 +367,6 @@ async function fetchPostCommentUpdates() {
     }
     isCurrentlyFetchingPostCommentUpdates = true;
 
-    const newDatetimeForCheckingUpdatesOfPostComments = new Date();
     try {
         let postCommentUpdates = [];
         const response = await fetch(`http://34.111.89.101/api/Home-Page/aspNetCoreBackend1
@@ -372,6 +378,9 @@ async function fetchPostCommentUpdates() {
                 overallPostIds: overallPostIdsWhoseCommentsAreMonitored
             })
         });
+
+        const newDatetimeForCheckingUpdatesOfPostComments = new Date();
+
         if (!response.ok) {
             io.to('subscribersToCommentUpdatesOfAPost').emit(
                 'PostCommentFetchingError',
@@ -385,16 +394,17 @@ async function fetchPostCommentUpdates() {
         }
 
         postCommentUpdates = await response.json();
+        postCommentUpdates = postCommentUpdates['postCommentUpdates'];
         const userIdsToGetUsernamesOf = new Set();
         const overallPostIdsThatHaveCommentersWithUnknownUsernames = new Set();
         const overallPostIdsAndTheirPostCommentUpdates = {};
 
         for(let postCommentUpdate of postCommentUpdates) {
             const overallPostId = postCommentUpdate.overallPostId;
-            const commenterId = postCommentUpdate.commenterId;
+            const authorId = postCommentUpdate.authorId;
 
-            if (!(commenterId in userIdsAndTheirUsernames)) {
-                userIdsToGetUsernamesOf.add(commenterId);
+            if (!(authorId in userIdsAndTheirUsernames)) {
+                userIdsToGetUsernamesOf.add(authorId);
                 overallPostIdsThatHaveCommentersWithUnknownUsernames.add(overallPostId);
             }
             else {
@@ -402,10 +412,10 @@ async function fetchPostCommentUpdates() {
                     overallPostIdsAndTheirPostCommentUpdates[overallPostId] = [];
                 }
 
-                const comment = postCommentUpdate.comment;
+                const comment = postCommentUpdate.content;
 
                 overallPostIdsAndTheirPostCommentUpdates[overallPostId].push({
-                    commenterId: commenterId,
+                    commenterId: authorId,
                     comment: comment
                 });
             }
@@ -436,17 +446,17 @@ async function fetchPostCommentUpdates() {
             else {
                 for(let postCommentUpdate of postCommentUpdates) {
                     const overallPostId = postCommentUpdate.overallPostId;
-                    const commenterId = postCommentUpdate.likerId;
+                    const authorId = postCommentUpdate.authorId;
 
-                    if (commenterId in userIdsToGetUsernamesOf && commenterId in usernameForEachUserId) {
+                    if (authorId in userIdsToGetUsernamesOf && authorId in usernameForEachUserId) {
                         if (!(overallPostId in overallPostIdsAndTheirPostCommentUpdates)) {
                             overallPostIdsAndTheirPostCommentUpdates[overallPostId] = [];
                         }
 
-                        const comment = postCommentUpdate.comment;
+                        const comment = postCommentUpdate.content;
         
                         overallPostIdsAndTheirPostCommentUpdates[overallPostId].push({
-                            commenterId: commenterId,
+                            commenterId: authorId,
                             comment: comment
                         });
                     }
@@ -486,7 +496,7 @@ async function fetchPostCommentUpdates() {
 
 async function getUsernamesForListOfUserIds(userIds) {
     try {
-        const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+        const response = await fetch('http://34.111.89.101/laravelBackend1/graphql', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
