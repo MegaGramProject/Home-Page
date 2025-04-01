@@ -19,15 +19,9 @@ builder.Services.AddSignalR();
 
 builder.Services.AddHttpClient();
 
-builder.Services.AddSingleton(new ConcurrentDictionary<string, CancellationTokenSource>());
-
-builder.Services.AddSingleton(new ConcurrentDictionary<string, int>());
-
-builder.Services.AddSingleton(new ConcurrentDictionary<string, List<string>>());
-
 builder.Services.AddSingleton(new ConcurrentDictionary<int, string>());
 
-builder.Services.AddSingleton(new ConcurrentDictionary<int, List<int>>());
+builder.Services.AddSingleton(new ConcurrentDictionary<int, HashSet<int>>());
 
 builder.Services.AddSingleton(new ConcurrentDictionary<string, HashSet<string>>());
 
@@ -39,6 +33,7 @@ app.UseRouting();
 app.UseEndpoints(endpoints =>
 {
     endpoints.MapHub<CommentLikesHub>("/wsForCommentLikes");
+    endpoints.MapHub<CommentRepliesHub>("/wsForCommentReplies");
 });
 
 app.Run();

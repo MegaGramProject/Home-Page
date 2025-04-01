@@ -6,12 +6,11 @@ using System.Threading.Tasks;
 namespace cSharpSignalRWebSocket.Hubs;
 
 
-public class CommentLikesHub : Hub
+public class CommentRepliesHub : Hub
 {   
     private readonly UserAuthService _userAuthService;
     private readonly UserInfoFetchingService _userInfoFetchingService;
     private readonly CommentInfoFetchingService _commentInfoFetchingService;
-
     private readonly HttpClient _httpClient;
     
     private readonly ConcurrentDictionary<string, HashSet<string>> _groupsAndTheirConnections;
@@ -19,17 +18,16 @@ public class CommentLikesHub : Hub
     private readonly ConcurrentDictionary<int, string> _userIdsAndTheirUsernames;
     private readonly ConcurrentDictionary<int, HashSet<int>> _usersAndTheirSetOfCommentIds;
 
-    private commentIdsWhoseLikesAreMonitored = new List<int>();
-    private DateTime datetimeForCheckingUpdatesOfCommentLikes;
-    private CancellationTokenSource ctsForFetchingCommentLikeUpdates;
-    private bool isCurrentlyFetchingCommentLikeUpdates = false;
+    private commentIdsWhoseRepliesAreMonitored = new List<int>();
+    private DateTime datetimeForCheckingUpdatesOfCommentReplies;
+    private CancellationTokenSource ctsForFetchingCommentReplyUpdates;
+    private bool isCurrentlyFetchingCommentReplyUpdates = false;
 
 
-    public CommentLikesHub(
+    public CommentRepliesHub(
         UserAuthService userAuthService, 
         UserInfoFetchingService userInfoFetchingService, 
         CommentInfoFetchingService commentInfoFetchingService,
-       
         IHttpClientFactory httpClientFactory,
 
         ConcurrentDictionary<string, HashSet<string>> groupsAndTheirConnections,
@@ -41,13 +39,12 @@ public class CommentLikesHub : Hub
         _userAuthService = userAuthService;
         _userInfoFetchingService = userInfoFetchingService;
         _commentInfoFetchingService = commentInfoFetchingService;
-        
         _httpClient = httpClientFactory.CreateClient();
         
         _groupsAndTheirConnections = groupsAndTheirConnections;
 
         _userIdsAndTheirUsernames = userIdsAndTheirUsernames;
-         = usersAndTheirSetOfCommentIds;
+        _usersAndTheirSetOfCommentIds = usersAndTheirSetOfCommentIds;
     }
 
 
@@ -128,7 +125,7 @@ public class CommentLikesHub : Hub
             {
                 await Clients.Client(connectionId).SendAsync(
                     "CommentsDoNotExistError",
-                    "You have no comments, and hence cannot receive updates to the likes of comments that do not exist"
+                    "You have no comments, and hence cannot receive updates to the replies of comments that do not exist"
                 );
                 await Task.Delay(2000);
                 Context.Abort();
@@ -137,79 +134,84 @@ public class CommentLikesHub : Hub
             _usersAndTheirSetOfCommentIds[userId] = commentIdsOfUser;
         }
 
-        HashSet<int> setOfCommentIdsWhoseLikesAreMonitored = new HashSet<int>(commentIdsWhoseLikesAreMonitored);
+        HashSet<int> setOfCommentIdsWhoseRepliesAreMonitored = new HashSet<int>(commentIdsWhoseRepliesAreMonitored);
 
         foreach (int commentId in commentIdsOfUser)
         {
-            setOfcommentIdsWhoseLikesAreMonitored.Add(commentId);
-            await Groups.AddToGroupAsync(connectionId, "subscribersToLikeUpdatesOfComment"+commentId);
+            setOfCommentIdsWhoseRepliesAreMonitored.Add(commentId);
+            await Groups.AddToGroupAsync(connectionId, "subscribersToReplyUpdatesOfComment"+commentId);
 
-            if (!(_groupsAndTheirConnections.ContainsKey("subscribersToLikeUpdatesOfComment"+commentId)))
+            if (!(_groupsAndTheirConnections.ContainsKey("subscribersToReplyUpdatesOfComment"+commentId)))
             {
-                _groupsAndTheirConnections["subscribersToLikeUpdatesOfComment"+commentId] = new HashSet<string>();
+                _groupsAndTheirConnections["subscribersToReplyUpdatesOfComment"+commentId] = new HashSet<string>();
             }
 
 
-            _groupsAndTheirConnections["subscribersToLikeUpdatesOfComment"+commentId].Add(connectionId);
+            _groupsAndTheirConnections["subscribersToReplyUpdatesOfComment"+commentId].Add(connectionId);
         }
 
-        commentIdsWhoseLikesAreMonitored = setOfCommentIdsWhoseLikesAreMonitored.toList();
+        commentIdsWhoseRepliesAreMonitored = setOfCommentIdsWhoseRepliesAreMonitored.toList();
 
 
-        await Groups.AddToGroupAsync(connectionId, "subscribersToLikeUpdatesOfAComment");
+        await Groups.AddToGroupAsync(connectionId, "subscribersToReplyUpdatesOfAComment");
 
-        if (ctsForFetchingCommentLikeUpdates == null)
+        if (ctsForFetchingCommentReplyUpdates == null)
         {
-            datetimeForCheckingUpdatesOfCommentLikes = DateTime.Now;
-            ctsForFetchingCommentLikeUpdates = new CancellationTokenSource();
-            CancellationToken token = ctsForFetchingCommentLikeUpdates.Token; 
+            datetimeForCheckingUpdatesOfCommentReplies = DateTime.Now;
+            ctsForFetchingCommentReplyUpdates = new CancellationTokenSource();
+            CancellationToken token = ctsForFetchingCommentReplyUpdates.Token; 
 
             Task.Run(async () => // Run in background
             {
                 while (true)
                 {
                     await Task.Delay(5000);
-                    if (isCurrentlyFetchingCommentLikeUpdates)
+                    if (isCurrentlyFetchingCommentReplyUpdates)
                     {
                         return;
                     }
-                    isCurrentlyFetchingCommentLikeUpdates = true;
+                    isCurrentlyFetchingCommentReplyUpdates = true;
 
-                    var resultOfFetchingCommentLikeUpdates = _commentInfoFetchingService.FetchCommentLikeUpdates(
-                        commentIdsWhoseLikesAreMonitored,
-                        datetimeForCheckingUpdatesOfCommentLikes,
+                    var resultOfFetchingCommentReplyUpdates = _commentInfoFetchingService.FetchCommentReplyUpdates(
+                        commentIdsWhoseRepliesAreMonitored,
+                        datetimeForCheckingUpdatesOfCommentReplies,
                         _httpClient
                     );
 
-                    datetimeForCheckingUpdatesOfCommentLikes = DateTime.now;
+                    datetimeForCheckingUpdatesOfCommentReplies = DateTime.now;
 
-                    if (resultOfFetchingCommentLikeUpdates is Tuple<string, string> resultOfFetchingCommentLikeUpdatesErrorOutput)
+                    if (resultOfFetchingCommentReplyUpdates is Tuple<string, string> resultOfFetchingCommentReplyUpdatesErrorOutput)
                     {
-                        await Clients.Group("subscribersToLikeUpdatesOfAComment").SendAsync(
-                            "CommentLikeFetchingError",
-                            resultOfFetchingCommentLikeUpdatesErrorOutput.Item1
+                        await Clients.Group("subscribersToReplyUpdatesOfAComment").SendAsync(
+                            "CommentReplyFetchingError",
+                            resultOfFetchingCommentReplyUpdatesErrorOutput.Item1
                         );
                     }
-                    else if (resultOfFetchingCommentLikeUpdates is List<Dictionary<string, int>> commentLikeUpdates)
+                    else if (resultOfFetchingCommentReplyUpdates is List<Dictionary<string, object>> commentReplyUpdates)
                     {
                         HashSet<int> setOfUserIdsToGetUsernamesOf = new HashSet<int>();
-                        HashSet<int> commentIdsThatHaveLikersWithUnknownUsernames = new HashSet<int>();
-                        Dictionary<int, List<int>> commentIdsAndTheirUpdatedLikes = new Dictionary<int, List<int>>();
+                        HashSet<int> commentIdsThatHaveRepliersWithUnknownUsernames = new HashSet<int>();
+                        Dictionary<int, List<Dictionary<string, object>> commentIdsAndTheirUpdatedReplies =
+                        new Dictionary<int, List<Dictionary<string, object>>>();
 
-                        foreach(Dictionary<string, int> commentLikeUpdate in commentLikeUpdates) {
-                            int commentId = commentLikeUpdate["commentId"];
-                            int likerId = commentLikeUpdate["likerId"];
+                        foreach(Dictionary<string, object> commentReplyUpdate in commentReplyUpdates) {
+                            int parentCommentId = (int) commentReplyUpdate["parentCommentId"];
+                            int commenterId = (int) commentReplyUpdate["authorId"];
+                            string comment = (string) commentReplyUpdate["content"];
 
-                            if (!(userIdsAndTheirUsernames.ContainsKey(userIdsAndTheirUsernames))) {
-                                setOfUserIdsToGetUsernamesOf.add(likerId);
-                                commentIdsThatHaveLikersWithUnknownUsernames.add(commentId);
+                            if (!(userIdsAndTheirUsernames.ContainsKey(commenterId))) {
+                                setOfUserIdsToGetUsernamesOf.add(commenterId);
+                                commentIdsThatHaveRepliersWithUnknownUsernames.add(parentCommentId);
                             }
                             else {
-                                if (!(commentIdsAndTheirUpdatedLikes.ContainsKey(commentId))) {
-                                    commentIdsAndTheirUpdatedLikes[commentId] = new List<int>();
+                                if (!(commentIdsAndTheirUpdatedReplies.ContainsKey(parentCommentId))) {
+                                    commentIdsAndTheirUpdatedReplies[parentCommentId] = new List<Dictionary<string, object>>();
                                 }
 
-                                commentIdsAndTheirUpdatedLikes[commentId].Add(likerId);
+                                commentIdsAndTheirUpdatedReplies[parentCommentId].Add(new Dictionary<string, object> {
+                                    {"commenterId", commenterId}
+                                    {"comment", comment}
+                                }); 
                             }
                         }
 
@@ -220,51 +222,55 @@ public class CommentLikesHub : Hub
                             );
                             if (resultOfGettingUsernamesForListOfUserIds is Tuple<string, string>
                             resultOfGettingUsernamesForListOfUserIdsErrorOutput) {
-                                foreach (int commentId in commentIdsThatHaveLikersWithUnknownUsernames) {
+                                foreach (int commentId in commentIdsThatHaveRepliersWithUnknownUsernames) {
                                     HashSet<string> connectionsOfGroup = _groupsAndTheirConnections[
-                                        "subscribersToLikeUpdatesOfComment"+commentId
+                                        "subscribersToReplyUpdatesOfComment"+commentId
                                     ];
                     
                                     foreach (string connectionId in connectionsOfGroup) {
                                         await Groups.AddToGroupAsync(
                                             connectionId,
-                                            "subscribersToCommentsThatHaveLikersWithUnknownUsernames"
+                                            "subscribersToCommentsThatHaveRepliersWithUnknownUsernames"
                                         );
                                     }
                                 }
 
-                                await Clients.Group("subscribersToCommentsThatHaveLikersWithUnknownUsernames").SendAsync(
+                                await Clients.Group("subscribersToCommentsThatHaveRepliersWithUnknownUsernames").SendAsync(
                                     "UsernameFetchingError",
                                     resultOfGettingUsernamesForListOfUserIdsErrorOutput.Item1 + 
-                                    @"in the non-empty list of updated-likers(whose usernames have not been fetched yet)
-                                    of the comment whose like-updates you are subscribed to"
+                                    @"in the non-empty list of updated-repliers(whose usernames have not been fetched yet)
+                                    of the comment whose reply-updates you are subscribed to"
                                 );
 
-                                foreach (int commentId in commentIdsThatHaveLikersWithUnknownUsernames) {
+                                foreach (int commentId in commentIdsThatHaveRepliersWithUnknownUsernames) {
                                     HashSet<string> connectionsOfGroup = _groupsAndTheirConnections[
-                                        "subscribersToLikeUpdatesOfComment"+commentId
+                                        "subscribersToReplyUpdatesOfComment"+commentId
                                     ];
                     
                                     foreach (string connectionId in connectionsOfGroup) {
                                         await Groups.RemoveFromGroupAsync(
                                             connectionId,
-                                            "subscribersToCommentsThatHaveLikersWithUnknownUsernames"
+                                            "subscribersToCommentsThatHaveRepliersWithUnknownUsernames"
                                         );
                                     }
                                 }
                             }
                             else if (resultOfGettingUsernamesForListOfUserIds is List<Dictionary<int, string>> usernameForEachUserId)
                             {
-                                foreach (Dictionary<string, int> commentLikeUpdate in commentLikeUpdates) {
-                                    int commentId = commentLikeUpdate["commentId"];
-                                    int likerId = commentLikeUpdate["likerId"];
+                                foreach (Dictionary<string, object> commentReplyUpdate in commentReplyUpdates) {
+                                    int parentCommentId = (int) commentReplyUpdate["parentCommentId"];
+                                    int commenterId = (int) commentReplyUpdate["authorId"];
+                                    string comment = (string) commentReplyUpdate["content"];
 
-                                    if (setOfUserIdsToGetUsernamesOf.Contains(likerId) && usernameForEachUserId.Contains(likerId)) {
-                                        if (!(commentIdsAndTheirUpdatedLikes.Contains(commentId))) {
-                                            commentIdsAndTheirUpdatedLikes[commentId] = new List<int>();
+                                    if (setOfUserIdsToGetUsernamesOf.Contains(commenterId) && usernameForEachUserId.Contains(commenterId)) {
+                                        if (!(commentIdsAndTheirUpdatedReplies.Contains(parentCommentId))) {
+                                            commentIdsAndTheirUpdatedReplies[parentCommentId] = new List<Dictionary<string, object>>();
                                         }
                         
-                                        commentIdsAndTheirUpdatedLikes[commentId].Add(likerId);
+                                        commentIdsAndTheirUpdatedReplies[parentCommentId].Add(new Dictionary<string, object> {
+                                            {"commenterId", commenterId}
+                                            {"comment", comment}
+                                        }); 
                                     }
                                 }
                                 
@@ -274,25 +280,30 @@ public class CommentLikesHub : Hub
                             }
                         }
 
-                        foreach(int commentId of commentIdsAndTheirUpdatedLikes.Keys) {
-                            List<int> updatedLikersOfComment = commentIdsAndTheirUpdatedLikes[commentId];
-                            List<string> usernamesOfUpdatedLikersOfComment = new List<string>();
+                        foreach(int commentId of commentIdsAndTheirUpdatedReplies.Keys) {
+                            List<Dictionary<string, object> updatedRepliesOfComment = commentIdsAndTheirUpdatedReplies[commentId];
+                            List<Dictionary<string, string> repliesOfCommentWithUsernameInsteadOfCommenterId = new
+                            List<Dictionary<string, string>();
 
-                            foreach(int updatedLikerOfComment in updatedLikersOfComment)
+                            foreach(int updatedReplyOfComment in updatedRepliesOfComment)
                             {
-                                usernamesOfUpdatedLikersOfComment.Add(
-                                    _userIdsAndTheirUsernames[updatedLikerOfComment]
-                                );
+                                string commenter = _userIdsAndTheirUsernames[updatedReplierOfComment["commenterId"]];
+                                string comment = updatedReplierOfComment["comment"];
+
+                                repliesOfCommentWithUsernameInsteadOfCommenterId.Add(new Dictionary<string, string> {
+                                    { "commenter", commenter },
+                                    { "comment", comment }
+                                });
                             }
 
-                            await Clients.Group("subscribersToLikeUpdatesOfComment"+commentId).SendAsync(
-                                "UpdatedLikesOfComment",
-                                usernamesOfUpdatedLikersOfComment
+                            await Clients.Group("subscribersToReplyUpdatesOfComment"+commentId).SendAsync(
+                                "UpdatedRepliesOfComment",
+                                repliesOfCommentWithUsernameInsteadOfCommenterId
                             );
                         }
                     }
                     
-                    isCurrentlyFetchingCommentLikeUpdates = false;
+                    isCurrentlyFetchingCommentReplyUpdates = false;
                 }
             }, token);
         }
@@ -304,6 +315,8 @@ public class CommentLikesHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var connectionId = Context.ConnectionId;
+
+        HashSet<int> commentIdsOfUser = _usersAndTheirSetOfCommentIds[userId];
 
         HashSet<int> commentIdsOfUser = _usersAndTheirSetOfCommentIds[userId];
 
@@ -321,17 +334,17 @@ public class CommentLikesHub : Hub
 
         foreach (int commentId in commentIdsOfUser)
         {
-            int numSubscribersToLikeUpdatesOfThisComment = _groupsAndTheirConnections["subscribersToLikeUpdatesOfComment"+commentId].Count;
+            int numSubscribersToReplyUpdatesOfThisComment = _groupsAndTheirConnections["subscribersToReplyUpdatesOfComment"+commentId].Count;
 
-            numSubscribersToLikeUpdatesOfThisComment--;
+            numSubscribersToReplyUpdatesOfThisComment--;
 
-            if (numSubscribersToLikeUpdatesOfThisComment==0)
+            if (numSubscribersToReplyUpdatesOfThisComment==0)
             {
-                _groupsAndTheirConnections.Remove("subscribersToLikeUpdatesOfComment"+commentId);
+                _groupsAndTheirConnections.Remove("subscribersToReplyUpdatesOfComment"+commentId);
             }
             else
             {
-                _groupsAndTheirConnections["subscribersToLikeUpdatesOfComment"+commentId].Remove(connectionId);
+                _groupsAndTheirConnections["subscribersToReplyUpdatesOfComment"+commentId].Remove(connectionId);
             }
         }
 
