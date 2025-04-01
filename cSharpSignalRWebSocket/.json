@@ -1,0 +1,10 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "localhost;34.111.89.101;",
+  "Urls": "http://localhost:8010; http://34.111.89.101/"
+}
