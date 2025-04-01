@@ -43,9 +43,10 @@ public class CommentInfoFetchingService
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            List<Dictionary<string, int>> commentLikeUpdates = JsonSerializer.Deserialize<List<Dictionary<string, int>>>(
+            Dictionary<string, object>? parsedResponseData =  JsonSerializer.Deserialize<Dictionary<string, object>>(
                 stringifiedResponseData
             );
+            List<Dictionary<string, int>> commentLikeUpdates = (List<Dictionary<string, int>>) parsedResponseData!["commentLikeUpdates"];
 
             return commentLikeUpdates;
         }
@@ -92,9 +93,12 @@ public class CommentInfoFetchingService
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            List<Dictionary<string, object>> commentReplyUpdates = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(
+            Dictionary<string, object>? parsedResponseData =  JsonSerializer.Deserialize<Dictionary<string, object>>(
                 stringifiedResponseData
             );
+            List<Dictionary<string, object>> commentReplyUpdates = (List<Dictionary<string, object>>) parsedResponseData![
+                "commentReplyUpdates"
+            ];
 
             return commentReplyUpdates;
         }

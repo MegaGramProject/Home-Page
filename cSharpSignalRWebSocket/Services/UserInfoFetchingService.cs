@@ -38,11 +38,12 @@ public class UserInfoFetchingService
             }
 
             string stringifiedResponseData = await response.Content.ReadAsStringAsync();
-            List<int>? commentIdsOfUser = JsonSerializer.Deserialize<List<int>>(
+            Dictionary<string, object>? parsedResponseData =  JsonSerializer.Deserialize<Dictionary<string, object>>(
                 stringifiedResponseData
             );
+            List<int> commentIdsOfUser = (List<int>>) parsedResponseData!["commentIdsOfUser"];
 
-            return commentIdsOfUser!;
+            return commentIdsOfUser;
         }
         catch
         {

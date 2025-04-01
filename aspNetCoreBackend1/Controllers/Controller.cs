@@ -3547,7 +3547,8 @@ public class Controller : ControllerBase
             Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDEKs =
             new Dictionary<string, byte[]>();
 
-            try {
+            try
+            {
                 var infoOnEachEncryptedLikerOfPostsInSet = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => setOfOverallPostIds.Contains(x.overallPostId) &&
@@ -3677,7 +3678,8 @@ public class Controller : ControllerBase
             Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDEKs =
             new Dictionary<string, byte[]>();
 
-            try {
+            try
+            {
                 var infoOnEachEncryptedCommentOfPostsInSet = await _postgresContext
                     .encryptedCommentsOfPosts
                     .Where(x =>
@@ -3775,6 +3777,401 @@ public class Controller : ControllerBase
         return Ok(new Dictionary<string, object> {
             { "errorMessage", errorMessage }
             { "postCommentUpdates", postCommentUpdates }
+        });
+    }
+
+
+    [RequireMutualTLS]
+    [HttpPost("fetchUpdatesToLikesOfMultipleComments")]
+    public async Task<IActionResult> FetchUpdatesToLikesOfMultipleComments(
+        [FromBody] Dictionary<string, object> infoForFetchingUpdates
+    )
+    {
+        DateTime datetimeForFetchingCommentLikeUpdates = (DateTime) infoForFetchingUpdates[
+            "datetimeForFetchingCommentLikeUpdates"
+        ];
+        List<int> commentIds = (List<int>) infoForFetchingUpdates["commentIds"];
+        HashSet<int> setOfCommentIds = new HashSet<int>(commentIds);
+
+        List<Dictionary<string, object>> commentLikeUpdates = new List<Dictionary<string, object>>();
+        string errorMessage = "";
+
+        HashSet<int> setOfUnencryptedCommentIds = new HashSet<int>();
+
+        try
+        {
+            commentLikeUpdates = await _postgresContext
+                .unencryptedPostOrCommentLikes
+                .Where(x => setOfCommentIds.Contains(x.commentId) &&
+                x.datetimeOfLike >= datetimeForFetchingCommentLikeUpdates)
+                .Select(x => new { x.commentId, x.likerId })
+                .ToListAsync();
+            
+            foreach(var commentLikeUpdate in commentLikeUpdates)
+            {
+                setOfUnencryptedCommentIds.Add(commentLikeUpdate.commentId);
+            }
+        }
+        catch
+        {
+            errorMessage += @"• There was trouble getting the updated comment-likes of the unencrypted comments in the provided list,
+            if any\n";
+        }
+
+        if (setOfCommentIds.Count > setOfUnencryptedCommentIds.Count)
+        {
+            HashSet<int> setOfPossiblyEncryptedCommentIds = new HashSet<int>(setOfCommentIds.Except(setOfUnencryptedCommentIds));
+
+            Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDEKs =
+            new Dictionary<string, byte[]>();
+            Dictionary<int, string> encryptedCommentsAndTheirOverallPostIds = new Dictionary<int, string>();
+
+            try
+            {
+                encryptedCommentsAndTheirOverallPostIds = await _sqlServerContext.encryptedComments
+                    .Where(c => setOfPossiblyEncryptedCommentIds.Contains(c.id ?? -1))
+                    .GroupBy(x => x.id)
+                    .ToDictionaryAsync(c => c.id, c => c.overallPostId);
+            }
+            catch
+            {
+                errorMessage += @"• There was trouble getting the overallPostIds of each of the potentially encrypted comments, which is a
+                required step for decrypting their encrypted liker info, if applicable.\n";
+            }
+
+            if (encryptedCommentsAndTheirOverallPostIds.Count > 0)
+            {
+                try
+                {
+                    var infoOnEachEncryptedLikerOfCommentsInSet = await _postgresContext
+                        .encryptedPostOrCommentLikes
+                        .Where(x => setOfCommentIds.Contains(x.commentId) &&
+                        x.datetimeOfLike >= datetimeForFetchingCommentLikeUpdates)
+                        .Select(x => new
+                            {
+                                x.commentId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag
+                            }
+                        )
+                        .ToListAsync();
+
+                    
+                    foreach(var encryptedLikeInfo in infoOnEachEncryptedLikerOfCommentsInSet)
+                    {
+                        int commentId = encryptedLikeInfo.commentId;
+
+                        string overallPostId = encryptedCommentsAndTheirOverallPostIds[commentId];
+                        byte[] plaintextDataEncryptionKey = [];
+
+                        bool plaintextDataEncryptionKeyWasFound = true;
+
+                        if (overallPostIdsAndTheirPlaintextDEKs.ContainsKey(overallPostId))
+                        {
+                            plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDEKs[overallPostId];
+                        }
+                        else
+                        {
+                            try
+                            {
+                                plaintextDataEncryptionKey = await _encryptionAndDecryptionService
+                                .getPlaintextDataEncryptionKeyOfPost
+                                (
+                                    overallPostId,
+                                    _postgresContext,
+                                    _encryptionAndDecryptionService,
+                                    _redisCachingDatabase
+                                );
+
+                                overallPostIdsAndTheirPlaintextDEKs[overallPostId] =
+                                plaintextDataEncryptionKey;
+                            }
+                            catch
+                            {
+                                plaintextDataEncryptionKeyWasFound = false;
+                            }
+                        }
+
+                        if (plaintextDataEncryptionKeyWasFound)
+                        {
+                            string stringifiedLikerId = _encryptionAndDecryptionService
+                            .DecryptTextWithAzureDataEncryptionKey(
+                                encryptedLikeInfo.encryptedLikerId,
+                                plaintextDataEncryptionKey,
+                                encryptedLikeInfo.encryptionIv,
+                                encryptedLikeInfo.encryptionAuthTag
+                            );
+
+                            int likerId = int.Parse(stringifiedLikerId);
+
+                            postLikeUpdates.Add(new Dictionary<string, object> {
+                                { "commentId", commentId }
+                                { "likerId", likerId }
+                            });
+
+                        }
+                        else
+                        {
+                            errorMessage += @$"• There was trouble getting the plaintext-DEK which is required for decrypting the liker
+                            of one of the likes of encrypted comment {commentId}\n";
+                        }
+                    }
+                }
+                catch
+                {
+                    errorMessage += @"• There was trouble getting the updated likes of the encrypted comments in the provided list,
+                    if any\n";
+                }
+            }
+        }
+
+
+        return Ok(new Dictionary<string, object> {
+            { "errorMessage", errorMessage }
+            { "commentLikeUpdates", commentLikeUpdates }
+        });
+    }
+
+
+    [RequireMutualTLS]
+    [HttpPost("fetchUpdatesToRepliesOfMultipleComments")]
+    public async Task<IActionResult> FetchUpdatesToRepliesOfMultipleComments(
+        [FromBody] Dictionary<string, object> infoForFetchingUpdates
+    )
+    {
+        DateTime datetimeForFetchingCommentReplyUpdates = (DateTime) infoForFetchingUpdates[
+            "datetimeForFetchingCommentReplyUpdates"
+        ];
+        List<int> commentIds = (List<int>) infoForFetchingUpdates["commentIds"];
+        HashSet<int> setOfCommentIds = new HashSet<int>(commentIds);
+
+        List<Dictionary<string, object>> commentReplyUpdates = new List<Dictionary<string, object>>();
+        string errorMessage = "";
+
+        HashSet<int> setOfUnencryptedCommentIds = new HashSet<int>();
+
+        try
+        {
+            commentReplyUpdates = await _postgresContext
+                .unencryptedCommentsOfPosts
+                .Where(x => setOfCommentIds.Contains(x.parentCommentId) &&
+                x.datetimeOfComment >= datetimeForFetchingCommentReplyUpdates)
+                .Select(x => new { x.parentCommentId, x.authorId, x.content })
+                .ToListAsync();
+            
+            foreach(var commentReplyUpdate in commentReplyUpdates)
+            {
+                setOfUnencryptedCommentIds.Add(commentReplyUpdate.parentCommentId);
+            }
+        }
+        catch
+        {
+            errorMessage += @"• There was trouble getting the updated comment-replies of the unencrypted comments in the provided list,
+            if any\n";
+        }
+
+        if (setOfCommentIds.Count > setOfUnencryptedCommentIds.Count)
+        {
+            HashSet<int> setOfPossiblyEncryptedCommentIds = new HashSet<int>(setOfCommentIds.Except(setOfUnencryptedCommentIds));
+
+            Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDEKs =
+            new Dictionary<string, byte[]>();
+
+            if (encryptedCommentsAndTheirOverallPostIds.Count > 0)
+            {
+                try
+                {
+                    var infoOnEachEncryptedCommentOfPostsInSet = await _postgresContext
+                        .encryptedCommentsOfPosts
+                        .Where(x => setOfUnencryptedCommentIds.Contains(x.parentCommentId) &&
+                        x.datetimeOfComment >= datetimeForFetchingCommentReplyUpdates)
+                        .Select(x => new
+                            {
+                                x.overallPostId,
+                                x.parentCommentId,
+                                x.encryptedAuthorId,
+                                x.encryptedContent,
+                                x.encryptionIv,
+                                x.encryptionAuthTag
+                            }
+                        )
+                        .ToListAsync();
+
+                    
+                    foreach(var encryptedCommentInfo in infoOnEachEncryptedCommentOfPostsInSet)
+                    {
+                        int parentCommentId = encryptedCommentInfo.parentCommentId;
+                        string overallPostId = encryptedCommentInfo.overallPostId;
+                        byte[] plaintextDataEncryptionKey = [];
+
+                        bool plaintextDataEncryptionKeyWasFound = true;
+
+                        if (overallPostIdsAndTheirPlaintextDEKs.ContainsKey(overallPostId))
+                        {
+                            plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDEKs[overallPostId];
+                        }
+                        else
+                        {
+                            try
+                            {
+                                plaintextDataEncryptionKey = await _encryptionAndDecryptionService
+                                .getPlaintextDataEncryptionKeyOfPost
+                                (
+                                    overallPostId,
+                                    _postgresContext,
+                                    _encryptionAndDecryptionService,
+                                    _redisCachingDatabase
+                                );
+
+                                overallPostIdsAndTheirPlaintextDEKs[overallPostId] =
+                                plaintextDataEncryptionKey;
+                            }
+                            catch
+                            {
+                                plaintextDataEncryptionKeyWasFound = false;
+                            }
+                        }
+
+                        if (plaintextDataEncryptionKeyWasFound)
+                        {
+                            string stringifiedAuthorId = _encryptionAndDecryptionService
+                            .DecryptTextWithAzureDataEncryptionKey(
+                                encryptedCommentInfo.encryptedAuthorId,
+                                plaintextDataEncryptionKey,
+                                encryptedCommentInfo.encryptionIv,
+                                encryptedCommentInfo.encryptionAuthTag
+                            );
+
+                            int authorId = int.Parse(stringifiedAuthorId);
+
+                            string content = _encryptionAndDecryptionService
+                            .DecryptTextWithAzureDataEncryptionKey(
+                                encryptedCommentInfo.encryptedContent,
+                                plaintextDataEncryptionKey,
+                                encryptedCommentInfo.encryptionIv,
+                                encryptedCommentInfo.encryptionAuthTag
+                            );
+
+                            postCommentUpdates.Add(new Dictionary<string, object> {
+                                { "parentCommentId", parentCommentId }
+                                { "authorId", authorId },
+                                { "content", content }
+                            });
+
+                        }
+                        else
+                        {
+                            errorMessage += @$"• There was trouble getting the plaintext-DEK which is required for decrypting the commenterId
+                            and comment of one of the replies of encrypted comment {parentCommentId}\n";
+                        }
+                    }
+                }
+                catch
+                {
+                    errorMessage += @"• There was trouble getting the updated comment-replies of the encrypted comments in the provided
+                    list, if any\n";
+                }
+            }
+        }
+
+
+        return Ok(new Dictionary<string, object> {
+            { "errorMessage", errorMessage }
+            { "commentReplyUpdates", commentReplyUpdates }
+        });
+    }
+
+
+    [RequireMutualTLS]
+    [HttpGet("getCommentIdsOfUser/{userId}")]
+    public async Task<IActionResult> GetCommentIdsOfUser(
+        int userId
+    )
+    {
+        string errorMessage = "";
+        List<int> commentIdsOfUser = new List<int>();
+
+        try
+        {
+            commentIdsOfUser = await _sqlServerContext
+                .unencryptedCommentsOfPosts
+                .Where(x => x.authorId == userId)
+                .Select(x => x.id)
+                .ToListAsync();
+
+        }
+        catch
+        {
+            errorMessage += "• There was trouble fetching the asked-for data from the database of all the public-comments\n";
+        }
+
+        var allPrivateComments;
+
+        try
+        {
+            allPrivateComments = await _sqlServerContext
+                .encryptedCommentsOfPosts
+                .Select(x => new {x.id, x.overallPostId, x.encryptedAuthorId, x.encryptionIv, x.encryptionAuthTag})
+                .ToListAsync();
+        }
+        catch
+        {
+            errorMessage += "• There was trouble fetching the asked-for data from the database of all the private-comments\n";
+        }
+
+        Dictionary<string, byte[]> overallPostIdsAndTheirPlaintextDEKs = new Dictionary<string, byte[]>();
+        foreach(var privateComment in allPrivateComments)
+        {
+            int commentId = privateComment.id;
+            string overallPostId = privateComment.overallPostId;
+            byte[] plaintextDataEncryptionKey = [];
+
+            if (overallPostIdsAndTheirPlaintextDEKs.ContainsKey(overallPostId))
+            {
+                plaintextDataEncryptionKey = overallPostIdsAndTheirPlaintextDEKs[overallPostId];
+            }
+            else
+            {
+                try
+                {
+                    plaintextDataEncryptionKey = await _encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                    (
+                        overallPostId,
+                        _postgresContext,
+                        _encryptionAndDecryptionService,
+                        _redisCachingDatabase
+                    );
+
+                    overallPostIdsAndTheirPlaintextDEKs[overallPostId] = plaintextDataEncryptionKey;
+                }
+                catch {}
+            }
+
+            if (plaintextDataEncryptionKey == null)
+            {
+                errorMessage += @$"• There was trouble getting the plaintext-DEK needed to decrypt the info on comment {commentId},
+                and determine whether or not user {userId} is its author\n";
+            }
+            else
+            {
+                string stringifiedAuthorId = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                    privateComment.encryptedAuthorId,
+                    plaintextDataEncryptionKey,
+                    privateComment.encryptionIv,
+                    privateComment.encryptionAuthTag
+                );
+
+                int authorId = int.Parse(stringifiedAuthorId);
+
+                if (authorId == authUserId)
+                {
+                    commentIdsOfUser.Add(commentId);
+                }
+            }
+
+        }
+
+        return Ok(new Dictionary<string, object> {
+            { "errorMessage", errorMessage }
+            { "commentIdsOfUser", commentIdsOfUser }
         });
     }
 }
