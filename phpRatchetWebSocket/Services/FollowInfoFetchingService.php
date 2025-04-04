@@ -68,7 +68,7 @@ class FollowInfoFetchingService {
                     'http://34.111.89.101/api/Home-Page/djangoBackend2/graphql',
                     [
                         'query' => 'query ($datetimeToCheckForUpdates: String!, $userIds: [Int!]!) {
-                            fetchUpdatedFollowRequestsOfMultipleUsers(
+                            fetchUpdatedFollowRequestsOfMultiplePrivateUsers(
                                 datetimeToCheckForUpdates: $datetimeToCheckForUpdates, userIds: $userIds
                             )
                         }',
@@ -90,7 +90,7 @@ class FollowInfoFetchingService {
                 $stringifiedResponseData = $response->body();
                 $parsedResponseData = json_decode($stringifiedResponseData, true);
 
-                $newFollowRequests = $parsedResponseData['data']['fetchUpdatedFollowRequestsOfMultipleUsers'];
+                $newFollowRequests = $parsedResponseData['data']['fetchUpdatedFollowRequestsOfMultiplePrivateUsers'];
                 return $newFollowRequests;
             }
             catch (\Exception) {

@@ -1,5 +1,6 @@
 from ...models import FollowRequest
 from ...services import authenticate_user
+from .FollowRequestInfoType import FollowRequestInfoType
 
 import graphene
 from graphql import GraphQLError
@@ -18,6 +19,12 @@ class Query(graphene.ObjectType):
         graphene.Int,
         auth_user_id=graphene.Int(required=True),
         requested_ids_to_exclude=graphene.List(graphene.Int, required=False)
+    )
+
+    fetch_updated_follow_requests_of_multiple_private_users = graphene.List(
+        graphene.Field(FollowRequestInfoType),
+        datetime_to_check_for_updates=graphene.String(required=True),
+        user_ids=graphene.List(graphene.Int, required=True),
     )
 
 
@@ -101,4 +108,25 @@ class Query(graphene.ObjectType):
         except:
             raise GraphQLError(f'There was trouble getting the batch of follow-requests sent by user {auth_user_id}')
         
+
+    def resolve_fetch_updated_follow_requests_of_multiple_private_users(root, datetime_to_check_for_updates, user_ids):
+        datetime_obj = None
+        try:
+            datetime_obj = datetime.strptime(datetime_to_check_for_updates, '%Y-%m-%d %H:%M:%S')
+        except:
+            raise GraphQLError("Invalid datetime-string format. Expected '%Y-%m-%d %H:%M:%S'.")
+        
+        set_of_user_ids = set(user_ids)
+
+        try:
+            updated_follow_requests = list(
+                FollowRequest.objects.filter(
+                    requested__in=set_of_user_ids,
+                    datetime_of_follow_request__gte=datetime_obj
+                ).values('requester', 'requested')
+            )
+            return updated_follow_requests
+
+        except:
+            raise GraphQLError('There was trouble fetching the asked-for data from the database')
     

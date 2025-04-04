@@ -1,5 +1,6 @@
 from ...models import UserFollowing, UserBlocking
 from ...services import authenticate_user, check_if_auth_user_has_access_to_user
+from .UserFollowingInfoType import UserFollowingInfoType
 
 import graphene
 from graphql import GraphQLError
@@ -49,6 +50,12 @@ class Query(graphene.ObjectType):
         graphene.Int,
         user_ids=graphene.List(graphene.Int, required=True),
         limit=graphene.Int(required=False)
+    )
+
+    fetch_updated_followers_of_multiple_public_users = graphene.List(
+        graphene.Field(UserFollowingInfoType),
+        datetime_to_check_for_updates=graphene.String(required=True),
+        user_ids=graphene.List(graphene.Int, required=True),
     )
 
 
@@ -334,3 +341,25 @@ class Query(graphene.ObjectType):
             return most_followed_users_in_list
         except:
             raise GraphQLError(f'There was trouble getting the most followed users in the list')
+    
+
+    def resolve_fetch_updated_followers_of_multiple_public_users(root, datetime_to_check_for_updates, user_ids):
+        datetime_obj = None
+        try:
+            datetime_obj = datetime.strptime(datetime_to_check_for_updates, '%Y-%m-%d %H:%M:%S')
+        except:
+            raise GraphQLError("Invalid datetime-string format. Expected '%Y-%m-%d %H:%M:%S'.")
+        
+        set_of_user_ids = set(user_ids)
+
+        try:
+            updated_followers = list(
+                UserFollowing.objects.filter(
+                    followed__in=set_of_user_ids,
+                    datetime_of_user_following__gte=datetime_obj
+                ).values('follower', 'followed')
+            )
+            return updated_followers
+
+        except:
+            raise GraphQLError('There was trouble fetching the asked-for data from the database')

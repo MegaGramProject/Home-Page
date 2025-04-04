@@ -212,7 +212,7 @@ class MainWebSocket implements MessageComponentInterface {
                                 $privateUsersAndTheirUpdatedFollowRequests = [];
                                 foreach($resultOfFetchingUpdatedFollowRequests as $newFollowRequest) {
                                     $newFollowRequester = $newFollowRequest['requester'];
-                                    $newFollowRequestee = $newFollowRequest['requestee'];
+                                    $newFollowRequestee = $newFollowRequest['requested'];
 
                                     if (!isset($privateUsersAndTheirUpdatedFollowRequests[$newFollowRequestee])) {
                                         $privateUsersAndTheirUpdatedFollowRequests[$newFollowRequestee] = [];
@@ -264,8 +264,8 @@ class MainWebSocket implements MessageComponentInterface {
                                         $client->send(json_encode(
                                             [
                                                 'event' => 'UpdateFetchingError',
-                                                'message' => $resultOfFetchingUpdatedFollowers[0] + ' of user-ids whose new
-                                                followers are being tracked by this WebSocket-server'
+                                                'message' => $resultOfFetchingUpdatedFollowers[0] + ' of user-ids whose new followers
+                                                are being tracked by this WebSocket-server'
                                             ]
                                         ));
                                     }
@@ -275,7 +275,7 @@ class MainWebSocket implements MessageComponentInterface {
                                 $publicUsersAndTheirUpdatedFollowers = [];
                                 foreach($resultOfFetchingUpdatedFollowers as $newUserFollowing) {
                                     $newFollower = $newUserFollowing['follower'];
-                                    $newFollowee = $newUserFollowing['followee'];
+                                    $newFollowee = $newUserFollowing['followed'];
 
                                     if (!isset($publicUsersAndTheirUpdatedFollowers[$newFollowee])) {
                                         $publicUsersAndTheirUpdatedFollowers[$newFollowee] = [];
