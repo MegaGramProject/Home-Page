@@ -62,7 +62,7 @@ public class CommentLikesHub : Hub
                 "BadRequestError",
                 "You must provide a userId as a query-param as well as user-auth-token-cookies in order to proceed with the connection"
             );
-            await Task.Delay(2000);
+            await Task.Delay(3000);
             Context.Abort();
         }
 
@@ -74,7 +74,7 @@ public class CommentLikesHub : Hub
                 "BadRequestError",
                 "The provided userId is invalid"
             );
-            await Task.Delay(2000);
+            await Task.Delay(3000);
             Context.Abort();
         }
 
@@ -90,7 +90,7 @@ public class CommentLikesHub : Hub
                     "UserAuthenticationError",
                     $"The expressJSBackend1 server could not verify you as having the proper credentials to be logged in as user {userId}"
                 );
-                await Task.Delay(2000);
+                await Task.Delay(3000);
                 Context.Abort();
             }
         }
@@ -100,7 +100,7 @@ public class CommentLikesHub : Hub
                 "UserAuthenticationError",
                 userAuthenticationResultAsString
             );
-            await Task.Delay(2000);
+            await Task.Delay(3000);
             Context.Abort();
         }
 
@@ -121,7 +121,7 @@ public class CommentLikesHub : Hub
                     "BadGatewayError",
                     commentIdsOfUser[0]
                 );
-                await Task.Delay(2000);
+                await Task.Delay(3000);
                 Context.Abort();
             }
             else if (commentIdsOfUser.Count == 0)
@@ -130,7 +130,7 @@ public class CommentLikesHub : Hub
                     "CommentsDoNotExistError",
                     "You have no comments, and hence cannot receive updates to the likes of comments that do not exist"
                 );
-                await Task.Delay(2000);
+                await Task.Delay(3000);
                 Context.Abort();
             }
 

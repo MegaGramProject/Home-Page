@@ -1,0 +1,7 @@
+{
+    "require": {
+        "cboden/ratchet": "^0.4.4",
+        "php-di/php-di": "^7.0",
+        "ramsey/uuid": "^4.7"
+    }
+}

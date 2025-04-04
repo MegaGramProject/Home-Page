@@ -188,6 +188,5 @@ class PostInfoFetchingService {
                 "BAD_GATEWAY"
             ]; 
         }
-
     }
 }
