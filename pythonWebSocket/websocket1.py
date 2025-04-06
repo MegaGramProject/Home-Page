@@ -1,3 +1,4 @@
+#This websocket-server is used for getting new messages of a user
 from .services import UserAuthService, UserConvoAndMessageInfoFetchingService
 
 import asyncio
@@ -87,8 +88,8 @@ async def on_connection(connection, path):
                 set_of_accepted_convo_ids.add(accepted_convo_id)
 
     
-    users_and_the_set_of_clients_subscribed_to_their_updates[user_id].add(connection)
     set_of_clients.add(connection)
+    users_and_the_set_of_clients_subscribed_to_their_updates[user_id].add(connection)
 
     if timer_for_fetching_updated_accepted_convo_ids_of_users is None:
         timer_for_fetching_updated_accepted_convo_ids_of_users = threading.Timer(5, fetch_updated_accepted_convo_ids_of_users)
@@ -98,6 +99,7 @@ async def on_connection(connection, path):
         datetime_to_fetch_new_messages = datetime.datetime.now() 
         timer_for_fetching_new_messages = threading.Timer(5, fetch_new_messages_and_notify_clients_of_them)
         timer_for_fetching_new_messages.start()
+
 
     try:
         async for _ in connection:
@@ -213,7 +215,6 @@ async def fetch_new_messages_and_notify_clients_of_them():
     timer_for_fetching_new_messages.start()
 
 
-
-websocket_server = websockets.serve(on_connection, 'localhost', 8012)
-asyncio.get_event_loop().run_until_complete(websocket_server)
+websocket_server_1 = websockets.serve(on_connection, 'localhost', 8012)
+asyncio.get_event_loop().run_until_complete(websocket_server_1)
 asyncio.get_event_loop().run_forever()
