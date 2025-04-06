@@ -183,6 +183,16 @@ async def fetch_updated_messages_of_convos_and_notify_clients_of_them():
     
     for convo_id in convo_ids_and_their_updated_messages:
         updated_messages_of_convo = convo_ids_and_their_updated_messages[convo_id]
+        if updated_messages_of_convo is None:
+            for client in convo_ids_and_the_set_of_clients_subscribed_to_their_updates[convo_id]:
+                await client.send(
+                    {
+                        'event': 'ConvoMessagesFetchingError',
+                        'data': f'There was trouble getting the upto-date messages of convo {convo_id}'
+                    }
+                )
+            continue
+
         datetime_of_oldest_tracked_message = convo_ids_and_the_datetimes_of_their_oldest_tracked_messages[convo_id]
         if datetime_of_oldest_tracked_message != 'oldest':
             updated_messages_of_convo = [
@@ -210,8 +220,10 @@ async def add_subscriber_to_convo_messages(connection, convo_id, datetime_of_old
         set_of_convo_ids.add(convo_id)
         convo_ids_and_the_datetimes_of_their_oldest_tracked_messages[convo_id] = datetime_of_oldest_tracked_message_of_convo
         convo_ids_and_the_set_of_clients_subscribed_to_their_updates[convo_id] = set()
-        result_of_fetching_messages_of_convo = user_convo_and_message_info_fetching_service.get_ordered_messages_of_convo(
-            convo_id, datetime_of_oldest_tracked_message_of_convo
+        result_of_fetching_messages_of_convo = (user_convo_and_message_info_fetching_service
+            .get_ordered_upto_date_messages_of_convos(
+                convo_id, datetime_of_oldest_tracked_message_of_convo
+            )
         )
         if isinstance(result_of_fetching_messages_of_convo, list):
             await connection.send(

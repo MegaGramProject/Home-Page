@@ -8,13 +8,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.megagram.springBootBackend2.exceptions.BadGatewayException;
 import com.megagram.springBootBackend2.exceptions.ForbiddenException;
+import com.megagram.springBootBackend2.exceptions.ResourceDoesNotExistException;
 import com.megagram.springBootBackend2.exceptions.TooManyRequestsException;
 import com.megagram.springBootBackend2.models.googleCloudSpannerMySQL.UserConvo.DecryptedUserConvo;
 import com.megagram.springBootBackend2.models.googleCloudSpannerMySQL.UserConvo.UserConvo;
@@ -45,6 +49,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @RestController
 public class Queries {
     @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    @Autowired
     private UserAuthService userAuthService;
     @Autowired
     private UserConvoRepository userConvoRepository;
@@ -65,10 +71,8 @@ public class Queries {
 
     @PostMapping("/getBatchOfMyMostRecentConvos/{authUserId}")
     @CrossOrigin({"http://34.111.89.101", "http://localhost:8004"})
-    public HashMap<String, Object> getBatchOfMyMostRecentConvos(
-    HttpServletRequest request, HttpServletResponse response, @RequestParam int authUserId,
-    @RequestBody HashMap<String, List<Integer>> infoOnConvoIdsToExclude) throws
-    Exception {
+    public HashMap<String, Object> getBatchOfMyMostRecentConvos(HttpServletRequest request, HttpServletResponse response,
+    @RequestParam int authUserId, @RequestBody HashMap<String, List<Integer>> infoOnConvoIdsToExclude) throws Exception {
         this.processRequest(this.getClientIpAddress(request), "/getBatchOfMyMostRecentConvos");
 
         if (authUserId < 1) {
@@ -409,6 +413,274 @@ public class Queries {
         batchOfMostRecentConvosOfAuthUser.put("ErrorMessage", errorMessage);
 
         return batchOfMostRecentConvosOfAuthUser;
+    }
+
+    
+    @GetMapping("/getStatusOfUserInConvo/{userId}/{convoId}")
+    @CrossOrigin({"http://34.111.89.101", "http://localhost:8004"})
+    public HashMap<String, Object> getStatusOfUserInConvo(HttpServletRequest request, HttpServletResponse response,
+    @RequestParam int userId, @RequestParam int convoId) throws Exception {
+        String errorMessage = "";
+        
+        Object resultOfGettingConvoDetails = this.convoInfoFetchingService.getConvoDetails(
+            convoId, 
+            this.redisTemplate,
+            this.userConvoRepository
+        );
+        if (resultOfGettingConvoDetails instanceof String[]) {
+            errorMessage += "• " + ((String[]) resultOfGettingConvoDetails)[0] + "\n";
+            if (((String[]) resultOfGettingConvoDetails)[1].equals("NOT_FOUND")) {
+                throw new ResourceDoesNotExistException(errorMessage);
+            }   
+            throw new BadGatewayException(errorMessage);
+        }
+        UserConvo userConvo = (UserConvo) resultOfGettingConvoDetails;
+
+        byte[] encryptedDataEncryptionKey = userConvo.getEncryptedDataEncryptionKey();
+        byte[] plaintextDataEncryptionKey = this.encryptionAndDecryptionService
+        .decryptEncryptedAWSDataEncryptionKey(
+            encryptedDataEncryptionKey
+        );
+        if (plaintextDataEncryptionKey == null) {
+            errorMessage += "• There was trouble getting the plaintextDataEncryptionKey of the specified convo\n";
+            throw new BadGatewayException(errorMessage);
+        }
+
+        String stringifiedConvoMembers = this.encryptionAndDecryptionService
+        .decryptTextWithAWSDataEncryptionKey(
+            userConvo.getEncryptedMembers(),
+            plaintextDataEncryptionKey,
+            userConvo.getMembersEncryptionIv(),
+            userConvo.getMemberStatusesEncryptionAuthTag()
+        );
+
+        int[] convoMembers = null;
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            convoMembers = objectMapper.readValue(stringifiedConvoMembers, int[].class);
+        }
+        catch (IOException e) {}
+
+        int indexOfUserInConvoMembers = -1;
+        for(int i=0; i<convoMembers.length; i++) {
+            if (convoMembers[i] == userId) {
+                indexOfUserInConvoMembers = i;
+                break;
+            }
+        }
+
+        String usersStatusInConvo = null;
+
+        if (indexOfUserInConvoMembers == -1) {
+            usersStatusInConvo = "not a member";
+        }
+        else {
+            String stringifiedMemberStatuses = this.encryptionAndDecryptionService
+            .decryptTextWithAWSDataEncryptionKey(
+                userConvo.getEncryptedMemberStatuses(),
+                plaintextDataEncryptionKey,
+                userConvo.getMemberStatusesEncryptionIv(),
+                userConvo.getMemberStatusesEncryptionAuthTag()
+            );
+    
+            int[] memberStatuses = null;
+    
+            try {
+                memberStatuses = objectMapper.readValue(stringifiedMemberStatuses, int[].class);
+            }
+            catch (IOException e) {}
+
+            if (memberStatuses[indexOfUserInConvoMembers] > 0) {
+                usersStatusInConvo = "is member";
+            }
+            else {
+                usersStatusInConvo = "is requested to be member";
+            }
+        }
+
+        HashMap<String, Object> output = new HashMap<String, Object>();
+        output.put("ErrorMessage", errorMessage);
+        output.put("usersStatusInConvo", usersStatusInConvo);
+        return output;
+    }
+
+
+    @GetMapping("/getAcceptedConvoIdsOfUser/{userId}")
+    @CrossOrigin({"http://34.111.89.101", "http://localhost:8004"})
+    public HashMap<String, Object> getAcceptedConvoIdsOfUser(HttpServletRequest request, HttpServletResponse response,
+    @RequestParam int userId) throws Exception {
+        String errorMessage = "";
+
+        ArrayList<Integer> acceptedConvoIdsOfUser = new ArrayList<Integer>();
+        List<UserConvo> allUserConvos = null;
+
+        try {
+            allUserConvos = this.userConvoRepository.findAll();
+        }
+        catch (Exception e) {
+            errorMessage += "• There was trouble getting all the convos from the database\n";
+            throw new BadGatewayException(errorMessage);
+        }
+
+        for(UserConvo userConvo : allUserConvos) {
+            byte[] encryptedDataEncryptionKey = userConvo.getEncryptedDataEncryptionKey();
+            byte[] plaintextDataEncryptionKey = this.encryptionAndDecryptionService
+            .decryptEncryptedAWSDataEncryptionKey(
+                encryptedDataEncryptionKey
+            );
+
+            if (plaintextDataEncryptionKey == null) {
+                errorMessage += "• There was trouble getting the plaintextDataEncryptionKey of convo " +
+                userConvo.getId() + ", which may or may not be an accepted convo-id of user " + userId + "\n";
+            }
+            else {
+                String stringifiedConvoMembers = this.encryptionAndDecryptionService
+                .decryptTextWithAWSDataEncryptionKey(
+                    userConvo.getEncryptedMembers(),
+                    plaintextDataEncryptionKey,
+                    userConvo.getMembersEncryptionIv(),
+                    userConvo.getMemberStatusesEncryptionAuthTag()
+                );
+        
+                int[] convoMembers = null;
+                ObjectMapper objectMapper = new ObjectMapper();
+        
+                try {
+                    convoMembers = objectMapper.readValue(stringifiedConvoMembers, int[].class);
+                }
+                catch (IOException e) {}
+        
+                int indexOfUserInConvoMembers = -1;
+                for(int i=0; i<convoMembers.length; i++) {
+                    if (convoMembers[i] == userId) {
+                        indexOfUserInConvoMembers = i;
+                        break;
+                    }
+                }
+
+                if (indexOfUserInConvoMembers > -1) {
+                    String stringifiedMemberStatuses = this.encryptionAndDecryptionService
+                    .decryptTextWithAWSDataEncryptionKey(
+                        userConvo.getEncryptedMemberStatuses(),
+                        plaintextDataEncryptionKey,
+                        userConvo.getMemberStatusesEncryptionIv(),
+                        userConvo.getMemberStatusesEncryptionAuthTag()
+                    );
+            
+                    int[] memberStatuses = null;
+            
+                    try {
+                        memberStatuses = objectMapper.readValue(stringifiedMemberStatuses, int[].class);
+                    }
+                    catch (IOException e) {}
+        
+                    if (memberStatuses[indexOfUserInConvoMembers] > 0) {
+                        acceptedConvoIdsOfUser.add(userConvo.getId());
+                    }
+                }
+            }
+        }
+
+        HashMap<String, Object> output = new HashMap<String, Object>();
+        output.put("ErrorMessage", errorMessage);
+        output.put("acceptedConvoIdsOfUser", acceptedConvoIdsOfUser);
+        return output;
+    }
+
+
+    @PostMapping("/getAcceptedConvoIdsOfMultipleUsers")
+    @CrossOrigin({"http://34.111.89.101", "http://localhost:8004"})
+    public HashMap<String, Object> getAcceptedConvoIdsOfMultipleUsers(HttpServletRequest request, HttpServletResponse response,
+    @RequestBody HashMap<String, ArrayList<Integer>> userIdsInfo) throws Exception {
+        HashSet<Integer> setOfUserIds = new HashSet<Integer>(userIdsInfo.get("userIds"));
+        String errorMessage = "";
+
+        HashMap<Integer, ArrayList<Integer>> usersAndTheirAcceptedConvoIds = new HashMap<Integer, ArrayList<Integer>>();
+        for(int userId : setOfUserIds) {
+            usersAndTheirAcceptedConvoIds.put(userId, new ArrayList<Integer>());
+        }
+
+        List<UserConvo> allUserConvos = null;
+
+        try {
+            allUserConvos = this.userConvoRepository.findAll();
+        }
+        catch (Exception e) {
+            errorMessage += "• There was trouble getting all the convos from the database\n";
+            throw new BadGatewayException(errorMessage);
+        }
+
+        for(UserConvo userConvo : allUserConvos) {
+            byte[] encryptedDataEncryptionKey = userConvo.getEncryptedDataEncryptionKey();
+            byte[] plaintextDataEncryptionKey = this.encryptionAndDecryptionService
+            .decryptEncryptedAWSDataEncryptionKey(
+                encryptedDataEncryptionKey
+            );
+
+            if (plaintextDataEncryptionKey == null) {
+                errorMessage += "• There was trouble getting the plaintextDataEncryptionKey of convo " +
+                userConvo.getId() + ", which may or may not be an accepted convo-id of one of the users in the provided list\n";
+            }
+            else {
+                String stringifiedConvoMembers = this.encryptionAndDecryptionService
+                .decryptTextWithAWSDataEncryptionKey(
+                    userConvo.getEncryptedMembers(),
+                    plaintextDataEncryptionKey,
+                    userConvo.getMembersEncryptionIv(),
+                    userConvo.getMemberStatusesEncryptionAuthTag()
+                );
+        
+                int[] convoMembers = null;
+                ObjectMapper objectMapper = new ObjectMapper();
+        
+                try {
+                    convoMembers = objectMapper.readValue(stringifiedConvoMembers, int[].class);
+                }
+                catch (IOException e) {}
+
+                HashMap<Integer, Integer> membersAndTheirIndices = new HashMap<Integer, Integer>();
+        
+                for(int i=0; i<convoMembers.length; i++) {
+                    int convoMember = convoMembers[i];
+                    if (setOfUserIds.contains(convoMember)) {
+                        membersAndTheirIndices.put(convoMember, i);
+                    }
+                }
+
+                if (!(membersAndTheirIndices.isEmpty())) {
+                    String stringifiedMemberStatuses = this.encryptionAndDecryptionService
+                    .decryptTextWithAWSDataEncryptionKey(
+                        userConvo.getEncryptedMemberStatuses(),
+                        plaintextDataEncryptionKey,
+                        userConvo.getMemberStatusesEncryptionIv(),
+                        userConvo.getMemberStatusesEncryptionAuthTag()
+                    );
+            
+                    int[] memberStatuses = null;
+            
+                    try {
+                        memberStatuses = objectMapper.readValue(stringifiedMemberStatuses, int[].class);
+                    }
+                    catch (IOException e) {}
+
+                    int convoId = userConvo.getId();
+        
+                    for(int member : membersAndTheirIndices.keySet()) {
+                        int indexOfMemberInConvoMembers = membersAndTheirIndices.get(member);
+                        int statusOfMember = memberStatuses[indexOfMemberInConvoMembers];
+                        if (statusOfMember > 0) {
+                            usersAndTheirAcceptedConvoIds.get(member).add(convoId);
+                        }
+                    }
+                }
+            }
+        }
+
+        HashMap<String, Object> output = new HashMap<String, Object>();
+        output.put("ErrorMessage", errorMessage);
+        output.put("usersAndTheirAcceptedConvoIds", usersAndTheirAcceptedConvoIds);
+        return output;
     }
 
 

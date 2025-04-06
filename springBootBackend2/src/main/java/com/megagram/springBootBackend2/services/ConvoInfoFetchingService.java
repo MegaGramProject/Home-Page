@@ -195,7 +195,6 @@ public class ConvoInfoFetchingService {
 
     public Object getDetailsOfMultipleConvos(ArrayList<Integer> convoIds, RedisTemplate<String, Object>
     redisTemplate, UserConvoRepository userConvoRepository) {
-
         HashMap<Integer, UserConvo> convoIdsAndTheirDetails = new HashMap<Integer, UserConvo>();
 
         try {
