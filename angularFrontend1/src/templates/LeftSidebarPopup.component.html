@@ -1,0 +1,34 @@
+<div class="popup" [ngStyle]="{ width: '15em', borderRadius: '0.4em', paddingTop: '1em', height: authUserId === -1 ?
+'16.5em' : '20em'}">
+    <a href="http://34.111.89.101/settings" class="sidebarElement" target="_blank" rel="noopener noreferrer">
+      <img [src]="'images/settingsIcon.png'" class="iconToBeAdjustedForDarkMode" style="height: 2em; width: 2em; pointer-events: none;
+      object-fit: contain;"/>
+      <p style="font-size: 0.89em; margin-left: 0.4em;">Settings</p>
+    </a>
+  
+    <a href="http://34.111.89.101/your-activity" class="sidebarElement" target="_blank" rel="noopener noreferrer">
+      <img [src]="'images/yourActivityIcon.png'" class="iconToBeAdjustedForDarkMode" style="height: 2em; width: 2em; object-fit: contain; pointer-events: none;"/>
+      <p style="font-size: 0.89em; margin-left: 0.4em;">Your activity</p>
+    </a>
+  
+    <a href="http://34.111.89.101/saved" class="sidebarElement" target="_blank" rel="noopener noreferrer">
+      <img [src]="'images/blankSavedIcon.png'" class="iconToBeAdjustedForDarkMode" style="height: 2em; width: 2em; pointer-events: none; object-fit: contain;"/>
+      <p style="font-size: 0.89em; margin-left: 0.4em;">Saved</p>
+    </a>
+  
+    <a href="http://34.111.89.101/report-a-problem" class="sidebarElement" target="_blank" rel="noopener noreferrer">
+      <img [src]="'images/reportAProblemIcon.png'" class="iconToBeAdjustedForDarkMode" style="height: 2em; width: 2em; object-fit: contain; pointer-events: none;"/>
+      <p style="font-size: 0.89em; margin-left: 0.4em;">Report a problem</p>
+    </a>
+  
+    <div id="leftSideBarPopupGap" style="width: 100%; height: 0.9em; background-color: #f7f7f7;"></div>
+  
+    <a href="http://34.111.89.101/login" class="sidebarElement" target="_blank" rel="noopener noreferrer">
+      <p style="font-size: 0.89em; margin-left: 0.4em;">Switch accounts</p>
+    </a>
+  
+    <div *ngIf="authUserId !== -1" (click)="logout()" class="sidebarElement">
+      <p style="font-size: 0.89em; margin-left: 0.4em;">Log out</p>
+    </div>
+  </div>
+  

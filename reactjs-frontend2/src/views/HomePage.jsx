@@ -4,8 +4,8 @@ import AboutAccountPopup from '../components/aboutAccountPopup';
 import CommentsPopup from '../components/commentsPopup';
 import ErrorPopup from '../components/errorPopup';
 import Footer from "../components/footer";
-import LeftSidebar from "../components/leftSidebar";
-import LeftSidebarPopup from '../components/leftSidebarPopup';
+import LeftSidebar from "../components/LeftSidebar";
+import LeftSidebarPopup from '../components/LeftSidebarPopup';
 import LikersPopup from '../components/likersPopup';
 import MediaPost from "../components/mediaPost";
 import SendPostPopup from '../components/sendPostPopup';
@@ -20,11 +20,18 @@ import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import rightArrow from "../assets/images/nextArrow.png";
 
+import '../HomePageStyles.css';
 
-import '../styles.css';
 
-function MainPage({urlParams}) {
+function HomePage({urlParams}) {
     const [authUser, setAuthUser] = useState('');
+    const [authUserId, setAuthUserId] = useState(-1);
+
+    const [originalURL, setOriginalURL] = useState('');
+
+    const [errorPopupMessage, setErrorPopupMessage] = useState('');
+    const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
+
     const [displayThreeDotsPopup, setDisplayThreeDotsPopup] = useState(false);
     const [threeDotsPopupPostDetails, setThreeDotsPopupPostDetails] = useState(null);
     const [displayCommentsPopup, setDisplayCommentsPopup] = useState(false);
@@ -44,8 +51,6 @@ function MainPage({urlParams}) {
     const [aboutAccountUserHasUnseenStory, setAboutAccountUserHasUnseenStory] = useState(false);
     const [aboutAccountUserProfilePhoto, setAboutAccountUserProfilePhoto] = useState(null);
     const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
-    const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
-    const [errorPopupMessage, setErrorPopupMessage] = useState('');
     const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
     const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
     const [orderedListOfUsernamesInStoriesSection, setOrderedListOfUsernamesInStoriesSection] = useState([]);
@@ -65,7 +70,7 @@ function MainPage({urlParams}) {
     const [storyViewerUsername, setStoryViewerUsername] = useState('');
     const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
     const [idsOfStoriesMarkedAsViewed, setIdsOfStoriesMarkedAsViewed] = useState(new Set());
-    const [originalURL, setOriginalURL] = useState('');
+
 
     useEffect(() => {
         document.title = "Megagram";
@@ -74,22 +79,47 @@ function MainPage({urlParams}) {
         if (urlParams) {
             authenticateUser(urlParams.username);
         }
-        else if (localStorage.getItem("defaultAuthUser")) {
-            authenticateUser(localStorage.getItem("defaultAuthUser"));
+        else if (localStorage.getItem("defaultUsername")) {
+            authenticateUser(localStorage.getItem("defaultUsername"));
+        }
+        else {
+            setAuthUser('Anonymous Guest');
+        }
+
+        if(urlParams && localStorage.getItem('defaultUsername') !== urlParams.username) {
+            authenticateUser(urlParams.username, null);
+        }
+        else if(localStorage.getItem('defaultUsername')) {
+            if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
+                setAuthUser('Anonymous Guest');
+            }
+            else {
+                authenticateUser(
+                    localStorage.getItem('defaultUsername'),
+                    localStorage.getItem('defaultUserId')
+                );
+            }
         }
         else {
             setAuthUser('Anonymous Guest');
         }
     }, []);
 
+
     useEffect(() => {
         if (authUser.length > 0) {
-            localStorage.setItem('defaultAuthUser', authUser);
+            localStorage.setItem('defaultUsername', authUser);
             fetchStories();
             fetchSuggestedAccounts();
             fetchPosts('initial');
         }
     }, [authUser]);
+
+
+    useEffect(() => {
+        localStorage.setItem('defaultUserId', authUserId);
+    }, [authUserId]);
+
 
     useEffect(() => {
         if (fetchingStoriesIsComplete && fetchingSuggestedAccountsIsComplete && fetchingInitialPostsIsComplete) {
@@ -103,6 +133,7 @@ function MainPage({urlParams}) {
         setDisplayThreeDotsPopup(true);
     }
 
+
     function showCommentsPopup(postDetails, currSlide, mainPostAuthorInfo) {
         setCommentsPopupPostDetails(postDetails);
         setCommentsPopupCurrSlide(currSlide);
@@ -110,22 +141,27 @@ function MainPage({urlParams}) {
         setDisplayCommentsPopup(true);
     }
 
+
     function hideCommentsPopup() {
         setDisplayCommentsPopup(false);
     }
+
 
     function showSendPostPopup(newSendPostPopupOverallPostId) {
         setSendPostPopupOverallPostId(newSendPostPopupOverallPostId);
         setDisplaySendPostPopup(true);
     };
 
+
     function closeSendPostPopup() {
         setDisplaySendPostPopup(false);
     };
 
+
     function closeThreeDotsPopup() {
         setDisplayThreeDotsPopup(false);
     };
+
 
     function hidePost(overallPostId) {
         const newOrderedListOfPosts = orderedListOfPosts.filter(
@@ -137,32 +173,67 @@ function MainPage({urlParams}) {
         setDisplayCommentsPopup(false);
     }
 
-    
-    async function authenticateUser(username) {
-        if (username === 'Anonymous Guest') {
-            setAuthUser(username);
-            return;
-        }
-        try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${username}`, {
-                credentials: 'include'
-            });
-            if(!response.ok) {
+
+    async function authenticateUser(username, userId) {
+        if (userId == null) {
+            try {
+                const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: `query getUserIdOfUsername($username: String!) {
+                            getUserIdOfUsername(username: $username)
+                        }`,
+                        variables: {
+                            username: username
+                        }
+                    })
+                });
+                if (!response.ok) {
+                    setAuthUser('Anonymous Guest');
+
+                    throw new (
+                        `The laravelBackend1 server had trouble getting the user-id of username ${username}`
+                    );
+                }
+                userId = await response.json();
+                setAuthUserId(userId);
+            }
+            catch {
                 setAuthUser('Anonymous Guest');
-                showErrorPopup(`The server had trouble verifying your login-status as ${username}. You are now browsing
-                Megagram as an Anonymous Guest.`);
-            }
-            else {
-                setAuthUser(username);
+
+                throw new Error(
+                    `There was trouble connecting to the laravelBackend1 server to get the user-id of username
+                    ${username}`
+                );
             }
         }
-        catch (error) {
+
+        try {
+            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
+            /${userId}`);
+            if (!response1.ok) {
+                setAuthUser('Anonymous Guest');
+
+                throw new Error(
+                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to be 
+                    logged in as user ${userId}`
+                );
+            }
+
+            setAuthUser(username);
+            setAuthUserId(userId);
+        }
+        catch {
             setAuthUser('Anonymous Guest');
-            showErrorPopup(`There was trouble connecting to the server to verify your login-status as ${username}. You are now 
-            browsing Megagram as an Anonymous Guest.`);
+
+            throw new Error(
+                `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
+                credentials to be logged in as user ${userId}`
+            );
         }
     }
+
 
     async function fetchStories() {
         if (authUser !== 'Anonymous Guest') {
@@ -221,6 +292,7 @@ function MainPage({urlParams}) {
         }
     }
 
+
     async function fetchSuggestedAccounts() {
         try {
             const response = await fetch(
@@ -247,6 +319,7 @@ function MainPage({urlParams}) {
         }
 
     }
+
     
     async function fetchPosts(initialOrAdditionalText) {
         const isInitialFetch = initialOrAdditionalText==='initial';
@@ -307,6 +380,7 @@ function MainPage({urlParams}) {
             }
         }
     }
+
 
     async function fetchAllTheNecessaryUserInfo() {
         let usernamesOfAllPostAuthors = [];
@@ -628,6 +702,7 @@ function MainPage({urlParams}) {
         setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
     }
 
+
     async function fetchAllTheNecessaryUserInfoForAdditionalUserPosts(listOfNewPostsForFeed) {
         const usernamesOfNewPostAuthors = [];
         const usernamesOfNewMainPostAuthors = [];
@@ -816,6 +891,7 @@ function MainPage({urlParams}) {
         setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
     }
 
+
     function fetchAdditionalPostsWhenUserScrollsToBottomOfPage() {
         if (additionalPostsFetchingErrorMessage.length==0 && !isCurrentlyFetchingAdditionalPosts &&
         window.innerHeight + window.scrollY >= document.documentElement.scrollHeight) {
@@ -824,23 +900,28 @@ function MainPage({urlParams}) {
         }
     }
 
+
     function showLikersPopup(postOrCommentText, likersPopupIdOfPostOrComment) {
         setLikersPopupPostOrCommentText(postOrCommentText);
         setLikersPopupIdOfPostOrComment(likersPopupIdOfPostOrComment);
         setDisplayLikersPopup(true);
     }
 
+
     function closeLikersPopup () {
         setDisplayLikersPopup(false);
     }
+
 
     function incrementStoryLevel() {
         setCurrStoryLevel(currStoryLevel+1);
     }
 
+
     function decrementStoryLevel() {
         setCurrStoryLevel(currStoryLevel-1);
     }
+
 
     function showAboutAccountPopup(overallPostId) {
         setDisplayAboutAccountPopup(true);
@@ -873,10 +954,12 @@ function MainPage({urlParams}) {
         }
     }
 
+
     function closeAboutAccountPopup() {
         setDisplayAboutAccountPopup(false);
         closeThreeDotsPopup();
     }
+
 
     function closeAllPopups() {
         if(!(displayCommentsPopup && (displayThreeDotsPopup || displayAboutAccountPopup ||
@@ -892,22 +975,27 @@ function MainPage({urlParams}) {
         setDisplayErrorPopup(false);
     }
 
+
     function toggleDisplayLeftSidebarPopup() {
         setDisplayLeftSidebarPopup(!displayLeftSidebarPopup);
     }
+
 
     function showErrorPopup(errorMessage) {
         setErrorPopupMessage(errorMessage);
         setDisplayErrorPopup(true);
     }
 
+
     function closeErrorPopup() {
         setDisplayErrorPopup(false);
     }
 
+    
     function updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo) {
         setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
     }
+
 
     function updatePostDetails(overallPostId, updatedKeyValuePairs) {
         const newOrderedListOfPosts = [...orderedListOfPosts];
@@ -924,11 +1012,13 @@ function MainPage({urlParams}) {
         }
     }
 
+
     function showStoryViewer(newStoryViewerUsername, newStoryViewerIsFromStoriesSection) {
         setStoryViewerUsername(newStoryViewerUsername);
         setStoryViewerIsFromStoriesSection(newStoryViewerIsFromStoriesSection);
         setDisplayStoryViewer(true);
     }
+
 
     function closeStoryViewer() {
         setDisplayStoryViewer(false);
@@ -942,13 +1032,16 @@ function MainPage({urlParams}) {
         );
     }
 
+
     function updateUsersAndTheirStories(newUsersAndTheirStories) {
         setUsersAndTheirStories(newUsersAndTheirStories);
     }
 
+
     function updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories) {
         setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
     }
+
 
     function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername) {
         setUsernamesWhoseStoriesYouHaveFinished(new Set(
@@ -959,6 +1052,7 @@ function MainPage({urlParams}) {
         ));
     }
 
+
     function addStoryIdToSetOfViewedStoryIds(newStoryId) {
         setIdsOfStoriesMarkedAsViewed(new Set(
             [
@@ -967,6 +1061,7 @@ function MainPage({urlParams}) {
             ]
         ));
     }
+
 
     return (
         <>
@@ -979,6 +1074,7 @@ function MainPage({urlParams}) {
                                 usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
                             }
                             displayPopup={displayLeftSidebarPopup}
+                            authUserIsAnonymousGuest={authUserId == -1}
                             toggleDisplayPopup={toggleDisplayLeftSidebarPopup}
                         />
 
@@ -1314,7 +1410,8 @@ function MainPage({urlParams}) {
                             <div style={{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ? '1'
                             : '3'}}>
                                 <LeftSidebarPopup
-                                    authUser={authUser}
+                                    authUserId={authUserId}
+                                    originalURL={originalURL}
                                     notifyParentToShowErrorPopup={showErrorPopup}
                                 />
                             </div>
@@ -1404,4 +1501,4 @@ function MainPage({urlParams}) {
     );
 }
 
-export default MainPage;
+export default HomePage;

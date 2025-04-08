@@ -1,0 +1,174 @@
+
+@font-face {
+    font-family: Billabong;
+    src: url('@/assets/fonts/billabong_regular.otf');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: 'Arial';
+    text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    input {
+        background-color: #232424 !important;
+        color: white !important;
+    }
+    .popup {
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    .sidebarElement:hover {
+        color: black !important;
+    }
+
+    #leftSideBarPopupGap {
+        background-color: rgb(33, 33, 33) !important;
+    }
+
+    .commentPopupBackground {
+        background-color: #232424 !important;
+    }
+
+    .iconToBeAdjustedForDarkMode {
+        filter: brightness(5) contrast(0) !important;
+    }
+
+    .leftArrow {
+        filter: brightness(5) contrast(0) !important;
+    }
+
+    .rightArrow {
+        filter: brightness(5) contrast(0) !important;
+    }
+
+    .textArea {
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    #closeAboutAccountSection {
+        background-color: #232424 !important;
+        color: white !important;
+    }
+
+    .selectUserOrGroupChat:hover {
+        color: black !important;
+    }
+
+    a {
+        color: white !important;
+    }
+
+    .hashtagOrMention {
+        color: #71a3f5 !important;
+    }
+
+    .videoSlideChaptersOrTaggedAccountsDiv {
+        background-color: #232424 !important;
+        border-style: solid;
+        border-color: black;
+        border-width: 0.07em;
+    }
+
+    .videoSlideSection:hover {
+        color: black !important;
+    }
+}
+
+.popup {
+    background-color: white;
+    color: black;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.headerMegagram:active {
+    opacity: 0.4;
+}
+
+.sidebarElement {
+    display: flex;
+    align-items: center;
+    margin-left: 0.9em;
+    cursor: pointer;
+    width: 90%;
+    border-radius: 0.4em;
+}
+
+.sidebarElement:hover {
+    background-color: #f0f0f0;
+}
+
+.blueButton {
+    background-color: #82bbf5;
+    color: white;
+    width: 295px;
+    height: 34px;
+    border-radius: 7px;
+    border: none;
+    font-weight: bold;
+    padding-top:10px;
+    padding-bottom: 10px;
+    font-size: 12.5px;
+    margin-top: 18px;
+}
+
+.selectUserOrGroupChat:hover {
+    background-color: #f5f5f5;
+}
+
+a {
+    text-decoration: none;
+    color: black;
+}
+
+.loseOpacityWhenActive:active {
+    opacity: 0.5
+}
+
+.mediaPostButton {
+    cursor: pointer;
+    height: 2.7em;
+    width: 2.7em;
+    object-fit: contain;
+}
+
+.mediaPostButton:hover {
+    opacity: 0.5;
+}
+
+.videoSlideSection:hover {
+    background-color: #edf4fc;
+}
+
+.videoSlideChaptersOrTaggedAccountsDiv {
+    background-color: white;
+}
+
+.storyViewerSlideArrows:hover {
+    filter: none !important;
+}
+
+#videoStorySlide::-webkit-media-controls {
+    display: none !important;
+}
+
+@media (max-width: 95em) {
+    #rightmostSection {
+        display: none !important;
+    }
+}
+
+@media (max-width: 68em) {
+    #leftSidebar {
+        display: none;
+    }
+}
