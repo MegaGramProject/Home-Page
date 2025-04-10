@@ -1,0 +1,53 @@
+<ng-container *ngIf="username === 'Anonymous Guest'; else loggedIn">
+    <div style="width: 8em; height: 10em">
+        <p style="font-size: 0.7em; text-align: start">
+        You are currently logged in as a guest. This means that you can only view posts/stories
+        of public accounts. You cannot interact with other users in any way without logging in to
+        an account of your own.
+        </p>
+    </div>
+</ng-container>
+  
+<ng-template #loggedIn>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center">
+        <ng-container *ngIf="userHasStories; else noStories">
+            <div [ngStyle]="{background: userHasUnseenStory ? 'linear-gradient(45deg, #833ab4, #fd1d1d, #fcb045)' : 'lightgray',
+            borderRadius: '100%', height: '4.6em', width: '4.6em', position: 'relative'}">
+                <div style="background: white; border-radius: 100%; height: 4.45em; width: 4.45em; position: absolute; left:
+                50%; top: 50%; transform: translate(-50%, -50%)">
+                    <img (click)="onClickingProfilePhoto()" [src]="userPfp" style="height: 4.25em; width: 4.25em; object-fit:
+                    contain; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer" />
+                    
+                    <a *ngIf="inStoriesSection && username === authUser" href="http://34.111.89.101/postStory" target="_blank"
+                    rel="noopener noreferrer">
+                        <img [src]="'images/bluePlusIcon.png'" style="height: 1.75em; width: 1.75em; object-fit: contain;
+                        position: absolute; left: 65%; top: 65%; cursor: pointer" />
+                    </a>
+                </div>
+            </div>
+        </ng-container>
+
+        <ng-template #noStories>
+            <div style="background: white; border-radius: 100%; height: 4.2em; width: 4.2em; position: relative">
+                <img (click)="onClickingProfilePhoto()" [src]="userPfp" style="height: 95%; width: 95%; object-fit: contain;
+                position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer" />
+    
+                <a *ngIf="inStoriesSection && username === authUser" href="http://34.111.89.101/postStory" target="_blank"
+                rel="noopener noreferrer">
+                    <img [src]="'images/bluePlusIcon.png'" style="height: 1.75em; width: 1.75em; object-fit: contain; position: absolute;
+                    left: 65%; top: 65%; cursor: pointer" />
+                </a>
+            </div>
+        </ng-template>
+
+        <div *ngIf="inStoriesSection" style="display: flex; justify-content: center; width: 100%; align-items: center;">
+            <p style="text-align: center; font-size: 0.8em; max-width: 7.5em; overflow-wrap: break-word">
+                {{ username === authUser ? 'You' : username }}
+            </p>
+
+            <img *ngIf="userIsVerified" [src]="'images/verifiedBlueCheck.png'" style="pointer-events: none; height: 1.5em; width:
+            1.5em; object-fit: contain" />
+        </div>
+    </div>
+</ng-template>
+  

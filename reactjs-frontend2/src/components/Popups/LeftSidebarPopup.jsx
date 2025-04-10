@@ -1,7 +1,8 @@
-import reportAProblemIcon from '../assets/images/reportAProblemIcon.png';
-import blankSavedIcon from '../assets/images/blankSavedIcon.png';
-import settingsIcon from '../assets/images/settingsIcon.png';
-import yourActivityIcon from '../assets/images/yourActivityIcon.png';
+import reportAProblemIcon from '../../assets/images/reportAProblemIcon.png';
+import blankSavedIcon from '../../assets/images/blankSavedIcon.png';
+import settingsIcon from '../../assets/images/settingsIcon.png';
+import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
+
 
 function LeftSidebarPopup({authUserId, originalURL, notifyParentToShowErrorPopup}) {
 

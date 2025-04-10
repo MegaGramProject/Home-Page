@@ -1,89 +1,99 @@
 import { useState } from 'react';
 
-function ThreeDotsPopup({authUser, postDetails, hidePost, notifyParentToShowAboutAccountPopup,
-notifyParentToClosePopup, notifyParentToShowErrorPopup}){
-    const [followText, setFollowText] = useState('Unfollow');
+
+function ThreeDotsPopup({authUserId, postDetails, hidePost, showAboutAccountPopup, closePopup, showErrorPopup}){
+    const [copyLinkText, setCopyLinkText] = useState('Copy link');
+    const [toggleFollowText, setToggleFollowText] = useState('Unfollow');
+
 
     function copyPostLinkToClipboard() {
         navigator.clipboard.writeText(
-            `http://34.111.89.101/profile/${postDetails.usernames[0]}?overallPostId=${postDetails.overallPostId}`
+            `http://34.111.89.101/posts/${postDetails.overallPostId}`
         )
         .then(() => {
-            console.log('Successfully copied link to post');
+            setCopyLinkText('Copied');
+            setTimeout(() => {
+                setCopyLinkText('Copy link');
+            }, 550);
         })
-        .catch(err => {
-            console.error('Failed to copy text to clipboard:', err);
+        .catch(_ => {
+            _;
+            setCopyLinkText('Failed to copy');
+            setTimeout(() => {
+                setCopyLinkText('Copy link');
+            }, 550);
         });
     }
-    
+
+
+    function visitPostLink() {
+        window.open(`http://34.111.89.101/posts/${postDetails.overallPostId}`, '_blank');
+    }
+
 
     function visitAdLink() {
-        window.location.href = postDetails.adInfo.link;
+        window.open(postDetails.adInfo.link, '_blank');
     }
+
 
     async function toggleFollowUser() {
-        const username = postDetails.usernames[0];
-        
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
-            Guest' mode`);
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
 
+        const usernameToToggleFollow = postDetails.authors[0];
+        const userIdToToggleFollow = postDetails.authorIds[0];
+
         try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
-                method: 'PATCH',
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userIdToToggleFollow
+                    }
+                }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                notifyParentToShowErrorPopup(
-                `The server had trouble toggling your follow-status of ${username}`);
+                showErrorPopup(`The server had trouble toggling your follow-status of ${usernameToToggleFollow}`);
             }
             else {
-                const newFollowText = await response.text(); //either 'Follow', 'Following', or 'Requested'
-                if (newFollowText==='Following') {
-                    newFollowText = 'Unfollow'
+                let newFollowingStatus = await response.text();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
+    
+                if (newFollowingStatus==='Stranger') {
+                    setToggleFollowText('Follow');
                 }
-                else if(newFollowText==='Requested') {
-                    newFollowText='Unrequest';
+                else if(newFollowingStatus==='Following') {
+                    setToggleFollowText('Unfollow');
                 }
-                setFollowText(newFollowText);
+                else {
+                    setToggleFollowText('Cancel Request');
+                }
             }
         }
-
-        catch (error) {
-            notifyParentToShowErrorPopup(`There was trouble connecting to the server to toggle your follow-status
-            of ${username}`);
+        catch {
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of ${usernameToToggleFollow}`);
         }
     }
 
+    
     async function markPostAsNotInterested() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup(`You cannot mark posts as 'Not-Interested' when you are on 'Anonymous
-            Guest' mode`);
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
 
-        try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/expressJSBackend1/markPostAsNotInterested/
-            ${authUser}/${postDetails.overallPostId}`, {
-                method: 'PATCH',
-                credentials: 'include'
-            });
-            if(!response.ok) {
-                notifyParentToShowErrorPopup('The server had trouble marking this post as not-interested');
-            }
-            else {
-                hidePost(postDetails.overallPostId);
-            }
-        }
-        catch (error) {
-            notifyParentToShowErrorPopup(`There was trouble connecting to the server for marking this post as
-            not-interested`);
-        }
+        //for sake of simplicity, the code for this method has been omitted
+        closePopup();
     }
+
 
     return (
         <>
@@ -92,7 +102,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
                     <div className="popup" style={{height:'30em', width:'30em', borderRadius:'5%',
                     display:'flex', flexDirection:'column', alignItems:'center'}}>
                         
-                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'#ed6258',
+                        <b onClick={hidePost} style={{fontSize:'1.1em', color:'#ed6258',
                         paddingBottom:'0.7em', paddingTop:'1em', cursor:'pointer'}}>
                             Hide post
                         </b>
@@ -100,9 +110,9 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
                         <b onClick={toggleFollowUser} style={{fontSize:'1.1em',
-                        color: followText==='Unfollow' ? '#ed6258' : followText==='Follow' ? '#3db0fc' : '#a2a3a3',
-                        paddingBottom:'0.7em', paddingTop:'0.7em', cursor:'pointer'}}>
-                            {followText}
+                        color: toggleFollowText === 'Follow' ? '#3db0fc' : '#ed6258', paddingBottom:'0.7em', paddingTop:'0.7em',
+                        cursor:'pointer'}}>
+                            {toggleFollowText}
                         </b>
 
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
@@ -114,7 +124,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
 
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-                        <p style={{fontSize:'1.1em', cursor:'pointer'}}>
+                        <p onClick={visitPostLink} style={{fontSize:'1.1em', cursor:'pointer'}}>
                             Go to post
                         </p>
 
@@ -122,19 +132,19 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
 
                         <p onClick={copyPostLinkToClipboard}
                         style={{fontSize:'1.1em', cursor:'pointer'}}>
-                            Copy link
+                            {copyLinkText}
                         </p>
 
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-                        <p onClick={() => {notifyParentToShowAboutAccountPopup(postDetails.overallPostId)}}
+                        <p onClick={() => {showAboutAccountPopup(postDetails.authors[0], postDetails.authorIds[0])}}
                         style={{fontSize:'1.1em', cursor:'pointer'}}>
                             About this account
                         </p>
 
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-                        <p onClick={notifyParentToClosePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>
+                        <p onClick={closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>
                             Cancel
                         </p>
                      </div>
@@ -145,7 +155,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
                 (
                     <div className="popup" style={{height:'17em', width:'30em', borderRadius:'5%',
                     display:'flex', flexDirection:'column', alignItems:'center'}}>
-                        <b onClick={()=>{hidePost(postDetails.overallPostId)}} style={{fontSize:'1.1em', color:'#ed6258',
+                        <b onClick={hidePost} style={{fontSize:'1.1em', color:'#ed6258',
                         paddingBottom:'0.7em', paddingTop:'1em', cursor:'pointer'}}>
                             Hide ad
                         </b>
@@ -165,7 +175,7 @@ notifyParentToClosePopup, notifyParentToShowErrorPopup}){
 
                         <hr style={{width: '99%', borderTop: '1px solid lightgray'}} />
 
-                        <p onClick={notifyParentToClosePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>
+                        <p onClick={closePopup} style={{fontSize:'1.1em', cursor:'pointer'}}>
                             Cancel
                         </p>
                     </div>

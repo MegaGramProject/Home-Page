@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-
 import StoryViewer from '../components/storyViewer';
-import ErrorPopup from '../components/errorPopup';
+import ErrorPopup from '../components/Popups/ErrorPopup';
 
 import defaultPfp from '../assets/images/defaultPfp.png';
 import blackScreen from '../assets/images/blackScreen.png';
+
+import { useEffect, useState } from 'react';
+
 
 function StoryViewerPage({urlParams}) {
     const [authUser, setAuthUser] = useState('rishavry');

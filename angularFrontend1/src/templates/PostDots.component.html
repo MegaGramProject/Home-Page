@@ -1,0 +1,12 @@
+<div :style="{display: 'flex', width: '100%', position: 'absolute', top: currSlideIsImage ? '95%' : '90%', left: '0%',
+justifyContent: 'center', alignItems: 'center', gap: '0.2em'}">
+    <img *ngFor="let _ of createArray(numSlides); let index = index"
+        [src]="index === currSlide ? 'images/solidWhiteDot.png' : 'images/grayDot.png'"
+        [ngStyle]="{
+            height: index === currSlide ? '0.9em' : '0.6em',
+            width: index === currSlide ? '0.9em' : '0.6em',
+            marginBottom: index === currSlide ? '-0.1em' : '',
+            pointerEvents: 'none'
+        }"
+    />
+</div>

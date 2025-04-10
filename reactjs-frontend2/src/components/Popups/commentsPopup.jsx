@@ -1,31 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 
-import Comment from './comment';
-import FollowUser from './followUser';
-import PostDots from './postDots';
-import UserIcon from './userIcon';
+import Comment from '../../comment';
+import FollowUser from '../../followUser';
+import PostDots from '../../PostDots';
+import UserIcon from '../../userIcon';
 
-import blackSavedIcon from '../assets/images/blackSavedIcon.png';
-import blankHeartIcon from '../assets/images/blankHeartIcon.png';
-import blankSavedIcon from '../assets/images/blankSavedIcon.png';
-import commentIcon from '../assets/images/commentIcon.png';
-import defaultPfp from '../assets/images/defaultPfp.png';
-import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
-import likePostAnimationHeartIcon from '../assets/images/likePostAnimationHeartIcon.webp';
-import loadingAnimation from '../assets/images/loadingAnimation.gif';
-import megaphone from '../assets/images/megaphone.png';
-import musicSymbol from '../assets/images/musicSymbol.png';
-import nextSlideArrow from '../assets/images/nextSlideArrow.png';
-import pauseIcon from '../assets/images/pauseIcon.png';
-import playIcon from '../assets/images/playIcon.webp';
-import plusIconInCircle from '../assets/images/plusIconInCircle.png';
-import redHeartIcon from '../assets/images/redHeartIcon.png';
-import sendPostIcon from '../assets/images/sendPostIcon.png';
-import taggedAccountsIcon from '../assets/images/taggedAccountsIcon.png';
-import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
-import thinWhiteXIcon from '../assets/images/thinWhiteXIcon.png';
-import threeHorizontalDots from '../assets/images/threeHorizontalDots.png';
-import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
+import blackSavedIcon from '../../assets/images/blackSavedIcon.png';
+import blankHeartIcon from '../../assets/images/blankHeartIcon.png';
+import blankSavedIcon from '../../assets/images/blankSavedIcon.png';
+import commentIcon from '../../assets/images/commentIcon.png';
+import defaultPfp from '../../assets/images/defaultPfp.png';
+import defaultVideoFrame from '../../assets/images/defaultVideoFrame.jpg';
+import likePostAnimationHeartIcon from '../../assets/images/likePostAnimationHeartIcon.webp';
+import loadingAnimation from '../../assets/images/loadingAnimation.gif';
+import megaphone from '../../assets/images/megaphone.png';
+import musicSymbol from '../../assets/images/musicSymbol.png';
+import nextSlideArrow from '../../assets/images/nextSlideArrow.png';
+import pauseIcon from '../../assets/images/pauseIcon.png';
+import playIcon from '../../assets/images/playIcon.webp';
+import plusIconInCircle from '../../assets/images/plusIconInCircle.png';
+import redHeartIcon from '../../assets/images/redHeartIcon.png';
+import sendPostIcon from '../../assets/images/sendPostIcon.png';
+import taggedAccountsIcon from '../../assets/images/taggedAccountsIcon.png';
+import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
+import thinWhiteXIcon from '../../assets/images/thinWhiteXIcon.png';
+import threeHorizontalDots from '../../assets/images/threeHorizontalDots.png';
+import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
 function CommentsPopup({authUser, postDetails, currSlide, notifyParentToClosePopup, notifyParentToShowErrorPopup,
 notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo, mainPostAuthorInfo,

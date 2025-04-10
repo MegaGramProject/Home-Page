@@ -1,0 +1,16 @@
+<div class="popup" style="background-color: white; width: 30em; height: 30em; display: flex; flex-direction: column;
+    align-items: center; border-radius: 1.5%; position: relative; overflow-y: scroll;">
+        
+    <div class="popup" style="display: flex; justify-content: center; position: relative; width: 100%; border-style: solid;
+    border-color: lightgray; border-top: none; border-left: none; border-right: none; border-width: 0.08em; padding-top: 1.5em;
+    padding-bottom: 1em; box-shadow: none;">
+        <b style="font-size: 1.25em; color: #ed6258">Error</b>
+        <img [src]="'images/thinGrayXIcon.png'" (click)="closePopup.emit()" style="height: 1.3em; width: 1.3em; cursor: pointer;
+        position: absolute; right: 5%; top: 30%"/>
+    </div>
+
+    <p style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 80%; max-height: 65%;
+    overflow-wrap: break-word; font-size: 1em; color: gray;">
+        {{ errorMessage }}
+    </p>
+</div>

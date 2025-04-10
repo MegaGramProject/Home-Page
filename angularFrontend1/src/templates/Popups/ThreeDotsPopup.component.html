@@ -1,0 +1,72 @@
+<div *ngIf="postDetails.adInfo == null" class="popup" style="height: 30em; width: 30em; border-radius: 5%; display:
+flex; flex-direction: column; align-items: center">
+    <b (click)="hidePost.emit()" style="font-size: 1.1em; color: #ed6258; padding-bottom: 0.7em; padding-top: 1em; cursor: pointer;">
+      Hide post
+    </b>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <b (click)="toggleFollowUser()" [ngStyle]="{ fontSize: '1.1em', color: toggleFollowText === 'Follow' ? '#3db0fc' : '#ed6258',
+    paddingBottom: '0.7em', paddingTop: '0.7em', cursor: 'pointer' }">
+      {{ toggleFollowText }}
+    </b>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <b (click)="markPostAsNotInterested()" style="font-size: 1.1em; color: #ed6258; padding-bottom: 0.7em; padding-top: 0.7em;
+    cursor: pointer;">
+      Not Interested
+    </b>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <p (click)="visitPostLink()" style="font-size: 1.1em; cursor: pointer;">
+      Go to post
+    </p>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <p (click)="copyPostLinkToClipboard()" style="font-size: 1.1em; cursor: pointer;">
+      {{ copyLinkText }}
+    </p>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <p (click)="showAboutAccountPopup.emit({username: postDetails.authors[0], userId: postDetails.authorIds[0]})"
+    style="font-size: 1.1em; cursor: pointer;">
+      About this account
+    </p>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <p (click)="closePopup.emit()" style="font-size: 1.1em; cursor: pointer;">
+      Cancel
+    </p>
+  </div>
+  
+  <div *ngIf="postDetails.adInfo != null" class="popup" style="height: 17em; width: 30em; border-radius: 5%; display: flex;
+  flex-direction: column; align-items: center"> 
+    <b (click)="hidePost.emit()" style="font-size: 1.1em; color: #ed6258; padding-bottom: 0.7em; padding-top: 1em; cursor: pointer;">
+      Hide ad
+    </b>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <b (click)="markPostAsNotInterested()" style="font-size: 1.1em; color: #ed6258; padding-bottom: 0.7em; padding-top: 0.7em;
+    cursor: pointer;">
+      Not Interested
+    </b>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <p (click)="visitAdLink()" style="font-size: 1.1em; cursor: pointer;">
+      Visit ad-link
+    </p>
+  
+    <hr style="width: 99%; border-top: 1px solid lightgray" />
+  
+    <p (click)="closePopup.emit()" style="font-size: 1.1em; cursor: pointer;">
+      Cancel
+    </p>
+  </div>
+  

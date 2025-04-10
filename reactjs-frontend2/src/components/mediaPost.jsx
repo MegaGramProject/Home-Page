@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-import UserIcon from './userIcon';
+import UserIcon from './UserIcon';
 import FollowUser from './followUser';
-import PostDots from './postDots';
+import PostDots from './PostDots';
 
 import blackSavedIcon from '../assets/images/blackSavedIcon.png';
 import blankHeartIcon from '../assets/images/blankHeartIcon.png';

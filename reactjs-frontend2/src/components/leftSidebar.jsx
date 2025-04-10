@@ -7,6 +7,7 @@ import searchIcon from '../assets/images/searchIcon.png';
 import shopIcon from '../assets/images/shopIcon.png';
 import aiIcon from '../assets/images/aiIcon.png';
 
+
 function LeftSidebar({profilePhoto, displayPopup, authUserIsAnonymousGuest, toggleDisplayPopup}) {
 
     

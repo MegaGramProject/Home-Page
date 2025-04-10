@@ -1,6 +1,7 @@
+import HomePage from './HomePage';
+
 import { useParams } from 'react-router-dom';
 
-import HomePage from './HomePage';
 
 function HomePageWithURLParams() {
     const urlParams = useParams();

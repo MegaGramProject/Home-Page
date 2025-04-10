@@ -1,10 +1,7 @@
-import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
+import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-function ErrorPopup({errorMessage, notifyParentToClosePopup}) {
-    function closePopup() {
-        notifyParentToClosePopup();
-    }
 
+function ErrorPopup({errorMessage, closePopup}) {
     return (
         <div className="popup" style={{backgroundColor:'white', width:'30em', height: '30em',
         display:'flex', flexDirection:'column', alignItems:'center', borderRadius:'1.5%', position: 'relative',
@@ -20,7 +17,7 @@ function ErrorPopup({errorMessage, notifyParentToClosePopup}) {
             </div>
         
             <p style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            maxWidth: '90%', overflowWrap: 'break-word', fontSize: '1em', color: 'gray'}}>
+            maxWidth: '90%', maxHeight: '65%', overflowWrap: 'break-word', fontSize: '1em', color: 'gray'}}>
                 {errorMessage}
             </p>
 

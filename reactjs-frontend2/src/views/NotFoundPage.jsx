@@ -1,9 +1,10 @@
-import { useRef, useEffect } from 'react';
-import Parallax from 'parallax-js';
-
 import favicon from '../assets/images/favicon.ico';
 import favicon1 from '../assets/images/favicon1.ico';
 import megagramLoading from '../assets/images/megagramLoading.png';
+
+import { useRef, useEffect } from 'react';
+import Parallax from 'parallax-js';
+
 
 function NotFoundPage() {
     const sceneRef = useRef(null);

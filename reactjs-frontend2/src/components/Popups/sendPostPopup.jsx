@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import SelectUserOrGroupChat from './selectUserOrGroupChat';
+import SelectUserOrGroupChat from '../../selectUserOrGroupChat';
 
-import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
-import defaultPfp from '../assets/images/defaultPfp.png';
+import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
+import defaultPfp from '../../assets/images/defaultPfp.png';
 
 function SendPostPopup({authUser, overallPostId, notifyParentToClosePopup, usersAndTheirRelevantInfo,
 notifyParentToUpdateUsersAndTheirRelevantInfo, notifyParentToShowErrorPopup}) {

@@ -1,0 +1,74 @@
+<div class="popup" [ngStyle]="{backgroundColor:'white', borderRadius:'1.5%', display:'flex', flexDirection:'column',
+alignItems:'center', width:'40em', height: '40em', overflowY: 'scroll', position: 'relative'}">
+    <div [ngStyle]="{width: '100%', borderStyle: 'solid', borderColor: 'lightgray', borderWidth: '0.08em', borderTop: 'none',
+    borderLeft: 'none', borderRight: 'none', paddingTop: '1em', paddingBottom: '1em'}">
+      <b [ngStyle]="{fontSize:'1.2em'}">
+          About this account
+      </b>
+    </div>
+
+    <br />
+
+    <UserIcon
+      [username]="username"
+      [authUser]="authUser"
+      [inStoriesSection]="false"
+      [userHasStories]="userHasStories"
+      [userHasUnseenStory]="userHasUnseenStory"
+      [userPfp]="userPfp"
+      [userIsVerified]="userIsVerified"
+      (showStoryViewer)="showStoryViewer.emit($event)"
+    />
+
+
+  <div [ngStyle]="{display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: '1em'}">
+    <b (click)="username.length > 0 ? takeToUsersProfile() : null"
+      [ngStyle]="{maxWidth: '10em', overflowWrap: 'break-word', cursor: 'pointer'}">
+      {{ username }}
+    </b>
+
+    <img *ngIf="userIsVerified" [src]="'images/verifiedBlueCheck.png'" [ngStyle]="{pointerEvents: 'none', height: '1.5em', width: '1.5em',
+    objectFit: 'contain'}" />
+  </div>
+
+  <br />
+
+  <p [ngStyle]="{width:'85%', color:'#616161', fontSize:'0.95em'}">
+    To help keep our community authentic, we’re showing information about accounts on Megagram.
+  </p>
+
+  <br />
+
+  <div [ngStyle]="{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.65em', overflowY: 'scroll',
+  width: '100%', height: '48%'}">
+    <div [ngStyle]="{display:'flex', gap:'0.7em', marginLeft: '-2em'}">
+      <img class="iconToBeAdjustedForDarkMode" [src]="'images/dateJoined.png'"
+      [ngStyle]="{height:'2.9em', width:'2.9em', objectFit:'contain', pointerEvents:'none'}" />
+      <div [ngStyle]="{display:'flex', flexDirection:'column', alignItems:'start'}">
+        <b>Date Joined</b>
+        <p [ngStyle]="{color:'gray', marginTop:'0.1em', maxWidth: '25em', overflowWrap:'break-word', textAlign: 'start'}">
+          {{ dateJoinedText }}  
+        </p>
+      </div>
+    </div>
+
+    <div [ngStyle]="{display:'flex', gap:'0.5em', marginLeft: '-2em'}">
+      <img class="iconToBeAdjustedForDarkMode" [src]="'images/accountBasedIn.png'"
+      [ngStyle]="{height:'2.9em', width:'2.9em', objectFit:'contain', pointerEvents:'none'}" />
+      <div [ngStyle]="{display:'flex', flexDirection:'column', alignItems:'start'}">
+        <b>Account Based In</b>
+        <p [ngStyle]="{color:'gray', marginTop:'0.1em', maxWidth: '25em', overflowWrap:'break-word', textAlign: 'start'}">
+          {{ accountBasedInText }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="closeAboutAccountSection" [ngStyle]="{width:'100%', borderStyle: 'solid', borderColor: 'lightgray',
+  borderWidth:'0.08em', borderBottom: 'none', borderLeft: 'none', borderRight: 'none', position: 'fixed', bottom: '0%',
+  backgroundColor: 'white'}">
+    <p (click)="closePopup.emit()" [ngStyle]="{cursor:'pointer'}">
+      Close
+    </p>
+  </div>
+</div>

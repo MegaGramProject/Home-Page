@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react';
+import AboutAccountPopup from '../components/Popups/AboutAccountPopup';
+import CommentsPopup from '../components/Popups/commentsPopup';
+import ErrorPopup from '../components/Popups/ErrorPopup';
+import LeftSidebarPopup from '../components/Popups/LeftSidebarPopup';
+import LikersPopup from '../components/Popups/likersPopup';
+import SendPostPopup from '../components/Popups/sendPostPopup';
+import ThreeDotsPopup from '../components/Popups/ThreeDotsPopup';
 
-import AboutAccountPopup from '../components/aboutAccountPopup';
-import CommentsPopup from '../components/commentsPopup';
-import ErrorPopup from '../components/errorPopup';
-import Footer from "../components/footer";
-import LeftSidebar from "../components/LeftSidebar";
-import LeftSidebarPopup from '../components/LeftSidebarPopup';
-import LikersPopup from '../components/likersPopup';
-import MediaPost from "../components/mediaPost";
-import SendPostPopup from '../components/sendPostPopup';
+import Footer from '../components/Footer';
+import LeftSidebar from '../components/LeftSidebar';
+import MediaPost from '../components/mediaPost';
 import StoryViewer from '../components/storyViewer';
-import ThreeDotsPopup from '../components/threeDotsPopup';
-import UserBar from "../components/userBar";
-import UserIcon from "../components/userIcon";
+import UserBar from '../components/userBar';
+import UserIcon from '../components/UserIcon';
 
 import backArrow from "../assets/images/backArrow.png";
 import blackScreen from "../assets/images/blackScreen.png";
@@ -22,6 +21,8 @@ import rightArrow from "../assets/images/nextArrow.png";
 
 import '../HomePageStyles.css';
 
+import { useEffect, useState } from 'react';
+
 
 function HomePage({urlParams}) {
     const [authUser, setAuthUser] = useState('');
@@ -29,45 +30,52 @@ function HomePage({urlParams}) {
 
     const [originalURL, setOriginalURL] = useState('');
 
-    const [errorPopupMessage, setErrorPopupMessage] = useState('');
     const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
+    const [errorPopupMessage, setErrorPopupMessage] = useState('');
 
     const [displayThreeDotsPopup, setDisplayThreeDotsPopup] = useState(false);
     const [threeDotsPopupPostDetails, setThreeDotsPopupPostDetails] = useState(null);
+
+    const [displayAboutAccountPopup, setDisplayAboutAccountPopup] = useState(false);
+    const [aboutAccountUsername, setAboutAccountUsername] = useState('');
+    const [aboutAccountUserId, setAboutAccountUserId] = useState(-1);
+    const [aboutAccountUserIsVerified, setAboutAccountUserIsVerified] = useState(false);
+    const [aboutAccountUserHasStories, setAboutAccountUserHasStories] = useState(false);
+    const [aboutAccountUserHasUnseenStory, setAboutAccountUserHasUnseenStory] = useState(false);
+    const [aboutAccountUserProfilePhoto, setAboutAccountUserProfilePhoto] = useState(null);
+
+    const [displayStoryViewer, setDisplayStoryViewer] = useState(false);
+    const [storyViewerIsFromStoriesSection, setStoryViewerIsFromStoriesSection] = useState(false);
+    const [storyViewerUsername, setStoryViewerUsername] = useState('');
+
     const [displayCommentsPopup, setDisplayCommentsPopup] = useState(false);
     const [commentsPopupPostDetails, setCommentsPopupPostDetails] = useState({});
     const [commentsPopupCurrSlide, setCommentsPopupCurrSlide] = useState(0);
     const [commentsPopupMainPostAuthorInfo, setCommentsPopupMainPostAuthorInfo] = useState();
+
+    const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
+
+    const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
+    const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
+
     const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
     const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState('');
     const [displayLikersPopup, setDisplayLikersPopup] = useState(false);
     const [likersPopupIdOfPostOrComment, setLikersPopupIdOfPostOrComment] = useState('');
     const [likersPopupPostOrCommentText, setLikersPopupPostOrCommentText] = useState('');
     const [currStoryLevel, setCurrStoryLevel] = useState(0);
-    const [displayAboutAccountPopup, setDisplayAboutAccountPopup] = useState(false);
-    const [aboutAccountUsername, setAboutAccountUsername] = useState('');
-    const [aboutAccountUserIsVerified, setAboutAccountUserIsVerified] = useState(false);
-    const [aboutAccountUserHasStories, setAboutAccountUserHasStories] = useState(false);
-    const [aboutAccountUserHasUnseenStory, setAboutAccountUserHasUnseenStory] = useState(false);
-    const [aboutAccountUserProfilePhoto, setAboutAccountUserProfilePhoto] = useState(null);
     const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
-    const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
     const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
     const [orderedListOfUsernamesInStoriesSection, setOrderedListOfUsernamesInStoriesSection] = useState([]);
     const [fetchingStoriesIsComplete, setFetchingStoriesIsComplete] = useState(false);
     const [fetchingSuggestedAccountsIsComplete, setFetchingSuggestedAccountsIsComplete] = useState(false);
     const [fetchingInitialPostsIsComplete, setFetchingInitialPostsIsComplete] = useState(false);
-    const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
     const [storiesSectionErrorMessage, setStoriesSectionErrorMessage] = useState('');
     const [orderedListOfUsernamesOfSuggestedAccounts, setOrderedListOfUsernamesOfSuggestedAccounts] = useState([]);
     const [suggestedAccountsSectionErrorMessage, setSuggestedAccountsSectionErrorMessage] = useState('');
-    const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
     const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
     const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
     const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
-    const [displayStoryViewer, setDisplayStoryViewer] = useState(false);
-    const [storyViewerIsFromStoriesSection, setStoryViewerIsFromStoriesSection] = useState(false);
-    const [storyViewerUsername, setStoryViewerUsername] = useState('');
     const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
     const [idsOfStoriesMarkedAsViewed, setIdsOfStoriesMarkedAsViewed] = useState(new Set());
 
@@ -163,9 +171,9 @@ function HomePage({urlParams}) {
     };
 
 
-    function hidePost(overallPostId) {
+    function hidePost() {
         const newOrderedListOfPosts = orderedListOfPosts.filter(
-            postDetails => (postDetails.overallPostId !== overallPostId)
+            postDetails => (postDetails.overallPostId !== threeDotsPopupPostDetails.overallPostId)
         );
         setOrderedListOfPosts(newOrderedListOfPosts);
 
@@ -211,7 +219,9 @@ function HomePage({urlParams}) {
 
         try {
             const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
-            /${userId}`);
+            /${userId}`, {
+                credentials: 'include'
+            });
             if (!response1.ok) {
                 setAuthUser('Anonymous Guest');
 
@@ -923,41 +933,34 @@ function HomePage({urlParams}) {
     }
 
 
-    function showAboutAccountPopup(overallPostId) {
-        setDisplayAboutAccountPopup(true);
+    function showAboutAccountPopup(newAboutAccountUsername, newAboutAccountUserId) {
+        setAboutAccountUsername(newAboutAccountUsername);
+        setAboutAccountUserId(newAboutAccountUserId);
 
-        for(let postDetails of orderedListOfPosts) {
-            if (postDetails.overallPostId===overallPostId) {
-                setAboutAccountUsername(postDetails.authors[0]);
-                setAboutAccountUserIsVerified(
-                    postDetails.authors[0] in usersAndTheirRelevantInfo &&
-                    'isVerified' in usersAndTheirRelevantInfo[postDetails.authors[0]] ?
-                    usersAndTheirRelevantInfo[postDetails.authors[0]].isVerified : false
-                );
-                setAboutAccountUserHasStories(
-                    postDetails.authors[0] in usersAndTheirRelevantInfo &&
-                    'hasStories' in usersAndTheirRelevantInfo[postDetails.authors[0]] ?
-                    usersAndTheirRelevantInfo[postDetails.authors[0]].hasStories : false
-                );
-                setAboutAccountUserHasUnseenStory(
-                    postDetails.authors[0] in usersAndTheirRelevantInfo &&
-                    'hasUnseenStory' in usersAndTheirRelevantInfo[postDetails.authors[0]] ?
-                    usersAndTheirRelevantInfo[postDetails.authors[0]].hasUnseenStory : false
-                );
-                setAboutAccountUserProfilePhoto(
-                    postDetails.authors[0] in usersAndTheirRelevantInfo &&
-                    'profilePhoto' in usersAndTheirRelevantInfo[postDetails.authors[0]] ?
-                    usersAndTheirRelevantInfo[postDetails.authors[0]].profilePhoto : defaultPfp
-                )
-                return;
-            }
-        }
+        setAboutAccountUserIsVerified(newAboutAccountUserId in usersAndTheirRelevantInfo && 'isVerified' in
+        usersAndTheirRelevantInfo[newAboutAccountUserId] ? usersAndTheirRelevantInfo[newAboutAccountUserId]
+        .isVerified : false);
+
+        setAboutAccountUserHasStories(newAboutAccountUserId in usersAndTheirRelevantInfo &&
+        'hasStories' in usersAndTheirRelevantInfo[newAboutAccountUserId] ? usersAndTheirRelevantInfo
+        [newAboutAccountUserId].hasStories : false);
+
+        setAboutAccountUserHasUnseenStory(newAboutAccountUserId in usersAndTheirRelevantInfo &&
+        'hasUnseenStory' in usersAndTheirRelevantInfo[newAboutAccountUserId] ? usersAndTheirRelevantInfo
+        [newAboutAccountUserId].hasUnseenStory : false);
+
+        setAboutAccountUserProfilePhoto(newAboutAccountUserId in usersAndTheirRelevantInfo &&
+        'profilePhoto' in usersAndTheirRelevantInfo[newAboutAccountUserId] ? usersAndTheirRelevantInfo
+        [newAboutAccountUserId].profilePhoto : defaultPfp);
+        
+
+        setDisplayAboutAccountPopup(true);
     }
 
 
     function closeAboutAccountPopup() {
         setDisplayAboutAccountPopup(false);
-        closeThreeDotsPopup();
+        setDisplayThreeDotsPopup(false);
     }
 
 
@@ -993,6 +996,21 @@ function HomePage({urlParams}) {
 
     
     function updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo) {
+        setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+    }
+
+
+    function addRelevantInfoToUser(userId, userFieldsAndTheirValues) {
+        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
+
+        if (!(userId in newUsersAndTheirRelevantInfo)) {
+            newUsersAndTheirRelevantInfo[userId] = {};
+        }
+
+        for(let field of Object.keys(userFieldsAndTheirValues)) {
+            newUsersAndTheirRelevantInfo[userId][field] = userFieldsAndTheirValues[field];
+        }
+
         setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
     }
 
@@ -1067,277 +1085,274 @@ function HomePage({urlParams}) {
         <>
             {authUser.length>0 &&
                 <>
-                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'start'}}>
-                        <LeftSidebar
-                            profilePhoto={
-                                (authUser in usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[authUser]) ?
-                                usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                    <LeftSidebar 
+                        profilePhoto={
+                            (authUser in usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[authUser]) ?
+                            usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                        }
+                        displayPopup={displayLeftSidebarPopup}
+                        authUserIsAnonymousGuest={authUserId == -1}
+                        toggleDisplayPopup={toggleDisplayLeftSidebarPopup}
+                    />
+
+                    <div style={{marginTop:'2.3em', width:'50em', position: 'absolute', left: '24%'}}>
+                        <div style={{display:'flex', justifyContent:'start', alignItems:'center', gap:'1em',
+                        position: 'relative'}}>
+                            {currStoryLevel > 0 &&
+                                (
+                                    <img className="leftArrow" onClick={decrementStoryLevel} src={backArrow}
+                                    style={{height:'1em', width:'1em', objectFit:'contain', cursor:'pointer'}}/>
+                                )
                             }
-                            displayPopup={displayLeftSidebarPopup}
-                            authUserIsAnonymousGuest={authUserId == -1}
-                            toggleDisplayPopup={toggleDisplayLeftSidebarPopup}
-                        />
-
-                        <div style={{marginTop:'2.3em', width:'50em', position: 'absolute', left: '24%'}}>
-                            <div style={{display:'flex', justifyContent:'start', alignItems:'center', gap:'1em',
-                            position: 'relative'}}>
-                                {currStoryLevel > 0 &&
-                                    (
-                                        <img className="leftArrow" onClick={decrementStoryLevel} src={backArrow}
-                                        style={{height:'1em', width:'1em', objectFit:'contain', cursor:'pointer'}}/>
-                                    )
-                                }
-                                
-                                {(fetchingStoriesIsComplete && currStoryLevel == 0) &&
-                                    (
-                                        <UserIcon
-                                            username={authUser}
-                                            authUser={authUser}
-                                            inStoriesSection={true}
-                                            hasStories={
-                                                (authUser in usersAndTheirStories)
-                                            }
-                                            hasUnseenStory={
-                                                !(usernamesWhoseStoriesYouHaveFinished.has(authUser))
-                                            } 
-                                            profilePhoto={
-                                                (authUser in usersAndTheirRelevantInfo) ?
-                                                usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
-                                            }
-                                            isVerified={
-                                                (authUser in usersAndTheirRelevantInfo) ?
-                                                usersAndTheirRelevantInfo[authUser].isVerified : false
-                                            }
-                                            notifyParentToShowStoryViewer={showStoryViewer}
-                                        />
-                                    )
-                                }
-
-                                {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length==0) &&
-                                    (
-                                    orderedListOfUsernamesInStoriesSection
-                                        .filter(username => username!==authUser)
-                                        .slice(
-                                            currStoryLevel * 6,
-                                            currStoryLevel * 6 + 6
-                                        )
-                                        .map((username) => (
-                                            <UserIcon
-                                                key={username}
-                                                username={username} 
-                                                ownAccount={false}
-                                                inStoriesSection={true}
-                                                hasStories={true}
-                                                hasUnseenStory={
-                                                    !(usernamesWhoseStoriesYouHaveFinished.has(username))
-                                                } 
-                                                profilePhoto={
-                                                    (username in usersAndTheirRelevantInfo) ?
-                                                    usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
-                                                }
-                                                isVerified={
-                                                    (username in usersAndTheirRelevantInfo) ?
-                                                    usersAndTheirRelevantInfo[username].isVerified : false
-                                                }
-                                                notifyParentToShowStoryViewer={showStoryViewer}
-                                            />
-                                        ))
-                                    )
-                                }
-
-                                {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length>0) &&
-                                    (
-                                        <p style={{marginLeft: '2em', width: '85%', color: 'gray',
-                                        fontSize: '0.88em'}}>
-                                            {storiesSectionErrorMessage}
-                                        </p>
-                                    )
-                                }
-
-                                {!fetchingStoriesIsComplete &&
-                                    (
-                                        <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
-                                        left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none'}}/>
-                                    )
-                                }
-
-                                {(currStoryLevel*6 + 5 < orderedListOfUsernamesInStoriesSection.length) &&
-                                    (
-                                        <img className="rightArrow" onClick={incrementStoryLevel} src={rightArrow}
-                                        style={{height:'1.5em', width:'1.5em', objectFit:'contain', cursor:'pointer'}}/>
-                                    )
-                                }
-
-                            </div>
-                        
-                            <div style={{display:'flex', flexDirection:'column', justifyContent:'center',
-                            alignItems:'center', marginTop: '2em', gap:'3em', position: 'relative'}}>
-                                {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length==0) &&
-                                    (
-                                        orderedListOfPosts
-                                        .map((postDetails) => (
-                                            <MediaPost
-                                                key={postDetails.overallPostId}
-                                                postDetails={postDetails}
-                                                authUser={authUser}
-                                                mainPostAuthorInfo={
-                                                    (postDetails.authors[0] in usersAndTheirRelevantInfo) ?
-                                                    usersAndTheirRelevantInfo[postDetails.authors[0]] :
-                                                    {}
-                                                }
-                                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                                notifyParentToShowThreeDotsPopup={showThreeDotsPopupForPost}
-                                                notifyParentToShowCommentsPopup={showCommentsPopup}
-                                                notifyParentToShowSendPostPopup={showSendPostPopup}
-                                                notifyParentToShowLikersPopup={showLikersPopup}
-                                                notifyParentToShowErrorPopup={showErrorPopup}
-                                                notifyParentToUpdatePostDetails={updatePostDetails}
-                                            />
-                                        ))
-                                    )
-                                }
-
-                                {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length>0) &&
-                                    (
-                                        <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
-                                        marginTop: '7em'}}>
-                                            {initialPostsFetchingErrorMessage}
-                                        </p>
-                                    )
-                                }
-
-                                {(!isCurrentlyFetchingAdditionalPosts &&
-                                additionalPostsFetchingErrorMessage.length>0) &&
-                                    (
-                                        <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
-                                        marginTop: '3.75em'}}>
-                                            {additionalPostsFetchingErrorMessage}
-                                        </p>
-                                    )
-                                } 
-
-                                {isCurrentlyFetchingAdditionalPosts &&
-                                    (
-                                        <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}}/>
-                                    )
-                                }
-                            </div>
                             
-                            {!fetchingInitialPostsIsComplete &&
+                            {(fetchingStoriesIsComplete && currStoryLevel == 0) &&
+                                (
+                                    <UserIcon
+                                        username={authUser}
+                                        authUser={authUser}
+                                        inStoriesSection={true}
+                                        userHasStories={
+                                            (authUser in usersAndTheirStories)
+                                        }
+                                        userHasUnseenStory={
+                                            !(usernamesWhoseStoriesYouHaveFinished.has(authUser))
+                                        } 
+                                        userPfp={
+                                            (authUser in usersAndTheirRelevantInfo) ?
+                                            usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                                        }
+                                        userIsVerified={
+                                            (authUser in usersAndTheirRelevantInfo) ?
+                                            usersAndTheirRelevantInfo[authUser].isVerified : false
+                                        }
+                                        showStoryViewer={showStoryViewer}
+                                    />
+                                )
+                            }
+
+                            {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length==0) &&
+                                (
+                                orderedListOfUsernamesInStoriesSection
+                                    .filter(username => username!==authUser)
+                                    .slice(
+                                        currStoryLevel * 6,
+                                        currStoryLevel * 6 + 6
+                                    )
+                                    .map((username) => (
+                                        <UserIcon
+                                            key={username}
+                                            username={username} 
+                                            inStoriesSection={true}
+                                            userHasStories={true}
+                                            userHasUnseenStory={
+                                                !(usernamesWhoseStoriesYouHaveFinished.has(username))
+                                            } 
+                                            userPfp={
+                                                (username in usersAndTheirRelevantInfo) ?
+                                                usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
+                                            }
+                                            userIsVerified={
+                                                (username in usersAndTheirRelevantInfo) ?
+                                                usersAndTheirRelevantInfo[username].isVerified : false
+                                            }
+                                            showStoryViewer={showStoryViewer}
+                                        />
+                                    ))
+                                )
+                            }
+
+                            {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length>0) &&
+                                (
+                                    <p style={{marginLeft: '2em', width: '85%', color: 'gray',
+                                    fontSize: '0.88em'}}>
+                                        {storiesSectionErrorMessage}
+                                    </p>
+                                )
+                            }
+
+                            {!fetchingStoriesIsComplete &&
                                 (
                                     <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
                                     left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
                                     objectFit: 'contain', pointerEvents: 'none'}}/>
                                 )
                             }
-                        </div>
-                        
-                        <div id="rightmostSection" style={{display:'flex', flexDirection:'column', alignItems: 'start',
-                        position: 'absolute', right:'0%', marginTop:'4em', width: '25em'}}>
-                            <UserBar
-                                username={authUser}
-                                authUser={authUser}
-                                isPrivate={'?'}
-                                numFollowers={'?'}
-                                numFollowing={'?'} 
-                                numPosts={'?'}
-                                fullName={
-                                    (authUser in usersAndTheirRelevantInfo) ?
-                                    usersAndTheirRelevantInfo[authUser].fullName : '?'
-                                }
-                                profilePhoto={
-                                    (authUser in usersAndTheirRelevantInfo) ?
-                                    usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
-                                }
-                                isVerified={
-                                    (authUser in usersAndTheirRelevantInfo) ?
-                                    usersAndTheirRelevantInfo[authUser].isVerified : false
-                                }
-                                notifyParentToShowErrorPopup={showErrorPopup}
-                            />
-                        
 
-                            <b style={{color:'gray', fontSize:'0.9em', marginBottom: '-1.5em'}}>
-                                Suggested for you
-                            </b>
-                            
-                            <br/>
-                            <br/>
-                            <br/>
-
-                            {(fetchingSuggestedAccountsIsComplete && suggestedAccountsSectionErrorMessage.length==0) &&
+                            {(currStoryLevel*6 + 5 < orderedListOfUsernamesInStoriesSection.length) &&
                                 (
-                                    orderedListOfUsernamesOfSuggestedAccounts
-                                    .map((username) => (
-                                        <UserBar
-                                            key={username}
-                                            username={username}
+                                    <img className="rightArrow" onClick={incrementStoryLevel} src={rightArrow}
+                                    style={{height:'1.5em', width:'1.5em', objectFit:'contain', cursor:'pointer'}}/>
+                                )
+                            }
+
+                        </div>
+                    
+                        <div style={{display:'flex', flexDirection:'column', justifyContent:'center',
+                        alignItems:'center', marginTop: '2em', gap:'3em', position: 'relative'}}>
+                            {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length==0) &&
+                                (
+                                    orderedListOfPosts
+                                    .map((postDetails) => (
+                                        <MediaPost
+                                            key={postDetails.overallPostId}
+                                            postDetails={postDetails}
                                             authUser={authUser}
-                                            isPrivate={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'isPrivate' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].isPrivate : '?'
+                                            mainPostAuthorInfo={
+                                                (postDetails.authors[0] in usersAndTheirRelevantInfo) ?
+                                                usersAndTheirRelevantInfo[postDetails.authors[0]] :
+                                                {}
                                             }
-                                            numFollowers={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'numFollowers' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].numFollowers : '?'
-                                            }
-                                            numFollowing={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'numFollowing' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].numFollowing : '?'
-                                            }
-                                            numPosts={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'numPosts' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].numPosts : '?'
-                                            }
-                                            fullName={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'fullName' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].fullName : '?'
-                                            }
-                                            profilePhoto={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'profilePhoto' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
-                                            }
-                                            isVerified={
-                                                (username in usersAndTheirRelevantInfo &&
-                                                'isVerified' in usersAndTheirRelevantInfo[username]) ?
-                                                usersAndTheirRelevantInfo[username].isVerified : false
-                                            }
+                                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                            notifyParentToShowThreeDotsPopup={showThreeDotsPopupForPost}
+                                            notifyParentToShowCommentsPopup={showCommentsPopup}
+                                            notifyParentToShowSendPostPopup={showSendPostPopup}
+                                            notifyParentToShowLikersPopup={showLikersPopup}
                                             notifyParentToShowErrorPopup={showErrorPopup}
+                                            notifyParentToUpdatePostDetails={updatePostDetails}
                                         />
                                     ))
                                 )
                             }
 
-                            {(fetchingSuggestedAccountsIsComplete && suggestedAccountsSectionErrorMessage.length>0) &&
+                            {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length>0) &&
                                 (
-                                    <p style={{width: '85%', color: 'gray', fontSize: '0.88em'}}>
-                                        {suggestedAccountsSectionErrorMessage}
+                                    <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
+                                    marginTop: '7em'}}>
+                                        {initialPostsFetchingErrorMessage}
                                     </p>
                                 )
                             }
 
-                            {!fetchingSuggestedAccountsIsComplete &&
+                            {(!isCurrentlyFetchingAdditionalPosts &&
+                            additionalPostsFetchingErrorMessage.length>0) &&
                                 (
-                                    <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center',
-                                    width: '75%'}}>
-                                        <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none'}}/>
-                                    </div>
+                                    <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
+                                    marginTop: '3.75em'}}>
+                                        {additionalPostsFetchingErrorMessage}
+                                    </p>
+                                )
+                            } 
+
+                            {isCurrentlyFetchingAdditionalPosts &&
+                                (
+                                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
+                                    objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}}/>
                                 )
                             }
-
-                            <br/>
-
-                            <Footer/>
                         </div>
+                        
+                        {!fetchingInitialPostsIsComplete &&
+                            (
+                                <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
+                                left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
+                                objectFit: 'contain', pointerEvents: 'none'}}/>
+                            )
+                        }
+                    </div>
+                    
+                    <div id="rightmostSection" style={{display:'flex', flexDirection:'column', alignItems: 'start',
+                    position: 'absolute', right:'0%', marginTop:'4em', width: '25em'}}>
+                        <UserBar
+                            username={authUser}
+                            authUser={authUser}
+                            isPrivate={'?'}
+                            numFollowers={'?'}
+                            numFollowing={'?'} 
+                            numPosts={'?'}
+                            fullName={
+                                (authUser in usersAndTheirRelevantInfo) ?
+                                usersAndTheirRelevantInfo[authUser].fullName : '?'
+                            }
+                            profilePhoto={
+                                (authUser in usersAndTheirRelevantInfo) ?
+                                usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                            }
+                            isVerified={
+                                (authUser in usersAndTheirRelevantInfo) ?
+                                usersAndTheirRelevantInfo[authUser].isVerified : false
+                            }
+                            notifyParentToShowErrorPopup={showErrorPopup}
+                        />
+                    
+
+                        <b style={{color:'gray', fontSize:'0.9em', marginBottom: '-1.5em'}}>
+                            Suggested for you
+                        </b>
+                        
+                        <br/>
+                        <br/>
+                        <br/>
+
+                        {(fetchingSuggestedAccountsIsComplete && suggestedAccountsSectionErrorMessage.length==0) &&
+                            (
+                                orderedListOfUsernamesOfSuggestedAccounts
+                                .map((username) => (
+                                    <UserBar
+                                        key={username}
+                                        username={username}
+                                        authUser={authUser}
+                                        isPrivate={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'isPrivate' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].isPrivate : '?'
+                                        }
+                                        numFollowers={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'numFollowers' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].numFollowers : '?'
+                                        }
+                                        numFollowing={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'numFollowing' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].numFollowing : '?'
+                                        }
+                                        numPosts={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'numPosts' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].numPosts : '?'
+                                        }
+                                        fullName={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'fullName' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].fullName : '?'
+                                        }
+                                        profilePhoto={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'profilePhoto' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
+                                        }
+                                        isVerified={
+                                            (username in usersAndTheirRelevantInfo &&
+                                            'isVerified' in usersAndTheirRelevantInfo[username]) ?
+                                            usersAndTheirRelevantInfo[username].isVerified : false
+                                        }
+                                        notifyParentToShowErrorPopup={showErrorPopup}
+                                    />
+                                ))
+                            )
+                        }
+
+                        {(fetchingSuggestedAccountsIsComplete && suggestedAccountsSectionErrorMessage.length>0) &&
+                            (
+                                <p style={{width: '85%', color: 'gray', fontSize: '0.88em'}}>
+                                    {suggestedAccountsSectionErrorMessage}
+                                </p>
+                            )
+                        }
+
+                        {!fetchingSuggestedAccountsIsComplete &&
+                            (
+                                <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center',
+                                width: '75%'}}>
+                                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
+                                    objectFit: 'contain', pointerEvents: 'none'}}/>
+                                </div>
+                            )
+                        }
+
+                        <br/>
+
+                        <Footer/>
                     </div>
 
                     {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup || 
@@ -1423,12 +1438,12 @@ function HomePage({urlParams}) {
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                             zIndex: displayErrorPopup ? '1': '3'}}>
                                 <ThreeDotsPopup
-                                    authUser={authUser}
+                                    authUserId={authUserId}
                                     postDetails={threeDotsPopupPostDetails} 
                                     hidePost={hidePost}
-                                    notifyParentToShowErrorPopup={showErrorPopup}
-                                    notifyParentToClosePopup={closeThreeDotsPopup}
-                                    notifyParentToShowAboutAccountPopup={showAboutAccountPopup}
+                                    showErrorPopup={showErrorPopup}
+                                    closePopup={closeThreeDotsPopup}
+                                    showAboutAccountPopup={showAboutAccountPopup}
                                 />
                             </div>
                         )
@@ -1472,14 +1487,18 @@ function HomePage({urlParams}) {
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                             zIndex: displayStoryViewer ? '1' : '3'}}>
                                 <AboutAccountPopup
+                                    authUserId={authUserId}
+                                    userId={aboutAccountUserId}
+                                    username={aboutAccountUsername}
                                     authUser={authUser}
-                                    usernameOfMainPostAuthor={aboutAccountUsername}
-                                    mainPostAuthorIsVerified={aboutAccountUserIsVerified}
-                                    mainPostAuthorHasStories={aboutAccountUserHasStories}
-                                    mainPostAuthorProfilePhoto={aboutAccountUserProfilePhoto}
-                                    mainPostAuthorHasUnseenStory={aboutAccountUserHasUnseenStory}
-                                    notifyParentToClosePopup={closeAboutAccountPopup}
-                                    notifyParentToShowStoryViewer={showStoryViewer}
+                                    userPfp={aboutAccountUserProfilePhoto}
+                                    userIsVerified={aboutAccountUserIsVerified}
+                                    userHasStories={aboutAccountUserHasStories}
+                                    userHasUnseenStory={aboutAccountUserHasUnseenStory}
+                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                    addRelevantInfoToUser={addRelevantInfoToUser}
+                                    closePopup={closeAboutAccountPopup}
+                                    showStoryViewer={showStoryViewer}
                                 />
                             </div>
                         )
@@ -1490,7 +1509,8 @@ function HomePage({urlParams}) {
                             <div style={{position: 'fixed', top: '50%', left: '50%',
                             transform: 'translate(-50%, -50%)', zIndex: '3'}}>
                                 <ErrorPopup
-                                    errorMessage={errorPopupMessage} notifyParentToClosePopup={closeErrorPopup}
+                                    errorMessage={errorPopupMessage}
+                                    closePopup={closeErrorPopup}
                                 />
                             </div>
                         )

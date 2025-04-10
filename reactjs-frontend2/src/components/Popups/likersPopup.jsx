@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 
-import FollowUser from './followUser';
+import FollowUser from '../../followUser';
 
-import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
-import defaultPfp from '../assets/images/defaultPfp.png';
-import loadingAnimation from '../assets/images/loadingAnimation.gif';
+import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
+import defaultPfp from '../../assets/images/defaultPfp.png';
+import loadingAnimation from '../../assets/images/loadingAnimation.gif';
 
 function LikersPopup({authUser, idOfPostOrComment, notifyParentToClosePopup, notifyParentToShowErrorPopup,
 usersAndTheirRelevantInfo, notifyParentToUpdateUsersAndTheirRelevantInfo, postOrCommentText}) {

@@ -39,17 +39,17 @@
   
 
 <script>
-    import blankSavedIcon from '../assets/images/blankSavedIcon.png';
-import reportAProblemIcon from '../assets/images/reportAProblemIcon.png';
-import settingsIcon from '../assets/images/settingsIcon.png';
-import yourActivityIcon from '../assets/images/yourActivityIcon.png';
+    import blankSavedIcon from '../../assets/images/blankSavedIcon.png';
+import reportAProblemIcon from '../../assets/images/reportAProblemIcon.png';
+import settingsIcon from '../../assets/images/settingsIcon.png';
+import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
 
     
     export default {
         props: {
             authUserId: Number,
             originalURL: String,
-            notifyParentToShowErrorPopup: Function,
+            showErrorPopup: Function,
         },
 
 
@@ -75,14 +75,14 @@ import yourActivityIcon from '../assets/images/yourActivityIcon.png';
                     });
 
                     if(!response.ok) {
-                        this.notifyParentToShowErrorPopup('The expressJSBackend1 server had trouble logging you out');
+                        this.showErrorPopup('The expressJSBackend1 server had trouble logging you out');
                     }
                     else {
                         window.location.href = this.originalURL;
                     }
                 }
                 catch (error) {
-                    this.notifyParentToShowErrorPopup(
+                    this.showErrorPopup(
                         'There was trouble connecting to the expressJSBackend1 server to log you out.');
                 }
             }

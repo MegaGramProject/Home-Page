@@ -8,7 +8,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
   imports: [
     CommonModule
   ],
-  templateUrl: '../templates/LeftSidebarPopup.component.html'
+  templateUrl: '../../templates/Popups/LeftSidebarPopup.component.html'
 })
 export class LeftSidebarPopup {
   @Input() authUserId!:number;

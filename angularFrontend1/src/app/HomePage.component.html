@@ -1,13 +1,60 @@
-<div style="display: flex; justify-content: space-between; align-items: start; width: 100%;">
-    <LeftSidebar [profilePhoto]="'images/defaultPfp.png'" [displayPopup]="displayLeftSidebarPopup" [authUserIsAnonymousGuest]=
-    "authUserId == -1" (toggleDisplayLeftSidebarPopup)="toggleDisplayLeftSidebarPopup()"/>
+<LeftSidebar
+    [profilePhoto]="'images/defaultPfp.png'"
+    [displayPopup]="displayLeftSidebarPopup"
+    [authUserIsAnonymousGuest]="authUserId == -1"
+    (toggleDisplayLeftSidebarPopup)="toggleDisplayLeftSidebarPopup()"
+/>
+
+<div style="position: absolute; left: 24%;">
+    
 </div>
 
-<img [src]="'images/blackScreen.png'" *ngIf="displayLeftSidebarPopup || displayErrorPopup" (click)="closeAllPopups()" 
-[ngStyle]="{position: 'fixed', top: '0%', left: '0%', width: '100%',height: '100%', opacity: '0.7', zIndex: 2}"/>
+<img [src]="'images/blackScreen.png'"
+*ngIf="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup || displayCommentsPopup"
+(click)="closeAllPopups()" style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0.7; z-index: 2;"/>
 
 <div *ngIf="displayLeftSidebarPopup" [ngStyle]="{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ? '1' :
 '3'}">
-    <LeftSidebarPopup [authUserId]="authUserId" [originalURL]="originalURL" (showErrorPopup)=
-    "showErrorPopup($event)"/>
+    <LeftSidebarPopup
+        [authUserId]="authUserId"
+        [originalURL]="originalURL"
+        (showErrorPopup)="showErrorPopup($event)"
+    />
+</div>
+
+<div *ngIf="displayThreeDotsPopup" [ngStyle]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+zIndex: displayErrorPopup ? '1' : '3'}">
+    <ThreeDotsPopup
+        [authUserId]="authUserId"
+        [postDetails]="threeDotsPopupPostDetails"
+        (hidePost)="hidePost()"
+        (showErrorPopup)="showErrorPopup($event)"
+        (closePopup)="closeThreeDotsPopup()"
+        (showAboutAccountPopup)="showAboutAccountPopup($event)"
+    />
+</div>
+
+<div *ngIf="displayAboutAccountPopup" [ngStyle]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+zIndex: displayStoryViewer ? '1' : '3'}">
+    <AboutAccountPopup
+        [authUserId]="authUserId"
+        [userId]="aboutAccountUserId"
+        [username]="aboutAccountUsername"
+        [authUser]="authUser"
+        [userPfp]="aboutAccountUserProfilePhoto"
+        [userIsVerified]="aboutAccountUserIsVerified"
+        [userHasStories]="aboutAccountUserHasStories"
+        [userHasUnseenStory]="aboutAccountUserHasUnseenStory"
+        [usersAndTheirRelevantInfo]="usersAndTheirRelevantInfo"
+        (addRelevantInfoToUser)="addRelevantInfoToUser($event)"
+        (closePopup)="closeAboutAccountPopup()"
+        (showStoryViewer)="showStoryViewer($event)"
+    />
+</div>
+
+<div *ngIf="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3;">
+    <ErrorPopup
+        [errorMessage]="errorPopupMessage"
+        (closePopup)="closeErrorPopup()"
+    />
 </div>

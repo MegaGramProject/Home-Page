@@ -1,6 +1,6 @@
 from ...models import UserFollowing
-from ...serializers import UserFollowingSerializer
-from ...services import authenticate_user, check_if_user_exists
+from ...serializers import UserFollowingSerializer, FollowRequestSerializer
+from ...services import authenticate_user, check_if_user_exists, check_if_user_exists_and_is_private
 
 import graphene
 from graphql import GraphQLError
@@ -65,17 +65,17 @@ class FollowUser(graphene.Mutation):
 class ToggleFollowUser(graphene.Mutation):
     class Arguments:
         auth_user_id = graphene.Int(required=True)
-        id_of_user_to_toggle_follow = graphene.Int(required=True)
+        user_id_to_toggle_follow = graphene.Int(required=True)
 
-    result_of_toggle_follow = graphene.String()
+    new_following_status = graphene.String()
 
 
-    def mutate(self, info, auth_user_id, id_of_user_to_toggle_follow):
+    def mutate(self, info, auth_user_id, user_id_to_toggle_follow):
         if auth_user_id < 1:
             raise GraphQLError(f'There does not exist a user with the provided auth_user_id.')
 
-        if id_of_user_to_toggle_follow < 1:
-            raise GraphQLError(f'There does not exist a user with the provided id_of_user_to_toggle_follow.')
+        if user_id_to_toggle_follow < 1:
+            raise GraphQLError(f'There does not exist a user with the provided user_id_to_toggle_follow.')
         
         request = info.context
         user_authentication_result = authenticate_user(request, auth_user_id)
@@ -95,44 +95,55 @@ class ToggleFollowUser(graphene.Mutation):
             response.set_cookie(f'authToken{auth_user_id}', refreshed_auth_token, expires=expires_timestamp, httponly=True,
             path='/', secure=True, httponly=True)
         
+        user_is_private = None
 
-        result_of_checking_if_user_exists = check_if_user_exists(auth_user_id, id_of_user_to_toggle_follow)
-        if isinstance(result_of_checking_if_user_exists, list):
-            raise GraphQLError(result_of_checking_if_user_exists[0])
-        elif isinstance(result_of_checking_if_user_exists, bool):
-            if not result_of_checking_if_user_exists:
-                raise GraphQLError('The user you are trying to follow does not exist')
+        result_of_checking_if_user_exists_and_is_private = check_if_user_exists_and_is_private(
+            auth_user_id, user_id_to_toggle_follow
+        )
+        if isinstance(result_of_checking_if_user_exists_and_is_private, list):
+            raise GraphQLError(result_of_checking_if_user_exists_and_is_private[0])
+        elif isinstance(result_of_checking_if_user_exists_and_is_private, str):
+            if result_of_checking_if_user_exists_and_is_private == 'does not exist':
+                raise GraphQLError('The user you are trying to toggle-follow does not exist')
+            elif result_of_checking_if_user_exists_and_is_private == 'public':
+                user_is_private = False
+            else:
+                user_is_private = True
             
         try:
             user_following_to_delete = UserFollowing.objects.get(
                 follower = auth_user_id,
-                followed = id_of_user_to_toggle_follow
+                followed = user_id_to_toggle_follow
             )
             user_following_to_delete.delete()
-            return ToggleFollowUser(result_of_toggle_follow = 'Unfollowed Successfully')
+            return ToggleFollowUser(new_following_status = 'Stranger')
         except UserFollowing.DoesNotExist:
-            result_of_checking_if_user_exists = check_if_user_exists(auth_user_id, id_of_user_to_toggle_follow)
-            
-            if isinstance(result_of_checking_if_user_exists, list):
-                raise GraphQLError(result_of_checking_if_user_exists[0])
-            
-            elif isinstance(result_of_checking_if_user_exists, bool):
-                if not result_of_checking_if_user_exists:
-                    raise GraphQLError('The user you are trying to toggle-follow does not exist')
+            pass
         except:
             raise GraphQLError('There was trouble removing the user-following, if it even exists, from the database')
         
-
-        new_user_following_serializer = UserFollowingSerializer(data={
-            'follower': auth_user_id,
-            'followed': id_of_user_to_toggle_follow
-        })
-        if new_user_following_serializer.is_valid():
-            try:
-                new_user_following = new_user_following_serializer.save()
-                return ToggleFollowUser(result_of_toggle_follow = str(new_user_following.id))
-            except:
-                raise GraphQLError('There was trouble adding the user-following into the database')
+        if user_is_private:
+            new_follow_request_serializer = FollowRequestSerializer(data={
+                'requester': auth_user_id,
+                'requested': user_id_to_toggle_follow
+            })
+            if new_follow_request_serializer.is_valid():
+                try:
+                    new_follow_request_serializer.save()
+                    return ToggleFollowUser(new_following_status = 'Requested')
+                except:
+                    raise GraphQLError('There was trouble adding the follow-request into the database')
+        else:
+            new_user_following_serializer = UserFollowingSerializer(data={
+                'follower': auth_user_id,
+                'followed': user_id_to_toggle_follow
+            })
+            if new_user_following_serializer.is_valid():
+                try:
+                    new_user_following_serializer.save()
+                    return ToggleFollowUser(new_following_status = 'Following')
+                except:
+                    raise GraphQLError('There was trouble adding the user-following into the database')
 
 
 class UnfollowUser(graphene.Mutation):
