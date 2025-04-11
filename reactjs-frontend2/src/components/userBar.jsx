@@ -1,59 +1,85 @@
-import { useState } from 'react';
-
-import AccountPreview from './accountPreview';
+import AccountPreview from './AccountPreview';
 
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
+import { useState } from 'react';
 
-function UserBar({username, isPrivate, numFollowers, numFollowing, numPosts, fullName, profilePhoto,
-isVerified, authUser, notifyParentToShowErrorPopup}) {
-    const [followText, setFollowText] = useState('Follow');
+
+function UserBar({username, userFullName, userPfp, authUserId, userId, numFollowers, numFollowings, numPosts,
+userIsPrivate, userIsVerified, showErrorPopup}) {
+    const [toggleFollowText, setToggleFollowText] = useState('Follow');
     const [displayAccountPreview, setDisplayAccountPreview] = useState(false);
 
+
     function takeUserToLogin() {
-        window.location.href = "http://34.111.89.101/login";
+        window.open('http://34.111.89.101/login', '_blank');
     }
 
+    
     async function toggleFollowUser() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
-            Guest' mode`);
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
-        
+
+        const usernameToToggleFollow = username;
+        const userIdToToggleFollow = userId;
+
         try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
-                method: 'PATCH',
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userIdToToggleFollow
+                    }
+                }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                notifyParentToShowErrorPopup(
-                `The server had trouble toggling your follow-status of ${username}`);
+                showErrorPopup(
+                `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`);
             }
             else {
-                const newFollowText = await response.text();
-                setFollowText(newFollowText);
-            }
+                let newFollowingStatus = await response.text();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
 
+                if (newFollowingStatus==='Stranger') {
+                    setToggleFollowText('Follow');
+                }
+                else if(newFollowingStatus==='Following') {
+                    setToggleFollowText('Unfollow');
+                }
+                else {
+                    setToggleFollowText('Cancel Request');
+                }
+            }
         }
         catch (error) {
-            notifyParentToShowErrorPopup(`There was an error connecting to the server to toggle your follow-status
-            of ${username}`);
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of user
+            ${usernameToToggleFollow}`);
         }
     }
 
-    function setDisplayAccountPreviewToTrue () {
+
+    function setDisplayAccountPreviewToTrue() {
         setDisplayAccountPreview(true);
     }
 
-    function setDisplayAccountPreviewToFalse () {
+
+    function setDisplayAccountPreviewToFalse() {
         setDisplayAccountPreview(false);
     }
 
+
     function updateFollowTextFromAccountPreview(newFollowText) {
-        setFollowText(newFollowText);
+        setToggleFollowText(newFollowText);
     }
+
 
     return (
         <>
@@ -61,20 +87,20 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
             marginBottom: '-1em'}} onMouseEnter={setDisplayAccountPreviewToTrue}
             onMouseLeave={setDisplayAccountPreviewToFalse}>
                 <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
-                    <img src={profilePhoto} style={{height:'2.5em', width:'2.5em', objectFit:'contain', 
+                    <img src={userPfp} style={{height:'2.5em', width:'2.5em', objectFit:'contain', 
                     cursor:'pointer'}}/>   
                 </a>
 
                 <div style={{display:'flex', flexDirection:'column', alignItems: 'start', marginLeft:'0.7em'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
                         <a href={`http://34.111.89.101/profile/${username}`} onMouseEnter={setDisplayAccountPreviewToTrue}
-                        onMouseLeave={setDisplayAccountPreviewToFalse} style={{fontSize:'0.85em', cursor:'pointer', maxWidth: '8em',
-                        overflowWrap: 'break-word', textAlign: 'start', fontWeight: 'bold'}} target="_blank"
-                        rel="noopener noreferrer">
+                        onMouseLeave={setDisplayAccountPreviewToFalse} style={{fontSize:'0.85em', cursor:'pointer',
+                        maxWidth: '8em', overflowWrap: 'break-word', textAlign: 'start', fontWeight: 'bold'}}
+                        target="_blank" rel="noopener noreferrer">
                             {username}
                         </a>
 
-                        {isVerified &&
+                        {userIsVerified &&
                             (
                                 <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
                                 width: '1.5em', objectFit: 'contain'}}/>
@@ -84,31 +110,32 @@ isVerified, authUser, notifyParentToShowErrorPopup}) {
 
                     <p style={{fontSize:'0.7em', marginTop:'0.1em', color:'#787878',
                     maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}}>
-                        {fullName==='?' ? 'Could not get full name' : fullName}
+                        { userFullName === '?' ? 'Could not get full name' : userFullName }
                     </p>
                 </div>
 
-                <p onClick={(username===authUser) ? takeUserToLogin : toggleFollowUser}
-                style={{color: followText==="Follow" ? '#348feb' : 'gray', cursor:'pointer',
+                <p onClick={userId == authUserId ? takeUserToLogin : toggleFollowUser}
+                style={{color: toggleFollowText==="Follow" ? '#348feb' : 'gray', cursor:'pointer',
                 fontSize:'0.85em', fontWeight:'bold', position:'absolute', left:'76%', top: '0%'}}> 
-                    {(username===authUser) ? 'Switch' : followText}
+                    { userId == authUserId ? 'Switch' : toggleFollowText }
                 </p>
                 
-                {(!(username===authUser) && displayAccountPreview) && 
+                {(userId != authUserId && displayAccountPreview) && 
                     <div style={{position:'absolute', top:'36%', left: '-2%'}}>
                         <AccountPreview
                             username={username}
-                            profilePhoto={profilePhoto}
-                            fullName={fullName}
-                            isPrivate={isPrivate}
+                            userPfp={userPfp}
+                            userFullName={userFullName}
+                            toggleFollowText={toggleFollowText}
+                            authUserId={authUserId}
+                            userId={userId}
                             numPosts={numPosts}
                             numFollowers={numFollowers}
-                            numFollowing={numFollowing}
-                            followText={followText}
-                            notifyParentToUpdateFollowText={updateFollowTextFromAccountPreview}
-                            isVerified={isVerified}
-                            authUser={authUser}
-                            notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
+                            numFollowings={numFollowings}
+                            userIsPrivate={userIsPrivate}
+                            userIsVerified={userIsVerified}
+                            updateFollowText={updateFollowTextFromAccountPreview}
+                            showErrorPopup={showErrorPopup}
                         />
                     </div>
                 }

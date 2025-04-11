@@ -66,7 +66,8 @@ import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
         methods: {
             async logout() {
                 try {
-                    const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/logout/${this.authUserId}`, {
+                    const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/logout
+                    /${this.authUserId}`, {
                         method: 'PATCH',
                         headers: {
                             'Content-Type': 'application/json'

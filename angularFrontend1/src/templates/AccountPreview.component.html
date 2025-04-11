@@ -1,0 +1,77 @@
+<div class="popup" [ngStyle]="{width:'22em', position:'absolute', padding: '1.5em 1.5em', borderRadius:'2%', zIndex:
+'10'}">
+    <div [ngStyle]="{display:'flex', justifyContent:'start', alignItems:'start'}">
+        <a [href]="'http://34.111.89.101/profile/' + username" target="_blank" rel="noopener noreferrer">
+            <img [src]="userPfp" [ngStyle]="{width:'3em', height:'3em', cursor: 'pointer'}"/>
+        </a>
+
+        <div [ngStyle]="{display:'flex', flexDirection:'column', marginLeft:'0.7em', alignItems: 'start'}">
+            <div [ngStyle]="{display: 'flex', alignItems: 'center'}">
+                <a [href]="'http://34.111.89.101/profile/' + username" [ngStyle]="{fontSize:'0.85em', cursor:'pointer',
+                maxWidth: '10em', overflowWrap:'break-word', fontWeight: 'bold', textAlign: 'start'}" target="_blank"
+                rel="noopener noreferrer">
+                    {{ username }}
+                </a>
+
+                <img *ngIf="userIsVerified" [src]="'images/verifiedBlueCheck.png'" [ngStyle]="{pointerEvents: 'none',
+                height: '1.5em', width: '1.5em', objectFit: 'contain'}"/>
+            </div>
+
+            <p [ngStyle]="{fontSize:'0.8em', color:'#787878', maxWidth: '12em', overflowWrap:'break-word', textAlign:
+            'start'}">
+                {{ userFullName === '?' ? 'Could not get full name' : userFullName }}
+            </p>
+        </div>
+    </div>
+  
+    <div [ngStyle]="{display:'flex', width: '100%', justifyContent: 'space-between', alignItems: 'end', marginTop:
+    '1em'}">
+        <div [ngStyle]="{display: 'flex', flexDirection: 'column', alignItems: 'center'}">
+            <b [ngStyle]="{maxWidth: '3em', overflowWrap: 'break-word', marginBottom: '-1em'}">
+                {{ formatNumber(numPosts) }}
+            </b>
+            <p>posts</p>
+        </div>
+        <div [ngStyle]="{display: 'flex', flexDirection: 'column', alignItems: 'center'}">
+            <b [ngStyle]="{maxWidth: '3em', overflowWrap: 'break-word', marginBottom: '-1em'}">
+            {{ formatNumber(numFollowers) }}
+            </b>
+            <p>followers</p>
+        </div>
+        <div [ngStyle]="{display: 'flex', flexDirection: 'column', alignItems: 'center'}">
+            <b [ngStyle]="{maxWidth: '3em', overflowWrap: 'break-word', marginBottom: '-1em'}">
+            {{ formatNumber(numFollowings) }}
+            </b>
+            <p>following</p>
+        </div>
+    </div>
+  
+    <br/>
+    <br/>
+  
+    <div *ngIf="userIsPrivate==true" [ngStyle]="{display:'flex', flexDirection: 'column', alignItems: 'center'}">
+        <img [src]="'images/privateAccount.png'" [ngStyle]="{height:'7em', width:'7em', objectFit:'contain',
+        pointerEvents: 'none'}"/>
+        <b>
+            This account is private
+        </b>
+        <p [ngStyle]="{color:'gray', fontSize:'0.8em', marginTop:'0.1em'}">
+            Follow them to see their photos and videos.
+        </p>
+    </div>
+  
+    <a *ngIf="userIsPrivate==false || userIsPrivate === '?'" [href]="'http://34.111.89.101/profile/' + username"
+    [ngStyle]="{fontSize: '0.84em', color: '#666666', cursor: 'pointer'}" target="_blank" rel="noopener noreferrer">
+        Click here to visit this user's profile.
+    </a>
+  
+    <br/>
+    <br/>
+  
+    <button (click)="toggleFollowUser()" class="blueButton" [ngStyle]="{width:'107%', backgroundColor: toggleFollowText
+    === 'Follow' ? '#327bf0' : '#f5f5f5', color: toggleFollowText === 'Follow' ? '' : 'black', cursor:'pointer',
+    marginLeft: '-0.8em'}">
+        {{ toggleFollowText }}
+    </button>
+  </div>
+  

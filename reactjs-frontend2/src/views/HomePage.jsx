@@ -10,7 +10,7 @@ import Footer from '../components/Footer';
 import LeftSidebar from '../components/LeftSidebar';
 import MediaPost from '../components/mediaPost';
 import StoryViewer from '../components/storyViewer';
-import UserBar from '../components/userBar';
+import UserBar from '../components/UserBar';
 import UserIcon from '../components/UserIcon';
 
 import backArrow from "../assets/images/backArrow.png";
@@ -1358,7 +1358,7 @@ function HomePage({urlParams}) {
                     {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup || 
                     displayLikersPopup || displayAboutAccountPopup || displayLeftSidebarPopup ||
                     displayErrorPopup)
-                    && (
+                    &&  (
                             <img onClick={closeAllPopups} src={blackScreen} style={{position: 'fixed', 
                             top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7', 
                             zIndex: '2'}}/>

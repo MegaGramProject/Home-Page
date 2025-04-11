@@ -7,13 +7,13 @@
     />
 
 
-    <div style="position: absolute; left: 24%;">
+    <div style="position: absolute; left: 74%;">
         
     </div>
 
     <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup"
-    @click="closeAllPopups" :src="blackScreen" style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0.7;
-    zIndex: 2;"/>
+    @click="closeAllPopups" :src="blackScreen" style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%;
+    opacity: 0.7; zIndex: 2;"/>
 
     <div v-if="displayLeftSidebarPopup" :style="[
         { position: 'fixed', bottom: '10%', left: '1%' },
@@ -61,7 +61,8 @@
     </div>
 
 
-    <div v-if="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); zIndex: 3;">
+    <div v-if="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); zIndex:
+    3;">
         <ErrorPopup
             :errorMessage="errorPopupMessage"
             :closePopup="closeErrorPopup"
@@ -77,8 +78,9 @@ import LeftSidebarPopup from '@/components/Popups/LeftSidebarPopup.vue';
 import ThreeDotsPopup from '@/components/Popups/ThreeDotsPopup.vue';
 
     //import FooterSection from '@/components/FooterSection.vue';
-import LeftSidebar from '@/components/LeftSidebar.vue';
+    import LeftSidebar from '@/components/LeftSidebar.vue';
 //import UserIcon from '@/components/UserIcon.vue';
+//import UserBar from '@/components/UserBar.vue';
 
     import blackScreen from '@/assets/images/blackScreen.png';
 import defaultPfp from '@/assets/images/defaultPfp.png';
@@ -96,6 +98,7 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
             LeftSidebar,
             //FooterSection,
             //UserIcon,
+            //UserBar,
         },
 
 
@@ -118,10 +121,10 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
                 displayThreeDotsPopup: false,
                 threeDotsPopupPostDetails: {},
 
-                displayAboutAccountPopup: true,
-                aboutAccountUsername: 'rishavry2',
-                aboutAccountUserId: 2,
-                aboutAccountUserIsVerified: true,
+                displayAboutAccountPopup: false,
+                aboutAccountUsername: '',
+                aboutAccountUserId: -1,
+                aboutAccountUserIsVerified: false,
                 aboutAccountUserHasStories: false,
                 aboutAccountUserHasUnseenStory: false,
                 aboutAccountUserProfilePhoto: null,
@@ -134,7 +137,7 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
 
                 usersAndTheirRelevantInfo: {},
 
-                orderedListOfPosts: [],
+                orderedListOfPosts: []
             }
         },
 
@@ -193,8 +196,8 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
                         this.authUserId = -1;
 
                         throw new Error(
-                            `The expressJSBackend1 server had trouble verifying you as having the proper credentials to be 
-                            logged in as user ${userId}`
+                            `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
+                            be logged in as user ${userId}`
                         );
                     }
 

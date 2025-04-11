@@ -2,40 +2,53 @@ import { useEffect, useState } from 'react';
 
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-function FollowUser({username, fullName, profilePhoto, isVerified, followStatus,
-notifyParentToShowErrorPopup, authUser}) {
-    const [followText, setFollowText] = useState("");
+function FollowUser({authUserId, userId, username, userFullName, userPfp, userIsVerified, originalFollowText, showErrorPopup}) {
+    const [followText, setFollowText] = useState('');
+
 
     useEffect(() => {
-        setFollowText(followStatus)
-    }, []);
+        setFollowText(originalFollowText)
+    }, [originalFollowText]);
+
 
     async function toggleFollowUser() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
+        if (authUserId === -1) {
+            showErrorPopup(`You cannot toggle your follow-status of user ${username} when you are on 'Anonymous
             Guest' mode`);
             return;
         }
 
         try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
-                method: 'PATCH',
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userId
+                    }
+                }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                notifyParentToShowErrorPopup(
-                `The server had trouble toggling your follow-status of ${username}`);
+                showErrorPopup(`The server had trouble toggling your follow-status of user ${username}`);
             }
             else {
-                const newFollowText = await response.text(); //either 'Follow', 'Following', or 'Requested'
-                setFollowText(newFollowText);
+                let newFollowingStatus = await response.json();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
+                
+                if(newFollowingStatus === 'Stranger') {
+                    newFollowingStatus = 'Follow';
+                }
+                setFollowText(newFollowingStatus);
             }
         }
 
         catch (error) {
-            notifyParentToShowErrorPopup(`There was trouble connecting to the server to toggle your follow-status
-            of ${username}`);
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of user ${username}`);
         }
     }
 
@@ -45,17 +58,17 @@ notifyParentToShowErrorPopup, authUser}) {
         alignItems:'center', justifyContent:'space-between', boxShadow:'none', padding: '0.5em 1em'}}>
             <div style={{display:'flex', alignItems:'start'}}>
                 <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
-                    <img src={profilePhoto} style={{objectFit:'contain', height:'3em',
+                    <img src={userPfp} style={{objectFit:'contain', height:'3em',
                     width:'3em', cursor: 'pointer'}}/>
                 </a>
 
                 <div style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
-                        <a href={`http://34.111.89.101/profile/${username}`} style={{maxWidth: '10em', overflowWrap: 'break-word',
-                        cursor: 'pointer', textAlign: 'start', fontWeight: 'bold'}} target="_blank" rel="noopener noreferrer">
+                        <b style={{maxWidth: '10em', overflowWrap: 'break-word', cursor: 'pointer', textAlign: 'start',
+                        fontWeight: 'bold'}}>
                             {username}
-                        </a>
-                        {isVerified &&
+                        </b>
+                        {userIsVerified &&
                             (
                                 <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
                                 width: '1.5em', objectFit: 'contain'}}/>
@@ -64,22 +77,19 @@ notifyParentToShowErrorPopup, authUser}) {
                     </div>
                     <p style={{maxWidth: '10em', overflowWrap: 'break-word', color: 'gray',
                     marginTop:'0.5em', textAlign: 'start'}}>
-                        {fullName==='?' ? 'Could not get full name' : fullName}
+                        {userFullName==='?' ? 'Could not get full name' : userFullName}
                     </p>
                 </div>
             </div>
 
-            {(username !== authUser) &&
-                (
-                    <button onClick={toggleFollowUser} style={{
-                    backgroundColor: followText!=='Follow' ? '#f5f5f5' : '#1f86ed',
-                    color: followText!=='Follow' ? 'black' : 'white', fontWeight:'bold', cursor:'pointer',
-                    borderStyle:'none', width:'10em', borderRadius:'0.5em', paddingLeft:'0.5em', paddingBottom:'0.5em',
-                    paddingTop:'0.5em'}}>
-                        {followText}
-                    </button>
-                )
-            }
+            
+            <button onClick={toggleFollowUser} style={{
+            backgroundColor: followText!=='Follow' ? '#f5f5f5' : '#1f86ed',
+            color: followText!=='Follow' ? 'black' : 'white', fontWeight:'bold', cursor:'pointer',
+            borderStyle:'none', width:'10em', borderRadius:'0.5em', paddingLeft:'0.5em', paddingBottom:'0.5em',
+            paddingTop:'0.5em'}}>
+                {followText}
+            </button>
         </div>
     );
 }

@@ -78,7 +78,10 @@ return [
                 'getContactInfoOfOwnAccount' => App\GraphQL\Queries\User\GetContactInfoOfOwnAccount::class,
                 'getTheUserIdsThatExistInList' => App\GraphQL\Queries\User\GetTheUserIdsThatExistInList::class,
                 'getIsPrivateStatusesOfList' => App\GraphQL\Queries\User\GetIsPrivateStatusesOfList::class,
-                'getIdsOfAllPublicUsers' => App\GraphQL\Queries\User\GetIdsOfAllPublicUsers::class
+                'getIdsOfAllPublicUsers' => App\GraphQL\Queries\User\GetIdsOfAllPublicUsers::class,
+                'getUserIdOfUsername' => App\GraphQL\Queries\User\GetUserIdOfUsername::class,
+                'getDateJoinedAndAccountBasedInOfUser' => App\GraphQL\Queries\User\GetDateJoinedAndAccountBasedInOfUser::class,
+                'getUsernamesForListOfUserIds' => App\GraphQL\Queries\User\GetUsernamesForListOfUserIds::class,
             ],
 
             'mutation' => [

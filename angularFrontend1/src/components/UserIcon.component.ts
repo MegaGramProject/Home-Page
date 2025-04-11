@@ -3,10 +3,10 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 
 
 @Component({
-  selector: 'UserIcon',
-  templateUrl: '../templates/UserIcon.component.html',
-  imports: [CommonModule],
-  standalone: true
+    selector: 'UserIcon',
+    templateUrl: '../templates/UserIcon.component.html',
+    imports: [CommonModule],
+    standalone: true
 })
 export class UserIcon {
     @Input() authUser!:string;

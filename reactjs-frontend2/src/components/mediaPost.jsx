@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import UserIcon from './UserIcon';
-import FollowUser from './followUser';
+import FollowUser from './FollowUser';
 import PostDots from './PostDots';
 
 import blackSavedIcon from '../assets/images/blackSavedIcon.png';

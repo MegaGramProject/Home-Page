@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-import FollowUser from '../../followUser';
+import FollowUser from '../../FollowUser';
 
 import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 import defaultPfp from '../../assets/images/defaultPfp.png';

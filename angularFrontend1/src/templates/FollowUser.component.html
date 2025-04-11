@@ -1,0 +1,31 @@
+<div class="selectUserOrGroupChat" [ngStyle]="{'width': '95%', 'display': 'flex', 'align-items': 'center', 'justify-content':
+'space-between', 'box-shadow': 'none', 'padding': '0.5em 1em'}">
+    <div [ngStyle]="{'display': 'flex', 'align-items': 'start'}">
+      <a [href]="'http://34.111.89.101/profile/' + username" target="_blank" rel="noopener noreferrer">
+        <img [src]="userPfp" [ngStyle]="{'object-fit': 'contain', 'height': '3em', 'width': '3em', 'cursor': 'pointer'}" />
+      </a>
+  
+      <div [ngStyle]="{'display': 'flex', 'flex-direction': 'column', 'align-items': 'start', 'margin-left': '1em'}">
+        <div [ngStyle]="{'display': 'flex', 'align-items': 'center'}">
+          <b [ngStyle]="{'max-width': '10em', 'overflow-wrap': 'break-word', 'cursor': 'pointer', 'text-align': 'start',
+          'font-weight': 'bold'}">
+            {{ username }}
+          </b>
+          <img *ngIf="userIsVerified" [src]="'images/verifiedBlueCheck.png'" [ngStyle]="{'pointer-events': 'none', 'height': '1.5em', 'width':
+          '1.5em', 'object-fit': 'contain'}" />
+        </div>
+  
+        <p [ngStyle]="{'max-width': '10em', 'overflow-wrap': 'break-word', 'color': 'gray', 'margin-top': '0.5em', 'text-align':
+        'start'}">
+          {{ userFullName === '?' ? 'Could not get full name' : userFullName }}
+        </p>
+      </div>
+    </div>
+  
+    <button (click)="toggleFollowUser()" [ngStyle]="{'background-color': followText !== 'Follow' ? '#f5f5f5' : '#1f86ed', 'color':
+    followText !== 'Follow' ? 'black' : 'white', 'font-weight': 'bold', 'cursor': 'pointer', 'border-style': 'none', 'width':
+    '10em', 'border-radius': '0.5em', 'padding-left': '0.5em', 'padding-bottom': '0.5em', 'padding-top': '0.5em'}">
+        {{ followText }}
+    </button>
+</div>
+  

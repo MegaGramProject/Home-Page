@@ -1,52 +1,79 @@
 import privateAccount from "../assets/images/privateAccount.png";
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png'
 
-function AccountPreview({authUser, username, profilePhoto, fullName, isPrivate, numPosts, numFollowers,
-numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyParentToShowErrorPopup}) {
+
+function AccountPreview({username, userPfp, userFullName, toggleFollowText, authUserId, userId,
+numPosts, numFollowers, numFollowings, userIsPrivate, userIsVerified, updateFollowText, showErrorPopup}) {
+
 
     function formatNumber(number) {
         if(number==='?') {
             return '?';
         }
-        if (number < 10000) {
+        else if (number < 10000) {
             return number.toLocaleString();
-        } else if (number >= 10000 && number < 1000000) {
+        }
+        else if (number >= 10000 && number < 1000000) {
             return (number / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-        } else if (number >= 1000000 && number < 1000000000) {
+        }
+        else if (number >= 1000000 && number < 1000000000) {
             return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-        } else if (number >= 1000000000 && number < 1000000000000) {
+        }
+        else if (number >= 1000000000 && number < 1000000000000) {
             return (number / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
-        } else {
+        }
+        else {
             return (number / 1000000000000).toFixed(1).replace(/\.0$/, '') + 'T';
         }
     }
 
+    
     async function toggleFollowUser() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup(`You cannot toggle your follow-status of ${username} when you are on 'Anonymous
-            Guest' mode`);
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
-        
+
+        const usernameToToggleFollow = username;
+        const userIdToToggleFollow = userId;
+
         try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/toggleFollowUser/${authUser}/${username}`, {
-                method: 'PATCH',
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userIdToToggleFollow
+                    }
+                }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                notifyParentToShowErrorPopup(
-                `The server had trouble toggling your follow-status of ${username}`);
+                showErrorPopup(
+                `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`);
             }
             else {
-                const newFollowText = await response.text();
-                notifyParentToUpdateFollowText(newFollowText);
-            }
+                let newFollowingStatus = await response.text();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
 
+                if (newFollowingStatus==='Stranger') {
+                    updateFollowText('Follow');
+                }
+                else if(newFollowingStatus==='Following') {
+                    updateFollowText('Unfollow');
+                }
+                else {
+                    updateFollowText('Cancel Request');
+                }
+            }
         }
         catch (error) {
-            notifyParentToShowErrorPopup(`There was an error connecting to the server to toggle your follow-status
-            of ${username}`);
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            user ${usernameToToggleFollow}`);
         }
     }
     
@@ -56,7 +83,7 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
         padding: '1.5em 1.5em', borderRadius:'2%', zIndex: '10'}}>
             <div style={{display:'flex', justifyContent:'start', alignItems:'start'}}>
                 <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
-                    <img src={profilePhoto} style={{width:'3em', height:'3em', cursor: 'pointer'}}/>
+                    <img src={userPfp} style={{width:'3em', height:'3em', cursor: 'pointer'}}/>
                 </a>
 
                 <div style={{display:'flex', flexDirection:'column', marginLeft:'0.7em',
@@ -68,7 +95,7 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
                             {username}
                         </a>
 
-                        {isVerified &&
+                        {userIsVerified &&
                             (
                                 <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
                                 width: '1.5em', objectFit: 'contain'}}/>
@@ -78,7 +105,7 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
         
                     <p style={{fontSize:'0.8em', color:'#787878', maxWidth: '12em', overflowWrap:'break-word',
                     textAlign: 'start'}}>
-                        {fullName==='?' ? 'Could not get full name' : fullName}
+                        {userFullName === '?' ? 'Could not get full name' : userFullName}
                     </p>
                 </div>
             </div>
@@ -86,20 +113,20 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
             <div style={{display:'flex', width: '100%', justifyContent: 'space-between',
             alignItems: 'end', marginTop: '1em'}}>
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                    <b style={{maxWidth: '3em', overflowWrap: 'break-word'}}>
+                    <b style={{maxWidth: '3em', overflowWrap: 'break-word', marginBottom: '-1em'}}>
                         {formatNumber(numPosts)}
                     </b>
                     <p>posts</p>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                    <b style={{maxWidth: '3em', overflowWrap: 'break-word'}}>
+                    <b style={{maxWidth: '3em', overflowWrap: 'break-word', marginBottom: '-1em'}}>
                         {formatNumber(numFollowers)}
                     </b>
                     <p>followers</p>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-                    <b style={{maxWidth: '3em', overflowWrap: 'break-word'}}>
-                        {formatNumber(numFollowing)}
+                    <b style={{maxWidth: '3em', overflowWrap: 'break-word', marginBottom: '-1em'}}>
+                        {formatNumber(numFollowings)}
                     </b>
                     <p>following</p>
                 </div>
@@ -108,7 +135,7 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
             <br/>
             <br/>
 
-            {isPrivate==true &&
+            {userIsPrivate==true &&
                 (
                     <div style={{display:'flex', flexDirection: 'column', alignItems: 'center'}}>
                         <img src={privateAccount} style={{height:'7em', width:'7em', objectFit:'contain',
@@ -117,18 +144,18 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
                             This account is private
                         </b>
                         <p style={{color:'gray', fontSize:'0.8em', marginTop:'0.1em'}}>
-                            Follow this account to see their photos and videos.
+                            Follow them to see this their photos and videos.
                         </p>
                     </div>
                 )
             }
 
-            {(isPrivate==false || isPrivate==='?') && 
+            {(userIsPrivate==false || userIsPrivate === '?') && 
                 (
                     <a href={`http://34.111.89.101/profile/${username}`}
                     style={{fontSize: '0.84em', color: '#666666', cursor: 'pointer'}}
                     target="_blank" rel="noopener noreferrer">
-                        Click here to visit this profile.
+                        Click here to visit this user's profile.
                     </a>
                 )
             }
@@ -137,9 +164,9 @@ numFollowing, notifyParentToUpdateFollowText, followText, isVerified, notifyPare
             <br/>
 
             <button onClick={toggleFollowUser} className="blueButton"
-            style={{width:'96%', backgroundColor: followText==='Follow' ? '#327bf0' : '#b3b4b5',
-            cursor:'pointer'}}>
-                {followText}
+            style={{width:'107%', backgroundColor: toggleFollowText === 'Follow' ? '#327bf0' : '#f5f5f5', color:
+            toggleFollowText === 'Follow' ? '' : 'black', cursor:'pointer', marginLeft: '-0.8em'}}>
+                {toggleFollowText}
             </button>
         </div>
     );

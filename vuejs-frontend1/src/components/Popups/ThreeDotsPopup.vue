@@ -157,7 +157,7 @@
                         `The server had trouble toggling your follow-status of ${usernameToToggleFollow}`);
                     }
                     else {
-                        let newFollowingStatus = await response.text();
+                        let newFollowingStatus = await response.json();
                         newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
 
                         if (newFollowingStatus==='Stranger') {

@@ -10,16 +10,18 @@ import { ThreeDotsPopup } from '../components/Popups/ThreeDotsPopup.component';
 import { CommonModule } from '@angular/common';
 import { Component, SimpleChanges } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { UserBar } from '../components/UserBar.component';
 
 
 @Component({
   selector: 'HomePage',
   standalone: true,
   imports: [
-    CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup
+    CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup,
+    UserBar
   ],
   templateUrl: './HomePage.component.html',
-  styleUrl: '../HomePageStyles.css',
+  styleUrl: '../HomePageStyles.css'
 })
 export class HomePage {
   authUser:string = '';
@@ -36,13 +38,13 @@ export class HomePage {
   displayThreeDotsPopup:boolean = false;
   threeDotsPopupPostDetails:any = {};
 
-  displayAboutAccountPopup:boolean = true;
-  aboutAccountUsername:string = 'rishavry2';
-  aboutAccountUserId:number  = 4;
-  aboutAccountUserIsVerified:boolean = true;
-  aboutAccountUserHasStories:boolean = true;
-  aboutAccountUserHasUnseenStory:boolean = true;
-  aboutAccountUserProfilePhoto:string|null = 'images/defaultPfp.png';
+  displayAboutAccountPopup:boolean = false;
+  aboutAccountUsername:string = '';
+  aboutAccountUserId:number  = -1;
+  aboutAccountUserIsVerified:boolean = false;
+  aboutAccountUserHasStories:boolean = false;
+  aboutAccountUserHasUnseenStory:boolean = false;
+  aboutAccountUserProfilePhoto:string|null = null;
 
   displayCommentsPopup:boolean = false;
 

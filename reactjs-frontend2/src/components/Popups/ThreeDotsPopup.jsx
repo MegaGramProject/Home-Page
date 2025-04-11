@@ -61,7 +61,7 @@ function ThreeDotsPopup({authUserId, postDetails, hidePost, showAboutAccountPopu
                 credentials: 'include'
             });
             if(!response.ok) {
-                showErrorPopup(`The server had trouble toggling your follow-status of ${usernameToToggleFollow}`);
+                showErrorPopup(`The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`);
             }
             else {
                 let newFollowingStatus = await response.text();
@@ -79,7 +79,8 @@ function ThreeDotsPopup({authUserId, postDetails, hidePost, showAboutAccountPopu
             }
         }
         catch {
-            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of ${usernameToToggleFollow}`);
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of user
+            ${usernameToToggleFollow}`);
         }
     }
 

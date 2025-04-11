@@ -139,22 +139,11 @@ class GetInDepthInfoOnUser extends Query {
                         abort(404, "The user $id does not exist");
                     }
                 }
-
-                try {
-                    $redisResult = $this->redisClient->hSet(
-                        "dataForUser$id",
-                        'isPrivate',
-                        $userIsPrivate == true ? 'true' : 'false'
-                    );
-                }
-                catch (\Exception) {
-                    //pass
-                }
             }
             catch (\Exception) {
                 abort(
                     502,
-                    "There was trouble getting the account visibility status of user $id"
+                    "There was trouble getting the account visibility status of user $id from the database"
                 );
             }
         }
@@ -179,6 +168,9 @@ class GetInDepthInfoOnUser extends Query {
                 }
                 else if ($accessOfAuthUserToOtherUser === 'DOES NOT FOLLOW') {
                     $authUserFollowsUser = false;
+                }
+                else {
+                    $authUserFollowsUser = true;
                 }
             }
             catch (\Exception) {
@@ -236,22 +228,6 @@ class GetInDepthInfoOnUser extends Query {
             }
             catch (\Exception) {
                 abort(502, "There was trouble fetching the data of user $id");
-            }
-
-            try {
-                $this->redisClient->hMSet(
-                    "dataForUser$id",
-                    [
-                        'username' => $output['username'],
-                        'fullName' => $output['fullName'],
-                        'isVerified' => $output['isVerified'] == true ? 'true' : 'false',
-                        'created' => $output['created']->toIso8601String(),
-                        'isPrivate' => 'true'
-                    ]
-                );
-            }
-            catch (\Exception) {
-                //pass
             }
         }
         else {
@@ -345,24 +321,6 @@ class GetInDepthInfoOnUser extends Query {
                     catch (\Exception) {
                         abort(502, "There was trouble fetching the in-depth info of user $id");
                     }
-
-                    try {
-                        $this->redisClient->hMSet(
-                            "dataForUser$id",
-                            [
-                                'username' => $username,
-                                'fullName' => $fullName,
-                                'isVerified' => $isVerified == true ? 'true' : 'false',
-                                'dateOfBirth' => $dateOfBirth->toIso8601String(),
-                                'created' => $created->toIso8601String(),
-                                'accountBasedIn' => $accountBasedIn,
-                                'encryptedDataEncryptionKey' => $encryptedDataEncryptionKey
-                            ]
-                        );
-                    }
-                    catch (\Exception) {
-                        //pass
-                    }
                 }
                 else {
                     try {
@@ -389,32 +347,6 @@ class GetInDepthInfoOnUser extends Query {
                     }
                     catch (\Exception) {
                         abort(502, "There was trouble fetching the in-depth info of user $id");
-                    }
-
-                    try {
-                        $this->redisClient->hMSet(
-                            "dataForUser$id",
-                            [
-                                'username' => $username,
-                                'fullName' => $fullName,
-                                'isVerified' => $isVerified == true ? 'true' : 'false',
-                                'created' => $created->toIso8601String(),
-
-                                'encryptedDateOfBirth' => $encryptedDateOfBirth,
-                                'encryptedAccountBasedIn' => $encryptedAccountBasedIn,
-
-                                'dateOfBirthEncryptionIv' => $dateOfBirthEncryptionIv,
-                                'accountBasedInEncryptionIv' => $accountBasedInEncryptionIv,
-
-                                'dateOfBirthEncryptionAuthTag' => $dateOfBirthEncryptionAuthTag,
-                                'accountBasedInEncryptionAuthTag' => $accountBasedInEncryptionAuthTag,
-
-                                'encryptedDataEncryptionKey' => $encryptedDataEncryptionKey
-                            ]
-                        );
-                    }
-                    catch (\Exception) {
-                        //pass
                     }
                 }
             }

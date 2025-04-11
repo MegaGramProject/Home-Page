@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import SelectUserOrGroupChat from '../../selectUserOrGroupChat';
+import SelectUserOrGroupChat from '../../SelectUserOrGroupChat';
 
 import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 import defaultPfp from '../../assets/images/defaultPfp.png';
