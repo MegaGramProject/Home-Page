@@ -54,46 +54,38 @@
         </div>  
     </template>
 </template>
-  
 
 
-<script>
-    import bluePlusIcon from "../assets/images/bluePlusIcon.png";
-    import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
+<script setup>
+    import bluePlusIcon from '../assets/images/bluePlusIcon.png';
+import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
+
+    import { defineProps, toRefs } from 'vue';
 
     
-    export default {
-        props: {
-            authUser: String,
-            username: String,
-            userPfp: String,
+    const props = defineProps({
+        authUser: String,
+        username: String,
+        userPfp: String,
 
-            inStoriesSection: Boolean,
-            userHasStories: Boolean,
-            userHasUnseenStory: Boolean,
-            userIsVerified: Boolean,
+        inStoriesSection: Boolean,
+        userHasStories: Boolean,
+        userHasUnseenStory: Boolean,
+        userIsVerified: Boolean,
 
-            showStoryViewer: Function
-        },
+        showStoryViewer: Function
+    });
 
-
-        data() {
-            return {
-                bluePlusIcon,
-                verifiedBlueCheck
-            }
-        },
+    const { authUser, username, userPfp, inStoriesSection, userHasStories, userHasUnseenStory, userIsVerified,
+    showStoryViewer } = toRefs(props);
 
 
-        methods: {
-            onClickingProfilePhoto() {
-                if (this.userHasStories) {
-                    this.showStoryViewer(this.username, this.inStoriesSection);
-                }
-                else {
-                    window.open(`http://34.111.89.101/profile/${this.username}`, '_blank');
-                } 
-            }
+    function onClickingProfilePhoto() {
+        if (userHasStories) {
+            showStoryViewer(username, inStoriesSection);
         }
+        else {
+            window.open(`http://34.111.89.101/profile/${username}`, '_blank');
+        } 
     }
 </script>

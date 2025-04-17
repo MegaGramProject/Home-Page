@@ -136,3 +136,48 @@ def check_if_auth_user_has_access_to_user(auth_user_id, user_id):
             ] 
     
     return True
+
+
+def get_usernames_of_multiple_user_ids(user_ids):
+    url = 'http://34.111.89.101/api/Home-Page/laravelBackend1/graphql'
+    
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    
+    query = '''query ($userIds: [Int!]!) {
+        getUsernamesForListOfUserIds(userIds: $userIds)
+    }
+    '''
+    
+    variables = {
+        'userIds': [user_ids]
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json={'query': query, 'variables': variables})
+
+        if not response.ok:
+            return [
+                f'The laravelBackend1 server had trouble getting the usernames of each of the users in the
+                provided list',
+                'BAD_GATEWAY'
+            ]
+        
+        response_data = response.json()
+        usernames_for_list_of_user_ids = response_data['data']['getUsernamesForListOfUserIds']
+        users_and_their_usernames = {}
+
+        for i in range(len(usernames_for_list_of_user_ids)):
+            user_id = user_ids[i]
+            username = usernames_for_list_of_user_ids[i]
+            
+            users_and_their_usernames[user_id] = username
+
+        return users_and_their_usernames
+    except:
+        return [
+            f'There was trouble connecting to the laravelBackend1 server to get the username of each of the 
+            users in the provided list'
+            'BAD_GATEWAY'
+        ]

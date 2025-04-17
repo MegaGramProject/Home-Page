@@ -59,34 +59,26 @@
 </template>
   
 
-<script>
+<script setup>
     import aiIcon from '../assets/images/aiIcon.png';
-    import homeIcon from '../assets/images/homeIcon.png';
-    import messagesIcon from '../assets/images/messagesIcon.png';
-    import moreIcon from '../assets/images/moreIcon.png';
-    import notificationsIcon from '../assets/images/notificationsIcon.png';
-    import searchIcon from '../assets/images/searchIcon.png';
-    import shopIcon from '../assets/images/shopIcon.png';
+import homeIcon from '../assets/images/homeIcon.png';
+import messagesIcon from '../assets/images/messagesIcon.png';
+import moreIcon from '../assets/images/moreIcon.png';
+import notificationsIcon from '../assets/images/notificationsIcon.png';
+import searchIcon from '../assets/images/searchIcon.png';
+import shopIcon from '../assets/images/shopIcon.png';
 
-    
-    export default {
-        props: {
-            profilePhoto: String,
-            displayPopup: Boolean,
-            authUserIsAnonymousGuest: Boolean,
-            toggleDisplayPopup: Function
-        },
+    import { defineProps, toRefs } from 'vue';
 
-        data() {
-            return {
-                homeIcon,
-                messagesIcon,
-                moreIcon,
-                notificationsIcon,
-                searchIcon,
-                shopIcon,
-                aiIcon
-            }
-        }
-    };
+
+    const props = defineProps({
+        profilePhoto: String,
+
+        displayPopup: Boolean,
+        authUserIsAnonymousGuest: Boolean,
+
+        toggleDisplayPopup: Function
+    });
+
+    const { profilePhoto, displayPopup, authUserIsAnonymousGuest, toggleDisplayPopup } = toRefs(props);
 </script>

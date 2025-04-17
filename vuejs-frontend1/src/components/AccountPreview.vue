@@ -78,113 +78,106 @@
 </template>
 
 
-<script>
+<script setup>
     import privateAccount from "../assets/images/privateAccount.png";
-    import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png'
+import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
+
+    import { defineProps, toRefs } from 'vue';
 
 
-    export default {
-        props: {
-            username: String,
-            userPfp: String,
-            userFullName: String,
-            toggleFollowText: String,
+    const props = defineProps({
+        username: String,
+        userPfp: String,
+        userFullName: String,
+        toggleFollowText: String,
 
-            authUserId: Number,
-            userId: Number,
-            numPosts: Number,
-            numFollowers: Number,
-            numFollowings: Number,
+        authUserId: Number,
+        userId: Number,
+        numPosts: Number,
+        numFollowers: Number,
+        numFollowings: Number,
 
-            userIsVerified: Boolean,
-            
-            userIsPrivate: Object,
+        userIsVerified: Boolean,
+        
+        userIsPrivate: Object,
 
-            updateFollowText: Function,
-            showErrorPopup: Function
-        },
+        updateFollowText: Function,
+        showErrorPopup: Function
+    });
+
+    const { username, userPfp, userFullName, toggleFollowText, authUserId, userId, numPosts, numFollowers, numFollowings,
+    userIsVerified, userIsPrivate, updateFollowText, showErrorPopup } = toRefs(props);
 
 
-        data() {
-            return {
-                privateAccount,
-                verifiedBlueCheck
+    function formatNumber(number) {
+        if(number==='?') {
+            return '?';
+        }
+        else if (number < 10000) {
+            return number.toLocaleString();
+        }
+        else if (number >= 10000 && number < 1000000) {
+            return (number / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+        }
+        else if (number >= 1000000 && number < 1000000000) {
+            return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+        }
+        else if (number >= 1000000000 && number < 1000000000000) {
+            return (number / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+        }
+        else {
+            return (number / 1000000000000).toFixed(1).replace(/\.0$/, '') + 'T';
+        }
+    }
+
+
+    async function toggleFollowUser() {
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+            return;
+        }
+
+        const usernameToToggleFollow = username;
+        const userIdToToggleFollow = userId;
+
+        try {
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userIdToToggleFollow
+                    }
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                showErrorPopup(
+                    `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`
+                );
             }
-        },
+            else {
+                let newFollowingStatus = await response.json();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
 
-
-        methods: {
-            formatNumber(number) {
-                if(number==='?') {
-                    return '?';
+                if (newFollowingStatus==='Stranger') {
+                    updateFollowText('Follow');
                 }
-                else if (number < 10000) {
-                    return number.toLocaleString();
-                }
-                else if (number >= 10000 && number < 1000000) {
-                    return (number / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-                }
-                else if (number >= 1000000 && number < 1000000000) {
-                    return (number / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
-                }
-                else if (number >= 1000000000 && number < 1000000000000) {
-                    return (number / 1000000000).toFixed(1).replace(/\.0$/, '') + 'B';
+                else if(newFollowingStatus==='Following') {
+                    updateFollowText('Unfollow');
                 }
                 else {
-                    return (number / 1000000000000).toFixed(1).replace(/\.0$/, '') + 'T';
-                }
-            },
-
-
-            async toggleFollowUser() {
-                if (this.authUserId == -1) {
-                    this.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
-                    return;
-                }
-
-                const usernameToToggleFollow = this.username;
-                const userIdToToggleFollow = this.userId;
-
-                try {
-                    const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
-                                toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
-                            }`,
-                            variables: {
-                                authUserId: this.authUserId,
-                                userIdToToggleFollow: userIdToToggleFollow
-                            }
-                        }),
-                        credentials: 'include'
-                    });
-                    if(!response.ok) {
-                        this.showErrorPopup(
-                            `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`
-                        );
-                    }
-                    else {
-                        let newFollowingStatus = await response.json();
-                        newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
-
-                        if (newFollowingStatus==='Stranger') {
-                            this.updateFollowText('Follow');
-                        }
-                        else if(newFollowingStatus==='Following') {
-                            this.updateFollowText('Unfollow');
-                        }
-                        else {
-                            this.updateFollowText('Cancel Request');
-                        }
-                    }
-                }
-                catch (error) {
-                    this.showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
-                    user ${usernameToToggleFollow}`);
+                    updateFollowText('Cancel Request');
                 }
             }
+        }
+        catch (error) {
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            user ${usernameToToggleFollow}`);
         }
     }
 </script>

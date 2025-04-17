@@ -29,8 +29,8 @@ public class ConvoInfoFetchingService {
     public ConvoInfoFetchingService() {}
 
     
-    public Object getConvoDetails(int convoId, RedisTemplate<String, Object>
-    redisTemplate, UserConvoRepository userConvoRepository) {
+    public Object getConvoDetails(int convoId, RedisTemplate<String, Object> redisTemplate, UserConvoRepository
+    userConvoRepository) {
         UserConvo userConvoDetailsObject = new UserConvo();
 
         try {
@@ -307,10 +307,175 @@ public class ConvoInfoFetchingService {
         }
         catch (Exception e) {
             return new String[] {
-                "There was trouble fetching the details of each of the provided convo-ids from the " +
-                "database",
+                "There was trouble fetching the details of each of the provided convo-ids from the database",
                 "BAD_GATEWAY"
             };
         }
+    }
+    
+
+    public Object getNumMessagesUserHasSentInSetOfConvos(UserConvoRepository userConvoRepository, UserMessageRepository
+    userMessageRepository, RedisTemplate<String, Object> redisTemplate, EncryptionAndDecryptionService 
+    encryptionAndDecryptionService, int authUserId, HashSet<Integer> setOfConvoIds) {
+        HashMap<Integer, Integer> convosAndTheirNumMessagesOfAuthUser = new HashMap<Integer, Integer>();
+
+        for (int convoId : setOfConvoIds) {
+            convosAndTheirNumMessagesOfAuthUser.put(convoId, 0);
+        }
+
+        HashMap<Integer, byte[]> convosAndTheirPlaintextDEKs = new HashMap<Integer, byte[]>();
+
+        try {
+            ArrayList<UserMessage> messagesOfSetOfConvos = userMessageRepository.getAllMessagesOfSetOfConvos(setOfConvoIds);
+
+            for(UserMessage message : messagesOfSetOfConvos) {
+                int convoIdOfMessage = message.getConvoId();
+                byte[] plaintextDataEncryptionKey = null;
+
+                if (convosAndTheirPlaintextDEKs.containsKey(convoIdOfMessage)) {
+                    plaintextDataEncryptionKey = convosAndTheirPlaintextDEKs.get(convoIdOfMessage);
+                }
+                else {
+                    byte[] encryptedDataEncryptionKey = null;
+
+                    try {
+                        encryptedDataEncryptionKey = (byte[]) redisTemplate.opsForHash().get(
+                            "detailsForConvo"+convoIdOfMessage, "encryptedDataEncryptionKey"
+                        );
+                    }
+                    catch (Exception e) {}
+
+                    if (encryptedDataEncryptionKey == null) {
+                        try {
+                            encryptedDataEncryptionKey = userConvoRepository.getEncryptedDataEncryptionKeyOfConvo(
+                                convoIdOfMessage
+                            );
+                        }
+                        catch (Exception e) {
+                            continue;
+                        }
+                    }  
+                    
+                    plaintextDataEncryptionKey = encryptionAndDecryptionService
+                    .decryptEncryptedAWSDataEncryptionKey(
+                        encryptedDataEncryptionKey
+                    );
+                    if (plaintextDataEncryptionKey == null) {
+                        continue;
+                    }
+
+                    convosAndTheirPlaintextDEKs.put(convoIdOfMessage, plaintextDataEncryptionKey);
+                }
+
+                String stringifiedSenderId = encryptionAndDecryptionService
+                .decryptTextWithAWSDataEncryptionKey(
+                    message.getEncryptedSender(),
+                    plaintextDataEncryptionKey,
+                    message.getSenderEncryptionIv(),
+                    message.getSenderEncryptionAuthTag()
+                );
+
+                int senderId = Integer.parseInt(stringifiedSenderId);
+
+                if (senderId == authUserId) {
+                    convosAndTheirNumMessagesOfAuthUser.put(
+                        convoIdOfMessage,
+                        convosAndTheirNumMessagesOfAuthUser.get(convoIdOfMessage)+1
+                    );
+                }
+            }
+
+            return convosAndTheirNumMessagesOfAuthUser;
+        }
+        catch (Exception e) {
+            return new String[] {
+                "There was trouble fetching from the database all the messages of each of the convos in the provided set",
+                "BAD_GATEWAY"
+            };
+        }
+    }
+
+
+    public Object getInfoOnAllConvosOfUser(int authUserId, HashSet<Integer> setOfAuthUserBlockings, UserConvoRepository
+    userConvoRepository, EncryptionAndDecryptionService encryptionAndDecryptionService) {
+        HashMap<String, Object> infoOnAllConvosOfUser = new HashMap<String, Object>();
+        HashMap<Integer, byte[]> convosAndTheirPlaintextDEKs = new HashMap<Integer, byte[]>();
+        HashMap<Integer, UserConvo> authUserConvosAndTheirDetails = new HashMap<Integer, UserConvo>();
+        ArrayList<UserConvo> allUserConvos = null;
+
+        try {
+            allUserConvos = (ArrayList<UserConvo>) userConvoRepository.findAll();
+        }
+        catch (Exception e) {
+            return new String[] {
+                "There was trouble fetching all the user-convos from the database",
+                "BAD_GATEWAY"
+            };
+        }
+
+        for (UserConvo userConvo : allUserConvos) {
+            byte[] encryptedDataEncryptionKey = userConvo.getEncryptedDataEncryptionKey();
+            byte[] plaintextDataEncryptionKey = encryptionAndDecryptionService.decryptEncryptedAWSDataEncryptionKey(
+                encryptedDataEncryptionKey
+            );
+
+            if (plaintextDataEncryptionKey == null) {
+                continue;
+            }
+
+            byte[] encryptedMembersOfConvo = userConvo.getEncryptedMembers();
+            String membersOfConvoAsString = encryptionAndDecryptionService.decryptTextWithAWSDataEncryptionKey(
+                encryptedMembersOfConvo,
+                plaintextDataEncryptionKey,
+                userConvo.getMembersEncryptionIv(),
+                userConvo.getMembersEncryptionAuthTag()
+            );
+            
+            ArrayList<Integer> membersOfConvo = null;
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                membersOfConvo = objectMapper.readValue(membersOfConvoAsString, ArrayList.class);
+            }
+            catch (IOException e) { }
+
+            int indexOfAuthUserInConvoMembers = -1;
+    
+            for(int i = 0; i < membersOfConvo.size(); i++) {
+                int convoMember = membersOfConvo.get(i);
+    
+                if(convoMember == authUserId) {
+                    indexOfAuthUserInConvoMembers = i;
+                }
+            }
+
+            if (indexOfAuthUserInConvoMembers == -1) {
+                continue;
+            }
+
+            boolean authUserIsBlockedByEachConvoMember = true;
+
+            for(int i = 0; i < membersOfConvo.size(); i++) {
+                int convoMember = membersOfConvo.get(i);
+
+                if (!setOfAuthUserBlockings.contains(convoMember)) {
+                    authUserIsBlockedByEachConvoMember = false;
+                    break;
+                }
+            }
+
+            if (authUserIsBlockedByEachConvoMember) {
+                continue;
+            }
+
+            int convoId = userConvo.getId();
+            convosAndTheirPlaintextDEKs.put(convoId, plaintextDataEncryptionKey);
+            authUserConvosAndTheirDetails.put(convoId, userConvo);
+        }
+        
+        infoOnAllConvosOfUser.put("convosAndTheirPlaintextDEKs", convosAndTheirPlaintextDEKs);
+        infoOnAllConvosOfUser.put("authUserConvosAndTheirDetails", authUserConvosAndTheirDetails);
+
+        return infoOnAllConvosOfUser;
     }
 }

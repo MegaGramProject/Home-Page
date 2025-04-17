@@ -4,11 +4,12 @@ namespace App\GraphQL\Queries\User;
 
 use App\Models\MySQL\User\PublicUser;
 use App\Models\MySQL\User\PrivateUser;
+
 use App\Services\UserAuthService;
 
+use Illuminate\Http\Request;
 use Rebing\GraphQL\Support\Query;
 use GraphQL\Type\Definition\Type;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Http;

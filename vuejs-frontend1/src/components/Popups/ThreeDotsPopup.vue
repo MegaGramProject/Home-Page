@@ -75,118 +75,113 @@
 </template>
   
 
+<script setup>
+    import { defineProps, ref, toRefs } from 'vue';
 
-<script>
-    export default {
-        props: {
-            authUserId: Number,
-            postDetails: Object,
+    const props = defineProps({
+        authUserId: Number,
+            
+        postDetails: Object,
 
-            hidePost: Function,
-            showAboutAccountPopup: Function,
-            closePopup: Function,
-            showErrorPopup: Function
-        },
+        hidePost: Function,
+        showAboutAccountPopup: Function,
+        closePopup: Function,
+        showErrorPopup: Function
+    });
+
+    const { authUserId, postDetails, hidePost, showAboutAccountPopup, closePopup, showErrorPopup } = toRefs(props);
+
+    const copyLinkText = ref('Copy link');
+    const toggleFollowText = ref('Unfollow');
 
 
-        data() {
-            return {
-                copyLinkText: 'Copy link',
-                toggleFollowText: 'Unfollow'
+    function copyPostLinkToClipboard() {
+        navigator.clipboard.writeText(
+            `http://34.111.89.101/posts/${postDetails.overallPostId}`
+        )
+        .then(() => {
+            copyLinkText.value = 'Copied';
+            setTimeout(() => {
+                copyLinkText.value = 'Copy link';
+            }, 550);
+        })
+        .catch(_ => {
+            _;
+            copyLinkText.value = 'Failed to copy'
+            setTimeout(() => {
+                copyLinkText.value = 'Copy link';
+            }, 550);
+        });
+    }
+
+
+    function visitPostLink() {
+        window.open(`http://34.111.89.101/posts/${postDetails.overallPostId}`, '_blank');
+    }
+
+
+    function visitAdLink() {
+        window.open(postDetails.adInfo.link, '_blank');
+    }
+
+
+    async function toggleFollowUser() {
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+            return;
+        }
+
+        const usernameToToggleFollow = postDetails.authors[0];
+        const userIdToToggleFollow = postDetails.authorIds[0];
+
+        try {
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userIdToToggleFollow
+                    }
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                showErrorPopup(
+                `The server had trouble toggling your follow-status of ${usernameToToggleFollow}`);
             }
-        },
+            else {
+                let newFollowingStatus = await response.json();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
 
-
-        methods: {
-            copyPostLinkToClipboard() {
-                navigator.clipboard.writeText(
-                    `http://34.111.89.101/posts/${this.postDetails.overallPostId}`
-                )
-                .then(() => {
-                    this.copyLinkText = 'Copied';
-                    setTimeout(() => {
-                        this.copyLinkText = 'Copy link';
-                    }, 550);
-                })
-                .catch(_ => {
-                    _;
-                    this.copyLinkText = 'Failed to copy'
-                    setTimeout(() => {
-                        this.copyLinkText = 'Copy link';
-                    }, 550);
-                });
-            },
-
-
-            visitPostLink() {
-                window.open(`http://34.111.89.101/posts/${this.postDetails.overallPostId}`, '_blank');
-            },
-
-
-            visitAdLink() {
-                window.open(this.postDetails.adInfo.link, '_blank');
-            },
-
-
-            async toggleFollowUser() {
-                if (this.authUserId == -1) {
-                    this.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
-                    return;
+                if (newFollowingStatus==='Stranger') {
+                    toggleFollowText.value = 'Follow'
                 }
-
-                const usernameToToggleFollow = this.postDetails.authors[0];
-                const userIdToToggleFollow = this.postDetails.authorIds[0];
-
-                try {
-                    const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
-                                toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
-                            }`,
-                            variables: {
-                                authUserId: this.authUserId,
-                                userIdToToggleFollow: userIdToToggleFollow
-                            }
-                        }),
-                        credentials: 'include'
-                    });
-                    if(!response.ok) {
-                        this.showErrorPopup(
-                        `The server had trouble toggling your follow-status of ${usernameToToggleFollow}`);
-                    }
-                    else {
-                        let newFollowingStatus = await response.json();
-                        newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
-
-                        if (newFollowingStatus==='Stranger') {
-                            this.toggleFollowText = 'Follow'
-                        }
-                        else if(newFollowingStatus==='Following') {
-                            this.toggleFollowText = 'Unfollow';
-                        }
-                        else {
-                            this.toggleFollowText = 'Cancel Request';
-                        }
-                    }
+                else if(newFollowingStatus==='Following') {
+                    toggleFollowText.value = 'Unfollow';
                 }
-                catch (error) {
-                    this.showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
-                    ${usernameToToggleFollow}`);
+                else {
+                    toggleFollowText.value = 'Cancel Request';
                 }
-            },
-
-
-            async markPostAsNotInterested() {
-                if (this.authUserId == -1) {
-                    this.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
-                    return;
-                }
-
-                //for sake of simplicity, the code for this method has been omitted
-                this.closePopup();
             }
         }
+        catch (error) {
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            ${usernameToToggleFollow}`);
+        }
+    }
+
+
+    async function markPostAsNotInterested() {
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+            return;
+        }
+
+        //for sake of simplicity, the code for this method has been omitted
+        closePopup();
     }
 </script>

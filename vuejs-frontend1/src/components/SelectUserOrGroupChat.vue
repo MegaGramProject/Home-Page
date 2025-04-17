@@ -28,55 +28,48 @@
 </template>
   
 
-<script>
+<script setup>
     import checkedIcon from '../assets/images/checkedIcon.png';
-    import solidGrayDot from '../assets/images/solidGrayDot.png';
-    import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
+import solidGrayDot from '../assets/images/solidGrayDot.png';
+import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
+
+    import { defineProps, toRefs } from 'vue';
 
 
-    export default {
-        props: {
-            groupChatId: Number,
+    const props = defineProps({
+        groupChatId: Number,
+        userId: Number,
 
-            usernameOrGroupChatName: String,
-            fullName: String, 
-            profilePhoto: String,
+        userOrGroupChatName: String,
+        fullName: String, 
+        profilePhoto: String,
 
-            isSelected: Boolean,
-            isVerified: Boolean,
+        isSelected: Boolean,
+        isVerified: Boolean,
 
-            selectThisUserOrGroupChat: Function,
-            unselectThisUserOrGroupChat: Function
-        },
+        selectThisUserOrGroupChat: Function,
+        unselectThisUserOrGroupChat: Function
+    });
 
+    const { groupChatId, userId, userOrGroupChatName, fullName, profilePhoto, isSelected, isVerified,
+    selectThisUserOrGroupChat, unselectThisUserOrGroupChat } = toRefs(props);
 
-        data() {
-            return {
-                checkedIcon,
-                solidGrayDot,
-                verifiedBlueCheck
+    
+    function toggleSelectThisUserOrGroupChat() {
+        if(!isSelected) {
+            if(groupChatId==null) {
+                selectThisUserOrGroupChat(`user/${userId}/${userOrGroupChatName}`);
             }
-        },
-
-
-        methods: {
-            toggleSelectThisUserOrGroupChat() {
-                if(!this.isSelected) {
-                    if(this.groupChatId==null) {
-                        this.selectThisUserOrGroupChat(this.usernameOrGroupChatName);
-                    }
-                    else {
-                        this.selectThisUserOrGroupChat('GROUP CHAT ' + this.groupChatId);
-                    }
-                }
-                else {
-                    if(this.groupChatId==null) {
-                        this.unselectThisUserOrGroupChat(this.usernameOrGroupChatName);
-                    }
-                    else {
-                        this.unselectThisUserOrGroupChat('GROUP CHAT ' + this.groupChatId);
-                    }
-                }
+            else {
+                selectThisUserOrGroupChat(`group-chat/${groupChatId}/${userOrGroupChatName}`);
+            }
+        }
+        else {
+            if(groupChatId==null) {
+                unselectThisUserOrGroupChat(`user/${userId}/${userOrGroupChatName}`);
+            }
+            else {
+                unselectThisUserOrGroupChat(`group-chat/${groupChatId}/${userOrGroupChatName}`);
             }
         }
     }

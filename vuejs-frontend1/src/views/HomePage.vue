@@ -11,9 +11,29 @@
         
     </div>
 
-    <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup"
-    @click="closeAllPopups" :src="blackScreen" style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%;
-    opacity: 0.7; zIndex: 2;"/>
+    <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup ||
+    displayLikersPopup || displaySendPostPopup" @click="closeAllPopups" :src="blackScreen" style="position: fixed; top: 0%; left: 0%;
+    width: 100%; height: 100%; opacity: 0.7; zIndex: 2;"/>
+
+    <div v-if="displayAboutAccountPopup" :style="[
+        { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
+        { zIndex: displayStoryViewer ? '1' : '3' }
+    ]">
+        <AboutAccountPopup
+            :authUserId="authUserId"
+            :userId="aboutAccountUserId"
+            :username="aboutAccountUsername"
+            :authUser="authUser"
+            :userPfp="aboutAccountUserProfilePhoto"
+            :userIsVerified="aboutAccountUserIsVerified"
+            :userHasStories="aboutAccountUserHasStories"
+            :userHasUnseenStory="aboutAccountUserHasUnseenStory"
+            :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
+            :addRelevantInfoToUser="addRelevantInfoToUser"
+            :closePopup="closeAboutAccountPopup"
+            :showStoryViewer="showStoryViewer"
+        />
+    </div>
 
     <div v-if="displayLeftSidebarPopup" :style="[
         { position: 'fixed', bottom: '10%', left: '1%' },
@@ -40,26 +60,35 @@
         />
     </div>
 
-    <div v-if="displayAboutAccountPopup" :style="[
+    <div v-if="displayLikersPopup" :style="[
         { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-        { zIndex: displayStoryViewer ? '1' : '3' }
+        { zIndex: displayErrorPopup ? '1' : '3' }
     ]">
-        <AboutAccountPopup
+        <LikersPopup
+            :idOfPostOrComment="likersPopupIdOfPostOrComment"
             :authUserId="authUserId"
-            :userId="aboutAccountUserId"
-            :username="aboutAccountUsername"
-            :authUser="authUser"
-            :userPfp="aboutAccountUserProfilePhoto"
-            :userIsVerified="aboutAccountUserIsVerified"
-            :userHasStories="aboutAccountUserHasStories"
-            :userHasUnseenStory="aboutAccountUserHasUnseenStory"
-            :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
-            :addRelevantInfoToUser="addRelevantInfoToUser"
-            :closePopup="closeAboutAccountPopup"
-            :showStoryViewer="showStoryViewer"
+            :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo" 
+            :closePopup="closeLikersPopup"
+            :showErrorPopup="showErrorPopup"
+            :updateUsersAndTheirRelevantInfo="updateUsersAndTheirRelevantInfo"
         />
     </div>
 
+    <div v-if="displaySendPostPopup" :style="[
+        { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
+        { zIndex: displayErrorPopup ? '1' : '3' }
+    ]">
+        <SendPostPopup
+            :authUserId="authUserId"
+            :overallPostId="sendPostPopupOverallPostId"
+            :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
+            :cachedMessageSendingSuggestions="cachedMessageSendingSuggestions"
+            :updateUsersAndTheirRelevantInfo="updateUsersAndTheirRelevantInfo"
+            :updateCachedMessageSendingSuggestions="updateCachedMessageSendingSuggestions"
+            :showErrorPopup="showErrorPopup"
+            :closePopup="closeSendPostPopup"
+        />
+    </div>
 
     <div v-if="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); zIndex:
     3;">
@@ -75,6 +104,8 @@
     import AboutAccountPopup from '@/components/Popups/AboutAccountPopup.vue';
 import ErrorPopup from '@/components/Popups/ErrorPopup.vue';
 import LeftSidebarPopup from '@/components/Popups/LeftSidebarPopup.vue';
+import LikersPopup from '@/components/Popups/LikersPopup.vue';
+import SendPostPopup from '@/components/Popups/SendPostPopup.vue';
 import ThreeDotsPopup from '@/components/Popups/ThreeDotsPopup.vue';
 
     //import FooterSection from '@/components/FooterSection.vue';
@@ -94,6 +125,8 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
             ErrorPopup,
             ThreeDotsPopup,
             AboutAccountPopup,
+            LikersPopup,
+            SendPostPopup,
 
             LeftSidebar,
             //FooterSection,
@@ -129,6 +162,12 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
                 aboutAccountUserHasUnseenStory: false,
                 aboutAccountUserProfilePhoto: null,
 
+                displayLikersPopup: false,
+                likersPopupIdOfPostOrComment: '',
+
+                displaySendPostPopup: false,
+                sendPostPopupOverallPostId: '',
+
                 displayCommentsPopup: false,
 
                 displayStoryViewer: false,
@@ -136,6 +175,8 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
                 storyViewerIsFromStoriesSection: false,
 
                 usersAndTheirRelevantInfo: {},
+
+                cachedMessageSendingSuggestions: {},
 
                 orderedListOfPosts: []
             }
@@ -239,6 +280,16 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
             },
 
 
+            updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo) {
+                this.usersAndTheirRelevantInfo = newUsersAndTheirRelevantInfo;
+            },
+
+
+            updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions) {
+                this.cachedMessageSendingSuggestions = newCachedMessageSendingSuggestions;
+            },
+
+
             showErrorPopup(newErrorPopupMessage) {
                 this.errorPopupMessage = newErrorPopupMessage;
                 this.displayErrorPopup = true;
@@ -276,11 +327,23 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
                 this.displayAboutAccountPopup = true;
             },
 
-
+            
             showStoryViewer(newStoryViewerUsername, newStoryViewerIsFromStoriesSection) {
                 this.storyViewerUsername = newStoryViewerUsername;
                 this.storyViewerIsFromStoriesSection = newStoryViewerIsFromStoriesSection;
                 this.displayStoryViewer = true;
+            },
+
+
+            showLikersPopup(newLikersPopupIdOfPostOrComment) {
+                this.likersPopupIdOfPostOrComment = newLikersPopupIdOfPostOrComment;
+                this.displayLikersPopup = true;
+            },
+
+
+            showSendPostPopup(newSendPostPopupOverallPostId) {
+                this.sendPostPopupOverallPostId = newSendPostPopupOverallPostId;
+                this.displaySendPostPopup = true;
             },
 
 
@@ -290,11 +353,17 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
 
 
             closeAllPopups() {
+                if(!(this.displayCommentsPopup && (this.displayThreeDotsPopup || this.displayAboutAccountPopup ||
+                this.displayErrorPopup || this.displayLikersPopup || this.displaySendPostPopup))) {
+                    this.displayCommentsPopup = false;
+                }
+
                 this.displayLeftSidebarPopup = false;
                 this.displayErrorPopup = false;
                 this.displayThreeDotsPopup = false;
                 this.displayAboutAccountPopup = false;
-                this.displayCommentsPopup = false;
+                this.displayLikersPopup = false;
+                this.displaySendPostPopup = false;
             },
 
 
@@ -311,6 +380,16 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
             closeAboutAccountPopup() {
                 this.displayAboutAccountPopup = false;
                 this.displayThreeDotsPopup = false;
+            },
+
+
+            closeLikersPopup () {
+                this.displayLikersPopup = false;
+            },
+
+
+            closeSendPostPopup() {
+                this.displaySendPostPopup = false;
             },
 
 

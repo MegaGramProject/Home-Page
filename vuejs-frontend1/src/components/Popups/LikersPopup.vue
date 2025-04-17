@@ -1,33 +1,100 @@
-import FollowUser from '../../FollowUser';
+<template>
+    <div ref="scrollableLikersDivRef" class="popup" :style="{backgroundColor:'white', width:'40em', height:'40em',
+    display:'flex', flexDirection:'column', alignItems:'center', borderRadius:'1.5%', overflowY:'scroll', position: 'relative'}">
+              
+        <div :style="{display:'flex', justifyContent: 'center', position: 'relative', width: '100%', borderStyle: 'solid',
+        borderColor: 'lightgray', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderWidth: '0.08em', padding:
+        '1em 1em'}">
+            <b>Likes</b>
+            <img :src="thinGrayXIcon" @click="closePopup" :style="{height:'1.3em', width:'1.3em', cursor:'pointer', position:
+            'absolute', right: '5%', top: '30%'}"/>
+        </div>
+  
+        <template v-if="fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length==0">
+            <FollowUser v-for="likerInfo in likers"
+                :key="likerInfo.likerId"
+                :authUserId="authUserId"
+                :userId="likerInfo.likerId"
+                :username="likerInfo.likerUsername"
+                :userFullName="likerInfo.likerFullName"
+                :userPfp="likerInfo.likerPfp"
+                :originalFollowText="likerInfo.originalFollowText"
+                :userIsVerified="likerInfo.likerIsVerified"
+                :showErrorPopup="showErrorPopup"
+            />
+        </template>
+  
+        <template v-if="fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length>0">
+            <p :style="{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '75%', color:
+            'gray'}">
+                {{ initialLikersFetchingErrorMessage }}
+            </p>
+        </template>
+  
+        <template v-if="!fetchingInitialLikersIsComplete">
+            <img :src="loadingAnimation" :style="{height: '2.75em', width: '2.75em', objectFit: 'contain', pointerEvents: 'none',
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}"/>
+        </template>
+    
+        <template v-if="!isCurrentlyFetchingAdditionalLikers && additionalLikersFetchingErrorMessage.length>0">
+            <p :style="{width: '85%', color: 'gray', fontSize: '0.88em', marginTop: '3.75em'}">
+                {{ additionalLikersFetchingErrorMessage }}
+            </p>
+        </template> 
+    
+        <template v-if="isCurrentlyFetchingAdditionalLikers">
+            <img :src="loadingAnimation" :style="{height: '2em', width: '2em', objectFit: 'contain', pointerEvents: 'none',
+            marginTop: '3.75em'}"/>
+        </template>
+    </div>
+</template>
+  
 
-import defaultPfp from '../../assets/images/defaultPfp.png';
+<script setup>
+    import FollowUser from '../FollowUser.vue';
+    
+    import defaultPfp from '../../assets/images/defaultPfp.png';
 import loadingAnimation from '../../assets/images/loadingAnimation.gif';
 import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-import { useEffect, useRef, useState } from 'react';
+    import { defineProps, onBeforeUnmount, onMounted, ref, toRefs } from 'vue';
 
 
-function LikersPopup({idOfPostOrComment, authUserId, usersAndTheirRelevantInfo, closePopup, showErrorPopup,
-updateUsersAndTheirRelevantInfo}) {
-    const [likers, setLikers] = useState([]);
-    const [likerIdsToExclude, setLikerIdsToExclude] = useState([]);
+    const props = defineProps({
+        idOfPostOrComment: [String, Number],
 
-    const [initialLikersFetchingErrorMessage, setInitialLikersFetchingErrorMessage] = useState('');
-    const [additionalLikersFetchingErrorMessage, setAdditionalLikersFetchingErrorMessage] = useState('');
+        authUserId: Number,
 
-    const [fetchingInitialLikersIsComplete, setFetchingInitialLikersIsComplete] = useState(false);
-    const [isCurrentlyFetchingAdditionalLikers, setIsCurrentlyFetchingAdditionalLikers] = useState(false);
+        usersAndTheirRelevantInfo: Object, 
 
-    const scrollableLikersDivRef = useRef(null);
+        closePopup: Function,
+        showErrorPopup: Function,
+        updateUsersAndTheirRelevantInfo: Function
+    });
 
+    const { idOfPostOrComment, authUserId, usersAndTheirRelevantInfo, closePopup, showErrorPopup,
+    updateUsersAndTheirRelevantInfo } = toRefs(props);
 
-    useEffect(() => {
+    const likers = ref([]);
+    const likerIdsToExclude = ref([]);
+
+    const initialLikersFetchingErrorMessage = ref('');
+    const additionalLikersFetchingErrorMessage = ref('');
+
+    const fetchingInitialLikersIsComplete = ref(false);
+    const isCurrentlyFetchingAdditionalLikers = ref(false);
+
+    const scrollableLikersDivRef = ref(null);
+       
+    
+    onMounted(() => {
         fetchLikers('initial');
+    });
 
-        return () => {
-            window.removeEventListener('scroll', fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
-        };
-    }, []);
+
+    onBeforeUnmount(() => {
+        window.removeEventListener('scroll', fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
+    });
 
 
     async function fetchLikers(initialOrAdditionalText) {
@@ -40,48 +107,48 @@ updateUsersAndTheirRelevantInfo}) {
             /${idOfPostOrComment}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(likerIdsToExclude),
+                body: JSON.stringify(likerIdsToExclude.value),
                 credentials: 'include'
             });
 
             if(!response.ok) {
                 if(isInitialFetch) {
-                    setInitialLikersFetchingErrorMessage(
+                    initialLikersFetchingErrorMessage.value = 
                         `The server had trouble getting the initial likers of this ${postOrCommentText}.`
-                    );
-                    setFetchingInitialLikersIsComplete(true);
+                    ;
+                    fetchingInitialLikersIsComplete.value = true;
                 }
                 else {
-                    setAdditionalLikersFetchingErrorMessage(
+                    additionalLikersFetchingErrorMessage.value = 
                         `The server had trouble getting the additional likers of this ${postOrCommentText}.`
-                    );
-                    setIsCurrentlyFetchingAdditionalLikers(false);
+                    ;
+                    isCurrentlyFetchingAdditionalLikers.value = false;
                 }
-                
+
                 return;
             }
 
             const fetchedLikers = await response.json();
             if (fetchedLikers.length == 0) {
                 if(isInitialFetch) {
-                    setInitialLikersFetchingErrorMessage('No one has liked this yet');
-                    setFetchingInitialLikersIsComplete(true);
+                    initialLikersFetchingErrorMessage.value = 'No one has liked this yet';
+                    fetchingInitialLikersIsComplete.value = true;
                 }
                 else {
-                    setAdditionalLikersFetchingErrorMessage('No additional likers have been found yet');
-                    setFetchingInitialLikersIsComplete(false);
+                    additionalLikersFetchingErrorMessage.value = 'No additional likers have been found yet';
+                    isCurrentlyFetchingAdditionalLikers.value = false;
                 }
 
                 return;
             }
 
             const newLikerIds = fetchedLikers.map(fetchedLiker => fetchedLiker.likerId);
-            setLikerIdsToExclude([...likerIdsToExclude, ...newLikerIds]);
+            likerIdsToExclude.value = [...likerIdsToExclude.value, ...newLikerIds];
 
             const newUsersAndTheirRelevantInfo = await fetchAllTheNecessaryLikerInfo(newLikerIds);
             updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
 
-            const newLikers = [...likers];
+            const newLikers = [...likers.value];
             for(let fetchedLiker of fetchedLikers) {
                 const likerId = fetchedLiker.likerId;
 
@@ -117,77 +184,51 @@ updateUsersAndTheirRelevantInfo}) {
                     likerIsVerified = false;
                 }
 
-                if(likerId === authUserId) {
-                    newLikers.push(
-                        <FollowUser
-                            key={likerId}
-                            authUserId={authUserId}
-                            userId={likerId}
-                            username={likerUsername}
-                            userFullName={likerFullName}
-                            userPfp={likerPfp}
-                            originalFollowText={''}
-                            userIsVerified={likerIsVerified}
-                            showErrorPopup={showErrorPopup}
-                        />
-                    );
+                const newLikerInfo = {
+                    likerId: likerId,
+                    likerUsername: likerUsername,
+                    likerFullName: likerFullName,
+                    likerPfp: likerPfp,
+                    likerIsVerified: likerIsVerified
+                };
+
+                if (likerId === authUserId) {
+                    newLikerInfo.originalFollowText = '';
                 }
-                else if(fetchedLiker.isFollowedByAuthUser) {
-                    newLikers.push(
-                        <FollowUser
-                            key={likerId}
-                            authUserId={authUserId}
-                            userId={likerId}
-                            username={likerUsername}
-                            userFullName={likerFullName}
-                            userPfp={likerPfp}
-                            originalFollowText={'Following'}
-                            userIsVerified={likerIsVerified}
-                            showErrorPopup={showErrorPopup}
-                        />
-                    );
+                else if (fetchedLiker.isFollowedByAuthUser) {
+                    newLikerInfo.originalFollowText = 'Following';
                 }
                 else {
-                    newLikers.push(
-                        <FollowUser
-                            key={likerId}
-                            authUserId={authUserId}
-                            userId={likerId}
-                            username={likerUsername}
-                            userFullName={likerFullName}
-                            userPfp={likerPfp}
-                            originalFollowText={'Follow'}
-                            userIsVerified={likerIsVerified}
-                            showErrorPopup={showErrorPopup}
-                        />
-                    );
+                    newLikerInfo.originalFollowText = 'Follow';
                 }
+
+                newLikers.push(newLikerInfo);
             }
 
-            setLikers(newLikers);
+            likers.value = newLikers;
 
             if(isInitialFetch) {
-                setFetchingInitialLikersIsComplete(true);
+                fetchingInitialLikersIsComplete.value = true;
                 setTimeout(() => {
                     window.addEventListener("scroll", fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
                 }, 1500);
             }
             else {
-                setIsCurrentlyFetchingAdditionalLikers(false);
+                isCurrentlyFetchingAdditionalLikers.value = false;
             }
         }
         catch {
             if(isInitialFetch) {
-                setInitialLikersFetchingErrorMessage(
+                initialLikersFetchingErrorMessage.value = 
                     `There was trouble connecting to the server to get the initial likers of this ${postOrCommentText}.`
-                );
-                setFetchingInitialLikersIsComplete(true);
+                ;
+                fetchingInitialLikersIsComplete.value = true;
             }
             else {
-                setAdditionalLikersFetchingErrorMessage(
+                additionalLikersFetchingErrorMessage.value = 
                     `There was trouble connecting to the server to get the additional likers of this ${postOrCommentText}.`
-                );
-                setIsCurrentlyFetchingAdditionalLikers(false);
+                ;
+                isCurrentlyFetchingAdditionalLikers.value = false;
             }
         }
     }
@@ -200,7 +241,8 @@ updateUsersAndTheirRelevantInfo}) {
 
         let usersAndTheirUsernames = {};
         const newLikerIdsNeededForUsernames = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('username' in usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in usersAndTheirRelevantInfo) || !('username' in
+            usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -234,7 +276,8 @@ updateUsersAndTheirRelevantInfo}) {
 
         let usersAndTheirVerificationStatuses = {};
         const newLikerIdsNeededForVerificationStatuses = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('isVerified' in usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in usersAndTheirRelevantInfo) || !('isVerified' in
+            usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -368,7 +411,8 @@ updateUsersAndTheirRelevantInfo}) {
 
         let usersAndTheirPfps = {};
         const newLikerIdsNeededForPfps = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('profilePhoto' in usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in usersAndTheirRelevantInfo) || !('profilePhoto' in
+            usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -401,8 +445,8 @@ updateUsersAndTheirRelevantInfo}) {
         const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
 
         for(let newLikerId of newLikerIds) {
-            if (!(newLikerId in usersAndTheirUsernames) && !(newLikerId in usersAndTheirFullNames) &&
-            !(newLikerId in usersAndTheirVerificationStatuses) && !(newLikerId in usersAndTheirPfps)) {
+            if (!(newLikerId in usersAndTheirFullNames) && !(newLikerId in usersAndTheirVerificationStatuses) &&
+            !(newLikerId in usersAndTheirPfps)) {
                 continue;
             }
 
@@ -428,68 +472,12 @@ updateUsersAndTheirRelevantInfo}) {
 
 
     function fetchAdditionalLikersWhenUserScrollsToBottomOfPopup() {
-        if (additionalLikersFetchingErrorMessage.length==0 && !isCurrentlyFetchingAdditionalLikers &&
-        scrollableLikersDivRef.current && scrollableLikersDivRef.current.clientHeight + 
-        scrollableLikersDivRef.current.scrollTop >= scrollableLikersDivRef.current.scrollHeight) {
-            setIsCurrentlyFetchingAdditionalLikers(true);
+        const el = scrollableLikersDivRef.value;
+        
+        if (additionalLikersFetchingErrorMessage.value.length === 0 && !isCurrentlyFetchingAdditionalLikers.value &&
+        el && el.clientHeight + el.scrollTop >= el.scrollHeight) {
+            isCurrentlyFetchingAdditionalLikers.value = true;
             fetchLikers('additional');
         }
     }
-
-    
-    return (
-        <div ref={scrollableLikersDivRef} className="popup" style={{backgroundColor:'white', width:'40em', height:'40em',
-        display:'flex', flexDirection:'column', alignItems:'center', borderRadius:'1.5%', overflowY:'scroll',
-        position: 'relative'}}>
-            
-            <div style={{display:'flex', justifyContent: 'center', position: 'relative',
-            width: '100%', borderStyle: 'solid', borderColor: 'lightgray', borderTop: 'none',
-            borderLeft: 'none', borderRight: 'none', borderWidth: '0.08em', padding: '1em 1em'}}>
-                <b>Likes</b>
-                <img src={thinGrayXIcon} onClick={closePopup} style={{height:'1.3em', width:'1.3em', 
-                cursor:'pointer', position: 'absolute', right: '5%', top: '30%'}}/>
-            </div>
-
-            {(fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length==0) &&
-                (
-                    likers
-                )
-            }
-
-            {(fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length>0) &&
-                (
-                    <p style={{position: 'absolute', top: '50%', left: '50%',
-                    transform: 'translate(-50%, -50%)', width: '75%', color: 'gray'}}>
-                        {initialLikersFetchingErrorMessage}
-                    </p>
-                )
-            }
-
-            {!fetchingInitialLikersIsComplete &&
-                (
-                    <img src={loadingAnimation} style={{height: '2.75em', width: '2.75em', objectFit: 'contain',
-                    pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%', transform:
-                    'translate(-50%, -50%)'}}/>
-                )
-            }
-
-            {(!isCurrentlyFetchingAdditionalLikers && additionalLikersFetchingErrorMessage.length>0) &&
-                (
-                    <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
-                    marginTop: '3.75em'}}>
-                        {additionalLikersFetchingErrorMessage}
-                    </p>
-                )
-            } 
-
-            {isCurrentlyFetchingAdditionalLikers &&
-                (
-                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                    objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}}/>
-                )
-            }
-        </div>
-    );
-}
-
-export default LikersPopup;
+</script>

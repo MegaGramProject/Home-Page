@@ -1,45 +1,176 @@
-import SelectUserOrGroupChat from '../../SelectUserOrGroupChat';
+<template>
+    <div class="popup" :style="{borderRadius:'2%', width:'35em', height:'35em', paddingTop:'1em', position: 'relative'}">
+        <b>Share</b>
 
-import defaultGroupChatPfp from '../../assets/images/defaultGroupChatPfp.png';
+        <img @click="closePopup" :src="thinGrayXIcon" :style="{objectFit:'contain', height:'1.7em', width:'1.6em', position:'absolute', 
+        left:'90%', top: '2%', cursor:'pointer'}" />
+
+        <hr :style="{width: '99%', borderTop: '0.1px solid lightgray', marginTop: '1.2em'}" />
+
+        <div :style="{display:'flex',  paddingLeft:'1em', alignItems:'center'}">
+            <b>To:</b>
+            <input type="text" :value="inputText" @input="fetchUsersToSendPostToGivenTextInput" placeholder="Search..."
+            :style="{width:'35em', marginLeft:'1em', fontSize:'0.9em', borderStyle:'none', outline: 'none'}"/>
+        </div>
+
+        <hr :style="{width: '99%', borderTop: '0.1px solid lightgray'}" />
+
+        <div :style="{display:'flex', flexDirection:'column', alignItems:'start', height:'26em', overflow:'scroll', gap: '1em',
+        position: 'relative', width: '99%'}">
+            <template v-if="selectedUsersAndGroupChats.size > 0">
+                <b :style="{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}">
+                    Selected
+                </b>
+
+                <SelectUserOrGroupChat v-for="selectedUserOrGroupChat in selectedUsersAndGroupChats"
+                    :key="getSpecificInfoOnSelectedUserOrGroupChat('key', selectedUserOrGroupChat)"
+                    :groupChatId="getSpecificInfoOnSelectedUserOrGroupChat('groupChatId', selectedUserOrGroupChat)"
+                    :userId="getSpecificInfoOnSelectedUserOrGroupChat('userId', selectedUserOrGroupChat)"
+                    :userOrGroupChatName="getSpecificInfoOnSelectedUserOrGroupChat(
+                        'userOrGroupChatName',
+                        selectedUserOrGroupChat
+                    )"
+                    :fullName="getSpecificInfoOnSelectedUserOrGroupChat('fullName', selectedUserOrGroupChat)"
+                    :profilePhoto="getSpecificInfoOnSelectedUserOrGroupChat('profilePhoto', selectedUserOrGroupChat)"
+                    :isSelected="true"
+                    :isVerified="getSpecificInfoOnSelectedUserOrGroupChat('isVerified', selectedUserOrGroupChat)"
+                    :selectThisUserOrGroupChat="selectUserOrGroupChat"
+                    :unselectThisUserOrGroupChat="unselectUserOrGroupChat"
+                />
+            </template>
+
+            <b v-if="inputText.length === 0" :style="{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}">Suggested</b>
+
+            <template v-if="errorMessage.length === 0">
+                <SelectUserOrGroupChat v-for="suggestion in currentSuggestions.filter(
+                    suggestion => {
+                        const isGroupChatSelected = selectedUsersAndGroupChats.has(
+                            `group-chat/${suggestion.groupChatId}/${suggestion.userOrGroupChatName}`
+                        );
+                        const isUserSelected = selectedUsersAndGroupChats.has(
+                            `user/${suggestion.userId}/${suggestion.userOrGroupChatName}`
+                        );
+                    
+                        return (!isGroupChatSelected && !isUserSelected);
+                    }
+                )"
+                    :key="getSpecificInfoOnPostSendingSuggestion('key', suggestion)"
+                    :groupChatId="getSpecificInfoOnPostSendingSuggestion('groupChatId', suggestion)"
+                    :userId="getSpecificInfoOnPostSendingSuggestion('userId', suggestion)"
+                    :userOrGroupChatName="getSpecificInfoOnPostSendingSuggestion(
+                        'userOrGroupChatName',
+                        suggestion
+                    )"
+                    :fullName="getSpecificInfoOnPostSendingSuggestion('fullName', suggestion)"
+                    :profilePhoto="getSpecificInfoOnPostSendingSuggestion('profilePhoto', suggestion)"
+                    :isSelected="false"
+                    :isVerified="getSpecificInfoOnPostSendingSuggestion('isVerified', suggestion)"
+                    :selectThisUserOrGroupChat="selectUserOrGroupChat"
+                    :unselectThisUserOrGroupChat="unselectUserOrGroupChat"
+                />
+            </template>
+
+            <p v-if="errorMessage.length > 0" :style="{maxWidth: '90%', overflowWrap: 'break-word', color: 'gray', fontSize:
+            '0.88em', textAlign:'start', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}">
+                {{ errorMessage }}
+            </p>
+
+            <img v-if="statusOfFetchingResults === 'Loading...'" :src="loadingAnimation" :style="{height: '2.75em', width: '2.75em',
+            objectFit: 'contain', pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%', transform:
+            'translate(-50%, -50%)'}"/>
+        </div>
+
+        <button v-if="selectedUsersAndGroupChats.size === 0" class="blueButton" :style="{width:'42em'}">
+            Send
+        </button>
+
+        <button v-if="statusOfSendingPost !== 'Loading...' && selectedUsersAndGroupChats.size === 1" @click="() =>
+        sendPost('individually')" class="blueButton" :style="{width:'42em', cursor:'pointer', backgroundColor:'#347aeb'}">
+            Send
+        </button>
+
+        <div v-if="statusOfSendingPost !== 'Loading...' && selectedUsersAndGroupChats.size > 1" :style="{display: 'flex', gap: '1em',
+        alignItems: 'center', justifyContent: 'center', width: '100%'}">
+            <button @click="() => sendPost('individually')" class="blueButton" :style="{width:'19em', cursor:'pointer', 
+            backgroundColor:'#347aeb'}">
+                Send Individually
+            </button>
+            <button @click="() => sendPost('as a group')" class="blueButton" :style="{width:'19em', cursor:'pointer',
+            backgroundColor:'#347aeb'}">
+                Send in Group-Chat
+            </button>
+        </div>
+
+        <img v-if="statusOfSendingPost === 'Loading...'" :src="loadingAnimation" :style="{height: '100%', width: '2.75em',
+        objectFit: 'contain', pointerEvents: 'none', position: 'absolute', top: '85%', left: '50%', transform:
+        'translate(-50%, -50%)'}"/>
+
+        <p v-if="statusOfSendingPost === 'Sent'" :style="{position: 'absolute', top: '85%', left: '50%', transform:
+        'translate(-50%, -50%)', color: 'white', backgroundColor: 'black', padding: '0.4em 0.8em', borderRadius: '0.3em'}">
+            Sent
+        </p>
+    </div>
+</template>
+  
+
+<script setup>
+    import SelectUserOrGroupChat from '../SelectUserOrGroupChat.vue';
+
+    import defaultGroupChatPfp from '../../assets/images/defaultGroupChatPfp.png';
 import defaultPfp from '../../assets/images/defaultPfp.png';
 import loadingAnimation from '../../assets/images/loadingAnimation.gif';
 import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-import { useEffect, useState } from 'react';
+    import { defineProps, onMounted, ref, toRefs } from 'vue';
 
+    
+    const props = defineProps({
+        authUserId: Number,
 
-function SendPostPopup({authUserId, overallPostId, usersAndTheirRelevantInfo, cachedMessageSendingSuggestions, closePopup,
-showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSuggestions}) {
-    const [inputText, setInputText] = useState('');
-    const [errorMessage, setErrorMessage] = useState('');
-    const [statusOfFetchingResults, setStatusOfFetchingResults] = useState('');
-    const [statusOfSendingPost, setStatusOfSendingPost] = useState('');
+        overallPostId: String, 
 
-    const [currentSuggestions, setCurrentSuggestions] = useState([]);
+        usersAndTheirRelevantInfo: Object,
+        cachedMessageSendingSuggestions: Object,
 
-    const [selectedUsersAndGroupChats, setSelectedUsersAndGroupChats] = useState(new Set());
+        closePopup: Function,
+        showErrorPopup: Function,
+        updateUsersAndTheirRelevantInfo: Function,
+        updateCachedMessageSendingSuggestions: Function
+    });
 
+    const { authUserId, overallPostId, usersAndTheirRelevantInfo, cachedMessageSendingSuggestions, closePopup,
+    showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSuggestions } = toRefs(props);
 
-    useEffect(() => {
+    
+    onMounted(() => {
         fetchUsersToSendPostToGivenTextInput(null);
-    }, []);
+    });
+
+    const inputText = ref('');
+    const errorMessage = ref('');
+    const statusOfFetchingResults = ref('');
+    const statusOfSendingPost = ref('');
+
+    const currentSuggestions = ref([]);
+
+    const selectedUsersAndGroupChats = ref(new Set());
 
 
     async function fetchUsersToSendPostToGivenTextInput(event) {
-        setErrorMessage('');
+        errorMessage.value = '';
         let newInputText = '';
 
         if(event!==null) {
             newInputText = event.target.value;
-            setInputText(newInputText);
+            inputText.value = newInputText;
         }
 
         if(newInputText in cachedMessageSendingSuggestions) {
-            setCurrentSuggestions(cachedMessageSendingSuggestions[newInputText]);
+            currentSuggestions.value = cachedMessageSendingSuggestions[newInputText];
             return;
         }
 
-        setStatusOfFetchingResults('Loading...');
+        statusOfFetchingResults.value = 'Loading...';
 
         try {
             const response = await fetch(
@@ -48,12 +179,12 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
                 credentials: 'include'
             });
             if(!response.ok) {
-                setErrorMessage(`The server had trouble getting the suggested accounts/group-chats for you to send
-                this post to.`)
+                errorMessage.value = `The server had trouble getting the suggested accounts/group-chats for you to send
+                this post to.`
             }
             else {
                 const postSendingSuggestions = await response.json();
-                setCurrentSuggestions(postSendingSuggestions);
+                currentSuggestions.value = postSendingSuggestions;
 
                 const newCachedMessageSendingSuggestions = {...cachedMessageSendingSuggestions};
                 newCachedMessageSendingSuggestions[newInputText] = postSendingSuggestions;
@@ -84,11 +215,11 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
             }
         }
         catch (error) {
-            setErrorMessage(`There was trouble connecting to the server to get the suggested accounts/group-chats for you to send
-            this post to.`);
+            errorMessage.value = `There was trouble connecting to the server to get the suggested accounts/group-chats for
+            you to send this post to.`;
         }
         finally {
-            setStatusOfFetchingResults('');
+            statusOfFetchingResults.value = '';
         }
     }
 
@@ -262,8 +393,8 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
         const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
 
         for(let newSuggestedUserId of newSuggestedUserIds) {
-            if (!(newSuggestedUserId in usersAndTheirFullNames) && !(newSuggestedUserId in usersAndTheirVerificationStatuses) &&
-            !(newSuggestedUserId in usersAndTheirPfps)) {
+            if (!(newSuggestedUserId in usersAndTheirFullNames) && !(newSuggestedUserId in usersAndTheirVerificationStatuses)
+            && !(newSuggestedUserId in usersAndTheirPfps)) {
                 continue;
             }
 
@@ -286,20 +417,14 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
 
 
     function selectUserOrGroupChat(userOrGroupChatToBeSelected) {
-        setSelectedUsersAndGroupChats(
-            originalSelectedUsersAndGroupChats => new Set(originalSelectedUsersAndGroupChats).add(userOrGroupChatToBeSelected)
-        );
+        selectedUsersAndGroupChats.value.add(userOrGroupChatToBeSelected);
     }
-    
+
 
     function unselectUserOrGroupChat(userOrGroupChatToBeUnselected) {
-        setSelectedUsersAndGroupChats(originalSelectedUsersAndGroupChats => {
-            const updatedSet = new Set(originalSelectedUsersAndGroupChats);
-            updatedSet.delete(userOrGroupChatToBeUnselected);
-            return updatedSet;
-        });
+        selectedUsersAndGroupChats.value.delete(userOrGroupChatToBeUnselected);
     }
-    
+
 
     async function sendPost(method) {
         if (authUserId === -1) {
@@ -307,8 +432,8 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
             return;
         }
         
-        setStatusOfSendingPost('Loading...');
-
+        statusOfSendingPost.value = 'Loading...';
+        
         try {
             const response = await fetch(
             `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToOneOrMoreUsersAndGroups/${authUserId}/${method}`,
@@ -324,19 +449,19 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
 
             if(!response.ok) {
                 showErrorPopup('The server had trouble sending this post to the selected member(s).');
-                setStatusOfSendingPost('');
+                statusOfSendingPost.value = '';
             }
             else {
-                setSelectedUsersAndGroupChats(new Set());
-                setStatusOfSendingPost('Sent');
+                selectedUsersAndGroupChats.value = new Set();
+                statusOfSendingPost.value = 'Sent';
                 setTimeout(() => {
-                    setStatusOfSendingPost('');
+                    statusOfSendingPost.value = '';
                 }, 1600);
             }
         }
         catch (error) {
             showErrorPopup('There was trouble connecting to the server to send this post to the selected member(s).');
-            setStatusOfSendingPost('');
+            statusOfSendingPost.value = '';
         }
     }
 
@@ -466,188 +591,4 @@ showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSugge
                 return false;
         }
     }
-
-
-    return (
-        <div className="popup" style={{borderRadius:'2%', width:'35em', height:'35em', paddingTop:'1em',
-        position: 'relative'}}>
-            <b>Share</b>
-
-            <img onClick={closePopup} src={thinGrayXIcon} style={{objectFit:'contain', height:'1.7em',
-            width:'1.6em', position:'absolute', left:'90%', top: '2%', cursor:'pointer'}}/>
-
-            <hr style={{width: '99%', borderTop: '0.1px solid lightgray', marginTop: '1.2em'}} />
-            
-            <div style={{display:'flex',  paddingLeft:'1em', alignItems:'center'}}>
-                <b>To:</b>
-                <input type="text" value={inputText} onChange={fetchUsersToSendPostToGivenTextInput}
-                placeholder='Search...' style={{width:'35em', marginLeft:'1em', fontSize:'0.9em', borderStyle:'none',
-                outline: 'none'}}/>
-            </div>
-
-            <hr style={{width: '99%', borderTop: '0.1px solid lightgray'}} />
-
-            <div style={{display:'flex', flexDirection:'column', alignItems:'start', height:'26em', overflow:'scroll', gap: '1em',
-            position: 'relative', width: '99%'}}>
-                {selectedUsersAndGroupChats.size > 0 &&
-                    (
-                        <>
-                            <b style={{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}}>
-                                Selected
-                            </b>
-
-                            {
-                                [...selectedUsersAndGroupChats].map(selectedUserOrGroupChat =>
-                                    <SelectUserOrGroupChat
-                                        key={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'key',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        groupChatId={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'groupChatId',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        userId={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'userId',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        userOrGroupChatName={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'userOrGroupChatName',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        fullName={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'fullName',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        profilePhoto={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'profilePhoto',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        isSelected={true}
-                                        isVerified={getSpecificInfoOnSelectedUserOrGroupChat(
-                                            'isVerified',
-                                            selectedUserOrGroupChat
-                                        )}
-                                        selectThisUserOrGroupChat={selectUserOrGroupChat}
-                                        unselectThisUserOrGroupChat={unselectUserOrGroupChat}
-                                    />
-                                )
-                            }
-                        </>
-                    )
-                }
-
-                {inputText.length==0 && 
-                    (
-                        <b style={{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}}>
-                            Suggested
-                        </b>
-                    )
-                }
-                
-
-                {errorMessage.length==0 &&
-                    (
-                        currentSuggestions.filter(
-                            suggestion => {
-                                const isGroupChatSelected = selectedUsersAndGroupChats.has(
-                                    `group-chat/${suggestion.groupChatId}/${suggestion.userOrGroupChatName}`
-                                );
-                                const isUserSelected = selectedUsersAndGroupChats.has(
-                                    `user/${suggestion.userId}/${suggestion.userOrGroupChatName}`
-                                );
-                            
-                                if (isGroupChatSelected || isUserSelected) return false;
-        
-                                return true;
-                            }
-                        ).map(suggestion =>
-                            <SelectUserOrGroupChat
-                                key={getSpecificInfoOnPostSendingSuggestion('key', suggestion)}
-                                groupChatId={getSpecificInfoOnPostSendingSuggestion('groupChatId', suggestion)}
-                                userId={getSpecificInfoOnPostSendingSuggestion('userId', suggestion)}
-                                userOrGroupChatName={getSpecificInfoOnPostSendingSuggestion(
-                                    'userOrGroupChatName',
-                                    suggestion
-                                )}
-                                fullName={getSpecificInfoOnPostSendingSuggestion('fullName', suggestion)}
-                                profilePhoto={getSpecificInfoOnPostSendingSuggestion('profilePhoto', suggestion)}
-                                isSelected={false}
-                                isVerified={getSpecificInfoOnPostSendingSuggestion('isVerified', suggestion)}
-                                selectThisUserOrGroupChat={selectUserOrGroupChat}
-                                unselectThisUserOrGroupChat={unselectUserOrGroupChat}
-                            />
-                        )
-                    )
-                }
-
-                {errorMessage.length>0 &&
-                    (
-                        <p style={{maxWidth: '90%', overflowWrap: 'break-word', color: 'gray', fontSize: '0.88em', textAlign:
-                        'start', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}}>
-                            {errorMessage}
-                        </p>
-                    )
-                }
-
-                {statusOfFetchingResults === 'Loading...' &&
-                    (
-                        <img src={loadingAnimation} style={{height: '2.75em', width: '2.75em', objectFit: 'contain',
-                        pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%', transform: 
-                        'translate(-50%, -50%)'}}/>
-                    )
-                }
-            </div>
-
-            {selectedUsersAndGroupChats.size == 0 && 
-                (
-                    <button className="blueButton" style={{width:'42em'}}>
-                        Send
-                    </button>
-                )
-            }
-
-            {(statusOfSendingPost !== 'Loading...' && selectedUsersAndGroupChats.size == 1) && 
-                (
-                    <button onClick={()=>sendPost('individually')} className="blueButton"
-                    style={{width:'42em', cursor:'pointer', backgroundColor:'#347aeb'}}>
-                        Send
-                    </button>
-                )
-            }
-
-            {(statusOfSendingPost !== 'Loading...' && selectedUsersAndGroupChats.size > 1) &&
-                (
-                    <div style={{display: 'flex', gap: '1em', alignItems: 'center', justifyContent: 'center',
-                    width: '100%'}}>
-                        <button onClick={()=>sendPost('individually')} className="blueButton"
-                        style={{width:'19em', cursor:'pointer', backgroundColor:'#347aeb'}}>
-                            Send Individually
-                        </button>
-
-                        <button onClick={()=>sendPost('as a group')} className="blueButton"
-                        style={{width:'19em', cursor:'pointer', backgroundColor:'#347aeb'}}>
-                            Send in Group-Chat
-                        </button>
-                    </div>
-                )
-            }
-
-            {statusOfSendingPost === 'Loading...' &&
-                (
-                    <img src={loadingAnimation} style={{height: '100%', width: '2.75em', objectFit: 'contain', pointerEvents:
-                    'none', position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)'}}/>
-                )
-            }   
-
-            {(statusOfSendingPost==='Sent') &&
-                <p style={{position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)',
-                color: 'white', backgroundColor: 'black', padding: '0.4em 0.8em', borderRadius: '0.3em'}}>
-                    Sent
-                </p>
-            }
-        </div>
-    );
-};
-
-export default SendPostPopup;
+</script>

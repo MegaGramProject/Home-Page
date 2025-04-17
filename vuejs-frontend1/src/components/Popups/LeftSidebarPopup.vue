@@ -38,55 +38,47 @@
 </template>
   
 
-<script>
+<script setup>
     import blankSavedIcon from '../../assets/images/blankSavedIcon.png';
 import reportAProblemIcon from '../../assets/images/reportAProblemIcon.png';
 import settingsIcon from '../../assets/images/settingsIcon.png';
 import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
 
-    
-    export default {
-        props: {
-            authUserId: Number,
-            originalURL: String,
-            showErrorPopup: Function,
-        },
+    import { defineProps, toRefs } from 'vue';
 
 
-        data() {
-            return {
-                settingsIcon,
-                yourActivityIcon,
-                blankSavedIcon,
-                reportAProblemIcon
+    const props = defineProps({
+        authUserId: Number,
+
+        originalURL: String,
+        
+        showErrorPopup: Function,
+    });
+
+    const { authUserId, originalURL, showErrorPopup } = toRefs(props);
+
+
+    async function logout() {
+        try {
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/expressJSBackend1/logout/${authUserId}`, {
+                method: 'PATCH',
+                headers: {
+                'Content-Type': 'application/json',
+                },
+                credentials: 'include',
             }
-        },
+            );
 
-
-        methods: {
-            async logout() {
-                try {
-                    const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/logout
-                    /${this.authUserId}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        credentials: 'include'
-                    });
-
-                    if(!response.ok) {
-                        this.showErrorPopup('The expressJSBackend1 server had trouble logging you out');
-                    }
-                    else {
-                        window.location.href = this.originalURL;
-                    }
-                }
-                catch (error) {
-                    this.showErrorPopup(
-                        'There was trouble connecting to the expressJSBackend1 server to log you out.');
-                }
+            if (!response.ok) {
+                showErrorPopup('The expressJSBackend1 server had trouble logging you out');
+            }
+            else {
+                window.location.href = originalURL;
             }
         }
-    };
+        catch (error) {
+            showErrorPopup('There was trouble connecting to the expressJSBackend1 server to log you out.');
+        }
+    }
 </script>

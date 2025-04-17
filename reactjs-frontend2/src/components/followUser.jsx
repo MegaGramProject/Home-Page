@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-function FollowUser({authUserId, userId, username, userFullName, userPfp, userIsVerified, originalFollowText, showErrorPopup}) {
+function FollowUser({authUserId, userId, username, userFullName, userPfp, userIsVerified, originalFollowText,
+showErrorPopup}) {
     const [followText, setFollowText] = useState('');
 
 
@@ -83,13 +84,17 @@ function FollowUser({authUserId, userId, username, userFullName, userPfp, userIs
             </div>
 
             
-            <button onClick={toggleFollowUser} style={{
-            backgroundColor: followText!=='Follow' ? '#f5f5f5' : '#1f86ed',
-            color: followText!=='Follow' ? 'black' : 'white', fontWeight:'bold', cursor:'pointer',
-            borderStyle:'none', width:'10em', borderRadius:'0.5em', paddingLeft:'0.5em', paddingBottom:'0.5em',
-            paddingTop:'0.5em'}}>
-                {followText}
-            </button>
+            {(authUserId !== userId) &&
+                (
+                    <button onClick={toggleFollowUser} style={{
+                    backgroundColor: followText!=='Follow' ? '#f5f5f5' : '#1f86ed',
+                    color: followText!=='Follow' ? 'black' : 'white', fontWeight:'bold', cursor:'pointer',
+                    borderStyle:'none', width:'10em', borderRadius:'0.5em', paddingLeft:'0.5em', paddingBottom:'0.5em',
+                    paddingTop:'0.5em'}}>
+                        {followText}
+                    </button>
+                )
+            }
         </div>
     );
 }

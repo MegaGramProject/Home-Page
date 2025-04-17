@@ -2519,75 +2519,130 @@ class BackendController extends Controller {
     }
 
 
-    public function getProfilePhotosOfMultipleUsers(array $userIds) {
-        $usersAndTheirProfilePhotos = [];
-        $userIdsWhoseProfilePhotoStatusesAreNotCached = [];
+    public function getProfilePhotosOfMultipleUsersAsAuthUser(int $authUserId, Request $request) {
+        if ($authUserId < 1 && $authUserId !== -1) {
+            return response('There does not exist a user with the provided authUserId. If you are just an anonymous guest,
+            you must set the authUserId to -1.', 400);
+        }
 
-        try {
-            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($userIds) {
-                foreach ($userIds as $userId) {
-                    $pipe->hGet(
-                        "dataForUser$userId",
-                        'hasProfilePhoto'
+        $request->validate([
+            'userIds' => 'required|array',
+            'userIds.*' => 'integer',
+        ]);        
+
+        $userIds = $request->input('userIds');
+
+        $originalUserIds = $userIds;
+
+        $userIds = array_filter($userIds, function($userId) {
+            return $userId > 0;
+        });
+        
+        if (count($userIds) == 0) {
+            return response(
+                'You did not provide a valid list of userIds for the \'userIds\' parameter of the body this REST-API
+                POST-request.',
+                400
+            );
+        }
+
+        $authUserIsAnonymousGuest = $authUserId == -1;
+
+        if (!$authUserIsAnonymousGuest) {
+            $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+                $authUserId, $request
+            );
+
+            if (is_bool($userAuthenticationResult)) {
+                if (!$userAuthenticationResult) {
+                    return response("The expressJSBackend1 server could not verify you as having the proper
+                    credentials to be logged in as $authUserId", 403);
+                }
+            }
+            else if (is_string($userAuthenticationResult)) {  
+                if ($userAuthenticationResult === 'The provided authUser token, if any, in your cookies has an
+                invalid structure.')  {  
+                    return response($userAuthenticationResult, 403);  
+                }  
+                return response($userAuthenticationResult, 502);  
+            }  
+            else {  
+                $refreshedAuthToken = $userAuthenticationResult[0];  
+                $expirationDate = $userAuthenticationResult[1];  
+
+                setcookie(
+                    "authToken$authUserId",
+                    $refreshedAuthToken,
+                    $expirationDate,
+                    '/',
+                    '',
+                    true,
+                    true
+                );
+            }  
+        }
+
+        $usersAndIfTheyAreInBlockingsOfAuthUser = [];
+
+        if (!$authUserIsAnonymousGuest) {
+            try {
+                $response = Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                ])->post(
+                    "http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUsersInListAreInBlockingsOfAuthUser/$authUserId",
+                    [
+                        'userIds' => $userIds
+                    ]
+                );
+    
+                if ($response->failed()) {
+                    return response(
+                        'The djangoBackend2 server had trouble checking whether or not any of the users in the list are in your
+                        blockings',
+                        502
                     );
                 }
-            });
-
-            $newUserIds = [];
-
-            for ($i=0; $i<count($redisResults); $i++) {
-                $redisResult = $redisResults[$i];
-
-                if ($redisResult !== false) {
-                    $userId = $userIds[$i];
-                    $newUserIds[] = $userId;
-
-                    if ($redisResult == null) {
-                        $userIdsWhoseProfilePhotoStatusesAreNotCached[] = $userId;
-                    }
-                }
+    
+                $stringifiedResponseData = $response->body();
+                $usersAndIfTheyAreInBlockingsOfAuthUser = json_decode($stringifiedResponseData, true);            
             }
-
-            if (count($newUserIds) == 0) {
-                return $usersAndTheirProfilePhotos;
+            catch (\Exception) {
+                return response(
+                    'There was trouble connecting to the djangoBackend2 server to check whether or not any of the users in the
+                    list are in your blockings',
+                    502
+                );
             }
-            $userIds = $newUserIds;
         }
-        catch (\Exception) {
-            //pass
-        }
+
+        $userIds = array_filter($userIds, function($userId) use ($usersAndIfTheyAreInBlockingsOfAuthUser) {
+            return !$usersAndIfTheyAreInBlockingsOfAuthUser[$userId];
+        });
 
         $usersAndTheirProfilePhotos = [];
+
+        if (count($userIds) == 0) {
+            foreach($originalUserIds as $originalUserId) {
+                $usersAndTheirProfilePhotos[$originalUserId] = null;
+            }
+
+            return response($usersAndTheirProfilePhotos, 200);
+        }
 
         try {
             $usersAndTheirProfilePhotos = ProfilePhoto::whereIn('userId', $userIds)
-                ->select(['userId', 'profilePhoto'])
                 ->pluck('profilePhoto', 'userId')
                 ->toArray();
+
+            foreach($originalUserIds as $originalUserId) {
+                $usersAndTheirProfilePhotos[$originalUserId] = $usersAndTheirProfilePhotos[$originalUserId] ?? null;
+            }
+
+            return response($usersAndTheirProfilePhotos, 200);
         }
         catch (\Exception) {
             return response("There was trouble fetching the profile-photos", 502);
         }
-
-        if (count($userIdsWhoseProfilePhotoStatusesAreNotCached) > 0) {
-            try {
-                $this->redisClient->pipeline(function ($pipe) use ($userIdsWhoseProfilePhotoStatusesAreNotCached,
-                $usersAndTheirProfilePhotos) {
-                    foreach ($userIdsWhoseProfilePhotoStatusesAreNotCached as $userId) {
-                        $pipe->hSet(
-                            "dataForUser$userId",
-                            'hasProfilePhoto',
-                            array_key_exists($userId, $usersAndTheirProfilePhotos) ? 'true' : 'false'
-                        );
-                    }
-                });
-            }
-            catch (\Exception) {
-                //pass
-            }
-        }
-
-        return response($usersAndTheirProfilePhotos, 200);
     }
 
 
@@ -2891,157 +2946,6 @@ class BackendController extends Controller {
             $profilePhotoWasFoundAndDeleted,
             200
         );
-    }
-
-
-    public function getUsernamesOfMultipleUserIds(Request $request, int $authUserId) {
-        $userIds = $request->input('userIds');
-        $userIdsAndIfTheyAreInAuthUserBlockings = [];
-        $errorMessage = '';
-
-        try {
-            $response = Http::get(
-                "http://34.111.89.101/api/Home-Page/djangoBackend2/getBlockingsOfUser/$authUserId"
-            );
-
-            
-            if ($response->failed()) {
-                $errorMessage .= "• The djangoBackend2 server had trouble getting the blockings of $authUserId\n";
-                return response(
-                    $errorMessage,
-                    502
-                );
-            }
-
-            $stringifiedResponseData = $response->body();
-            $authUserBlockings = json_decode($stringifiedResponseData);
-
-            foreach($authUserBlockings as $userIdOfAuthUserBlocking) {
-                $userIdsAndIfTheyAreInAuthUserBlockings[$userIdOfAuthUserBlocking] = true;
-            }
-        }
-        catch (\Exception) {
-            $errorMessage .=  "• There was trouble connecting to the djangoBackend2 server to get the blockings of
-            $authUserId\n";
-            return response(
-                $errorMessage,
-                502
-            );
-        }
-
-        $userIdsAndTheirUsernames = [];
-        $userIds =  array_filter($userIds, function ($userId) use ($userIdsAndIfTheyAreInAuthUserBlockings) {
-            return !array_key_exists($userId, $userIdsAndIfTheyAreInAuthUserBlockings);
-        });
-
-        if (count($userIds) == 0) {
-            return response()->json([
-                'userIdsAndTheirUsernames' => $userIdsAndTheirUsernames,
-                'errorMessage' => $errorMessage
-            ], 200);
-        }
-
-        $userIdsAndIfTheirUsernamesWereCached = [];
-
-        try {
-            $redisResults = $this->redisClient->pipeline(function ($pipe) use ($userIds) {
-                foreach ($userIds as $userId) {
-                    $pipe->hGet(
-                        "dataForUser$userId",
-                        'username'
-                    );
-                }
-            });
-
-            $newUserIds = [];
-            for ($i=0; $i<count($redisResults); $i++) {
-                $redisResult = $redisResults[$i];
-                $userId = $userIds[$i];
-
-                if ($redisResult == null) {
-                    $newUserIds[] = $userIds[$userId];
-                }
-                else {
-                    $userIdsAndTheirUsernames[$userId] = $redisResult;
-                    $userIdsAndIfTheirUsernamesWereCached[$userId] = true;
-                }
-            }
-
-            if (count($newUserIds) == 0) {
-                return response()->json([
-                    'userIdsAndTheirUsernames' => $userIdsAndTheirUsernames,
-                    'errorMessage' => $errorMessage
-                ], 200);  
-            }
-            $userIds = $newUserIds;
-        }
-        catch (\Exception) {
-            //pass
-            $errorMessage .= '• There was trouble retrieving the usernames from the Redis Cache\n';
-        }
-
-        try {
-            $infoOnThePublicUsernames = PublicUser::whereIn('id', $userIds)
-                ->select(['id', 'username'])
-                ->get()
-                ->toArray();
-            
-            foreach($infoOnThePublicUsernames as $publicUsernameInfo) {
-                $userIdsAndTheirUsernames[$publicUsernameInfo['id']] = $publicUsernameInfo['username'];
-            }
-
-            $userIds = array_filter($userIds, function ($userId) use ($userIdsAndTheirUsernames) {
-                return !array_key_exists($userId, $userIdsAndTheirUsernames);
-            });
-
-            if (count($userIds) > 0) {
-                $infoOnThePrivateUsernames = PrivateUser::whereIn('id', $userIds)
-                    ->select(['id', 'username'])
-                    ->get()
-                    ->toArray();
-            
-                foreach($infoOnThePrivateUsernames as $privateUsernameInfo) {
-                    $userIdsAndTheirUsernames[$privateUsernameInfo['id']] = $privateUsernameInfo['username'];
-                }
-            }
-        }
-        catch (\Exception) {
-            $errorMessage .= '• There was trouble getting the usernames of each of the users in the list\n';
-            
-            if (count(array_keys($userIdsAndTheirUsernames)) > 0) {
-                return response(
-                    $userIdsAndTheirUsernames,
-                    200
-                );
-            }
-            return response(
-                $errorMessage,
-                502
-            );
-        }
-
-        try {
-            $this->redisClient->pipeline(function ($pipe) use ($userIdsAndTheirUsernames,
-            $userIdsAndIfTheirUsernamesWereCached) {
-                foreach (array_keys($userIdsAndTheirUsernames) as $userId) {
-                    if (!array_key_exists($userId, $userIdsAndIfTheirUsernamesWereCached)) {
-                        $pipe->hSet(
-                            "dataForUser$userId",
-                            'username',
-                            $userIdsAndTheirUsernames[$userId]
-                        );
-                    }
-                }
-            });
-        }
-        catch (\Exception) {
-            //pass
-        }
-
-        return response()->json([
-            'userIdsAndTheirUsernames' => $userIdsAndTheirUsernames,
-            'errorMessage' => $errorMessage
-        ], 200);
     }
 
 

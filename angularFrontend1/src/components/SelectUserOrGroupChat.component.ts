@@ -10,8 +10,9 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 })
 export class SelectUserOrGroupChat {
   @Input() groupChatId!:number;
+  @Input() userId!:number;
 
-  @Input() usernameOrGroupChatName!:string;
+  @Input() userOrGroupChatName!:string;
   @Input() fullName!:string;
   @Input() profilePhoto!:string;
 
@@ -25,18 +26,18 @@ export class SelectUserOrGroupChat {
   toggleSelectThisUserOrGroupChat() {
     if(!this.isSelected) {
       if(this.groupChatId==null) {
-        this.selectThisUserOrGroupChat.emit(this.usernameOrGroupChatName);
+        this.selectThisUserOrGroupChat.emit(`user/${this.userId}/${this.userOrGroupChatName}`);
       }
       else {
-        this.selectThisUserOrGroupChat.emit('GROUP CHAT ' + this.groupChatId);
+        this.selectThisUserOrGroupChat.emit(`group-chat/${this.groupChatId}/${this.userOrGroupChatName}`);
       }
     }
     else {
       if(this.groupChatId==null) {
-        this.unselectThisUserOrGroupChat.emit(this.usernameOrGroupChatName);
+        this.unselectThisUserOrGroupChat.emit(`user/${this.userId}/${this.userOrGroupChatName}`);
       }
       else {
-        this.unselectThisUserOrGroupChat.emit('GROUP CHAT ' + this.groupChatId);
+        this.unselectThisUserOrGroupChat.emit(`group-chat/${this.groupChatId}/${this.userOrGroupChatName}`);
       }
     }
   }

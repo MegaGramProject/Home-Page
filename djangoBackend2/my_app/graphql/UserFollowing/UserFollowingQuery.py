@@ -7,7 +7,7 @@ from graphql import GraphQLError
 
 from datetime import datetime
 
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Case, When, F
 
 
 class Query(graphene.ObjectType):
@@ -56,6 +56,13 @@ class Query(graphene.ObjectType):
         graphene.Field(UserFollowingInfoType),
         datetime_to_check_for_updates=graphene.String(required=True),
         user_ids=graphene.List(graphene.Int, required=True),
+    )
+
+    get_ordered_auth_user_followings_based_on_num_followers_and_other_metrics = graphene.List(
+        graphene.Int,
+        auth_user_id=graphene.Int(required=True),
+        auth_user_followings=graphene.List(graphene.Int, required=True),
+        limit=graphene.Int(required=False)
     )
 
 
@@ -363,3 +370,131 @@ class Query(graphene.ObjectType):
 
         except:
             raise GraphQLError('There was trouble fetching the asked-for data from the database')
+    
+
+    def resolve_get_ordered_auth_user_followings_based_on_num_followers_and_other_metrics(root, info, auth_user_id,
+    auth_user_followings, limit):
+        if auth_user_id < 1 and auth_user_id != -1:
+            raise GraphQLError(f'There does not exist a user with the provided auth_user_id. If you are an anonymous-guest,
+            set auth_user_id to -1')
+
+        if not limit: 
+            limit = 10
+
+        if limit > 50:
+            raise GraphQLError('The provided limit cannot exceed 50')
+
+        auth_user_followings = [x for x in auth_user_followings if x > 0]
+
+        if len(auth_user_followings) == 0:
+            raise GraphQLError('The provided \'auth_user_followings\' contains no valid users')
+        
+        set_of_auth_user_followings = set(auth_user_followings)
+
+        auth_user_is_anonymous_guest = auth_user_id == -1
+
+        refreshed_auth_token = None
+        expires_timestamp = None
+
+        if not auth_user_is_anonymous_guest:
+            request = info.context
+            user_authentication_result = authenticate_user(request, auth_user_id)
+
+            if isinstance(user_authentication_result, bool):
+                if not user_authentication_result:
+                    raise GraphQLError(f'The expressJSBackend1 server could not verify you as having the proper credentials to be logged in
+                    as {auth_user_id}')
+            elif isinstance(user_authentication_result, str):
+                if user_authentication_result == 'The provided authUser token, if any, in your cookies has an invalid structure.':
+                    raise GraphQLError(user_authentication_result)
+                raise GraphQLError(user_authentication_result)
+            else:
+                refreshed_auth_token, expiration_date = user_authentication_result
+                expires_timestamp = datetime.datetime.fromtimestamp(expiration_date).strftime('%a, %d-%b-%Y %H:%M:%S GMT')
+                response = info.context.response
+                response.set_cookie(f'authToken{auth_user_id}', refreshed_auth_token, expires=expires_timestamp, httponly=True,
+                path='/', secure=True, httponly=True)
+        
+        error_message = ''
+
+        try:
+            set_of_auth_user_blockings = set(UserBlocking.objects
+                .filter(Q(blocker=auth_user_id) | Q(blocked=auth_user_id))
+                .annotate(
+                    other_user=Case(
+                        When(blocker=auth_user_id, then=F('blocked')),
+                        When(blocked=auth_user_id, then=F('blocker'))
+                    )
+                )
+                .values_list('other_user', flat=True)
+            )
+
+            for auth_user_blocking in set_of_auth_user_blockings:
+                set_of_auth_user_followings.remove(auth_user_blocking)
+
+            if len(set_of_auth_user_followings) == 0:
+                error_message += '• The provided \'auth_user_followings\' contains no valid users\n'
+        except:
+            error_message += '• There was trouble fetching the blockings of user ' + auth_user_id + '\n'
+            raise GraphQLError(error_message)
+        
+        users_and_their_num_followers = {}
+    
+        try:
+            users_and_their_num_followers = {
+                entry['followed']: entry['num_followers']
+                for entry in (
+                    UserFollowing.objects
+                    .filter(followed__in=set_of_auth_user_followings)
+                    .values('followed')
+                    .annotate(num_followers=Count('followed'))
+                )
+            }
+        except:
+            error_message += '• There was trouble fetching from the database the dict for users_and_their_num_followers\n'
+
+        users_and_their_num_followers_who_are_followed_by_auth_user = {}
+    
+        try:
+            users_and_their_num_followers_who_are_followed_by_auth_user = {
+                entry['followed']: entry['num_followers_who_are_followed_by_auth_user']
+                for entry in (
+                    UserFollowing.objects
+                    .filter(followed__in=set_of_auth_user_followings, follower__in=set_of_auth_user_followings) 
+                    .values('followed')
+                    .annotate(num_followers_who_are_followed_by_auth_user=Count('followed'))
+                )
+            }
+        except:
+            error_message += f'• There was trouble fetching from the database the dict for
+            users_and_their_num_followers_who_are_followed_by_auth_user\n'
+
+        num_followers_info_of_each_auth_user_following = []
+
+        for user_id in set_of_auth_user_followings:
+            num_followers_of_user = users_and_their_num_followers.get(user_id, 0)
+            num_followers_of_user_who_are_followed_by_auth_user = (
+                users_and_their_num_followers_who_are_followed_by_auth_user.get(user_id, 0)
+            )
+
+            num_followers_info_of_each_auth_user_following.append({
+                'user_id': user_id,
+                'num_followers_of_user': num_followers_of_user,
+                'num_followers_of_user_who_are_followed_by_auth_user': num_followers_of_user_who_are_followed_by_auth_user
+            })
+
+        
+        num_followers_info_of_each_auth_user_following = sorted(
+            num_followers_info_of_each_auth_user_following,
+            key=lambda x: (
+                x['num_followers_of_user_who_are_followed_by_auth_user'],
+                x['num_followers_of_user'],
+            ),
+            reverse=True
+        )
+
+        output = []
+        for i in range(min(limit, len(num_followers_info_of_each_auth_user_following))):
+            output.append(num_followers_info_of_each_auth_user_following[i]['user_id'])
+
+        return output

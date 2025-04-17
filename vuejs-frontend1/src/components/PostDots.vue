@@ -10,24 +10,19 @@
     </div>
 </template>
   
-<script>
+
+<script setup>
     import grayDot from '../assets/images/grayDot.png';
-    import solidWhiteDot from '../assets/images/solidWhiteDot.png';
+import solidWhiteDot from '../assets/images/solidWhiteDot.png';
 
+    import { defineProps, toRefs } from 'vue';
 
-    export default {
-        props: {
-            currSlide: Number,
-            numSlides: Number
-        },
+    
+    const props = defineProps({
+        currSlide: Number,
+        numSlides: Number
+    });
 
-
-        data() {
-            return {
-                grayDot,
-                solidWhiteDot
-            }
-        }
-    };
+    const  { currSlide, numSlides } = toRefs(props);
 </script>
   

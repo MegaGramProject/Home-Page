@@ -3,25 +3,25 @@ import solidGrayDot from '../assets/images/solidGrayDot.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 
-function SelectUserOrGroupChat({groupChatId, usernameOrGroupChatName, fullName, profilePhoto, isSelected, isVerified,
+function SelectUserOrGroupChat({groupChatId, userId, userOrGroupChatName, fullName, profilePhoto, isSelected, isVerified,
 selectThisUserOrGroupChat, unselectThisUserOrGroupChat}) {
 
 
     function toggleSelectThisUserOrGroupChat() {
         if(!isSelected) {
             if(groupChatId==null) {
-                selectThisUserOrGroupChat(usernameOrGroupChatName);
+                selectThisUserOrGroupChat(`user/${userId}/${userOrGroupChatName}`);
             }
             else {
-                selectThisUserOrGroupChat('GROUP CHAT ID: ' + groupChatId);
+                selectThisUserOrGroupChat(`group-chat/${groupChatId}/${userOrGroupChatName}`);
             }
         }
         else {
             if(groupChatId==null) {
-                unselectThisUserOrGroupChat(usernameOrGroupChatName);
+                unselectThisUserOrGroupChat(`user/${userId}/${userOrGroupChatName}`);
             }
             else {
-                unselectThisUserOrGroupChat('GROUP CHAT ID: ' + groupChatId);
+                unselectThisUserOrGroupChat(`group-chat/${groupChatId}/${userOrGroupChatName}`);
             }
         }
     }
@@ -37,7 +37,7 @@ selectThisUserOrGroupChat, unselectThisUserOrGroupChat}) {
             gap: '0.7em'}}>
                 <div style={{display: 'flex', alignItems: 'center'}}>
                     <b style={{maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}}>
-                        {usernameOrGroupChatName}
+                        {userOrGroupChatName}
                     </b>
                     
                     {isVerified &&

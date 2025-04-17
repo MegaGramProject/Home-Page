@@ -1,12 +1,12 @@
-<div class="selectUserOrGroupChat" (click)="toggleSelectThisUserOrGroupChat()" [ngStyle]="{cursor: 'pointer', width:
-'45em', display: 'flex', alignItems: 'center', paddingLeft: '2em', position: 'relative', paddingTop: '0.5em',
-paddingBottom: '0.5em', paddingRight: '0.5em'}">
+<div class="selectUserOrGroupChat" (click)="toggleSelectThisUserOrGroupChat()" [ngStyle]="{cursor: 'pointer', width: '180%',
+display: 'flex', alignItems: 'center', paddingLeft: '2em', position: 'relative', paddingTop: '0.5em', paddingBottom: '0.5em',
+paddingRight: '0.5em'}">
     <img [src]="profilePhoto" [ngStyle]="{height: '3.75em', width: '3.75em', objectFit: 'contain'}"/>
 
     <div [ngStyle]="{display: 'flex', flexDirection: 'column', alignItems: 'start', marginLeft: '1em', gap: '0.7em'}">
         <div [ngStyle]="{ display: 'flex', alignItems: 'center' }">
             <b [ngStyle]="{maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}">
-                {{ usernameOrGroupChatName }}
+                {{ userOrGroupChatName }}
             </b>
 
             <img *ngIf="isVerified" [src]="'images/verifiedBlueCheck.png'" [ngStyle]="{height: '1.5em', width: '1.5em',

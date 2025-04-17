@@ -83,4 +83,13 @@ public interface UserMessageRepository extends JpaRepository<UserMessage, Intege
     ArrayList<UserMessage> getOrderedUptoDateMessagesOfMultipleConvos(
         @Param("setOfConvoIds") HashSet<Integer> setOfConvoIds
     );
+
+
+    @Query(
+        "SELECT um FROM UserMessage um " +
+        "WHERE um.convoId IN :setOfConvoIdsToInclude "
+    )
+    ArrayList<UserMessage> getAllMessagesOfSetOfConvos(
+        @Param("setOfConvoIdsToInclude") HashSet<Integer> setOfConvoIdsToInclude
+    );
 }

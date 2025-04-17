@@ -1,0 +1,101 @@
+<div class="popup" [ngStyle]="{borderRadius:'2%', width:'35em', height:'35em', paddingTop:'1em', position: 'relative'}">
+    <b>Share</b>
+
+    <img (click)="closePopup.emit()" [src]="'images/thinGrayXIcon.png'" [ngStyle]="{objectFit:'contain', height:'1.7em',
+    width:'1.6em', position:'absolute', left:'90%', top: '2%', cursor:'pointer'}" />
+
+    <hr [ngStyle]="{width: '99%', borderTop: '0.1px solid lightgray', marginTop: '1.2em'}" />
+
+    <div [ngStyle]="{display:'flex',  paddingLeft:'1em', alignItems:'center'}">
+        <b>To:</b>
+        <input type="text" [value]="inputText" (input)="fetchUsersToSendPostToGivenTextInput($event)" placeholder="Search..."
+        [ngStyle]="{width:'35em', marginLeft:'1em', fontSize:'0.9em', borderStyle:'none', outline: 'none'}"/>
+    </div>
+
+    <hr [ngStyle]="{width: '99%', borderTop: '0.1px solid lightgray'}" />
+
+    <div [ngStyle]="{display:'flex', flexDirection:'column', alignItems:'start', height:'26em', overflow:'scroll', gap: '1em',
+    position: 'relative', width: '99%'}">
+        <ng-container *ngIf="selectedUsersAndGroupChats.size > 0">
+            <b [ngStyle]="{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}">
+                Selected
+            </b>
+
+            <SelectUserOrGroupChat *ngFor="let selectedUserOrGroupChat of selectedUsersAndGroupChats; trackBy:
+            trackByFunctionForSelectedUsersAndGroupChats"
+                [groupChatId]="getSpecificInfoOnSelectedUserOrGroupChat('groupChatId', selectedUserOrGroupChat)"
+                [userId]="getSpecificInfoOnSelectedUserOrGroupChat('userId', selectedUserOrGroupChat)"
+                [userOrGroupChatName]="getSpecificInfoOnSelectedUserOrGroupChat(
+                    'userOrGroupChatName',
+                    selectedUserOrGroupChat
+                )"
+                [fullName]="getSpecificInfoOnSelectedUserOrGroupChat('fullName', selectedUserOrGroupChat)"
+                [profilePhoto]="getSpecificInfoOnSelectedUserOrGroupChat('profilePhoto', selectedUserOrGroupChat)"
+                [isSelected]="true"
+                [isVerified]="getSpecificInfoOnSelectedUserOrGroupChat('isVerified', selectedUserOrGroupChat)"
+                (selectThisUserOrGroupChat)="selectUserOrGroupChat($event)"
+                (unselectThisUserOrGroupChat)="unselectUserOrGroupChat($event)"
+            />
+        </ng-container>
+
+        <b *ngIf="inputText.length === 0" [ngStyle]="{marginLeft: '1em', marginTop: '1em', marginBottom: '1em'}">
+            Suggested
+        </b>
+
+        <ng-container *ngIf="errorMessage.length === 0">
+            <SelectUserOrGroupChat *ngFor="let suggestion of
+            getFilteredCurrentSuggestionsThatAreNamedAndThatAreNotAlreadySelected(); trackBy:
+            trackByFunctionForPostSendingSuggestions"
+                [groupChatId]="getSpecificInfoOnPostSendingSuggestion('groupChatId', suggestion)"
+                [userId]="getSpecificInfoOnPostSendingSuggestion('userId', suggestion)"
+                [userOrGroupChatName]="getSpecificInfoOnPostSendingSuggestion('userOrGroupChatName', suggestion)"
+                [fullName]="getSpecificInfoOnPostSendingSuggestion('fullName', suggestion)"
+                [profilePhoto]="getSpecificInfoOnPostSendingSuggestion('profilePhoto', suggestion)"
+                [isSelected]="false"
+                [isVerified]="getSpecificInfoOnPostSendingSuggestion('isVerified', suggestion)"
+                (selectThisUserOrGroupChat)="selectUserOrGroupChat($event)"
+                (unselectThisUserOrGroupChat)="unselectUserOrGroupChat($event)"
+            />
+        </ng-container>
+
+        <p *ngIf="errorMessage.length > 0" [ngStyle]="{maxWidth: '90%', overflowWrap: 'break-word', color: 'gray', fontSize:
+        '0.88em', textAlign:'start', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}">
+            {{ errorMessage }}
+        </p>
+
+        <img *ngIf="statusOfFetchingResults === 'Loading...'" [src]="'images/loadingAnimation.gif'" [ngStyle]="{height:
+        '2.75em', width: '2.75em', objectFit: 'contain', pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)'}"/>
+    </div>
+
+    <button *ngIf="selectedUsersAndGroupChats.size === 0" class="blueButton" [ngStyle]="{width:'42em'}">
+        Send
+    </button>
+
+    <button *ngIf="statusOfSendingPost !== 'Loading...' && selectedUsersAndGroupChats.size === 1"
+    (click)="sendPost('individually')" class="blueButton" [ngStyle]="{width:'42em', cursor:'pointer', backgroundColor:
+    '#347aeb'}">
+        Send
+    </button>
+
+    <div *ngIf="statusOfSendingPost !== 'Loading...' && selectedUsersAndGroupChats.size > 1" [ngStyle]="{display: 'flex',
+    gap: '1em', alignItems: 'center', justifyContent: 'center', width: '100%'}">
+        <button (click)="sendPost('individually')" class="blueButton" [ngStyle]="{width:'19em', cursor:'pointer', 
+        backgroundColor:'#347aeb'}">
+            Send Individually
+        </button>
+        <button (click)="sendPost('as a group')" class="blueButton" [ngStyle]="{width:'19em', cursor:'pointer',
+        backgroundColor:'#347aeb'}">
+            Send in Group-Chat
+        </button>
+    </div>
+
+    <img *ngIf="statusOfSendingPost === 'Loading...'" [src]="'images/loadingAnimation.gif'" [ngStyle]="{height: '100%', width:
+    '2.75em', objectFit: 'contain', pointerEvents: 'none', position: 'absolute', top: '85%', left: '50%', transform:
+    'translate(-50%, -50%)'}"/>
+
+    <p *ngIf="statusOfSendingPost === 'Sent'" [ngStyle]="{position: 'absolute', top: '85%', left: '50%', transform:
+    'translate(-50%, -50%)', color: 'white', backgroundColor: 'black', padding: '0.4em 0.8em', borderRadius: '0.3em'}">
+        Sent
+    </p>
+</div>

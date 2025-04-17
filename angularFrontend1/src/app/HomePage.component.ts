@@ -10,6 +10,8 @@ import { ThreeDotsPopup } from '../components/Popups/ThreeDotsPopup.component';
 import { CommonModule } from '@angular/common';
 import { Component, SimpleChanges } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { LikersPopup } from '../components/Popups/LikersPopup.component';
+import { SendPostPopup } from '../components/Popups/SendPostPopup.component';
 import { UserBar } from '../components/UserBar.component';
 
 
@@ -17,8 +19,8 @@ import { UserBar } from '../components/UserBar.component';
   selector: 'HomePage',
   standalone: true,
   imports: [
-    CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup,
-    UserBar
+    CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
+    LikersPopup, SendPostPopup
   ],
   templateUrl: './HomePage.component.html',
   styleUrl: '../HomePageStyles.css'
@@ -46,6 +48,12 @@ export class HomePage {
   aboutAccountUserHasUnseenStory:boolean = false;
   aboutAccountUserProfilePhoto:string|null = null;
 
+  displayLikersPopup:boolean = false;
+  likersPopupIdOfPostOrComment:string|number = '';
+
+  displaySendPostPopup:boolean = false;
+  sendPostPopupOverallPostId:string = '';
+
   displayCommentsPopup:boolean = false;
 
   displayStoryViewer:boolean = false;
@@ -53,6 +61,8 @@ export class HomePage {
   storyViewerIsFromStoriesSection:boolean = false;
 
   usersAndTheirRelevantInfo:any = {};
+
+  cachedMessageSendingSuggestions:any = {};
 
   orderedListOfPosts:Array<any> = [];
 
@@ -191,6 +201,16 @@ export class HomePage {
   }
 
 
+  updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo:any) {
+    this.usersAndTheirRelevantInfo = newUsersAndTheirRelevantInfo;
+  }
+
+
+  updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions:any) {
+    this.cachedMessageSendingSuggestions = newCachedMessageSendingSuggestions;
+  }
+
+
   showErrorPopup(newErrorPopupMessage:string) {
     this.errorPopupMessage = newErrorPopupMessage;
     this.displayErrorPopup = true;
@@ -238,17 +258,35 @@ export class HomePage {
   }
 
 
+  showLikersPopup(newLikersPopupIdOfPostOrComment:string|number) {
+    this.likersPopupIdOfPostOrComment = newLikersPopupIdOfPostOrComment;
+    this.displayLikersPopup = true;
+  }
+
+
+  showSendPostPopup(newSendPostPopupOverallPostId:string) {
+    this.sendPostPopupOverallPostId = newSendPostPopupOverallPostId;
+    this.displaySendPostPopup = true;
+  }
+
+
   toggleDisplayLeftSidebarPopup() {
     this.displayLeftSidebarPopup = !this.displayLeftSidebarPopup;
   }
 
 
   closeAllPopups() {
+    if(!(this.displayCommentsPopup && (this.displayThreeDotsPopup || this.displayAboutAccountPopup ||
+    this.displayErrorPopup || this.displayLikersPopup || this.displaySendPostPopup))) {
+      this.displayCommentsPopup = false;
+    }
+
     this.displayLeftSidebarPopup = false;
     this.displayErrorPopup = false;
     this.displayThreeDotsPopup = false;
     this.displayAboutAccountPopup = false;
-    this.displayCommentsPopup = false;
+    this.displayLikersPopup = false;
+    this.displaySendPostPopup = false;
   }
 
 
@@ -264,6 +302,16 @@ export class HomePage {
 
   closeErrorPopup() {
     this.displayErrorPopup = false;
+  }
+
+
+  closeLikersPopup () {
+    this.displayLikersPopup = false;
+  }
+
+
+  closeSendPostPopup() {
+    this.displaySendPostPopup = false;
   }
 
 

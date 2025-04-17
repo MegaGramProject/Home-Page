@@ -1,0 +1,41 @@
+<div #scrollableLikersDivRef class="popup" [ngStyle]="{backgroundColor:'white', width:'40em', height:'40em',
+display:'flex', flexDirection:'column', alignItems:'center', borderRadius:'1.5%', overflowY:'scroll', position: 'relative'}">
+    <div [ngStyle]="{display:'flex', justifyContent: 'center', position: 'relative', width: '100%', borderStyle: 'solid',
+    borderColor: 'lightgray', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderWidth: '0.08em', padding:
+    '1em 1em'}">
+        <b>Likes</b>
+        <img [src]="'images/thinGrayXIcon.png'" (click)="closePopup.emit()" [ngStyle]="{height:'1.3em', width:'1.3em', cursor:
+        'pointer', position: 'absolute', right: '5%', top: '30%'}"/>
+    </div>
+
+    <ng-container *ngIf="fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length == 0">
+        <FollowUser *ngFor="let likerInfo of likers"
+            [authUserId]="authUserId"
+            [userId]="likerInfo.likerId"
+            [username]="likerInfo.likerUsername"
+            [userFullName]="likerInfo.likerFullName"
+            [userPfp]="likerInfo.likerPfp"
+            [originalFollowText]="likerInfo.originalFollowText"
+            [userIsVerified]="likerInfo.likerIsVerified"
+            (showErrorPopup)="showErrorPopup.emit($event)"
+        />
+    </ng-container>
+
+    <p *ngIf="fetchingInitialLikersIsComplete && initialLikersFetchingErrorMessage.length > 0"
+    [ngStyle]="{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '75%', color:
+    'gray'}">
+        {{ initialLikersFetchingErrorMessage }}
+    </p>
+
+    <img *ngIf="!fetchingInitialLikersIsComplete" [src]="'images/loadingAnimation.gif'" [ngStyle]="{height: '2.75em', width:
+    '2.75em', objectFit: 'contain', pointerEvents: 'none', position: 'absolute', top: '50%', left: '50%', transform:
+    'translate(-50%, -50%)'}"/>
+
+    <p *ngIf="!isCurrentlyFetchingAdditionalLikers && additionalLikersFetchingErrorMessage.length > 0"
+    [ngStyle]="{width: '85%', color: 'gray', fontSize: '0.88em', marginTop: '3.75em'}">
+        {{ additionalLikersFetchingErrorMessage }}
+    </p>
+
+    <img *ngIf="isCurrentlyFetchingAdditionalLikers" [src]="'images/loadingAnimation.gif'" [ngStyle]="{height: '2em', width: '2em',
+    objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}"/>
+</div>

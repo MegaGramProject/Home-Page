@@ -73,7 +73,7 @@ public class Controller : ControllerBase
     [HttpPost("getBatchOfLikersOfPostOrComment/{authUserId}/{overallPostId?}/{commentId?}")]
     [EnableRateLimiting("6PerMinute")]
     public async Task<IActionResult> GetBatchOfLikersOfPostOrComment(
-        int authUserId, string? overallPostId, int? commentId, [FromBody] int[]? likersToExclude
+        int authUserId, string? overallPostId, int? commentId, [FromBody] int[]? likerIdsToExclude
     )
     {
         if ((overallPostId == null && commentId == null) || (overallPostId != null && commentId != null))
@@ -195,11 +195,11 @@ public class Controller : ControllerBase
             }
         }
 
-        HashSet<int> setOfLikersToExclude = new HashSet<int>();
-        if (likersToExclude != null)
+        HashSet<int> setOfLikerIdsToExclude = new HashSet<int>();
+        if (likerIdsToExclude != null)
         {
-            likersToExclude = likersToExclude.Where(x => x > 0).ToArray();
-            setOfLikersToExclude = new HashSet<int>(likersToExclude);
+            likerIdsToExclude = likerIdsToExclude.Where(x => x > 0).ToArray();
+            setOfLikerIdsToExclude = new HashSet<int>(likerIdsToExclude);
         }
 
         int[] authorsOfPost = [];
@@ -239,7 +239,7 @@ public class Controller : ControllerBase
             authorsAndEncryptionStatusOfPostAndFollowingsAndBlockingsOfUserSuccessOutput[
                 "setOfAuthUserBlockings"
             ];
-            setOfLikersToExclude.UnionWith(setOfAuthUserBlockings);
+            setOfLikerIdsToExclude.UnionWith(setOfAuthUserBlockings);
         }
 
         List<Dictionary<string, object>> batchOfLikersFollowedByAuthUser = new List<Dictionary<string, object>>();
@@ -317,7 +317,7 @@ public class Controller : ControllerBase
                         encryptedLikerInfo.encryptionAuthTag
                     );
                     int likerId = int.Parse(stringifiedLikerId);
-                    if (setOfLikersToExclude.Contains(likerId))
+                    if (setOfLikerIdsToExclude.Contains(likerId))
                     {
                         continue;
                     }
@@ -333,7 +333,7 @@ public class Controller : ControllerBase
                             new Dictionary<string, object>
                                 {
                                     { "isFollowedByAuthUser", true },
-                                    { "liker", likerId }
+                                    { "likerId", likerId }
                                 }
                         ); 
                         numLikersFound++;
@@ -343,7 +343,7 @@ public class Controller : ControllerBase
                         batchOfLikersNotFollowedByAuthUser.Add(
                             new Dictionary<string, object>
                                 {
-                                    { "liker", likerId }
+                                    { "likerId", likerId }
                                 }
                         ); 
                     }
@@ -385,7 +385,7 @@ public class Controller : ControllerBase
                 var likersOfPostOrComment = await _postgresContext
                     .unencryptedPostOrCommentLikes
                     .Where(x => commentId == null ? x.overallPostId == overallPostId : x.commentId == commentId
-                    && !setOfLikersToExclude.Contains(x.likerId))
+                    && !setOfLikerIdsToExclude.Contains(x.likerId))
                     .OrderByDescending(x => x.datetimeOfLike)
                     .Select(x => x.likerId)
                     .ToListAsync();
@@ -403,7 +403,7 @@ public class Controller : ControllerBase
                             new Dictionary<string, object>
                                 {
                                     { "isFollowedByAuthUser", true },
-                                    { "liker", likerId }
+                                    { "likerId", likerId }
                                 }
                         ); 
                         numLikersFound++;
@@ -413,7 +413,7 @@ public class Controller : ControllerBase
                         batchOfLikersNotFollowedByAuthUser.Add(
                             new Dictionary<string, object>
                                 {
-                                    { "liker", likerId }
+                                    { "likerId", likerId }
                                 }
                         ); 
                     }
@@ -439,7 +439,7 @@ public class Controller : ControllerBase
             new Dictionary<string, object>
                 {
                     { "isAuthUser", true },
-                    { "liker", authUserId}
+                    { "likerId", authUserId}
                 }
             ); 
         }

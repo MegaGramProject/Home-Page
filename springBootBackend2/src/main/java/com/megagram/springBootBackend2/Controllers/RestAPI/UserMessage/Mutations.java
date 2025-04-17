@@ -6,14 +6,17 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseCookie;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,6 +33,7 @@ import com.megagram.springBootBackend2.repositories.googleCloudSpannerMySQL.User
 import com.megagram.springBootBackend2.repositories.googleCloudSpannerMySQL.UserMessageRepository;
 import com.megagram.springBootBackend2.services.ConvoInfoFetchingService;
 import com.megagram.springBootBackend2.services.EncryptionAndDecryptionService;
+import com.megagram.springBootBackend2.services.MessageSendingService;
 import com.megagram.springBootBackend2.services.UserAuthService;
 import com.megagram.springBootBackend2.services.UserInfoFetchingService;
 
@@ -45,19 +49,21 @@ import jakarta.servlet.http.HttpServletResponse;
 @RestController
 public class Mutations {
     @Autowired
-    private UserAuthService userAuthService;
+    private UserMessageRepository userMessageRepository;
     @Autowired
-    private UserInfoFetchingService userInfoFetchingService;
+    private UserConvoRepository userConvoRepository;
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     @Autowired
     private ConvoInfoFetchingService convoInfoFetchingService;
     @Autowired
-    private UserConvoRepository userConvoRepository;
+    private UserAuthService userAuthService;
+    @Autowired
+    private UserInfoFetchingService userInfoFetchingService;
     @Autowired
     private EncryptionAndDecryptionService encryptionAndDecryptionService;
     @Autowired
-    private UserMessageRepository userMessageRepository;
+    private MessageSendingService messageSendingService;
 
     private final Map<String, Bucket> rateLimitBuckets = new ConcurrentHashMap<>();
     
@@ -419,6 +425,303 @@ public class Mutations {
         output.put("messageWasFound", messageWasFound);
         output.put("ErrorMessage", errorMessage);
 
+        return output;
+    }
+
+
+    @PostMapping("/sendMessageToOneOrMoreUsersAndGroups/{authUserId}/{method}")
+    @CrossOrigin({"http://34.111.89.101", "http://localhost:8004"})
+    public HashMap<String, Object> sendMessageToOneOrMoreUsersAndGroups(HttpServletRequest request, HttpServletResponse
+    response, @RequestParam int authUserId, @RequestParam String method, @RequestBody HashMap<String, Object>
+    relevantInfoForThisRequest) throws Exception {
+        if (authUserId < 1) {
+            throw new BadRequestException(
+                "The provided authUserId is invalid"
+            );
+        }
+
+        if (!method.equals("individually") && !method.equals("as a group")) {
+            throw new BadRequestException(
+                "The method must either be 'individually' or 'as a group'"
+            );      
+        }
+
+        if (!relevantInfoForThisRequest.containsKey("messageToSend") || !(relevantInfoForThisRequest.get(
+        "messageToSend") instanceof String) || ((String) relevantInfoForThisRequest.get("messageToSend"))
+        .length()>1000) {
+            throw new BadRequestException(
+                "The provided message-to-send is either over the 1000-character limit, or does not even exist"
+            );
+        }
+
+        String messageToSend = (String) relevantInfoForThisRequest.get("messageToSend");
+
+        HashSet<Integer> setOfUserIdsToSendTo = new HashSet<Integer>();
+        HashSet<Integer> setOfGroupChatIdsSendTo = new HashSet<Integer>();
+
+        if (relevantInfoForThisRequest.containsKey("usersAndGroupsToSendTo")) {
+            ArrayList<String> usersAndGroupsToSendTo = (ArrayList<String>) relevantInfoForThisRequest.get(
+                "usersAndGroupsToSendTo"
+            );
+
+            for(String userOrGroup : usersAndGroupsToSendTo) {
+                String[] infoOnUserOrGroupChat = userOrGroup.split("/");
+                if (infoOnUserOrGroupChat.length == 0) {
+                    continue;
+                }
+
+                if (infoOnUserOrGroupChat[0].equals("user")) {
+                    if (infoOnUserOrGroupChat.length > 1) {
+                        String stringifiedUserId = infoOnUserOrGroupChat[1];
+                        try {
+                            int userId = Integer.parseInt(stringifiedUserId);
+                            if (userId > 0) {
+                                setOfUserIdsToSendTo.add(userId);
+                            }
+                        }
+                        catch (Exception e) {}
+                    }
+                }
+                else if (infoOnUserOrGroupChat[0].equals("group-chat")) {
+                    if (infoOnUserOrGroupChat.length > 1) {
+                        String stringifiedGroupChatId = infoOnUserOrGroupChat[1];
+                        try {
+                            int groupChatId = Integer.parseInt(stringifiedGroupChatId);
+                            if (groupChatId > 0) {
+                                setOfGroupChatIdsSendTo.add(groupChatId);
+                            }
+                        }
+                        catch (Exception e) {}
+                    }
+                }
+            }
+        }
+
+        if (setOfUserIdsToSendTo.size() == 0 && setOfGroupChatIdsSendTo.size() == 0) {
+            throw new BadGatewayException(
+                "No valid users and groups to send the post to have been provided"
+            );
+        }
+
+        Object userAuthenticationResult = this.userAuthService.authenticateUser(request, authUserId);
+
+        if (userAuthenticationResult instanceof Boolean) {
+            if (!(Boolean) userAuthenticationResult) {
+                throw new ForbiddenException("The expressJSBackend1 server could not verify you as " + 
+                "having the proper credentials to be logged in as " + authUserId);
+            }
+        }
+        else if (userAuthenticationResult instanceof String) {
+            String errorMessage = (String) userAuthenticationResult;
+            
+            if (errorMessage.equals("The provided authUser token, if any, in your cookies has an " +
+            "invalid structure.")) {
+                throw new ForbiddenException(errorMessage);
+            }
+
+            throw new BadGatewayException(errorMessage);
+        }
+        else if (userAuthenticationResult instanceof Object[]) {
+            String authToken = (String) ((Object[])userAuthenticationResult)[0];
+            long numSecondsTillCookieExpires = (long) ((Object[])userAuthenticationResult)[1];
+
+            ResponseCookie cookie = ResponseCookie.from("authToken", authToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(numSecondsTillCookieExpires)
+                .sameSite("Strict")
+                .build();
+
+            response.addHeader("Set-Cookie", cookie.toString());
+        }
+
+        String errorMessage = "";
+
+        Object resultOfGettingUserBlockings = this.userInfoFetchingService.getBlockingsOfUser(
+            authUserId
+        );
+        if (resultOfGettingUserBlockings instanceof String[]) {
+            errorMessage += "• " + ((String[]) resultOfGettingUserBlockings)[0] + "\n";
+            throw new BadGatewayException(errorMessage);
+        }
+        HashSet<Integer> setOfAuthUserBlockings = (HashSet<Integer>) resultOfGettingUserBlockings;
+
+        Iterator<Integer> userIdsToSendToIterator = setOfUserIdsToSendTo.iterator();
+        while (userIdsToSendToIterator.hasNext()) {
+            int userIdToSendTo = userIdsToSendToIterator.next();
+
+            if (setOfAuthUserBlockings.contains(userIdToSendTo)) {
+                userIdsToSendToIterator.remove();
+            }
+        }
+
+        Object resultOfFetchingInfoOnAllAuthUserConvos = this.convoInfoFetchingService.getInfoOnAllConvosOfUser(
+            authUserId,
+            setOfAuthUserBlockings,
+            this.userConvoRepository,
+            this.encryptionAndDecryptionService
+        );
+        if (resultOfFetchingInfoOnAllAuthUserConvos instanceof String[]) {
+            errorMessage += "• " + ((String[]) resultOfGettingUserBlockings)[0] + "\n";
+            throw new BadGatewayException(errorMessage);
+        }
+
+        HashMap<String, Object> infoOnAllConvosOfAuthUser = (HashMap<String, Object>) resultOfFetchingInfoOnAllAuthUserConvos;
+        HashMap<Integer, byte[]> authUserConvosAndTheirPlaintextDEKs =
+        (HashMap<Integer, byte[]>) infoOnAllConvosOfAuthUser.get(
+            "convosAndTheirPlaintextDEKs"
+        );
+        HashMap<Integer, UserConvo> authUserConvosAndTheirDetails =
+        (HashMap<Integer, UserConvo>) infoOnAllConvosOfAuthUser.get(
+            "authUserConvosAndTheirDetails"
+        );
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        int convoIdOfNewMessage = -1;
+        HashMap<Integer, Integer> userIdsToSendToAndTheirConvoIdsOfTheNewlySentMessage = new HashMap<Integer, Integer>();
+        ArrayList<Integer> idsOfGroupChatsThatHaveSuccessfullyReceivedNewMessage = new ArrayList<Integer>();
+
+        if (method.equals("as a group")) {
+            HashSet<Integer> allSpecifiedMembersToSendTo = setOfUserIdsToSendTo;
+            allSpecifiedMembersToSendTo.add(authUserId);
+
+            if (allSpecifiedMembersToSendTo.size() > 250) {
+                errorMessage += "• The maximum number of members of a user-convo is 250.\n";
+                throw new BadRequestException(errorMessage);
+            }
+            
+            if (setOfGroupChatIdsSendTo.size() > 0) {
+                for(int convoId : setOfGroupChatIdsSendTo) {
+                    if (authUserConvosAndTheirDetails.containsKey(convoId)) {
+                        UserConvo detailsOfGroupChat = authUserConvosAndTheirDetails.get(convoId);
+                        byte[] plaintextDataEncryptionKey = authUserConvosAndTheirPlaintextDEKs.get(convoId);
+
+                        String membersOfConvoAsString = this.encryptionAndDecryptionService
+                        .decryptTextWithAWSDataEncryptionKey(
+                            detailsOfGroupChat.getEncryptedMembers(),
+                            plaintextDataEncryptionKey,
+                            detailsOfGroupChat.getMembersEncryptionIv(),
+                            detailsOfGroupChat.getMembersEncryptionAuthTag()
+                        );
+                        
+                        ArrayList<Integer> membersOfConvo = null;
+
+                        try {
+                            membersOfConvo = objectMapper.readValue(membersOfConvoAsString, ArrayList.class);
+                        }
+                        catch (IOException e) {}
+
+                        allSpecifiedMembersToSendTo.addAll(new HashSet<Integer>(membersOfConvo));
+
+                        if (allSpecifiedMembersToSendTo.size() > 250) {
+                            errorMessage += "• The maximum number of members of a user-convo is 250.\n";
+                            throw new BadRequestException(errorMessage);
+                        }
+                    }
+                }
+            }
+
+            HashMap<String, Object> resultOfSendingMessageToSpecifiedMembersAsGroup = this.messageSendingService
+            .sendMessageToSpecifiedMembersAsGroup(
+                this.userConvoRepository,
+                this.userMessageRepository,
+                this.redisTemplate,
+                this.encryptionAndDecryptionService,
+                this.convoInfoFetchingService,
+                allSpecifiedMembersToSendTo,
+                authUserConvosAndTheirDetails,
+                authUserConvosAndTheirPlaintextDEKs,
+                messageToSend,
+                authUserId,
+                objectMapper
+            );
+
+            errorMessage += (String) resultOfSendingMessageToSpecifiedMembersAsGroup.get("ErrorMessage");
+
+            if (!(resultOfSendingMessageToSpecifiedMembersAsGroup.get("status").equals("CROSSED_THE_FINISH_LINE"))) {
+                throw new BadGatewayException(errorMessage);
+            }
+
+            convoIdOfNewMessage = (int) resultOfSendingMessageToSpecifiedMembersAsGroup.get("convoIdOfNewMessage");
+        }
+        else {
+            for (int userIdToSendTo : setOfUserIdsToSendTo) {
+                HashMap<String, Object> resultOfSendingMessageToSpecifiedMembersAsGroup = this.messageSendingService
+                .sendMessageToSpecifiedMembersAsGroup(
+                    this.userConvoRepository,
+                    this.userMessageRepository,
+                    this.redisTemplate,
+                    this.encryptionAndDecryptionService,
+                    this.convoInfoFetchingService,
+                    new HashSet<Integer>(Set.of(userIdToSendTo)),
+                    authUserConvosAndTheirDetails,
+                    authUserConvosAndTheirPlaintextDEKs,
+                    messageToSend,
+                    authUserId,
+                    objectMapper
+                );
+
+                errorMessage += (String) resultOfSendingMessageToSpecifiedMembersAsGroup.get("ErrorMessage");
+
+                if (!resultOfSendingMessageToSpecifiedMembersAsGroup.get("status").equals("CROSSED_THE_FINISH_LINE")) {
+                    errorMessage +=  "• There was trouble sending the message to user " + userIdToSendTo + "\n";
+                }
+                else {
+                    int convoIdOfNewMessageSentToThisUser = (int) resultOfSendingMessageToSpecifiedMembersAsGroup.get(
+                        "convoIdOfNewMessage"
+                    );
+
+                    userIdsToSendToAndTheirConvoIdsOfTheNewlySentMessage.put(userIdToSendTo, convoIdOfNewMessageSentToThisUser);
+                }
+            }
+
+            for (int groupChatId : setOfGroupChatIdsSendTo) {
+                HashMap<String, Object> resultOfSendingMessageToSpecifiedConvo = this.messageSendingService
+                .sendMessageToSpecificConvo(
+                    this.userConvoRepository,
+                    this.userMessageRepository,
+                    this.redisTemplate,
+                    this.encryptionAndDecryptionService,
+                    this.convoInfoFetchingService,
+                    authUserConvosAndTheirDetails,
+                    authUserConvosAndTheirPlaintextDEKs,
+                    messageToSend,
+                    authUserId,
+                    groupChatId,
+                    objectMapper
+                );
+
+                errorMessage += (String) resultOfSendingMessageToSpecifiedConvo.get("ErrorMessage");
+
+                if (!resultOfSendingMessageToSpecifiedConvo.get("status").equals("CROSSED_THE_FINISH_LINE")) {
+                    errorMessage +=  "• There was trouble sending the message to convo " + groupChatId + "\n";
+                }
+                else {
+                    idsOfGroupChatsThatHaveSuccessfullyReceivedNewMessage.add(groupChatId);
+                }
+            }
+        }
+        
+        HashMap<String, Object> output = new HashMap<String, Object>();
+        output.put("ErrorMessage", errorMessage);
+
+        if (method.equals("as a group")) {
+            output.put("convoIdOfNewMessage", convoIdOfNewMessage);
+        }
+        else {
+            output.put(
+                "userIdsToSendToAndTheirConvoIdsOfTheNewlySentMessage",
+                userIdsToSendToAndTheirConvoIdsOfTheNewlySentMessage
+            );
+
+            output.put(
+                "idsOfGroupChatsThatHaveSuccessfullyReceivedNewMessage",
+                idsOfGroupChatsThatHaveSuccessfullyReceivedNewMessage
+            );
+        }
+        
         return output;
     }
 

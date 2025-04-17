@@ -20,6 +20,20 @@ urlpatterns = [
     path('getFollowingsAndBlockingsOfUser/<int:auth_user_id>', views.get_followings_and_blockings_of_user, name=f'Get Followings
     and Blockings of User'),
 
-    path('checkIfUserIsInBlockingsOfAuthUser/<int:auth_user_id>/<int:user_id>', views.check_if_user_is_in_blockings_of_auth_user,
-    name='Check if User is in Blockings of Auth User')
+    path(
+        'checkIfUserIsInBlockingsOfAuthUser/<int:auth_user_id>/<int:user_id>',
+         views.check_if_user_is_in_blockings_of_auth_user,
+        name='Check if User is in Blockings of Auth User'
+    ),
+    path(
+        'checkIfUsersInListAreInBlockingsOfAuthUser/<int:auth_user_id>',
+        views.check_if_users_in_list_are_in_blockings_of_auth_user,
+        name='Check If Users In List Are In Blockings Of Auth User'
+    ),
+
+    path(
+        'getOrderedListOfUserSuggestionsBasedOnNumFollowersAndOtherMetrics/<int:auth_user_id>/<str:username_starts_with_this>/<int:limit>',
+        views.get_ordered_list_of_user_suggestions_based_on_num_followers_and_other_metrics,
+        name='Get Ordered List of User-Suggestions Based on Num-Followers and Other Metrics'
+    )
 ]

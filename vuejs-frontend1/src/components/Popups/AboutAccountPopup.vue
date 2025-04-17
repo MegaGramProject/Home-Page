@@ -76,129 +76,114 @@
 </template>
   
 
-<script>
+<script setup>
     import UserIcon from '../UserIcon';
 
     import accountBasedInIcon from '../../assets/images/accountBasedIn.png';
-    import dateJoinedIcon from '../../assets/images/dateJoined.png';
-    import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
+import dateJoinedIcon from '../../assets/images/dateJoined.png';
+import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
+
+    import { defineProps, ref, toRefs, watch } from 'vue';
+
+    
+    const props = defineProps({
+        authUserId: Number,
+        userId: Number,
+
+        username: String,
+        authUser:String,
+        userPfp: String,
+
+        userIsVerified: Boolean,
+        userHasStories: Boolean,
+        userHasUnseenStory: Boolean,
+
+        usersAndTheirRelevantInfo: Object,
+
+        addRelevantInfoToUser: Function,
+        closePopup: Function,
+        showStoryViewer: Function
+    });
+
+    const { authUserId, userId, username, authUser, userPfp, userIsVerified, userHasStories, userHasUnseenStory,
+    usersAndTheirRelevantInfo, addRelevantInfoToUser, closePopup, showStoryViewer } = toRefs(props);
+
+    const dateJoinedText = ref('');
+    const accountBasedInText = ref('');
 
 
-    export default {
-        props: {
-            authUserId: Number,
-            userId: Number,
-
-            username: String,
-            authUser:String,
-            userPfp: String,
-
-            userIsVerified: Boolean,
-            userHasStories: Boolean,
-            userHasUnseenStory: Boolean,
-
-            usersAndTheirRelevantInfo: Object,
-
-            addRelevantInfoToUser: Function,
-            closePopup: Function,
-            showStoryViewer: Function
-        },
-
-        
-        components: {
-            UserIcon
-        },
-
-
-        data() {
-            return {
-                accountBasedInIcon,
-                dateJoinedIcon,
-                verifiedBlueCheck,
-
-                dateJoinedText: '',
-                accountBasedInText: ''
-            }
-        },
-
-
-        methods: {
-            async fetchRelevantDataForTheAccount() {
-                try {
-                    const response = await fetch(
-                    'http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            query: `query getDateJoinedAndAccountBasedInOfUser($authUserId: Int!, $userId: Int!) {
-                                getDateJoinedAndAccountBasedInOfUser(authUserId: $authUserId, userId: $userId)
-                            }`,
-                            variables: {
-                                authUserId: this.authUserId,
-                                userId: this.userId
-                            }
-                        }),
-                        credentials: 'include'
-                    });
-                    if(!response.ok) {
-                        this.dateJoinedText = 'The server had trouble getting the date when this user joined Megagram';
-                        this.accountBasedInText = 'The server had trouble getting where this user is based in';
+    async function fetchRelevantDataForTheAccount() {
+        try {
+            const response = await fetch(
+            'http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query getDateJoinedAndAccountBasedInOfUser($authUserId: Int!, $userId: Int!) {
+                        getDateJoinedAndAccountBasedInOfUser(authUserId: $authUserId, userId: $userId)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userId: userId
                     }
-                    else {
-                        let relevantUserInfo = await response.json();
-                        relevantUserInfo = relevantUserInfo.data.getDateJoinedAndAccountBasedInOfUser;
-                        this.dateJoinedText = this.formatDateString(relevantUserInfo[0]);
-                        this.accountBasedInText = relevantUserInfo[1];
-
-                        this.addRelevantInfoToUser(this.userId, {
-                            dateJoined: this.dateJoinedText,
-                            accountBasedIn: this.accountBasedInText
-                        });
-                    }
-                }
-                catch {
-                    this.dateJoinedText = 'There was trouble connecting to server to get the date when this user joined Megagram';
-                    this.accountBasedInText = 'There as trouble connecting to server to get where this user is based in';
-                }
-            },
-
-
-            formatDateString(dateString) {
-                if (dateString.includes("joined Megagram")) {
-                    return dateString;
-                }
-
-                const date = new Date(dateString);
-                
-                const months = [
-                    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-                ];
-                const month = months[date.getUTCMonth()];
-
-                const day = date.getUTCDate();
-                const year = date.getUTCFullYear();
-
-                return `${month} ${day}, ${year}`;
-            },
-
-
-            takeToUsersProfile() {
-                window.open(`http://34.111.89.101/profile/${this.username}`, '_blank');
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                dateJoinedText.value = 'The server had trouble getting the date when this user joined Megagram';
+                accountBasedInText.value = 'The server had trouble getting where this user is based in';
             }
-        },
+            else {
+                let relevantUserInfo = await response.json();
+                relevantUserInfo = relevantUserInfo.data.getDateJoinedAndAccountBasedInOfUser;
+                dateJoinedText.value = formatDateString(relevantUserInfo[0]);
+                accountBasedInText.value = relevantUserInfo[1];
 
-
-        watch: {
-            userId(newVal) {
-                if (newVal in this.usersAndTheirRelevantInfo && 'dateJoined' in this.usersAndTheirRelevantInfo[newVal]
-                && 'accountBasedIn' in this.usersAndTheirRelevantInfo[newVal]) {
-                    this.dateJoinedText = this.usersAndTheirRelevantInfo[newVal].dateJoined;
-                    this.accountBasedInText = this.usersAndTheirRelevantInfo[newVal].accountBasedIn;
-                }
-                else {
-                    this.fetchRelevantDataForTheAccount();
-                }
+                addRelevantInfoToUser(userId, {
+                    dateJoined: dateJoinedText.value,
+                    accountBasedIn: accountBasedInText.value
+                });
             }
         }
+        catch {
+            dateJoinedText.value = 'There was trouble connecting to server to get the date when this user joined Megagram';
+            accountBasedInText.value = 'There as trouble connecting to server to get where this user is based in';
+        }
     }
+
+
+    function formatDateString(dateString) {
+        if (dateString.includes("joined Megagram")) {
+            return dateString;
+        }
+
+        const date = new Date(dateString);
+        
+        const months = [
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        ];
+        const month = months[date.getUTCMonth()];
+
+        const day = date.getUTCDate();
+        const year = date.getUTCFullYear();
+
+        return `${month} ${day}, ${year}`;
+    }
+
+
+    function takeToUsersProfile() {
+        window.open(`http://34.111.89.101/profile/${username}`, '_blank');
+    }
+
+
+    watch(userId, (newVal) => {
+        if (newVal in usersAndTheirRelevantInfo && 'dateJoined' in usersAndTheirRelevantInfo[newVal]
+        && 'accountBasedIn' in usersAndTheirRelevantInfo[newVal]) {
+            dateJoinedText.value = usersAndTheirRelevantInfo[newVal].dateJoined;
+            accountBasedInText.value = usersAndTheirRelevantInfo[newVal].accountBasedIn;
+        }
+        else {
+            fetchRelevantDataForTheAccount();
+        }
+    });
 </script>

@@ -82,6 +82,9 @@ return [
                 'getUserIdOfUsername' => App\GraphQL\Queries\User\GetUserIdOfUsername::class,
                 'getDateJoinedAndAccountBasedInOfUser' => App\GraphQL\Queries\User\GetDateJoinedAndAccountBasedInOfUser::class,
                 'getUsernamesForListOfUserIds' => App\GraphQL\Queries\User\GetUsernamesForListOfUserIds::class,
+                'getUsernamesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetUsernamesForListOfUserIdsAsAuthUser::class,
+                'getFullNamesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetFullNamesForListOfUserIdsAsAuthUser::class,
+                'getVerificationStatusesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetVerificationStatusesForListOfUserIdsAsAuthUser::class
             ],
 
             'mutation' => [

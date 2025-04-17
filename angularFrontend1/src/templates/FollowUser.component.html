@@ -22,9 +22,10 @@
       </div>
     </div>
   
-    <button (click)="toggleFollowUser()" [ngStyle]="{'background-color': followText !== 'Follow' ? '#f5f5f5' : '#1f86ed', 'color':
-    followText !== 'Follow' ? 'black' : 'white', 'font-weight': 'bold', 'cursor': 'pointer', 'border-style': 'none', 'width':
-    '10em', 'border-radius': '0.5em', 'padding-left': '0.5em', 'padding-bottom': '0.5em', 'padding-top': '0.5em'}">
+    <button *ngIf="authUserId !== userId" (click)="toggleFollowUser()" [ngStyle]="{'background-color': followText !==
+    'Follow' ? '#f5f5f5' : '#1f86ed', 'color': followText !== 'Follow' ? 'black' : 'white', 'font-weight': 'bold',
+    'cursor': 'pointer', 'border-style': 'none', 'width': '10em', 'border-radius': '0.5em', 'padding-left': '0.5em', 
+    'padding-bottom': '0.5em', 'padding-top': '0.5em'}">
         {{ followText }}
     </button>
 </div>

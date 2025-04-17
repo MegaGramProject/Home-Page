@@ -17,7 +17,7 @@ public interface UserConvoRepository extends JpaRepository<UserConvo, Integer> {
 
     @Query(
         "SELECT uc FROM UserConvo uc " +
-        "WHERE uc.id NOT IN :setOfIdsToExclude "
+        "WHERE uc.id NOT IN :setOfIdsToExclude"
     )
     ArrayList<UserConvo> findAllExcept(
         @Param("setOfIdsToExclude") HashSet<Integer> setOfIdsToExclude
@@ -26,9 +26,16 @@ public interface UserConvoRepository extends JpaRepository<UserConvo, Integer> {
 
     @Query(
         "SELECT uc FROM UserConvo uc " +
-        "WHERE uc.id IN :setOfIdsToInclude "
+        "WHERE uc.id IN :setOfIdsToInclude"
     )
     ArrayList<UserConvo> findSpecificConvosBasedOnIds(
         @Param("setOfIdsToInclude") HashSet<Integer> setOfIdsToInclude
     );
+
+
+    @Query(
+        "SELECT uc.encryptedDataEncryptionKey FROM UserConvo uc " +
+        "WHERE uc.id = :convoId"
+    )
+    byte[] getEncryptedDataEncryptionKeyOfConvo(@Param("convoId") int convoId);
 }

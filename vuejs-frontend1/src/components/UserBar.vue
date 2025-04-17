@@ -57,115 +57,105 @@
 </template>
 
 
-<script>
+<script setup>
     import AccountPreview from './AccountPreview.vue';
 
     import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-    export default {
-        props: {
-            username: String,
-            userFullName: String,
-            userPfp: String,
+    import { defineProps, ref, toRefs } from 'vue';
+    
+    
+    const props = defineProps({
+        username: String,
+        userFullName: String,
+        userPfp: String,
 
-            authUserId: Number,
-            userId: Number,
-            numFollowers: Number,
-            numFollowings: Number,
-            numPosts: Number,
+        authUserId: Number,
+        userId: Number,
+        numFollowers: Number,
+        numFollowings: Number,
+        numPosts: Number,
 
-            userIsPrivate: Boolean,
-            userIsVerified: Boolean,
+        userIsPrivate: Boolean,
+        userIsVerified: Boolean,
 
-            showErrorPopup: Function
-        },
+        showErrorPopup: Function
+    });
 
+    const { username, userFullName, userPfp, authUserId, userId, numFollowers, numFollowings, numPosts, userIsPrivate,
+    userIsVerified, showErrorPopup } = toRefs(props);
 
-        components: {
-            AccountPreview
-        },
+    const toggleFollowText = ref('Follow');
 
-
-        data() {
-            return {
-                verifiedBlueCheck,
-
-                toggleFollowText: 'Follow',
-
-                displayAccountPreview: false
-            }
-        },
+    const displayAccountPreview = ref(false);
 
 
-        methods: {
-            takeUserToLogin() {
-                window.open('http://34.111.89.101/login', '_blank');
-            },
+    function takeUserToLogin() {
+        window.open('http://34.111.89.101/login', '_blank');
+    }
 
 
-            async toggleFollowUser() {
-                if (this.authUserId == -1) {
-                    this.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
-                    return;
-                }
+    function setDisplayAccountPreviewToTrue() {
+        displayAccountPreview.value = true;
+    }
 
-                const usernameToToggleFollow = this.username;
-                const userIdToToggleFollow = this.userId;
 
-                try {
-                    const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
-                                toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
-                            }`,
-                            variables: {
-                                authUserId: this.authUserId,
-                                userIdToToggleFollow: userIdToToggleFollow
-                            }
-                        }),
-                        credentials: 'include'
-                    });
-                    if(!response.ok) {
-                        this.showErrorPopup(
-                        `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`);
+    function setDisplayAccountPreviewToFalse() {
+        displayAccountPreview.value = false;
+    }
+
+
+    function updateFollowTextFromAccountPreview(newToggleFollowText) {
+        toggleFollowText.value = newToggleFollowText;
+    }
+
+
+    async function toggleFollowUser() {
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+            return;
+        }
+
+        const usernameToToggleFollow = username;
+        const userIdToToggleFollow = userId;
+
+        try {
+            const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `query toggleFollowUser($authUserId: Int!, $userIdToToggleFollow: Int!) {
+                        toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        userIdToToggleFollow: userIdToToggleFollow
                     }
-                    else {
-                        let newFollowingStatus = await response.json();
-                        newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
-
-                        if (newFollowingStatus==='Stranger') {
-                            this.toggleFollowText = 'Follow'
-                        }
-                        else if(newFollowingStatus==='Following') {
-                            this.toggleFollowText = 'Unfollow';
-                        }
-                        else {
-                            this.toggleFollowText = 'Cancel Request';
-                        }
-                    }
-                }
-                catch (error) {
-                    this.showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
-                    user ${usernameToToggleFollow}`);
-                }
-            },
-
-
-            setDisplayAccountPreviewToTrue() {
-                this.displayAccountPreview = true;
-            },
-
-
-            setDisplayAccountPreviewToFalse() {
-                this.displayAccountPreview = false;
-            },
-
-
-            updateFollowTextFromAccountPreview(newToggleFollowText) {
-                this.toggleFollowText = newToggleFollowText;
+                }),
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                showErrorPopup(
+                `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`);
             }
+            else {
+                let newFollowingStatus = await response.json();
+                newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
+
+                if (newFollowingStatus==='Stranger') {
+                    toggleFollowText.value = 'Follow'
+                }
+                else if(newFollowingStatus==='Following') {
+                    toggleFollowText.value = 'Unfollow';
+                }
+                else {
+                    toggleFollowText.value = 'Cancel Request';
+                }
+            }
+        }
+        catch (error) {
+            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            user ${usernameToToggleFollow}`);
         }
     }
 </script>

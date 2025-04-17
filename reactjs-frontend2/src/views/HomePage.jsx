@@ -2,8 +2,8 @@ import AboutAccountPopup from '../components/Popups/AboutAccountPopup';
 import CommentsPopup from '../components/Popups/commentsPopup';
 import ErrorPopup from '../components/Popups/ErrorPopup';
 import LeftSidebarPopup from '../components/Popups/LeftSidebarPopup';
-import LikersPopup from '../components/Popups/likersPopup';
-import SendPostPopup from '../components/Popups/sendPostPopup';
+import LikersPopup from '../components/Popups/LikersPopup';
+import SendPostPopup from '../components/Popups/SendPostPopup';
 import ThreeDotsPopup from '../components/Popups/ThreeDotsPopup';
 
 import Footer from '../components/Footer';
@@ -58,11 +58,14 @@ function HomePage({urlParams}) {
     const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
     const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
 
-    const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
-    const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState('');
+    const [cachedMessageSendingSuggestions, setCachedMessageSendingSuggestions] = useState({});
+
     const [displayLikersPopup, setDisplayLikersPopup] = useState(false);
     const [likersPopupIdOfPostOrComment, setLikersPopupIdOfPostOrComment] = useState('');
-    const [likersPopupPostOrCommentText, setLikersPopupPostOrCommentText] = useState('');
+
+    const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
+    const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState('');
+    
     const [currStoryLevel, setCurrStoryLevel] = useState(0);
     const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
     const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
@@ -158,7 +161,7 @@ function HomePage({urlParams}) {
     function showSendPostPopup(newSendPostPopupOverallPostId) {
         setSendPostPopupOverallPostId(newSendPostPopupOverallPostId);
         setDisplaySendPostPopup(true);
-    };
+    }
 
 
     function closeSendPostPopup() {
@@ -911,9 +914,8 @@ function HomePage({urlParams}) {
     }
 
 
-    function showLikersPopup(postOrCommentText, likersPopupIdOfPostOrComment) {
-        setLikersPopupPostOrCommentText(postOrCommentText);
-        setLikersPopupIdOfPostOrComment(likersPopupIdOfPostOrComment);
+    function showLikersPopup(newLikersPopupIdOfPostOrComment) {
+        setLikersPopupIdOfPostOrComment(newLikersPopupIdOfPostOrComment);
         setDisplayLikersPopup(true);
     }
 
@@ -997,6 +999,11 @@ function HomePage({urlParams}) {
     
     function updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo) {
         setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+    }
+
+
+    function updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions) {
+        setCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions);
     }
 
 
@@ -1365,6 +1372,28 @@ function HomePage({urlParams}) {
                         )
                     }
 
+                    {displayAboutAccountPopup &&
+                        (
+                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                            zIndex: displayStoryViewer ? '1' : '3'}}>
+                                <AboutAccountPopup
+                                    authUserId={authUserId}
+                                    userId={aboutAccountUserId}
+                                    username={aboutAccountUsername}
+                                    authUser={authUser}
+                                    userPfp={aboutAccountUserProfilePhoto}
+                                    userIsVerified={aboutAccountUserIsVerified}
+                                    userHasStories={aboutAccountUserHasStories}
+                                    userHasUnseenStory={aboutAccountUserHasUnseenStory}
+                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                    addRelevantInfoToUser={addRelevantInfoToUser}
+                                    closePopup={closeAboutAccountPopup}
+                                    showStoryViewer={showStoryViewer}
+                                />
+                            </div>
+                        )
+                    }
+
                     {displayStoryViewer &&
                         (
                             <StoryViewer
@@ -1454,12 +1483,14 @@ function HomePage({urlParams}) {
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                             zIndex: displayErrorPopup ? '1': '3'}}>
                                 <SendPostPopup
-                                    authUser={authUser}
+                                    authUserId={authUserId}
                                     overallPostId={sendPostPopupOverallPostId}
                                     usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                    notifyParentToUpdateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                    notifyParentToShowErrorPopup={showErrorPopup}
-                                    notifyParentToClosePopup={closeSendPostPopup}
+                                    cachedMessageSendingSuggestions={cachedMessageSendingSuggestions}
+                                    updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
+                                    updateCachedMessageSendingSuggestions={updateCachedMessageSendingSuggestions}
+                                    showErrorPopup={showErrorPopup}
+                                    closePopup={closeSendPostPopup}
                                 />
                             </div>
                         )
@@ -1470,35 +1501,12 @@ function HomePage({urlParams}) {
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                             zIndex: displayErrorPopup ? '1': '3'}}>
                                 <LikersPopup
-                                    authUser={authUser}
                                     idOfPostOrComment={likersPopupIdOfPostOrComment}
-                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                    postOrCommentText={likersPopupPostOrCommentText}
-                                    notifyParentToUpdateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                    notifyParentToClosePopup={closeLikersPopup}
-                                    notifyParentToShowErrorPopup={showErrorPopup}
-                                />
-                            </div>
-                        )
-                    }
-
-                    {displayAboutAccountPopup &&
-                        (
-                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayStoryViewer ? '1' : '3'}}>
-                                <AboutAccountPopup
                                     authUserId={authUserId}
-                                    userId={aboutAccountUserId}
-                                    username={aboutAccountUsername}
-                                    authUser={authUser}
-                                    userPfp={aboutAccountUserProfilePhoto}
-                                    userIsVerified={aboutAccountUserIsVerified}
-                                    userHasStories={aboutAccountUserHasStories}
-                                    userHasUnseenStory={aboutAccountUserHasUnseenStory}
                                     usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                    addRelevantInfoToUser={addRelevantInfoToUser}
-                                    closePopup={closeAboutAccountPopup}
-                                    showStoryViewer={showStoryViewer}
+                                    closePopup={closeLikersPopup}
+                                    showErrorPopup={showErrorPopup}
+                                    updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
                                 />
                             </div>
                         )

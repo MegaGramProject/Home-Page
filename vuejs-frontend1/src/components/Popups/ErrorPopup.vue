@@ -19,20 +19,17 @@
 </template>
 
 
-<script>
+<script setup>
     import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-    
-    export default {
-        props: {
-            errorMessage: String,
-            closePopup: Function
-        },
+    import { defineProps, toRefs } from 'vue';
 
-        data() {
-            return {
-                thinGrayXIcon,
-            }
-        }
-    };
+
+    const props = defineProps({
+        errorMessage: String,
+        
+        closePopup: Function,
+    });
+
+    const { errorMessage, closePopup } = toRefs(props);
 </script>
