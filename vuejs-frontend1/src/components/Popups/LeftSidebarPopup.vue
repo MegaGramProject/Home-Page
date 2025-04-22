@@ -44,7 +44,7 @@ import reportAProblemIcon from '../../assets/images/reportAProblemIcon.png';
 import settingsIcon from '../../assets/images/settingsIcon.png';
 import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
 
-    import { defineProps, toRefs } from 'vue';
+    import { defineProps } from 'vue';
 
 
     const props = defineProps({
@@ -55,13 +55,11 @@ import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
         showErrorPopup: Function,
     });
 
-    const { authUserId, originalURL, showErrorPopup } = toRefs(props);
-
 
     async function logout() {
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/expressJSBackend1/logout/${authUserId}`, {
+            `http://34.111.89.101/api/Home-Page/expressJSBackend1/logout/${props.authUserId}`, {
                 method: 'PATCH',
                 headers: {
                 'Content-Type': 'application/json',
@@ -71,14 +69,14 @@ import yourActivityIcon from '../../assets/images/yourActivityIcon.png';
             );
 
             if (!response.ok) {
-                showErrorPopup('The expressJSBackend1 server had trouble logging you out');
+                props.showErrorPopup('The expressJSBackend1 server had trouble logging you out');
             }
             else {
-                window.location.href = originalURL;
+                window.location.href = props.originalURL;
             }
         }
         catch (error) {
-            showErrorPopup('There was trouble connecting to the expressJSBackend1 server to log you out.');
+            props.showErrorPopup('There was trouble connecting to the expressJSBackend1 server to log you out.');
         }
     }
 </script>

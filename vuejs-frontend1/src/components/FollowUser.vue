@@ -35,7 +35,7 @@
 <script setup>
     import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-    import { defineProps, onMounted, ref, toRefs } from 'vue';
+    import { defineProps, onMounted, ref } from 'vue';
 
 
     const props = defineProps({
@@ -52,20 +52,17 @@
         showErrorPopup: Function
     });
 
-    const { authUserId, userId, username, userFullName, userPfp, originalFollowText, userIsVerified,
-    showErrorPopup} = toRefs(props);
-
     const toggleFollowText = ref('');
 
 
     onMounted(() => {
-        toggleFollowText.value = originalFollowText;
+        toggleFollowText.value = props.originalFollowText;
     });
 
 
     async function toggleFollowUser() {
-        if (authUserId === -1) {
-            showErrorPopup(`You cannot toggle your follow-status of user ${username} when you are on 'Anonymous
+        if (props.authUserId === -1) {
+            props.showErrorPopup(`You cannot toggle your follow-status of user ${props.username} when you are on 'Anonymous
             Guest' mode`);
             return;
         }
@@ -79,14 +76,14 @@
                         toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
                     }`,
                     variables: {
-                        authUserId: authUserId,
-                        userIdToToggleFollow: userId
+                        authUserId: props.authUserId,
+                        userIdToToggleFollow: props.userId
                     }
                 }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                showErrorPopup(`The server had trouble toggling your follow-status of user ${username}`);
+                props.showErrorPopup(`The server had trouble toggling your follow-status of user ${props.username}`);
             }
             else {
                 let newFollowingStatus = await response.json();
@@ -100,7 +97,9 @@
             }
         }
         catch (error) {
-            showErrorPopup('There was trouble connecting to the server to toggle your follow-status of user ${username}');
+            props.showErrorPopup(
+                `There was trouble connecting to the server to toggle your follow-status of user ${props.username}`
+            );
         }
     }
 </script>

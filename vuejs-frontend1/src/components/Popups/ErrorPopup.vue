@@ -22,7 +22,7 @@
 <script setup>
     import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-    import { defineProps, toRefs } from 'vue';
+    import { defineProps } from 'vue';
 
 
     const props = defineProps({
@@ -31,5 +31,5 @@
         closePopup: Function,
     });
 
-    const { errorMessage, closePopup } = toRefs(props);
+    props;
 </script>

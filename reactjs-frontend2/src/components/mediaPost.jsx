@@ -23,7 +23,7 @@ import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 import likePostAnimationHeartIcon from '../assets/images/likePostAnimationHeartIcon.webp';
 
-function MediaPost({postDetails, authUser, notifyParentToShowThreeDotsPopup, notifyParentToShowCommentsPopup,
+function MediaPost({postDetails, authUsername, notifyParentToShowThreeDotsPopup, notifyParentToShowCommentsPopup,
 notifyParentToShowSendPostPopup, notifyParentToShowLikersPopup, notifyParentToShowErrorPopup,
 mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo}) {
     const [overallPostId, setOverallPostId] = useState('');
@@ -167,13 +167,13 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function markPostAsViewed() {
-        if (authUser === 'Anonymous Guest') {
+        if (authUsername === 'Anonymous Guest') {
             return;
         }
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/markPostAsViewed/${authUser}/${overallPostId}`, {
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/markPostAsViewed/${authUsername}/${overallPostId}`, {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -274,7 +274,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         if(!postDetails.isLiked) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addPostLike/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addPostLike/${authUsername}/${overallPostId}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -316,7 +316,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function toggleLikePost() {
-        if (authUser === 'Anonymous Guest') {
+        if (authUsername === 'Anonymous Guest') {
             notifyParentToShowErrorPopup('You cannot like posts without logging into an account');
             return;
         }
@@ -327,7 +327,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         else {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removePostLike/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removePostLike/${authUsername}/${overallPostId}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -354,7 +354,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function toggleSavePost() {
-        if (authUser === 'Anonymous Guest') {
+        if (authUsername === 'Anonymous Guest') {
             notifyParentToShowErrorPopup('You cannot save posts without logging into an account');
             return;
         }
@@ -363,7 +363,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         if(postDetails.isSaved) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removeSave/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removeSave/${authUsername}/${overallPostId}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -385,7 +385,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
         else {
            try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addSave/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addSave/${authUsername}/${overallPostId}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -484,14 +484,14 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
     }
 
     async function postComment() {
-        if (authUser === 'Anonymous Guest') {
+        if (authUsername === 'Anonymous Guest') {
             notifyParentToShowErrorPopup('You cannot post comments without logging into an account');
             return;
         }
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postComment/${authUser}/${overallPostId}`, {
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postComment/${authUsername}/${overallPostId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -627,7 +627,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                 <div style={{display: 'flex', alignItems: 'center', gap: '1em'}}>
                     <UserIcon
                         username={mainPostAuthor}
-                        authUser={authUser}
+                        authUsername={authUsername}
                         inStoriesSection={false}
                         hasStories={
                             ('hasStories' in mainPostAuthorInfo) ?
@@ -970,7 +970,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
                                                 <FollowUser
                                                     key={taggedAccountInfo[0]}
                                                     username={taggedAccountInfo[0]}
-                                                    authUser={authUser}
+                                                    authUsername={authUsername}
                                                     fullName={
                                                        (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
                                                         'fullName' in

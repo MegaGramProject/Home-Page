@@ -1,11 +1,11 @@
 import bluePlusIcon from "../assets/images/bluePlusIcon.png";
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-function UserIcon({authUser, username, inStoriesSection, userHasStories, userHasUnseenStory, userPfp,
+function UserIcon({authUsername, userId, username, inStoriesSection, userHasStories, userHasUnseenStory, userPfp,
 userIsVerified, showStoryViewer}) {
     function onClickingProfilePhoto() {
       if (userHasStories) {
-        showStoryViewer(username, inStoriesSection);
+        showStoryViewer(userId, username, inStoriesSection);
       }
       else {
         window.open(`http://34.111.89.101/profile/${username}`, '_blank');
@@ -39,7 +39,7 @@ userIsVerified, showStoryViewer}) {
                                         style={{height:'4.25em', width:'4.25em', objectFit:'contain', position:'absolute', left:'50%',
                                         top:'50%', transform: 'translate(-50%, -50%)', cursor: 'pointer'}}/>
 
-                                        {(inStoriesSection && (username===authUser)) &&
+                                        {(inStoriesSection && (username===authUsername)) &&
                                             (   
                                                 <a href="http://34.111.89.101/postStory" target="_blank" rel="noopener noreferrer">
                                                     <img src={bluePlusIcon}
@@ -61,7 +61,7 @@ userIsVerified, showStoryViewer}) {
                                     style={{height:'95%', width:'95%', objectFit:'contain', position:'absolute', left:'50%',
                                     top:'50%', transform: 'translate(-50%, -50%)', cursor: 'pointer'}}/>
 
-                                    {(inStoriesSection && (username===authUser)) &&
+                                    {(inStoriesSection && (username===authUsername)) &&
                                         (   
                                             <a href="http://34.111.89.101/postStory" target="_blank" rel="noopener noreferrer">
                                                 <img src={bluePlusIcon}
@@ -79,7 +79,7 @@ userIsVerified, showStoryViewer}) {
                                 <div style={{display: 'flex', justifyContent: 'center', width: '100%', alignItems: 'center'}}>
                                     <p style={{textAlign:'center', fontSize:'0.8em', maxWidth: '7.5em',
                                     overflowWrap: 'break-word'}}>
-                                        {(username===authUser) ? 'You' : username}
+                                        {(username===authUsername) ? 'You' : username}
                                     </p>
 
                                     {userIsVerified &&

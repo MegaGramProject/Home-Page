@@ -6,4 +6,10 @@ import { Component } from '@angular/core';
   standalone: true,
   templateUrl: './NotFoundPage.component.html'
 })
-export class NotFoundPage {}
+export class NotFoundPage {
+
+
+  ngOnInit(): void {
+    document.title = "Page Not Found · 404";
+  }
+}

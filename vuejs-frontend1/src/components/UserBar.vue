@@ -62,7 +62,7 @@
 
     import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-    import { defineProps, ref, toRefs } from 'vue';
+    import { defineProps, ref } from 'vue';
     
     
     const props = defineProps({
@@ -81,9 +81,6 @@
 
         showErrorPopup: Function
     });
-
-    const { username, userFullName, userPfp, authUserId, userId, numFollowers, numFollowings, numPosts, userIsPrivate,
-    userIsVerified, showErrorPopup } = toRefs(props);
 
     const toggleFollowText = ref('Follow');
 
@@ -111,13 +108,13 @@
 
 
     async function toggleFollowUser() {
-        if (authUserId == -1) {
-            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+        if (props.authUserId == -1) {
+            props.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
 
-        const usernameToToggleFollow = username;
-        const userIdToToggleFollow = userId;
+        const usernameToToggleFollow = props.username;
+        const userIdToToggleFollow = props.userId;
 
         try {
             const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
@@ -128,14 +125,14 @@
                         toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
                     }`,
                     variables: {
-                        authUserId: authUserId,
+                        authUserId: props.authUserId,
                         userIdToToggleFollow: userIdToToggleFollow
                     }
                 }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                showErrorPopup(
+                props.showErrorPopup(
                 `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`);
             }
             else {
@@ -154,7 +151,7 @@
             }
         }
         catch (error) {
-            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            props.showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
             user ${usernameToToggleFollow}`);
         }
     }

@@ -15,14 +15,12 @@
     import grayDot from '../assets/images/grayDot.png';
 import solidWhiteDot from '../assets/images/solidWhiteDot.png';
 
-    import { defineProps, toRefs } from 'vue';
+    import { defineProps } from 'vue';
 
     
     const props = defineProps({
         currSlide: Number,
         numSlides: Number
     });
-
-    const  { currSlide, numSlides } = toRefs(props);
 </script>
   

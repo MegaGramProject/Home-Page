@@ -1,0 +1,203 @@
+<div [ngStyle]="{position: 'fixed', height: '100%', width: '100%', top: '0%', left: '0%', backgroundColor: '#1c1c1c',
+color: 'white', zIndex: zIndex}">
+    <p (click)="closeStoryViewer.emit()" class="loseOpacityWhenActive" style="position: absolute; top: 2%; left: 1%; font-family:
+    Billabong; font-size: 2.3em; cursor: pointer; margin-top: 0em;">
+        Megagram
+    </p>
+
+    <img (click)="closeStoryViewer.emit()" class="loseOpacityWhenActive" [src]="'images/thinWhiteXIcon.png'" style="position:
+    absolute; top: 1%; right: 0%; cursor: pointer; height: 3.5em; width: 3.5em; object-fit: contain;"/>
+
+    <div style="position: absolute; top: 2%; left: 35%; height: 95%; width: 30%; border-radius: 1%; background-color: black;">
+        <ng-container *ngIf="numSlides > 0 && currSlide < numSlides && currSlide > -1">
+            <img *ngIf="currStories[currSlide].vidDurationInSeconds == null" [src]="currStories[currSlide].src" style="position:
+            absolute; left: 0%; top: 0%; height: 100%; width: 100%; border-radius: 1%; z-index: 1;"/>
+
+            <video *ngIf="currStories[currSlide].vidDurationInSeconds !== null" #videoSlideRef
+            [src]="currStories[currSlide].src" autoplay [muted]="isMuted" style="position: absolute; left: 0%; top: 0%; height:
+            100%; width: 100%; border-radius: 1%; z-index: 1;"></video>
+        </ng-container>
+
+        <div *ngIf="numSlides == 0" style="position: absolute; left: 0%; top: 0%; height: 100%; width: 100%; background-color:
+        black; color: white; z-index: 1;">
+            <p *ngIf="storyFetchingErrorMessage.length > 0" style="position: absolute; top: 50%; left: 50%; transform:
+            translate(-50%,-50%); max-width: 75%;">
+                {{ storyFetchingErrorMessage }}
+            </p>
+
+            <img *ngIf="isCurrentlyFetchingStory" [src]="'images/loadingAnimation.gif'" style="pointer-events: none; height: 2em;
+            width: 2em; object-fit: contain; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);"/>
+        </div>
+
+        <img *ngIf="currSlide > 0 || (isFromStoriesSection && currIndexInStoriesSection > 0)" [src]="'images/nextSlideArrow.png'"
+        class="storyViewerSlideArrows" (click)="incrementOrDecrementSlideByOne('decrement')" style="cursor: pointer;
+        height: 2.4em; width: 2.4em; object-fit: contain; position: absolute; left: -5%; top: 50%; transform:
+        translate(-50%, -50%) rotate(180deg); filter: brightness(5) contrast(0); z-index: 1;"/>
+
+        <img *ngIf="currSlide + 1 < numSlides || (isFromStoriesSection && currIndexInStoriesSection + 1 <
+        orderedListOfUsernamesInStoriesSection.length)" [src]="'images/nextSlideArrow.png'" class="storyViewerSlideArrows"
+        (click)="incrementOrDecrementSlideByOne('increment')" style="cursor: pointer; height: 2.4em; width: 2.4em;
+        object-fit: contain; position: absolute; right: -12%; top: 50%; transform: translate(-50%, -50%); filter: brightness(5)
+        contrast(0); z-index: 1;"/>
+
+        <img *ngIf="replyToStoryTextareaIsActive" [src]="'images/blackScreen.png'" style="position: absolute; left: 0%; top: 0%;
+        height: 100%; width: 100%; border-radius: 1%; z-index: 2; pointer-events: none; opacity: 0.7;"/>
+
+        <p *ngIf="displaySentText" style="background-color: #1c1c1c; color: white; padding: 0.8em 1.5em; position:
+        absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); z-index: 2; border-radius: 0.5em; font-size:
+        1.1em; pointer-events: none;">
+            Sent
+        </p>
+
+        <div style="display: flex; flex-direction: column; margin-top: 1em; gap: 1em;">
+            <div *ngIf="numSlides > 0" [ngStyle]="{display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center',
+            gap: (2 / (numSlides - 1)) + '%', zIndex: '2'}">
+                <div *ngFor="let _ of [].constructor(numSlides); let index = index" [ngStyle]="{width: (90 / numSlides) + '%', height:
+                '3px', backgroundColor: '#918f8e'}">
+                    <div [ngStyle]="{width: (currSlide > index ? 100 : currSlide == index ? currSlideProgressPercent : 0) + '%',
+                    height: '100%', backgroundColor: 'white'}"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; width: 95%; align-items: start; margin-left:
+            2.5%; margin-right: 2.5%; z-index: 2;">
+                <div style="display: flex; align-items: center; gap: 0.85em;">
+                    <a [href]="'http://34.111.89.101/profile/' + currStoryAuthorUsername" target="_blank"
+                    rel="noopener noreferrer">
+                        <img [src]="usersAndTheirRelevantInfo[currStoryAuthorId]?.profilePhoto ?? 'images/defaultPfp.png'"
+                        style="height: 3em; width: 3em; pointer-events: none; object-fit: contain; margin-left: 0.5em;"/>
+                    </a>
+
+                    <a [href]="'http://34.111.89.101/profile/' + currStoryAuthorUsername" style="color: white; text-align:
+                    start; max-width: 9em; overflow-wrap: break-word" target="_blank" rel="noopener noreferrer">
+                        {{ currStoryAuthorUsername }}
+                    </a>
+        
+                    <img *ngIf="usersAndTheirRelevantInfo[currStoryAuthorId]?.isVerified ?? false"
+                    [src]="'images/verifiedBlueCheck.png'" style="height: 1.58em; width: 1.58em; margin-left: -0.6em;
+                    pointer-events: none; object-fit: contain;"/>
+
+                    <ng-container *ngIf="numSlides > 0 && currSlide < numSlides && currSlide > -1">
+                        <span style="color: lightgray; margin-right: -0.3em; margin-left: -0.3em;">
+                            •
+                        </span>
+
+                        <span style="color: lightgray;">
+                            {{  currStories[currSlide].datetime }}
+                        </span>
+                    </ng-container>
+                </div>
+
+                <div *ngIf="numSlides > 0 && currSlide < numSlides && currSlide > -1" style="display: flex; align-items:
+                center; gap: 0.7em;">
+                    <img class="loseOpacityWhenActive" *ngIf="isMuted && currStories[currSlide].vidDurationInSeconds !== null"
+                    (click)="toggleIsMuted()" [src]="'images/mutedIcon.png'" style="height: 1.85em; width: 1.85em; cursor: pointer;
+                    object-fit: contain;"/>
+
+                    <img class="loseOpacityWhenActive" *ngIf="!isMuted && currStories[currSlide].vidDurationInSeconds !== null"
+                    (click)="toggleIsMuted()" [src]="'images/notMutedIcon.png'" style="height: 1.85em; width: 1.85em; cursor:
+                    pointer; object-fit: contain;"/>
+
+                    <img class="loseOpacityWhenActive" *ngIf="rateOfStoryProgression > 0" (click)="togglePause()"
+                    [src]="'images/pauseIcon2.png'" style="cursor: pointer; height: 1.5em; width: 1.5em; object-fit: contain;"/>
+
+                    <img class="loseOpacityWhenActive" *ngIf="rateOfStoryProgression == 0" (click)="togglePause()"
+                    [src]="'images/whitePlayIcon.png'" style="cursor: pointer; height: 2em; width: 2em; object-fit: contain;"/>
+
+                    <img class="loseOpacityWhenActive" *ngIf="authUserId == currStoryAuthorId" (click)="deleteStory()"
+                    [src]="'images/whiteTrashIcon.png'" style="cursor: pointer; height: 1.3em; width: 1.3em; object-fit:
+                    contain;"/>
+                </div>
+            </div>
+
+            <a *ngIf="numSlides > 0 && currSlide > -1 && currSlide < currStories.length && currStories[currSlide].adInfo !==
+            null" [href]="currStories[currSlide].adInfo.link" target="_blank" rel="noopener noreferrer" style="color: white;
+            margin-top: 0em; z-index: 2; max-width: 65%; text-align: start; margin-left: 1.5em; overflow-wrap: break-word;
+            font-size: 0.93em;">
+                <b>Sponsored: </b> {{ currStories[currSlide].adInfo.callToAction }}
+            </a>
+        </div>
+    </div>
+
+    <div *ngIf="isFromStoriesSection" style="position: absolute; top: 50%; left: 6%; height: 40%; width: 25%; transform:
+    translateY(-50%); display: flex; align-items: center; gap: 3em; justify-content: end; color: white;">
+        <div *ngFor="let absoluteDiff of filteredAbsoluteDiffsForLeftSidePreviews"
+        (click)="takeAuthUserToTheSelectedUsersStoryInStorySection(currIndexInStoriesSection - absoluteDiff)"
+        style="border-radius: 5%; height: 90%; width: 45%; cursor: pointer; position: relative; display: flex;
+        justify-content: center; align-items: center;">
+            <img [src]="usersAndTheirStoryPreviews[orderedListOfUserIdsInStoriesSection[
+                currIndexInStoriesSection - absoluteDiff
+            ]] ??  'images/defaultVideoFrame.jpg'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%;
+            border-radius: 5%; z-index: 1; object-fit: cover;"/>
+    
+            <img [src]="'images/blackScreen.png'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%; opacity: 
+            0.7; border-radius: 5%; z-index: 2;"/>
+    
+            <div style="display: flex; flex-direction: column; align-items: center; z-index: 2; gap: 0.3em;">
+                <img [src]="usersAndTheirRelevantInfo[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]?.profilePhoto ?? 'images/defaultPfp.png'"
+                [ngStyle]="{height: '3.8em', width: '3.8em', objectFit: 'contain'}"/>
+    
+                <b [ngStyle]="{marginTop: '0.5em', marginBottom: '-1em', overflowWrap: 'break-word', maxWidth: '7em'}">
+                    {{ orderedListOfUsernamesInStoriesSection[currIndexInStoriesSection - absoluteDiff] }}
+                </b>
+    
+                <p *ngIf="(usersAndTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]?.[
+                usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]
+                ]?.datetime) ?? false" [ngStyle]="{fontSize: '0.90em', overflowWrap: 'break-word', maxWidth: '4em'}">
+                    {{
+                        usersAndTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]?.[
+                            usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]
+                        ]?.datetime
+                    }}
+                </p>
+
+    
+                <b *ngIf="orderedListOfSponsorshipStatusesInStoriesSection[currIndexInStoriesSection - absoluteDiff] == true"
+                style="margin-top: 1.5em;">
+                    Sponsored
+                </b>
+            </div>
+        </div>
+    </div>
+    
+    <div *ngIf="isFromStoriesSection" style="position: absolute; top: 50%; right: 6%; height: 40%; width: 25%; transform:
+    translateY(-50%); display: flex; align-items: center; gap: 3em; justify-content: start; color: white;">
+        <div *ngFor="let absoluteDiff of filteredAbsoluteDiffsForRightSidePreviews"
+        (click)="takeAuthUserToTheSelectedUsersStoryInStorySection(currIndexInStoriesSection + absoluteDiff)"
+        style="border-radius: 5%; height: 90%; width: 45%; cursor: pointer; position: relative; display: flex;
+        justify-content: center; align-items: center;">
+            <img [src]="usersAndTheirStoryPreviews[orderedListOfUserIdsInStoriesSection[
+                currIndexInStoriesSection + absoluteDiff
+            ]] ?? 'images/defaultVideoFrame.jpg'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%; border-radius: 5%;
+            z-index: 1; object-fit: cover;"/>
+    
+            <img [src]="'images/blackScreen.png'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%; opacity: 
+            0.7; border-radius: 5%; z-index: 2;"/>
+    
+            <div style="display: flex; flex-direction: column; align-items: center; z-index: 2; gap: 0.3em;">
+                <img [src]="usersAndTheirRelevantInfo[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]?.profilePhoto ?? 'images/defaultPfp.png'"
+                [ngStyle]="{height: '3.8em', width: '3.8em', objectFit: 'contain'}"/>
+    
+                <b [ngStyle]="{marginTop: '0.5em', marginBottom: '-1em', overflowWrap: 'break-word', maxWidth: '7em'}">
+                    {{ orderedListOfUsernamesInStoriesSection[currIndexInStoriesSection + absoluteDiff] }}
+                </b>
+    
+                <p *ngIf="(usersAndTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]?.[
+                usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]
+                ]?.datetime) ?? false" [ngStyle]="{fontSize: '0.90em', overflowWrap: 'break-word', maxWidth: '4em'}">
+                    {{
+                        usersAndTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]?.[
+                            usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]
+                        ]?.datetime
+                    }}
+                </p>
+
+    
+                <b *ngIf="orderedListOfSponsorshipStatusesInStoriesSection[currIndexInStoriesSection + absoluteDiff] == true"
+                style="margin-top: 1.5em;">
+                    Sponsored
+                </b>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-
 import blackScreen from '../assets/images/blackScreen.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
+import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import mutedIcon from '../assets/images/mutedIcon.png';
 import nextSlideArrow from '../assets/images/nextSlideArrow.png';
 import notMutedIcon from '../assets/images/notMutedIcon.png';
@@ -9,58 +8,98 @@ import pauseIcon2 from '../assets/images/pauseIcon2.png';
 import thinWhiteXIcon from '../assets/images/thinWhiteXIcon.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 import whitePlayIcon from '../assets/images/whitePlayIcon.png';
-import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
+import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
 
-function StoryViewer({username, authUser, notifyParentToCloseStoryViewer, usersAndTheirStories,
-usersAndYourCurrSlideInTheirStories, orderedListOfUsernamesInStoriesSection, isFromStoriesSection,
-usersAndTheirRelevantInfo, notifyParentToShowErrorPopup, notifyParentToUpdateUsersAndTheirStories, 
-notifyParentToUpdateUsersAndYourCurrSlideInTheirStories, usernamesWhoseStoriesYouHaveFinished,
-notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished, idsOfStoriesMarkedAsViewed,
-notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
-    const [currUsername, setCurrUsername] = useState('');
-    const [replyToStoryInput, setReplyToStoryInput] = useState('');
-    const [currSlide, setCurrSlide] = useState(0);
-    const [numSlides, setNumSlides] = useState(0);
-    const [currSlideProgressPercent, setCurrSlideProgressPercent] = useState(0);
-    const [displaySentText, setDisplaySentText] = useState(false);
-    const [replyToStoryTextareaIsActive, setReplyToStoryTextareaIsActive] = useState(false);
-    const [isMuted, setIsMuted] = useState(true);
+import { useEffect, useRef, useState } from 'react';
+
+
+function StoryViewer({authUserId, authUsername, authUsernameWasProvidedInRoute, storyAuthorUsername, storyAuthorId, zIndex,
+orderedListOfUserIdsInStoriesSection, orderedListOfUsernamesInStoriesSection, orderedListOfSponsorshipStatusesInStoriesSection,
+isFromStoriesSection, usersAndTheirStories, usersAndTheirStoryPreviews, usersAndYourCurrSlideInTheirStories,
+vidStoriesAndTheirPreviewImages, usersAndTheirRelevantInfo, usernamesWhoseStoriesYouHaveFinished, viewedStoryIds,
+updateUsersAndTheirStories, updateUsersAndTheirStoryPreviews, updateUsersAndYourCurrSlideInTheirStories,
+updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHaveFinished, addStoryIdToSetOfViewedStoryIds,
+closeStoryViewer, showErrorPopup}) {
+    const [currStoryAuthorUsername, setCurrStoryAuthorUsername] = useState('');
+    const [currStoryAuthorId, setCurrStoryAuthorId] = useState(-1);
+
     const [currStories, setCurrStories] = useState([]);
-    const [storyFetchingErrorMessage, setStoryFetchingErrorMessage] = useState('');
-    const [rateOfStoryProgression, setRateOfStoryProgression] = useState(0);
-    const [intervalIdForStoryProgression, setIntervalIdForStoryProgression] = useState(null);
+    const [currSlide, setCurrSlide] = useState(-1);
     const [currIndexInStoriesSection, setCurrIndexInStoriesSection] = useState(-1);
-    const [isCurrentlyFetchingStory, setIsCurrentlyFetchingStory] = useState(false);
+    const [numSlides, setNumSlides] = useState(-1);
+    
+    const [currSlideProgressPercent, setCurrSlideProgressPercent] = useState(-1);
+    const [rateOfStoryProgression, setRateOfStoryProgression] = useState(-1);
+    const [intervalIdForStoryProgression, setIntervalIdForStoryProgression] = useState(null);
 
+    const [displaySentText, setDisplaySentText] = useState(false);
+
+    const [replyToStoryTextareaIsActive, setReplyToStoryTextareaIsActive] = useState(false);
+    const [replyToStoryInput, setReplyToStoryInput] = useState('');
+
+    const [isMuted, setIsMuted] = useState(true);
+    const [isCurrentlyFetchingStory, setIsCurrentlyFetchingStory] = useState(false);
+    
+    const [storyFetchingErrorMessage, setStoryFetchingErrorMessage] = useState('');
+    
     const videoSlideRef = useRef(null);
 
-    useEffect(() => {
-        setCurrUsername(username);
-
-        if(isFromStoriesSection) {
-            setCurrIndexInStoriesSection(orderedListOfUsernamesInStoriesSection.indexOf(username));
-        }
-    }, [username]);
 
     useEffect(() => {
-        if (currUsername.length>0) {
-            fetchTheNecessaryStories();
+        setCurrStoryAuthorUsername(storyAuthorUsername);
+        setCurrStoryAuthorId(storyAuthorId);
+
+        window.addEventListener('keydown', handleKeyDownEvents);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDownEvents);
+        };
+    }, []);
+
+
+    useEffect(() => {
+        if (currStoryAuthorUsername.length>0) {
+            setNumSlides(0);
+
+            if(isFromStoriesSection) {
+                const newCurrIndexInStoriesSection = orderedListOfUsernamesInStoriesSection.indexOf(
+                    currStoryAuthorUsername
+                );
+                setCurrIndexInStoriesSection(newCurrIndexInStoriesSection);
+                setCurrStoryAuthorId(orderedListOfUserIdsInStoriesSection[newCurrIndexInStoriesSection]);
+
+                fetchTheNecessaryStories(
+                    newCurrIndexInStoriesSection,
+                    orderedListOfUserIdsInStoriesSection[newCurrIndexInStoriesSection]
+                );
+            }
+            else {
+                for(let userId of Object.keys(usersAndTheirRelevantInfo)) {
+                    if('username' in usersAndTheirRelevantInfo[userId] && usersAndTheirRelevantInfo[userId].username ===
+                    currStoryAuthorUsername) {
+                        setCurrStoryAuthorId(userId);
+
+                        fetchTheNecessaryStories(-1, userId);
+                        break;
+                    }
+                }
+            }
         }
-    }, [currUsername]);
+    }, [currStoryAuthorUsername]);
+
 
     useEffect(() => {
         setNumSlides(currStories.length);
     }, [currStories]);
+
 
     useEffect(() => {
         clearInterval(intervalIdForStoryProgression);
 
         if(rateOfStoryProgression>0) {
             setIntervalIdForStoryProgression(
-                setInterval(() => {
-                    progressThroughStories();
-                }, 25)
+                setInterval(updateStoryProgression, 25)
             );
         }
         else {
@@ -68,226 +107,137 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
         }
     }, [rateOfStoryProgression]);
 
+
     useEffect(() => {
         if (currSlideProgressPercent >= 100) {
-            setCurrSlide(currSlide+1);
-            handleChangeInSlide(currStories, currSlide+1, currUsername);
+            setCurrSlide(currSlide + 1);
+            handleChangeInStory(currStories, currSlide + 1);
         }
     }, [currSlideProgressPercent]);
 
-    function handleChangeInSlide(stories, slide, username) {
+
+    //the method below is called right after the value of currSlide/currStories changes.
+    async function handleChangeInStory(currStoriesValue, currSlideValue) {
         setRateOfStoryProgression(0);
         setCurrSlideProgressPercent(0);
+
+        let currStoryAuthorUsernameValue = currStoryAuthorUsername;
+        let currStoryAuthorIdValue = currStoryAuthorId;
+        let currIndexInStoriesSectionValue = currIndexInStoriesSection;
+
         let newUsersAndYourCurrSlideInTheirStories = {...usersAndYourCurrSlideInTheirStories};
 
-        if(slide >= stories.length) {
-            if (!(usernamesWhoseStoriesYouHaveFinished.has(username))) {
-                notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished(username);
+        if(currSlideValue >= currStoriesValue.length) {
+            newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
+            updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+
+            if (!(usernamesWhoseStoriesYouHaveFinished.has(currStoryAuthorUsernameValue))) {
+                addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
             }
 
-            newUsersAndYourCurrSlideInTheirStories[username] = 0;
-            notifyParentToUpdateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
-
-            if (isFromStoriesSection && currIndexInStoriesSection+1 < orderedListOfUsernamesInStoriesSection.length) {
-                setNumSlides(0);
-                setCurrUsername(orderedListOfUsernamesInStoriesSection[currIndexInStoriesSection+1]);
-                setCurrIndexInStoriesSection(currIndexInStoriesSection+1);
-            }
-            else {
-                notifyParentToCloseStoryViewer();
-            }
-        }
-        else if(slide > -1){
-            const storyId = stories[slide].id;
-            window.history.pushState(
-                {
-                    page: 'Stories',
-                    username: username,
-                    storyId: storyId
-                },
-                'Stories',
-                `http://34.111.89.101/stories/${username}/${storyId}`
-            );
-
-            if(stories[slide].vidDurationInSeconds==null) {
-                setRateOfStoryProgression(0.5);
+            if (isFromStoriesSection && currIndexInStoriesSectionValue + 1 < orderedListOfUsernamesInStoriesSection.length) {
+                currStoryAuthorUsernameValue = orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 1];
+                setCurrStoryAuthorUsername(currStoryAuthorUsernameValue);
             }
             else {
-                setRateOfStoryProgression(2.5/stories[slide].vidDurationInSeconds);
-            }
-            
-            newUsersAndYourCurrSlideInTheirStories[username] = slide;
-            notifyParentToUpdateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
-
-            if(!(idsOfStoriesMarkedAsViewed.has(storyId))) {
-               markCurrentStorySlideAsViewed(storyId);
+                closeStoryViewer();
             }
         }
-        else {
-            setCurrUsername(orderedListOfUsernamesInStoriesSection[currIndexInStoriesSection-1]);
-            setCurrIndexInStoriesSection(currIndexInStoriesSection-1);
-        }
-    }
-    
+        else if (currSlideValue > -1) {
+            const currStoryId = currStoriesValue[currSlideValue].id;
 
-    async function markCurrentStorySlideAsViewed(storyId) {
-        if (authUser === 'Anonymous Guest') {
-            console.error('You cannot mark story-slides as viewed when you are an Anonymous Guest');
-            return;
-        } 
-
-        try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/markStoryAsViewed/${authUser}/${storyId}`, {
-                method: 'POST',
-                credentials: 'include'
-            });
-            if (!response.ok) {
-                console.error('The server had trouble marking this story-slide as viewed');
-            }
-            else {
-                notifyParentToAddStoryIdToSetOfViewedStoryIds(storyId);
-            }
-        }
-        catch (error) {
-            console.error('There was trouble connecting to the server to mark this story-slide as viewed');
-        }
-    }
-
-    async function fetchTheNecessaryStories() {
-        setIsCurrentlyFetchingStory(true);
-
-        if (isFromStoriesSection) {
-            const listOfUsernamesNeededForStoryFetching = [];
-            let currentIndex = orderedListOfUsernamesInStoriesSection.indexOf(currUsername);
-
-            if(!(orderedListOfUsernamesInStoriesSection[currentIndex] in usersAndTheirStories)) {
-                listOfUsernamesNeededForStoryFetching.push(currUsername);
-            }
-            if (currentIndex+1 < orderedListOfUsernamesInStoriesSection.length &&
-            !(orderedListOfUsernamesInStoriesSection[currentIndex+1] in usersAndTheirStories)) {
-                listOfUsernamesNeededForStoryFetching.push(orderedListOfUsernamesInStoriesSection[currentIndex+1]);
-            }
-            if (currentIndex+2 < orderedListOfUsernamesInStoriesSection.length &&
-            !(orderedListOfUsernamesInStoriesSection[currentIndex+2] in usersAndTheirStories)) {
-                listOfUsernamesNeededForStoryFetching.push(orderedListOfUsernamesInStoriesSection[currentIndex+2]);
-            }
-            
-            if (listOfUsernamesNeededForStoryFetching.length>0) {
-                try {
-                    const response = await fetch(
-                    `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getStoriesOfAtMost3Users/${authUser}`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            users: listOfUsernamesNeededForStoryFetching
-                        }),
-                        credentials: 'include'
-                    });
-                    if (!response.ok) {
-                        setStoryFetchingErrorMessage(`The server had trouble getting the stories of
-                        ${currUsername}`);
-                    }
-                    else {
-                        const storiesOfAtMost3Users = await response.json();
-                        const newUsersAndTheirStories = {...usersAndTheirStories};
-                        const newUsersAndYourCurrSlideInTheirStories = {...usersAndYourCurrSlideInTheirStories};
-                        
-                        for(let username of Object.keys(storiesOfAtMost3Users)) {
-                            newUsersAndTheirStories[username] = storiesOfAtMost3Users[username].stories;
-                            if (storiesOfAtMost3Users[username].currSlide==='finished')  {
-                                newUsersAndYourCurrSlideInTheirStories[username] = 0;
-                                notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished(username);
-                            }
-                            else {
-                                newUsersAndYourCurrSlideInTheirStories[username] = storiesOfAtMost3Users[username]
-                                .currSlide;
-                            }
-                        }
-
-                        notifyParentToUpdateUsersAndTheirStories(newUsersAndTheirStories);
-                        notifyParentToUpdateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
-                        
-                        if(currUsername in newUsersAndTheirStories) {
-                            setCurrStories(newUsersAndTheirStories[currUsername]);
-                            setCurrSlide(newUsersAndYourCurrSlideInTheirStories[currUsername]);
-
-                            handleChangeInSlide(
-                                newUsersAndTheirStories[currUsername],
-                                newUsersAndYourCurrSlideInTheirStories[currUsername],
-                                currUsername
-                            );
-                        }
-                        else {
-                            setStoryFetchingErrorMessage(`The server had trouble getting the stories of
-                            ${currUsername}`);
-                        }
-                    }
-                }
-                catch (error) {
-                    setStoryFetchingErrorMessage(
-                        `There was trouble connecting to the server to get the stories of ${currUsername}`
-                    );
-                }
-            }
-            else {
-                setCurrStories(usersAndTheirStories[currUsername]);
-                setCurrSlide(usersAndYourCurrSlideInTheirStories[currUsername]);
-
-                handleChangeInSlide(usersAndTheirStories[currUsername], usersAndYourCurrSlideInTheirStories[currUsername],
-                currUsername);
-            }
-        }
-        else if(!(currUsername in usersAndTheirStories)) {
-            try {
-                const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getStoriesOfUser/
-                ${authUser}/${currUsername}`, {
-                    credentials: 'include'
-                });
-                if(!response.ok) {
-                    setStoryFetchingErrorMessage(`The server had trouble getting the stories of
-                    ${currUsername}`);
-                }
-                else {
-                    const userStoryData = await response.json();
-                    
-                    const newUsersAndTheirStories = {...usersAndTheirStories};
-                    newUsersAndTheirStories[currUsername] = userStoryData.stories;
-                    notifyParentToUpdateUsersAndTheirStories(newUsersAndTheirStories);
-
-                    setCurrStories(userStoryData.stories);
-
-                    if(userStoryData.currSlide==='finished') {
-                        setCurrSlide(0);
-                        handleChangeInSlide(userStoryData.stories, 0, currUsername);
-                        notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished(username);
-                    }
-                    else {
-                        setCurrSlide(userStoryData.currSlide);
-                        handleChangeInSlide(userStoryData.stories, userStoryData.currSlide, currUsername);
-                    }
-                }
-            }
-            catch (error) {
-                setStoryFetchingErrorMessage(
-                    `There was trouble connecting to the server to get the stories of ${currUsername}`
+            if(authUsernameWasProvidedInRoute) {
+                window.history.pushState(
+                    { page: 'stories' },
+                    'Stories',
+                    `/stories/${authUsername}/${currStoryId}`
                 );
             }
+            else {
+                window.history.pushState(
+                    { page: 'stories' },
+                    'Stories',
+                    `/stories/${currStoryId}`
+                );
+            }
+
+            if(!(viewedStoryIds.has(currStoryId))) {
+                markStoryIdAsViewed(currStoryId);
+            }
+    
+            if(currStoriesValue[currSlideValue].vidDurationInSeconds==null) {
+                setRateOfStoryProgression(0.5);
+            } 
+            else {
+                setRateOfStoryProgression(2.5/currStoriesValue[currSlideValue].vidDurationInSeconds);
+            }
+
+            const yourNextSlideOfCurrStoryAuthor = currSlideValue + 1 < currStoriesValue.length ? currSlideValue + 1 : 0;
+
+            newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = yourNextSlideOfCurrStoryAuthor;     
+            updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+
+            const yourNextStoryOfCurrStoryAuthor = currStoriesValue[yourNextSlideOfCurrStoryAuthor];
+            const newUsersAndTheirStoryPreviews = {...usersAndTheirStoryPreviews};
+
+            if (yourNextStoryOfCurrStoryAuthor.vidDurationInSeconds == null) {
+                newUsersAndTheirStoryPreviews[currStoryAuthorIdValue] = yourNextStoryOfCurrStoryAuthor.src;
+            }
+            else {
+                if (!(yourNextStoryOfCurrStoryAuthor.id in vidStoriesAndTheirPreviewImages)) {
+                    const newVidStoriesAndTheirFirstFrames = {...vidStoriesAndTheirPreviewImages};
+                    newVidStoriesAndTheirFirstFrames[yourNextStoryOfCurrStoryAuthor.id] = await getFirstFrameForPreviewImgOfVid(
+                        yourNextStoryOfCurrStoryAuthor.src
+                    );
+                    updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirFirstFrames);
+                }
+
+                newUsersAndTheirStoryPreviews[currStoryAuthorIdValue] = vidStoriesAndTheirPreviewImages[
+                    yourNextStoryOfCurrStoryAuthor.id
+                ];
+            }
+
+            updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews);
+        }
+        else if (isFromStoriesSection && currIndexInStoriesSectionValue - 1 > -1) {
+            currStoryAuthorUsernameValue = orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 1];
+            setCurrStoryAuthorUsername(currStoryAuthorUsernameValue);
         }
         else {
-            setCurrStories(usersAndTheirStories[currUsername]);
-            setCurrSlide(usersAndYourCurrSlideInTheirStories[currUsername]);
-
-            handleChangeInSlide(usersAndTheirStories[currUsername], usersAndYourCurrSlideInTheirStories[currUsername],
-            currUsername);
+            closeStoryViewer();
         }
-
-        setIsCurrentlyFetchingStory(false);
     }
 
-    function toggleIsPaused() {
-        if(rateOfStoryProgression==0) {
+
+    function updateStoryProgression() {
+        setCurrSlideProgressPercent((currentCurrSlideProgressPercent) => {
+            if (currentCurrSlideProgressPercent + rateOfStoryProgression > 100) {
+                return 100;
+            }
+            return currentCurrSlideProgressPercent + rateOfStoryProgression;
+        });
+    }
+
+
+    function incrementOrDecrementSlideByOne(incrementOrDecrementText) {
+        if (incrementOrDecrementText === 'increment') {
+            setCurrSlide(currSlide + 1);
+            handleChangeInStory(currStories, currSlide + 1);
+        }
+        else {
+            setCurrSlide(currSlide - 1);
+            handleChangeInStory(currStories, currSlide - 1);
+        }
+    }
+
+
+    function takeAuthUserToTheSelectedUsersStoryInStorySection(newCurrIndexInStoriesSection) {
+        setCurrStoryAuthorUsername(orderedListOfUsernamesInStoriesSection[newCurrIndexInStoriesSection]);
+    }
+
+
+    function togglePause() {
+        if(rateOfStoryProgression == 0) {
             resumeStoryProgression();
         }
         else {
@@ -295,9 +245,34 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
         }
     }
 
+
+    function pauseStoryProgression() {
+        setRateOfStoryProgression(0);
+
+        if(videoSlideRef.current) {
+            videoSlideRef.current.pause();
+        }
+    }
+
+
+    function resumeStoryProgression() {
+        if(currStories[currSlide].vidDurationInSeconds==null) {
+            setRateOfStoryProgression(0.5);
+        }
+        else {
+            setRateOfStoryProgression(2.5/currStories[currSlide].vidDurationInSeconds);
+
+            if(videoSlideRef.current) {
+                videoSlideRef.current.play();
+            }
+        }
+    }
+
+
     function updateReplyToStoryInput(event) {
         setReplyToStoryInput(event.target.value);
     }
+
 
     function formatDatetimeString(datetimeString) {
         const givenDatetime = new Date(datetimeString);
@@ -343,45 +318,138 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
         }
     }
 
-    function progressThroughStories() {
-        setCurrSlideProgressPercent((currSlideProgressPercent) => {
-            if (currSlideProgressPercent>=100) {
-                return currSlideProgressPercent;
-            }
-            return currSlideProgressPercent + rateOfStoryProgression;
+
+    function toggleIsMuted() {
+        if (videoSlideRef.current) {
+            videoSlideRef.current.muted = !isMuted;
+            setIsMuted(!isMuted);
+        }
+    }
+
+
+    async function getFirstFrameForPreviewImgOfVid(videoBase64String) {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.muted = true;
+            video.src = videoBase64String;
+
+
+            video.addEventListener('loadeddata', () => {
+                video.currentTime = 0;
+            });
+
+
+            video.addEventListener('seeked', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const imageDataURL = canvas.toDataURL('image/png');
+                resolve(imageDataURL);
+            });
+
+
+            video.onerror = (e) => {
+                e;
+                reject(new Error('Error loading video'));
+            };
         });
     }
 
-    function updateSlide(incrementOrDecrementText) {
-        if (incrementOrDecrementText === 'increment') {
-            setCurrSlide(currSlide+1);
-            handleChangeInSlide(currStories, currSlide+1, currUsername);
-        }
-        else {
-            setCurrSlide(currSlide-1);
-            handleChangeInSlide(currStories, currSlide-1, currUsername);
+
+    function handleOnBlurOfReplyToStoryTextInput() {
+        setTimeout(() => setReplyToStoryTextareaIsActive(false), 300);
+        resumeStoryProgression();
+    }
+
+
+    function handleKeyDownEvents(event) {
+        switch (event.key) {
+            case 'Escape':
+                closeStoryViewer();
+                break;
+            case 'ArrowLeft':
+                incrementOrDecrementSlideByOne('decrement');
+                break;
+            case 'ArrowRight':
+                incrementOrDecrementSlideByOne('increment');
+                break;
+            case 'ArrowUp':
+                incrementOrDecrementSlideByOne('decrement');
+                break;
+            case 'ArrowDown':
+                incrementOrDecrementSlideByOne('increment');
+                break;
+            case 'm':
+            case 'M':
+                if (!replyToStoryTextareaIsActive) {
+                    toggleIsMuted();
+                }
+                break;
+            case 'k':
+            case 'K':
+                if (!replyToStoryTextareaIsActive) {
+                    togglePause();
+                }
+                break;
+            case ' ':
+                togglePause();
+                break;
         }
     }
 
-    async function sendReply(replyToSend) {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup('You cannot post replies to stories when you are an Anonymous Guest.');
+
+    async function markStoryIdAsViewed(storyId) {
+        if (authUserId == -1) {
             return;
         } 
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/expressJSBackend1/sendReplyToStory/
-            ${authUser}/${currStories[currSlide].id}`, {
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/markStoryAsViewed/${authUserId}/${storyId}`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                console.error(`The springBootBackend2 server had trouble mark story ${storyId} as viewed`);
+            }
+            else {
+                addStoryIdToSetOfViewedStoryIds(storyId);
+            }
+        }
+        catch (error) {
+            console.error(`There was trouble connecting to the springBootBackend2 server to mark story ${storyId} as viewed`);
+        }
+    }
+
+
+    async function sendReplyToStory(replyToSend) {
+        if (replyToSend.length == 0) {
+            return;
+        }
+
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged into an account to send replies to stories');
+            return;
+        } 
+
+        try {
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToIndividualUser/${authUserId}
+            /${currStoryAuthorId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    reply: replyToSend
+                    messageToSend: `Replied to story ${currStories[currSlide].id}: ${replyToSend}`
                 }),
                 credentials: 'include'
             });
             if (!response.ok) {
-                notifyParentToShowErrorPopup(
+                showErrorPopup(
                     'The server had trouble sending your reply to this story'
                 );
             }
@@ -389,106 +457,251 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                 setReplyToStoryInput('');
                 setDisplaySentText(true);
                 setTimeout(() => setDisplaySentText(false), 850);
+
+                setReplyToStoryTextareaIsActive(false);
+                resumeStoryProgression();
             }
         }
         catch (error) {
-            notifyParentToShowErrorPopup(
+            showErrorPopup(
                 'There was trouble connecting to the server to send your reply to this story'
             );
         }
     }
 
-    function toggleIsMuted() {
-        videoSlideRef.current.muted = !isMuted;
-        setIsMuted(!isMuted);
-    }
-
-    function pauseStoryProgression() {
-        setRateOfStoryProgression(0);
-
-        if(videoSlideRef.current) {
-            videoSlideRef.current.pause();
-        }
-    }
-
-    function resumeStoryProgression() {
-        if(currStories[currSlide].vidDurationInSeconds==null) {
-            setRateOfStoryProgression(0.5);
-        }
-        else {
-            setRateOfStoryProgression(2.5/currStories[currSlide].vidDurationInSeconds);
-        }
-
-        if(videoSlideRef.current) {
-            videoSlideRef.current.play();
-        }
-    }
 
     async function deleteStory() {
-        try {  
-            let idOfStoryToDelete = currStories[currSlide].id;
+        let idOfStoryToDelete = currStories[currSlide].id;
+
+        try { 
             const response = await fetch(
-            `http:/34.111.89.101/api/Home-Page/aspNetCoreBackend1/deleteStory/${idOfStoryToDelete}`, {
+            `http:/34.111.89.101/api/Home-Page/springBootBackend2/deleteStory/${authUserId}/${idOfStoryToDelete}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
+
             if (!response.ok) {
-                notifyParentToShowErrorPopup('The server had trouble deleting this story');
+                showErrorPopup('The server had trouble deleting this story of yours');
             }
             else {
                 const newCurrStories = currStories.filter(story => story.id !== idOfStoryToDelete);
                 setCurrStories(newCurrStories);
 
                 const newUsersAndTheirStories = {...usersAndTheirStories};
-                newUsersAndTheirStories[authUser] = newCurrStories;
-                notifyParentToUpdateUsersAndTheirStories(newUsersAndTheirStories);
+                newUsersAndTheirStories[authUserId] = newCurrStories;
+                updateUsersAndTheirStories(newUsersAndTheirStories);
 
-                handleChangeInSlide(newCurrStories, currSlide, currUsername);
+                handleChangeInStory(newCurrStories, currSlide);
             }
         }
         catch (error) {
-            notifyParentToShowErrorPopup('There was trouble connecting to the server to delete this story');
+            showErrorPopup('There was trouble connecting to the server to delete this story of yours');
         }
     }
 
-    function takeAuthUserToTheSelectedUsersStoryInStorySection(newCurrIndexInStoriesSection) {
-        setNumSlides(0);
-        setCurrUsername(orderedListOfUsernamesInStoriesSection[newCurrIndexInStoriesSection]);
-        setCurrIndexInStoriesSection(newCurrIndexInStoriesSection);
+
+    async function fetchTheNecessaryStories(currIndexInStoriesSectionValue, currStoryAuthorIdValue) {
+        const newUsersAndYourCurrSlideInTheirStories = {...usersAndYourCurrSlideInTheirStories};
+
+        if (isFromStoriesSection) {
+            const userIdsNeededForStoryPreviewFetching = [];
+            const currIndexInStoriesSectionValue = currIndexInStoriesSection;
+            const userIdsAndTheirUsernames = {};
+
+            if (currIndexInStoriesSectionValue + 1 < orderedListOfUserIdsInStoriesSection.length &&
+            !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 1] in usersAndTheirStoryPreviews)) {
+                const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 1];
+                const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 1];
+
+                userIdsNeededForStoryPreviewFetching.push(userId);
+                userIdsAndTheirUsernames[userId] = username;
+            }
+
+            if (currIndexInStoriesSectionValue + 2 < orderedListOfUserIdsInStoriesSection.length &&
+            !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 2] in usersAndTheirStoryPreviews)) {
+                const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 2];
+                const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 2];
+
+                userIdsNeededForStoryPreviewFetching.push(userId);
+                userIdsAndTheirUsernames[userId] = username;
+            }
+
+            if (currIndexInStoriesSectionValue - 1 > -1 &&
+            !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 1] in usersAndTheirStoryPreviews)) {
+                const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 1];
+                const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 1];
+
+                userIdsNeededForStoryPreviewFetching.push(userId);
+                userIdsAndTheirUsernames[userId] = username;
+            }
+
+            if (currIndexInStoriesSectionValue - 2 > -1 &&
+            !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 2] in usersAndTheirStoryPreviews)) {
+                const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 2];
+                const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 2];
+                
+                userIdsNeededForStoryPreviewFetching.push(userId);
+                userIdsAndTheirUsernames[userId] = username;
+            }
+            
+            if (userIdsNeededForStoryPreviewFetching.length>0) {
+                try {
+                    const response = await fetch(
+                    `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoryPreviewsOfAtMost4Users/${authUserId}`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            userIds: userIdsNeededForStoryPreviewFetching
+                        }),
+                        credentials: 'include'
+                    });
+                    if (!response.ok) {
+                        console.error('The server had trouble providing some of the required story-previews');
+                    }
+                    else {
+                        const usersAndTheInfoOnTheirStoryPreviews = await response.json();
+                        const newUsersAndTheirStoryPreviews = {...usersAndTheirStoryPreviews};
+                        
+                        for(let userId of Object.keys(usersAndTheInfoOnTheirStoryPreviews)) {
+                            newUsersAndTheirStoryPreviews[userId] = usersAndTheInfoOnTheirStoryPreviews[userId].previewImg;
+
+                            if (usersAndTheInfoOnTheirStoryPreviews[userId].currSlide === 'finished') {
+                                newUsersAndYourCurrSlideInTheirStories[userId] = 0;
+                                addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(userIdsAndTheirUsernames[userId]);
+                            }
+                            else {
+                                newUsersAndYourCurrSlideInTheirStories[userId] = usersAndTheInfoOnTheirStoryPreviews[userId]
+                                .currSlide;
+                            }
+                        }
+
+                        updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews);
+                    }
+                }
+                catch (error) {
+                    console.error('There was trouble connecting to the server to provide some of the required story-previews');
+                }
+            }
+        }
+
+        const currStoryAuthorIdValue = currStoryAuthorId;
+        const currStoryAuthorUsernameValue = currStoryAuthorUsername;
+        const authUserIdValue = authUserId;
+
+        if(!(currStoryAuthorIdValue in usersAndTheirStories)) {
+            try {
+                const response1 = await fetch(
+                `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser/${authUserIdValue}
+                /${currStoryAuthorIdValue}`, {
+                    credentials: 'include'
+                });
+
+                if (!response1.ok) {
+                    setStoryFetchingErrorMessage(
+                        `The server had trouble getting the stories of ${currStoryAuthorUsernameValue}`
+                    );
+                }
+                else {
+                    const userStoryData = await response1.json();
+
+                    userStoryData.stories = userStoryData.stories.map(userStory => {
+                        userStory.datetime = formatDatetimeString(userStory.datetime);
+                        return userStory
+                    });
+
+                    const newUsersAndTheirStories = {...usersAndTheirStories};
+                    newUsersAndTheirStories[currStoryAuthorIdValue] = userStoryData.stories;
+                    updateUsersAndTheirStories(newUsersAndTheirStories);
+
+                    setCurrStories(userStoryData.stories);
+
+                    if (userStoryData.currSlide === 'finished') {
+                        setCurrSlide(0);
+
+                        newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
+
+                        addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
+
+                        for(let story of userStoryData.stories) {
+                            addStoryIdToSetOfViewedStoryIds(story.id);
+                        }
+
+                        handleChangeInStory(userStoryData.stories, 0);
+                    }
+                    else if (userStoryData.currSlide == -1) {
+                        setStoryFetchingErrorMessage(
+                            `User ${currStoryAuthorUsernameValue} does not currently have any unexpired stories`
+                        );
+                    }
+                    else {
+                        setCurrSlide(userStoryData.currSlide);
+
+                        newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = userStoryData.currSlide;
+                        
+                        for(let i=0; i<userStoryData.stories.length; i++) {
+                            if (i == userStoryData.currSlide) {
+                                break;
+                            }
+
+                            const story = userStoryData.stories[i];
+                            addStoryIdToSetOfViewedStoryIds(story.id);
+                        }
+
+                        handleChangeInStory(userStoryData.stories, userStoryData.currSlide);
+                    }
+                }
+            }
+            catch (error) {
+                setStoryFetchingErrorMessage(
+                    `There was trouble connecting to the server to get the stories of ${currStoryAuthorUsernameValue}`
+                );  
+            }
+        }
+        else {
+            setCurrStories(usersAndTheirStories[currStoryAuthorIdValue]);
+            setCurrSlide(usersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue]);
+
+            handleChangeInStory(
+                usersAndTheirStories[currStoryAuthorIdValue],
+                usersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue]
+            );
+        }
+
+        updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+
+        setIsCurrentlyFetchingStory(false);
     }
+
 
     return (
         <div style={{position: 'fixed', height: '100%', width: '100%', top: '0%', left: '0%',
         backgroundColor: '#1c1c1c', color: 'white', zIndex: zIndex}}>
-            <p onClick={notifyParentToCloseStoryViewer} className="headerMegagram"
+            <p onClick={closeStoryViewer} className="loseOpacityWhenActive"
             style={{position: 'absolute', top: '2%', left: '1%', fontFamily: 'Billabong', fontSize: '2.1em',
             cursor: 'pointer', marginTop: '0em'}}>
                 Megagram
             </p>
 
-            <img onClick={notifyParentToCloseStoryViewer} src={thinWhiteXIcon}
+            <img onClick={closeStoryViewer} src={thinWhiteXIcon} className="loseOpacityWhenActive"
             style={{position: 'absolute', top: '1%', right: '0%', cursor: 'pointer', height: '3.5em', width: '3.5em',
             objectFit: 'contain'}}/>
 
             <div style={{position: 'absolute', top: '2%', left: '35%', height: '95%', width: '30%',
             borderRadius: '1%'}}>
-                {numSlides>0 &&
+                {(numSlides > 0 && currSlide < numSlides && currSlide > -1) &&
                     (
                         <>
-                            {currSlide < currStories.length && currSlide > -1 &&
-                            currStories[currSlide].vidDurationInSeconds==null &&
+                            {currStories[currSlide].vidDurationInSeconds == null &&
                                 (
                                     <img src={currStories[currSlide].src} style={{position: 'absolute', left: '0%',
                                     top: '0%', height: '100%', width: '100%', borderRadius: '1%', zIndex: '1'}}/>
                                 )
                             }
 
-                            {currSlide < currStories.length && currSlide > -1 &&
-                            currStories[currSlide].vidDurationInSeconds!==null &&
+                            {currStories[currSlide].vidDurationInSeconds !== null &&
                                 (
                                     <video ref={videoSlideRef} src={currStories[currSlide].src} autoPlay
-                                    muted={isMuted} id="videoStorySlide"
-                                    style={{position: 'absolute', left: '0%', top: '0%', height: '100%',
+                                    muted={isMuted} style={{position: 'absolute', left: '0%', top: '0%', height: '100%',
                                     width: '100%', borderRadius: '1%', zIndex: '1'}}/>
                                 )
                             }
@@ -496,11 +709,11 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                     )
                 }
 
-                {numSlides==0 &&
+                {numSlides == 0 &&
                     (
                         <div style={{position: 'absolute', left: '0%', top: '0%', height: '100%',
                         width: '100%', backgroundColor: 'black', color: 'white', zIndex: '1'}}>
-                            {storyFetchingErrorMessage.length>0 &&
+                            {storyFetchingErrorMessage.length > 0 &&
                                 (
                                     <p style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
                                     maxWidth: '75%'}}>
@@ -520,48 +733,47 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                     )
                 }
 
-                {(currSlide > 0 ||
-                (isFromStoriesSection && currIndexInStoriesSection>0)) &&
+                {(currSlide > 0 || (isFromStoriesSection && currIndexInStoriesSection > 0)) &&
                     (
                         <img src={nextSlideArrow} className="storyViewerSlideArrows"
-                        onClick={() => updateSlide('decrement')}
+                        onClick={() => incrementOrDecrementSlideByOne('decrement')}
                         style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
                         objectFit: 'contain', position: 'absolute', left: '-5%', top: '50%',
-                        transform: 'translate(-50%, -50%) rotate(180deg)', filter: 'brightness(5) contrast(0)'}}/>
+                        transform: 'translate(-50%, -50%) rotate(180deg)', filter: 'brightness(5) contrast(0)',
+                        zIndex: '1'}}/>
                     )
                 }
 
-                {(currSlide + 1 < numSlides ||
-                (isFromStoriesSection && currIndexInStoriesSection+1 < orderedListOfUsernamesInStoriesSection.length)) &&
+                {(currSlide + 1 < numSlides || (isFromStoriesSection && currIndexInStoriesSection + 1 <
+                orderedListOfUsernamesInStoriesSection.length)) &&
                     (
                         <img src={nextSlideArrow} className="storyViewerSlideArrows"
-                        onClick={() => updateSlide('increment')}
+                        onClick={() => incrementOrDecrementSlideByOne('increment')}
                         style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
                         objectFit: 'contain', position: 'absolute', right: '-12%', top: '50%',
-                        transform: 'translate(-50%, -50%)', filter: 'brightness(5) contrast(0)'}}/>
+                        transform: 'translate(-50%, -50%)', filter: 'brightness(5) contrast(0)', zIndex: '1'}}/>
                     )
                 }
                 
                 {replyToStoryTextareaIsActive &&
                     (
                         <img src={blackScreen} style={{position: 'absolute', left: '0%', top: '0%', height: '100%',
-                        width: '100%', borderRadius: '1%', zIndex: '3', pointerEvents: 'none', opacity: '0.7'}}/>
+                        width: '100%', borderRadius: '1%', zIndex: '2', pointerEvents: 'none', opacity: '0.7'}}/>
                     ) 
                 }
 
                 {displaySentText &&
                     (
                         <p style={{backgroundColor: '#1c1c1c', color: 'white', padding: '0.8em 1.5em', position: 'absolute',
-                        top: '45%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: '3', borderRadius: '0.5em',
-                        fontSize: '1.1em'}}>
+                        top: '45%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: '2', borderRadius: '0.5em',
+                        fontSize: '1.1em', pointerEvents: 'none'}}>
                             Sent
                         </p>
                     )
                 }
 
-                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', marginTop: '1em',
-                gap: '1em'}}>
-                    {numSlides>0 &&
+                <div style={{display: 'flex', flexDirection: 'column', marginTop: '1em', gap: '1em'}}>
+                    {numSlides > 0 &&
                         (
                             <div style={{display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center',
                             gap: `${2/(numSlides-1)}%`, zIndex: '2'}}>
@@ -570,7 +782,7 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                                     height: '3px', backgroundColor: '#918f8e'}}>
                                         <div style={{width: `${
                                             currSlide > index ? 100 : 
-                                            currSlide === index ? currSlideProgressPercent : 0
+                                            currSlide == index ? currSlideProgressPercent : 0
                                         }%`, height: '100%', backgroundColor: 'white'}}> 
                                         </div>
                                     </div>
@@ -579,66 +791,66 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                         )
                     }
 
-                    <div style={{display: 'flex', justifyContent: 'space-between', width: '95%', alignItems: 'center',
+                    <div style={{display: 'flex', justifyContent: 'space-between', width: '95%', alignItems: 'start',
                     marginLeft: '2.5%', marginRight: '2.5%', zIndex: '2'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '0.85em'}}>
-                            <a href={`http://34.111.89.101/profile/${currUsername}`} style={{color: 'white'}}
-                            target="_blank" rel="noopener noreferrer">
+                            <a href={`http://34.111.89.101/profile/${currStoryAuthorUsername}`} target="_blank"
+                            rel="noopener noreferrer">
                                 <img src={
-                                    (currUsername in usersAndTheirRelevantInfo &&
-                                    'profilePhoto' in usersAndTheirRelevantInfo[currUsername]) ?
-                                    usersAndTheirRelevantInfo[currUsername].profilePhoto :
+                                    (currStoryAuthorId in usersAndTheirRelevantInfo &&
+                                    'profilePhoto' in usersAndTheirRelevantInfo[currStoryAuthorId]) ?
+                                    usersAndTheirRelevantInfo[currStoryAuthorId].profilePhoto :
                                     defaultPfp
                                 }
-                                style={{height: '3em', width: '3em', pointerEvents: 'none',
-                                objectFit: 'contain', marginLeft: '0.5em'}}/>
+                                style={{height: '3em', width: '3em', pointerEvents: 'none', objectFit: 'contain', marginLeft:
+                                '0.5em'}}/>
                             </a>
 
-                            <a href={`http://34.111.89.101/profile/${currUsername}`} style={{color: 'white'}}
+                            <a href={`http://34.111.89.101/profile/${currStoryAuthorUsername}`} style={{color: 'white',
+                            textAlign: 'start', maxWidth: '9em', overflowWrap: 'break-word'}}
                             target="_blank" rel="noopener noreferrer">
-                                {currUsername}
+                                {currStoryAuthorUsername}
                             </a>
 
-                            {(currUsername in usersAndTheirRelevantInfo &&
-                            'isVerified' in usersAndTheirRelevantInfo[currUsername] &&
-                            usersAndTheirRelevantInfo[currUsername].isVerified) &&
+                            {(currStoryAuthorId in usersAndTheirRelevantInfo && 'isVerified' in
+                            usersAndTheirRelevantInfo[currStoryAuthorId] && usersAndTheirRelevantInfo[currStoryAuthorId]
+                            .isVerified) &&
                                 (
-                                    <img src={verifiedBlueCheck} style={{height: '2em',
-                                    width: '2em', marginLeft: '-0.5em', pointerEvents: 'none',
-                                    objectFit: 'contain'}}/>
+                                    <img src={verifiedBlueCheck} style={{height: '1.58em', width: '1.58em', marginLeft: '-0.6em',
+                                    pointerEvents: 'none', objectFit: 'contain'}}/>
                                 )
                             }
 
-                            {(numSlides>0 && currSlide > -1 && currSlide < currStories.length) &&
+                            {(numSlides > 0 && currSlide < numSlides && currSlide > -1) &&
                                 (
                                     <>
-                                    <span style={{color: 'lightgray', marginRight: '-0.3em'}}>
-                                        •
-                                    </span>
-        
-                                    <span style={{color: 'lightgray'}}>
-                                        {formatDatetimeString(currStories[currSlide].datetime)}
-                                    </span>
+                                        <span style={{color: 'lightgray', marginRight: '-0.3em', marginLeft: '-0.3em'}}>
+                                            •
+                                        </span>
+            
+                                        <span style={{color: 'lightgray'}}>
+                                            {currStories[currSlide].datetime}
+                                        </span>
                                     </>
                                 )
                             }
                         </div>
 
-                        {(numSlides>0 && currSlide > -1 && currSlide < currStories.length) &&
+                        {(numSlides > 0 && currSlide < numSlides && currSlide > -1) &&
                             (
                                 <div style={{display: 'flex', alignItems: 'center', gap: '0.7em'}}>
-                                    {(isMuted && currStories[currSlide].vidDurationInSeconds!==null) &&
+                                    {(isMuted && currStories[currSlide].vidDurationInSeconds !== null) &&
                                         (
-                                            <img onClick={toggleIsMuted} src={mutedIcon}
+                                            <img className="loseOpacityWhenActive" onClick={toggleIsMuted} src={mutedIcon}
                                             style={{height: '1.85em', width: '1.85em', cursor: 'pointer',
                                             objectFit: 'contain'}}
                                             />
                                         )
                                     }
         
-                                    {(!isMuted && currStories[currSlide].vidDurationInSeconds!==null) &&
+                                    {(!isMuted && currStories[currSlide].vidDurationInSeconds !== null) &&
                                         (
-                                            <img onClick={toggleIsMuted} src={notMutedIcon}
+                                            <img className="loseOpacityWhenActive" onClick={toggleIsMuted} src={notMutedIcon}
                                             style={{height: '1.85em', width: '1.85em', cursor: 'pointer',
                                             objectFit: 'contain'}}
                                             />
@@ -647,22 +859,22 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
         
                                     {rateOfStoryProgression>0 &&
                                         (
-                                            <img onClick={toggleIsPaused} src={pauseIcon2} style={{cursor: 'pointer',
-                                            height: '1.5em', width: '1.5em', objectFit: 'contain'}}/>
+                                            <img className="loseOpacityWhenActive" onClick={togglePause} src={pauseIcon2}
+                                            style={{cursor: 'pointer', height: '1.5em', width: '1.5em', objectFit: 'contain'}}/>
                                         )
                                     }
         
                                     {rateOfStoryProgression==0 &&
                                         (
-                                            <img onClick={toggleIsPaused} src={whitePlayIcon} style={{cursor: 'pointer',
-                                            height: '2em', width: '2em', objectFit: 'contain'}}/>
+                                            <img className="loseOpacityWhenActive" onClick={togglePause} src={whitePlayIcon}
+                                            style={{cursor: 'pointer', height: '2em', width: '2em', objectFit: 'contain'}}/>
                                         )
                                     }
 
-                                    {authUser === currUsername &&
+                                    {authUserId == currStoryAuthorId &&
                                         (
-                                            <img onClick={deleteStory} src={whiteTrashIcon} style={{cursor: 'pointer',
-                                            height: '1.3em', width: '1.3em', objectFit: 'contain'}}/>
+                                            <img className="loseOpacityWhenActive" onClick={deleteStory} src={whiteTrashIcon}
+                                            style={{cursor: 'pointer', height: '1.3em', width: '1.3em', objectFit: 'contain'}}/>
                                         )
                                     }
                                 </div>
@@ -671,80 +883,84 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                     </div>
 
                     {(numSlides>0 && currSlide > -1 && currSlide < currStories.length &&
-                    currStories[currSlide].adInfo!==null) &&
+                    currStories[currSlide].adInfo !== null) &&
                         (
                             <a href={currStories[currSlide].adInfo.link} target="_blank" rel="noopener noreferrer"
-                            style={{color: 'white', marginTop: '0em', zIndex: '2', maxWidth: '65%', textAlign: 'start',
-                            marginLeft: '1em', overflowWrap: 'break-word'}}>
-                                Sponsored: <b>Click this to {currStories[currSlide].adInfo.callToAction}</b>
+                            style={{color: 'white', marginTop: '0em', maxWidth: '65%', textAlign: 'start', zIndex: '2',
+                            marginLeft: '1.5em', overflowWrap: 'break-word', fontSize: '0.93em'}}>
+                                <b>Sponsored: </b> {currStories[currSlide].adInfo.callToAction}
                             </a>
                         )
                     }
                 </div>
 
-
-                {(replyToStoryTextareaIsActive && replyToStoryInput.length==0) &&
+                {(replyToStoryTextareaIsActive && replyToStoryInput.length == 0) &&
                     
                     (
                         <div style={{position: 'absolute', bottom: '10%', left: '0%', width: '100%', height: '20%',
-                        zIndex: '3', display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                        alignItems: 'center', color: 'white'}}>
+                        zIndex: '2', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+                        color: 'white'}}>
                             <h2>Quick Reactions</h2>
+
                             <div style={{display: 'flex', alignItems: 'center', gap: '1em', width: '100%', marginTop:
                             '-1em', justifyContent: 'center'}}>
-                                <p onClick={() => sendReply('😂')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>😂</p>
+                                <p onClick={() => sendReplyToStory('😂')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    😂
+                                </p>
 
-                                <p onClick={() => sendReply('😍')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>😍</p>
+                                <p onClick={() => sendReplyToStory('😍')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    😍
+                                </p>
 
-                                <p onClick={() => sendReply('🥳')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>🥳</p>
+                                <p onClick={() => sendReplyToStory('🥳')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    🥳
+                                </p>
 
-                                <p onClick={() => sendReply('😎')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>😎</p>
+                                <p onClick={() => sendReplyToStory('😎')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    😎
+                                </p>
 
-                                <p onClick={() => sendReply('😡')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>😡</p>
+                                <p onClick={() => sendReplyToStory('😡')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    😡
+                                </p>
 
-                                <p onClick={() => sendReply('🥺')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>🥺</p>
+                                <p onClick={() => sendReplyToStory('🥺')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    🥺
+                                </p>
 
-                                <p onClick={() => sendReply('😢')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>😢</p>
+                                <p onClick={() => sendReplyToStory('😢')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    😢
+                                </p>
 
-                                <p onClick={() => sendReply('😮')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>😮</p>
+                                <p onClick={() => sendReplyToStory('😮')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    😮
+                                </p>
 
-                                <p onClick={() => sendReply('💯')}
-                                style={{fontSize: '2em', cursor: 'pointer'}}>💯</p>
+                                <p onClick={() => sendReplyToStory('💯')} style={{fontSize: '2em', cursor: 'pointer'}}>
+                                    💯
+                                </p>
                             </div>
                         </div>
                     )
                 }
 
-                {(numSlides > 0 && authUser!==currUsername) &&
+                {(numSlides > 0 && authUserId !== currStoryAuthorId) &&
                     (
                         <div style={{position: 'absolute', bottom: '0.5%', left: '0%', width: '100%', height: '10%',
-                        zIndex: '3', display: 'flex', gap: '0.75em', justifyContent: 'center', alignItems: 'center'}}>
+                        zIndex: '2', display: 'flex', gap: '2em', justifyContent: 'center', alignItems: 'center'}}>
                             <input value={replyToStoryInput} onChange={updateReplyToStoryInput}
                             onFocus={() => {
                                 pauseStoryProgression();
                                 setReplyToStoryTextareaIsActive(true);
                             }}
-                            onBlur={() =>
-                                { 
-                                    resumeStoryProgression();
-                                    setTimeout(() => setReplyToStoryTextareaIsActive(false) , 300);
-                                }
-                            } 
-                            placeholder={`Reply to @${currUsername}...`}
-                            style={{width: '70%', borderRadius: '2em', fontFamily: 'Arial', outline: 'none',
+                            onBlur={handleOnBlurOfReplyToStoryTextInput} 
+                            placeholder={`Reply to @${currStoryAuthorUsername}...`}
+                            style={{width: '66%', borderRadius: '2em', fontFamily: 'Arial', outline: 'none',
                             resize: 'none', backgroundColor:'black', borderColor: 'white', color: 'white',
-                            height: '4em', paddingLeft: '1em', fontSize: '0.95em'}}/>
+                            height: '3.5em', paddingLeft: '1em', fontSize: '0.95em'}}/>
 
-                            <button onClick={replyToStoryInput.length > 0 ? () => sendReply(replyToStoryInput) : null}
-                            style={{padding: '0.5em 1em', width: '5em', backgroundColor: '#4aa4ff',
+                            <button onClick={() => sendReplyToStory(replyToStoryInput)}
+                            style={{padding: '0.8em 0.5em', width: '6em', backgroundColor: '#4aa4ff',
                             color: 'white', cursor: replyToStoryInput.length > 0 ? 'pointer' : '',
                             borderRadius: '0.5em', border: 'none', fontWeight: 'bold',
                             opacity: replyToStoryInput.length > 0 ? '1' : '0.5'}}>
@@ -761,676 +977,178 @@ notifyParentToAddStoryIdToSetOfViewedStoryIds, zIndex}) {
                     <>
                         <div style={{position: 'absolute', top: '50%', left: '6%', height: '40%', width: '25%',
                         transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '3em',
-                        justifyContent: 'end'}}>
-                            {currIndexInStoriesSection-2 > -1 &&
-                                (
-                                    <div onClick={() =>
-                                        {
-                                            takeAuthUserToTheSelectedUsersStoryInStorySection(
-                                                currIndexInStoriesSection-2
-                                            );
-                                        }
+                        justifyContent: 'end', color: 'white'}}>
+
+                            {[2, 1].filter(value => currIndexInStoriesSection - value > -1).map((absoluteDiff) => (
+                                <div key={absoluteDiff} onClick={() =>
+                                    {
+                                        takeAuthUserToTheSelectedUsersStoryInStorySection(
+                                            currIndexInStoriesSection - absoluteDiff
+                                        );
                                     }
-                                    style={{borderRadius: '5%', height: '90%', width: '45%', cursor: 'pointer',
-                                    position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-        
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection-2
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-2
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection-2
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds==null) &&
+                                }
+                                style={{borderRadius: '5%', height: '90%', width: '45%', cursor: 'pointer',
+                                position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+                                    <img src={orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff] in
+                                    usersAndTheirStoryPreviews ? usersAndTheirStoryPreviews[
+                                        orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]
+                                    ] :  defaultVideoFrame}
+                                    style={{position: 'absolute', top: '0%', left: '0%',
+                                    height: '100%', width: '100%', borderRadius: '5%', zIndex: '1', objectFit: 'cover'}}/>
+    
+                                    <img src={blackScreen} style={{position: 'absolute', top: '0%', left: '0%',
+                                    height: '100%', width: '100%', opacity: '0.7', borderRadius: '5%',
+                                    zIndex: '2'}}/>
+    
+                                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: '2',
+                                    gap: '0.3em'}}>
+                                        <img src={
                                             (
-                                                <img
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection-2
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection-2
+                                                orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff] in
+                                                usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[
+                                                    orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]
+                                                ]
+                                            ) ?
+                                            usersAndTheirRelevantInfo[
+                                                orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]
+                                            ].profilePhoto : defaultPfp
+                                        } 
+                                        style={{height: '3.8em', width: '3.8em', objectFit: 'contain'}}/>
+
+                                        <b style={{marginTop:'0.5em', marginBottom: '-1em', overflowWrap: 'break-word',
+                                        maxWidth: '7em'}}>
+                                            {
+                                                orderedListOfUsernamesInStoriesSection[
+                                                    currIndexInStoriesSection - absoluteDiff
+                                                ]
+                                            }
+                                        </b>
+
+                                        {(orderedListOfUserIdsInStoriesSection[
+                                            currIndexInStoriesSection - absoluteDiff
+                                        ] in usersAndTheirStories) &&
+                                            (
+                                                <p style={{fontSize: '0.90em', overflowWrap: 'break-word',
+                                                maxWidth: '4em'}}>
+                                                    {
+                                                        
+                                                        usersAndTheirStories[
+                                                            orderedListOfUserIdsInStoriesSection[
+                                                                currIndexInStoriesSection - absoluteDiff
                                                             ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1'}}/>
+                                                        ][
+                                                            usersAndYourCurrSlideInTheirStories[
+                                                                orderedListOfUserIdsInStoriesSection[
+                                                                    currIndexInStoriesSection - absoluteDiff
+                                                                ]
+                                                            ]
+                                                        ].datetime
+                                                    
+                                                    }
+                                                </p>
                                             )
                                         }
 
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection-2
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-2
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection-2
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds!==null) &&
+                                        {(orderedListOfSponsorshipStatusesInStoriesSection[
+                                            currIndexInStoriesSection - absoluteDiff
+                                        ] == true) &&
                                             (
-                                                <video
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection-2
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection-2
-                                                            ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1', pointerEvents: 'none'}}/>
+                                                <b style={{marginTop: '1.5em'}}>Sponsored</b>
                                             )
                                         }
-        
-                                        <img src={blackScreen} style={{position: 'absolute', top: '0%', left: '0%',
-                                        height: '100%', width: '100%', opacity: '0.7', borderRadius: '5%',
-                                        zIndex: '2'}}/>
-        
-                                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                        zIndex: '3', gap: '0.3em'}}>
-                                            <img
-                                            src={
-                                                (
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-2
-                                                    ] in usersAndTheirRelevantInfo &&
-                                                    'profilePhoto' in usersAndTheirRelevantInfo[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection-2
-                                                        ]
-                                                    ]
-                                                ) ?
-                                                usersAndTheirRelevantInfo[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-2
-                                                    ]
-                                                ].profilePhoto : defaultPfp
-                                            } 
-                                            style={{height: '3.8em', width: '3.8em', 
-                                            objectFit: 'contain'}}/>
-
-                                            <b style={{marginTop:'0.5em', marginBottom: '-1em', overflowWrap: 'break-word',
-                                            maxWidth: '7em'}}>
-                                                {
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-2
-                                                    ]
-                                                }
-                                            </b>
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-2
-                                            ] in usersAndTheirStories) &&
-                                                (
-                                                    <p style={{fontSize: '0.90em', overflowWrap: 'break-word',
-                                                    maxWidth: '4em'}}>
-                                                        {
-                                                            formatDatetimeString(
-                                                                usersAndTheirStories[
-                                                                    orderedListOfUsernamesInStoriesSection[
-                                                                        currIndexInStoriesSection-2
-                                                                    ]
-                                                                ][
-                                                                    usersAndYourCurrSlideInTheirStories[
-                                                                        orderedListOfUsernamesInStoriesSection[
-                                                                            currIndexInStoriesSection-2
-                                                                        ]
-                                                                    ]
-                                                                ].datetime
-                                                            )
-                                                        }
-                                                    </p>
-                                                )
-                                            }
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-2
-                                            ] in usersAndTheirStories &&
-                                            usersAndTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection-2
-                                                ]
-                                            ][
-                                                usersAndYourCurrSlideInTheirStories[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-2
-                                                    ]
-                                                ]
-                                            ].adInfo!==null) &&
-                                                (
-                                                    <b>Sponsored</b>
-                                                )
-                                            }
-                                        </div>
                                     </div>
-                                )
-                            }
-
-                            {currIndexInStoriesSection-1 > -1 &&
-                                (
-                                    <div onClick={() =>
-                                        {
-                                            takeAuthUserToTheSelectedUsersStoryInStorySection(
-                                                currIndexInStoriesSection-1
-                                            );
-                                        }
-                                    } style={{borderRadius: '5%', height: '90%', width: '45%', cursor: 'pointer',
-                                    position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-        
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection-1
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-1
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection-1
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds==null) &&
-                                            (
-                                                <img
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection-1
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection-1
-                                                            ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1'}}/>
-                                            )
-                                        }
-
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection-1
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-1
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection-1
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds!==null) &&
-                                            (
-                                                <video
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection-1
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection-1
-                                                            ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1', pointerEvents: 'none'}}/>
-                                            )
-                                        }
-        
-                                        <img src={blackScreen} style={{position: 'absolute', top: '0%', left: '0%',
-                                        height: '100%', width: '100%', opacity: '0.7', borderRadius: '5%',
-                                        zIndex: '2'}}/>
-        
-                                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                        zIndex: '3', gap: '0.3em'}}>
-                                            <img
-                                            src={
-                                                (
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-1
-                                                    ] in usersAndTheirRelevantInfo &&
-                                                    'profilePhoto' in usersAndTheirRelevantInfo[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection-1
-                                                        ]
-                                                    ]
-                                                ) ?
-                                                usersAndTheirRelevantInfo[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-1
-                                                    ]
-                                                ].profilePhoto : defaultPfp
-                                            } 
-                                            style={{height: '3.8em', width: '3.8em', 
-                                            objectFit: 'contain'}}/>
-
-                                            <b style={{marginTop:'0.5em', marginBottom: '-1em', overflowWrap: 'break-word',
-                                            maxWidth: '7em'}}>
-                                                {
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-1
-                                                    ]
-                                                }
-                                            </b>
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-1
-                                            ] in usersAndTheirStories) &&
-                                                (
-                                                    <p style={{fontSize: '0.90em', overflowWrap: 'break-word',
-                                                    maxWidth: '4em'}}>
-                                                        {
-                                                            formatDatetimeString(
-                                                                usersAndTheirStories[
-                                                                    orderedListOfUsernamesInStoriesSection[
-                                                                        currIndexInStoriesSection-1
-                                                                    ]
-                                                                ][
-                                                                    usersAndYourCurrSlideInTheirStories[
-                                                                        orderedListOfUsernamesInStoriesSection[
-                                                                            currIndexInStoriesSection-1
-                                                                        ]
-                                                                    ]
-                                                                ].datetime
-                                                            )
-                                                        }
-                                                    </p>
-                                                )
-                                            }
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection-1
-                                            ] in usersAndTheirStories &&
-                                            usersAndTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection-1
-                                                ]
-                                            ][
-                                                usersAndYourCurrSlideInTheirStories[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection-1
-                                                    ]
-                                                ]
-                                            ].adInfo!==null) &&
-                                                (
-                                                    <b>Sponsored</b>
-                                                )
-                                            }
-                                        </div>
-                                    </div>
-                                )
-                            }
+                                </div>
+                            ))}
                         </div>
 
                         <div style={{position: 'absolute', top: '50%', right: '6%', height: '40%', width: '25%',
                         transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '3em',
-                        justifyContent: 'start'}}>
-                            {currIndexInStoriesSection+1 < orderedListOfUsernamesInStoriesSection.length &&
-                                (
-                                    <div onClick={() =>
-                                        {
-                                            takeAuthUserToTheSelectedUsersStoryInStorySection(
-                                                currIndexInStoriesSection+1
-                                            );
-                                        }
-                                    } style={{borderRadius: '5%', height: '90%', width: '45%', cursor: 'pointer',
-                                    position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-        
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection+1
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+1
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection+1
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds==null) &&
+                        justifyContent: 'start', color: 'white'}}>
+                            {[1, 2].filter(value => currIndexInStoriesSection + value < orderedListOfUserIdsInStoriesSection
+                            .length).map((absoluteDiff) => (
+                                <div key={absoluteDiff} onClick={() =>
+                                    {
+                                        takeAuthUserToTheSelectedUsersStoryInStorySection(
+                                            currIndexInStoriesSection + absoluteDiff
+                                        );
+                                    }
+                                }
+                                style={{borderRadius: '5%', height: '90%', width: '45%', cursor: 'pointer',
+                                position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+                                    <img src={orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff] in
+                                    usersAndTheirStoryPreviews ? usersAndTheirStoryPreviews[
+                                        orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]
+                                    ] :  defaultVideoFrame}
+                                    style={{position: 'absolute', top: '0%', left: '0%',
+                                    height: '100%', width: '100%', borderRadius: '5%', zIndex: '1', objectFit: 'cover'}}/>
+    
+                                    <img src={blackScreen} style={{position: 'absolute', top: '0%', left: '0%',
+                                    height: '100%', width: '100%', opacity: '0.7', borderRadius: '5%',
+                                    zIndex: '2'}}/>
+    
+                                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: '2',
+                                    gap: '0.3em'}}>
+                                        <img src={
                                             (
-                                                <img
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection+1
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection+1
+                                                orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff] in
+                                                usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[
+                                                    orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]
+                                                ]
+                                            ) ?
+                                            usersAndTheirRelevantInfo[
+                                                orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]
+                                            ].profilePhoto : defaultPfp
+                                        } 
+                                        style={{height: '3.8em', width: '3.8em', objectFit: 'contain'}}/>
+
+                                        <b style={{marginTop:'0.5em', marginBottom: '-1em', overflowWrap: 'break-word',
+                                        maxWidth: '7em'}}>
+                                            {
+                                                orderedListOfUsernamesInStoriesSection[
+                                                    currIndexInStoriesSection + absoluteDiff
+                                                ]
+                                            }
+                                        </b>
+
+                                        {(orderedListOfUserIdsInStoriesSection[
+                                            currIndexInStoriesSection + absoluteDiff
+                                        ] in usersAndTheirStories) &&
+                                            (
+                                                <p style={{fontSize: '0.90em', overflowWrap: 'break-word',
+                                                maxWidth: '4em'}}>
+                                                    {
+                                                        
+                                                        usersAndTheirStories[
+                                                            orderedListOfUserIdsInStoriesSection[
+                                                                currIndexInStoriesSection + absoluteDiff
                                                             ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1'}}/>
+                                                        ][
+                                                            usersAndYourCurrSlideInTheirStories[
+                                                                orderedListOfUserIdsInStoriesSection[
+                                                                    currIndexInStoriesSection + absoluteDiff
+                                                                ]
+                                                            ]
+                                                        ].datetime
+                                                    
+                                                    }
+                                                </p>
                                             )
                                         }
 
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection+1
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+1
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection+1
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds!==null) &&
+                                        {(orderedListOfSponsorshipStatusesInStoriesSection[
+                                            currIndexInStoriesSection - absoluteDiff
+                                        ] == true) &&
                                             (
-                                                <video
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection+1
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection+1
-                                                            ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1', pointerEvents: 'none'}}/>
+                                                <b style={{marginTop: '1.5em'}}>Sponsored</b>
                                             )
                                         }
-        
-                                        <img src={blackScreen} style={{position: 'absolute', top: '0%', left: '0%',
-                                        height: '100%', width: '100%', opacity: '0.7', borderRadius: '5%',
-                                        zIndex: '2'}}/>
-        
-                                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                        zIndex: '3', gap: '0.3em'}}>
-                                            <img
-                                            src={
-                                                (
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+1
-                                                    ] in usersAndTheirRelevantInfo &&
-                                                    'profilePhoto' in usersAndTheirRelevantInfo[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection+1
-                                                        ]
-                                                    ]
-                                                ) ?
-                                                usersAndTheirRelevantInfo[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+1
-                                                    ]
-                                                ].profilePhoto : defaultPfp
-                                            } 
-                                            style={{height: '3.8em', width: '3.8em', 
-                                            objectFit: 'contain'}}/>
-
-                                            <b style={{marginTop:'0.5em', marginBottom: '-1em', overflowWrap: 'break-word',
-                                            maxWidth: '7em'}}>
-                                                {
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+1
-                                                    ]
-                                                }
-                                            </b>
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+1
-                                            ] in usersAndTheirStories) &&
-                                                (
-                                                    <p style={{fontSize: '0.90em', overflowWrap: 'break-word',
-                                                    maxWidth: '4em'}}>
-                                                        {
-                                                            formatDatetimeString(
-                                                                usersAndTheirStories[
-                                                                    orderedListOfUsernamesInStoriesSection[
-                                                                        currIndexInStoriesSection+1
-                                                                    ]
-                                                                ][
-                                                                    usersAndYourCurrSlideInTheirStories[
-                                                                        orderedListOfUsernamesInStoriesSection[
-                                                                            currIndexInStoriesSection+1
-                                                                        ]
-                                                                    ]
-                                                                ].datetime
-                                                            )
-                                                        }
-                                                    </p>
-                                                )
-                                            }
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+1
-                                            ] in usersAndTheirStories &&
-                                            usersAndTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection+1
-                                                ]
-                                            ][
-                                                usersAndYourCurrSlideInTheirStories[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+1
-                                                    ]
-                                                ]
-                                            ].adInfo!==null) &&
-                                                (
-                                                    <b>Sponsored</b>
-                                                )
-                                            }
-                                        </div>
                                     </div>
-                                )
-                            }
-
-                            {currIndexInStoriesSection+2 < orderedListOfUsernamesInStoriesSection.length &&
-                                (
-                                    <div onClick={() =>
-                                        {
-                                            takeAuthUserToTheSelectedUsersStoryInStorySection(
-                                                currIndexInStoriesSection+2
-                                            );
-                                        }
-                                    } style={{borderRadius: '5%', height: '90%', width: '45%', cursor: 'pointer',
-                                    position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-        
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection+2
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+2
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection+2
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds==null) &&
-                                            (
-                                                <img
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection+2
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection+2
-                                                            ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1'}}/>
-                                            )
-                                        }
-
-                                        {(orderedListOfUsernamesInStoriesSection[
-                                            currIndexInStoriesSection+2
-                                        ] in usersAndTheirStories &&
-                                        usersAndTheirStories[
-                                            orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+2
-                                            ]
-                                        ][
-                                            usersAndYourCurrSlideInTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection+2
-                                                ]
-                                            ]
-                                        ].vidDurationInSeconds!==null) &&
-                                            (
-                                                <video
-                                                src={
-                                                    usersAndTheirStories[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection+2
-                                                        ]
-                                                    ][
-                                                        usersAndYourCurrSlideInTheirStories[
-                                                            orderedListOfUsernamesInStoriesSection[
-                                                                currIndexInStoriesSection+2
-                                                            ]
-                                                        ]
-                                                    ].src
-                                                }
-                                                style={{position: 'absolute', top: '0%', left: '0%',
-                                                height: '100%', width: '100%', objectFit: 'cover', borderRadius: '5%',
-                                                zIndex: '1', pointerEvents: 'none'}}/>
-                                            )
-                                        }
-        
-                                        <img src={blackScreen} style={{position: 'absolute', top: '0%', left: '0%',
-                                        height: '100%', width: '100%', opacity: '0.7', borderRadius: '5%',
-                                        zIndex: '2'}}/>
-        
-                                        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                        zIndex: '3', gap: '0.3em'}}>
-                                            <img
-                                            src={
-                                                (
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+2
-                                                    ] in usersAndTheirRelevantInfo &&
-                                                    'profilePhoto' in usersAndTheirRelevantInfo[
-                                                        orderedListOfUsernamesInStoriesSection[
-                                                            currIndexInStoriesSection+2
-                                                        ]
-                                                    ]
-                                                ) ?
-                                                usersAndTheirRelevantInfo[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+2
-                                                    ]
-                                                ].profilePhoto : defaultPfp
-                                            } 
-                                            style={{height: '3.8em', width: '3.8em', 
-                                            objectFit: 'contain'}}/>
-
-                                            <b style={{marginTop:'0.5em', marginBottom: '-1em', overflowWrap: 'break-word',
-                                            maxWidth: '7em'}}>
-                                                {
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+2
-                                                    ]
-                                                }
-                                            </b>
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+2
-                                            ] in usersAndTheirStories) &&
-                                                (
-                                                    <p style={{fontSize: '0.90em', overflowWrap: 'break-word',
-                                                    maxWidth: '4em'}}>
-                                                        {
-                                                            formatDatetimeString(
-                                                                usersAndTheirStories[
-                                                                    orderedListOfUsernamesInStoriesSection[
-                                                                        currIndexInStoriesSection+2
-                                                                    ]
-                                                                ][
-                                                                    usersAndYourCurrSlideInTheirStories[
-                                                                        orderedListOfUsernamesInStoriesSection[
-                                                                            currIndexInStoriesSection+2
-                                                                        ]
-                                                                    ]
-                                                                ].datetime
-                                                            )
-                                                        }
-                                                    </p>
-                                                )
-                                            }
-
-                                            {(orderedListOfUsernamesInStoriesSection[
-                                                currIndexInStoriesSection+2
-                                            ] in usersAndTheirStories &&
-                                            usersAndTheirStories[
-                                                orderedListOfUsernamesInStoriesSection[
-                                                    currIndexInStoriesSection+2
-                                                ]
-                                            ][
-                                                usersAndYourCurrSlideInTheirStories[
-                                                    orderedListOfUsernamesInStoriesSection[
-                                                        currIndexInStoriesSection+2
-                                                    ]
-                                                ]
-                                            ].adInfo!==null) &&
-                                                (
-                                                    <b>Sponsored</b>
-                                                )
-                                            }
-                                        </div>
-                                    </div>
-                                )
-                            }
+                                </div>
+                            ))}
                         </div>
                     </>
                 )
             }
-            
         </div>
     )
 }

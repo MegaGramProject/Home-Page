@@ -10,7 +10,7 @@ import trashIcon from '../assets/images/trashIcon.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 function Comment({id, username, isVerified, profilePhoto, isEdited, datetime, commentContent, numLikes, numReplies,
-commenterStatus, isLikedByAuthUser, authUser, notifyParentToShowErrorPopup, isLikedByAuthor,
+commenterStatus, isLikedByAuthUser, authUsername, notifyParentToShowErrorPopup, isLikedByAuthor,
 notifyParentToUpdateCommentDetails, isPinned, notifyParentToReplyToComment, notifyParentToShowLikersPopup,
 notifyParentToFetchAllTheNecessaryInfo, usersAndTheirRelevantInfo, notifyParentToDeleteComment,
 notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
@@ -152,7 +152,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
     }
 
     async function toggleLikeComment() {
-        if (authUser === 'Anonymous Guest') {
+        if (authUsername === 'Anonymous Guest') {
             notifyParentToShowErrorPopup('You cannot like comments without logging into an account');
             return;
         }
@@ -163,7 +163,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
         else {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/removeCommentLike/${authUser}/${id}`, {
+                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/removeCommentLike/${authUsername}/${id}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -189,7 +189,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
     }
 
     async function likeComment() {
-        if (authUser === 'Anonymous Guest') {
+        if (authUsername === 'Anonymous Guest') {
             notifyParentToShowErrorPopup('You cannot like comments without logging into an account');
             return;
         }
@@ -197,7 +197,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
         if(!isLikedByAuthUser) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addCommentLike/${authUser}/${id}`, {
+                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addCommentLike/${authUsername}/${id}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -232,7 +232,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
     async function fetchAdditionalReplies() {
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getRepliesOfComment/${authUser}/${id}`, {
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getRepliesOfComment/${authUsername}/${id}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -419,7 +419,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
                         }
                     </div>
 
-                    {username === authUser &&
+                    {username === authUsername &&
                         (
                             <div style={{display: 'flex', gap :'1em', alignItems: 'center'}}>
                                 {!editMode &&
@@ -542,23 +542,23 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
                                     <Comment
                                         key={newReplyDetails.id}
                                         id={newReplyDetails.id}
-                                        username={authUser}
+                                        username={authUsername}
                                         profilePhoto={
                                             (
                                                 usersAndTheirRelevantInfo &&
-                                                authUser in usersAndTheirRelevantInfo &&
-                                                'profilePhoto' in usersAndTheirRelevantInfo[authUser]
+                                                authUsername in usersAndTheirRelevantInfo &&
+                                                'profilePhoto' in usersAndTheirRelevantInfo[authUsername]
                                             ) ?
-                                                usersAndTheirRelevantInfo[authUser].profilePhoto :
+                                                usersAndTheirRelevantInfo[authUsername].profilePhoto :
                                                 defaultPfp
                                         }
                                         isVerified={
                                             (
                                                 usersAndTheirRelevantInfo &&
-                                                authUser in usersAndTheirRelevantInfo &&
-                                                'isVerified' in usersAndTheirRelevantInfo[authUser]
+                                                authUsername in usersAndTheirRelevantInfo &&
+                                                'isVerified' in usersAndTheirRelevantInfo[authUsername]
                                             ) ?
-                                                usersAndTheirRelevantInfo[authUser].isVerified :
+                                                usersAndTheirRelevantInfo[authUsername].isVerified :
                                                 false
                                         }
                                         isEdited={newReplyDetails.isEdited}
@@ -567,7 +567,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
                                         numLikes={newReplyDetails.numLikes}
                                         numReplies={newReplyDetails.numReplies}
                                         commenterStatus={'You'}
-                                        authUser={authUser}
+                                        authUsername={authUsername}
                                         isLikedByAuthUser={newReplyDetails.isLikedByAuthUser}
                                         isLikedByAuthor={false}
                                         notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
@@ -620,7 +620,7 @@ notifyParentToEditComment, newlyPostedRepliesByAuthUser}) {
                                         numLikes={replyDetails.numLikes}
                                         numReplies={replyDetails.numReplies}
                                         commenterStatus={replyDetails.commenterStatus}
-                                        authUser={authUser}
+                                        authUsername={authUsername}
                                         isLikedByAuthUser={replyDetails.isLikedByAuthUser}
                                         isLikedByAuthor={replyDetails.isLikedByAuthor}
                                         notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}

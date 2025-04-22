@@ -33,7 +33,7 @@
 import solidGrayDot from '../assets/images/solidGrayDot.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-    import { defineProps, toRefs } from 'vue';
+    import { defineProps } from 'vue';
 
 
     const props = defineProps({
@@ -51,25 +51,22 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
         unselectThisUserOrGroupChat: Function
     });
 
-    const { groupChatId, userId, userOrGroupChatName, fullName, profilePhoto, isSelected, isVerified,
-    selectThisUserOrGroupChat, unselectThisUserOrGroupChat } = toRefs(props);
-
     
     function toggleSelectThisUserOrGroupChat() {
-        if(!isSelected) {
-            if(groupChatId==null) {
-                selectThisUserOrGroupChat(`user/${userId}/${userOrGroupChatName}`);
+        if(!props.isSelected) {
+            if(props.groupChatId==null) {
+                props.selectThisUserOrGroupChat(`user/${props.userId}/${props.userOrGroupChatName}`);
             }
             else {
-                selectThisUserOrGroupChat(`group-chat/${groupChatId}/${userOrGroupChatName}`);
+                props.selectThisUserOrGroupChat(`group-chat/${props.groupChatId}/${props.userOrGroupChatName}`);
             }
         }
         else {
-            if(groupChatId==null) {
-                unselectThisUserOrGroupChat(`user/${userId}/${userOrGroupChatName}`);
+            if(props.groupChatId==null) {
+                props.unselectThisUserOrGroupChat(`user/${props.userId}/${props.userOrGroupChatName}`);
             }
             else {
-                unselectThisUserOrGroupChat(`group-chat/${groupChatId}/${userOrGroupChatName}`);
+                props.unselectThisUserOrGroupChat(`group-chat/${props.groupChatId}/${props.userOrGroupChatName}`);
             }
         }
     }

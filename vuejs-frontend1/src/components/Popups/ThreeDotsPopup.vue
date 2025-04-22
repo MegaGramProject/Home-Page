@@ -76,7 +76,7 @@
   
 
 <script setup>
-    import { defineProps, ref, toRefs } from 'vue';
+    import { defineProps, ref } from 'vue';
 
     const props = defineProps({
         authUserId: Number,
@@ -89,15 +89,13 @@
         showErrorPopup: Function
     });
 
-    const { authUserId, postDetails, hidePost, showAboutAccountPopup, closePopup, showErrorPopup } = toRefs(props);
-
     const copyLinkText = ref('Copy link');
     const toggleFollowText = ref('Unfollow');
 
 
     function copyPostLinkToClipboard() {
         navigator.clipboard.writeText(
-            `http://34.111.89.101/posts/${postDetails.overallPostId}`
+            `http://34.111.89.101/posts/${props.postDetails.overallPostId}`
         )
         .then(() => {
             copyLinkText.value = 'Copied';
@@ -116,23 +114,23 @@
 
 
     function visitPostLink() {
-        window.open(`http://34.111.89.101/posts/${postDetails.overallPostId}`, '_blank');
+        window.open(`http://34.111.89.101/posts/${props.postDetails.overallPostId}`, '_blank');
     }
 
 
     function visitAdLink() {
-        window.open(postDetails.adInfo.link, '_blank');
+        window.open(props.postDetails.adInfo.link, '_blank');
     }
 
 
     async function toggleFollowUser() {
-        if (authUserId == -1) {
-            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+        if (props.authUserId == -1) {
+            props.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
 
-        const usernameToToggleFollow = postDetails.authors[0];
-        const userIdToToggleFollow = postDetails.authorIds[0];
+        const usernameToToggleFollow = props.postDetails.authors[0];
+        const userIdToToggleFollow = props.postDetails.authorIds[0];
 
         try {
             const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
@@ -143,15 +141,16 @@
                         toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
                     }`,
                     variables: {
-                        authUserId: authUserId,
+                        authUserId: props.authUserId,
                         userIdToToggleFollow: userIdToToggleFollow
                     }
                 }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                showErrorPopup(
-                `The server had trouble toggling your follow-status of ${usernameToToggleFollow}`);
+                props.showErrorPopup(
+                    `The server had trouble toggling your follow-status of ${usernameToToggleFollow}`
+                );
             }
             else {
                 let newFollowingStatus = await response.json();
@@ -169,19 +168,19 @@
             }
         }
         catch (error) {
-            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            props.showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
             ${usernameToToggleFollow}`);
         }
     }
 
 
     async function markPostAsNotInterested() {
-        if (authUserId == -1) {
-            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+        if (props.authUserId == -1) {
+            props.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
 
         //for sake of simplicity, the code for this method has been omitted
-        closePopup();
+        props.closePopup();
     }
 </script>

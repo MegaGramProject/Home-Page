@@ -68,7 +68,7 @@ import notificationsIcon from '../assets/images/notificationsIcon.png';
 import searchIcon from '../assets/images/searchIcon.png';
 import shopIcon from '../assets/images/shopIcon.png';
 
-    import { defineProps, toRefs } from 'vue';
+    import { defineProps } from 'vue';
 
 
     const props = defineProps({
@@ -80,5 +80,5 @@ import shopIcon from '../assets/images/shopIcon.png';
         toggleDisplayPopup: Function
     });
 
-    const { profilePhoto, displayPopup, authUserIsAnonymousGuest, toggleDisplayPopup } = toRefs(props);
+    props;
 </script>

@@ -82,7 +82,7 @@
     import privateAccount from "../assets/images/privateAccount.png";
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-    import { defineProps, toRefs } from 'vue';
+    import { defineProps } from 'vue';
 
 
     const props = defineProps({
@@ -104,9 +104,6 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
         updateFollowText: Function,
         showErrorPopup: Function
     });
-
-    const { username, userPfp, userFullName, toggleFollowText, authUserId, userId, numPosts, numFollowers, numFollowings,
-    userIsVerified, userIsPrivate, updateFollowText, showErrorPopup } = toRefs(props);
 
 
     function formatNumber(number) {
@@ -132,8 +129,8 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 
     async function toggleFollowUser() {
-        if (authUserId == -1) {
-            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+        if (props.authUserId == -1) {
+            props.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
 
@@ -149,14 +146,14 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
                         toggleFollowUser(authUserId: $authUserId, userIdToToggleFollow: $userIdToToggleFollow)
                     }`,
                     variables: {
-                        authUserId: authUserId,
+                        authUserId: props.authUserId,
                         userIdToToggleFollow: userIdToToggleFollow
                     }
                 }),
                 credentials: 'include'
             });
             if(!response.ok) {
-                showErrorPopup(
+                props.showErrorPopup(
                     `The server had trouble toggling your follow-status of user ${usernameToToggleFollow}`
                 );
             }
@@ -165,18 +162,18 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
                 newFollowingStatus = newFollowingStatus.data.toggleFollowUser;
 
                 if (newFollowingStatus==='Stranger') {
-                    updateFollowText('Follow');
+                    props.updateFollowText('Follow');
                 }
                 else if(newFollowingStatus==='Following') {
-                    updateFollowText('Unfollow');
+                    props.updateFollowText('Unfollow');
                 }
                 else {
-                    updateFollowText('Cancel Request');
+                    props.updateFollowText('Cancel Request');
                 }
             }
         }
         catch (error) {
-            showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
+            props.showErrorPopup(`There was trouble connecting to the server to toggle your follow-status of
             user ${usernameToToggleFollow}`);
         }
     }

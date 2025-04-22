@@ -1,7 +1,7 @@
 import { FollowUser } from '../FollowUser.component';
 
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, ViewChild, ElementRef } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 
 
 @Component({
@@ -30,7 +30,7 @@ export class LikersPopup {
   fetchingInitialLikersIsComplete:boolean = false;
   isCurrentlyFetchingAdditionalLikers:boolean = false;
 
-  @ViewChild('scrollableLikersDivRef') scrollableLikersDivRef!: ElementRef;
+  @ViewChild('scrollableLikersDivRef') scrollableLikersDivRef!:ElementRef;
 
 
   ngOnInit() {
@@ -39,7 +39,7 @@ export class LikersPopup {
 
 
   ngOnDestroy() {
-    window.removeEventListener('scroll', this.fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
+    window.removeEventListener('scroll', () => this.fetchAdditionalLikersWhenUserScrollsToBottomOfPopup());
   }
 
 
@@ -154,7 +154,7 @@ export class LikersPopup {
       if(isInitialFetch) {
         this.fetchingInitialLikersIsComplete = true;
         setTimeout(() => {
-          window.addEventListener("scroll", this.fetchAdditionalLikersWhenUserScrollsToBottomOfPopup);
+          window.addEventListener("scroll", () => this.fetchAdditionalLikersWhenUserScrollsToBottomOfPopup());
         }, 1500);
       }
       else {

@@ -121,7 +121,7 @@ import defaultPfp from '../../assets/images/defaultPfp.png';
 import loadingAnimation from '../../assets/images/loadingAnimation.gif';
 import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-    import { defineProps, onMounted, ref, toRefs } from 'vue';
+    import { defineProps, onMounted, ref } from 'vue';
 
     
     const props = defineProps({
@@ -137,9 +137,6 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
         updateUsersAndTheirRelevantInfo: Function,
         updateCachedMessageSendingSuggestions: Function
     });
-
-    const { authUserId, overallPostId, usersAndTheirRelevantInfo, cachedMessageSendingSuggestions, closePopup,
-    showErrorPopup, updateUsersAndTheirRelevantInfo, updateCachedMessageSendingSuggestions } = toRefs(props);
 
     
     onMounted(() => {
@@ -165,8 +162,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             inputText.value = newInputText;
         }
 
-        if(newInputText in cachedMessageSendingSuggestions) {
-            currentSuggestions.value = cachedMessageSendingSuggestions[newInputText];
+        if(newInputText in props.cachedMessageSendingSuggestions) {
+            currentSuggestions.value = props.cachedMessageSendingSuggestions[newInputText];
             return;
         }
 
@@ -174,7 +171,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/getMessageSendingSuggestions/${authUserId}
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/getMessageSendingSuggestions/${props.authUserId}
             /${newInputText}`, {
                 credentials: 'include'
             });
@@ -186,9 +183,9 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                 const postSendingSuggestions = await response.json();
                 currentSuggestions.value = postSendingSuggestions;
 
-                const newCachedMessageSendingSuggestions = {...cachedMessageSendingSuggestions};
+                const newCachedMessageSendingSuggestions = {...props.cachedMessageSendingSuggestions};
                 newCachedMessageSendingSuggestions[newInputText] = postSendingSuggestions;
-                updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions);
+                props.updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions);
 
                 const idsOfSuggestedUsers = postSendingSuggestions
                 .filter(
@@ -211,7 +208,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                         newUsersAndTheirRelevantInfo[userId].username = username;
                     }
                 }
-                updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+                props.updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
             }
         }
         catch (error) {
@@ -231,8 +228,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
         let usersAndTheirFullNames = {};
         const newSuggestedUserIdsNeededForFullNames = newSuggestedUserIds.filter(newSuggestedUserId => {
-            if (!(newSuggestedUserId in usersAndTheirRelevantInfo) || !('fullName' in
-            usersAndTheirRelevantInfo[newSuggestedUserId])) {
+            if (!(newSuggestedUserId in props.usersAndTheirRelevantInfo) || !('fullName' in
+            props.usersAndTheirRelevantInfo[newSuggestedUserId])) {
                 return newSuggestedUserId;
             }
         });
@@ -243,14 +240,14 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
             graphqlUserQueryString +=
             `getFullNamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newSuggestedUserIdsNeededForFullNames) `;
-            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.authUserId = props.authUserId;
             graphqlUserVariables.newSuggestedUserIdsNeededForFullNames = newSuggestedUserIdsNeededForFullNames;
         }
 
         let usersAndTheirVerificationStatuses = {};
         const newSuggestedUserIdsNeededForVerificationStatuses = newSuggestedUserIds.filter(newSuggestedUserId => {
-            if (!(newSuggestedUserId in usersAndTheirRelevantInfo) || !('isVerified' in
-            usersAndTheirRelevantInfo[newSuggestedUserId])) {
+            if (!(newSuggestedUserId in props.usersAndTheirRelevantInfo) || !('isVerified' in
+            props.usersAndTheirRelevantInfo[newSuggestedUserId])) {
                 return newSuggestedUserId;
             }
         });
@@ -261,7 +258,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             graphqlUserQueryString +=
             `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
             $newSuggestedUserIdsNeededForVerificationStatuses) `;
-            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.authUserId = props.authUserId;
             graphqlUserVariables.newSuggestedUserIdsNeededForVerificationStatuses =
             newSuggestedUserIdsNeededForVerificationStatuses;
         }
@@ -358,8 +355,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
         let usersAndTheirPfps = {};
         const newSuggestedUserIdsNeededForPfps = newSuggestedUserIds.filter(newSuggestedUserId => {
-            if (!(newSuggestedUserId in usersAndTheirRelevantInfo) || !('profilePhoto' in
-            usersAndTheirRelevantInfo[newSuggestedUserId])) {
+            if (!(newSuggestedUserId in props.usersAndTheirRelevantInfo) || !('profilePhoto' in
+            props.usersAndTheirRelevantInfo[newSuggestedUserId])) {
                 return newSuggestedUserId;
             }
         });
@@ -390,7 +387,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             }
         }
 
-        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
+        const newUsersAndTheirRelevantInfo = {...props.usersAndTheirRelevantInfo};
 
         for(let newSuggestedUserId of newSuggestedUserIds) {
             if (!(newSuggestedUserId in usersAndTheirFullNames) && !(newSuggestedUserId in usersAndTheirVerificationStatuses)
@@ -427,8 +424,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
 
     async function sendPost(method) {
-        if (authUserId === -1) {
-            showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
+        if (props.authUserId === -1) {
+            props.showErrorPopup('Dear Anonymous Guest, you must be logged in to an account to do that');
             return;
         }
         
@@ -436,19 +433,19 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
         
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToOneOrMoreUsersAndGroups/${authUserId}/${method}`,
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToOneOrMoreUsersAndGroups/${props.authUserId}/${method}`,
             {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    messageToSend: `http://34.111.89.101/posts/${overallPostId}`,
+                    messageToSend: `http://34.111.89.101/posts/${props.overallPostId}`,
                     usersAndGroupsToSendTo: [...selectedUsersAndGroupChats]
                 }),
                 credentials: 'include'
             });
 
             if(!response.ok) {
-                showErrorPopup('The server had trouble sending this post to the selected member(s).');
+                props.showErrorPopup('The server had trouble sending this post to the selected member(s).');
                 statusOfSendingPost.value = '';
             }
             else {
@@ -460,7 +457,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             }
         }
         catch (error) {
-            showErrorPopup('There was trouble connecting to the server to send this post to the selected member(s).');
+            props.showErrorPopup('There was trouble connecting to the server to send this post to the selected member(s).');
             statusOfSendingPost.value = '';
         }
     }
@@ -507,8 +504,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                 }
 
                 const userId = parseInt(partsOfSelectedUserOrGroupChatString[1]);
-                if (userId in usersAndTheirRelevantInfo && 'fullName' in usersAndTheirRelevantInfo[userId]) {
-                    return usersAndTheirRelevantInfo[userId].fullName;
+                if (userId in props.usersAndTheirRelevantInfo && 'fullName' in props.usersAndTheirRelevantInfo[userId]) {
+                    return props.usersAndTheirRelevantInfo[userId].fullName;
                 }
                 return 'Could not get full-name';
             }
@@ -519,8 +516,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                 }
 
                 const userId = parseInt(partsOfSelectedUserOrGroupChatString[1]);
-                if (userId in usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[userId]) {
-                    return usersAndTheirRelevantInfo[userId].profilePhoto;
+                if (userId in props.usersAndTheirRelevantInfo && 'profilePhoto' in props.usersAndTheirRelevantInfo[userId]) {
+                    return props.usersAndTheirRelevantInfo[userId].profilePhoto;
                 }
                 return defaultPfp;
             }
@@ -531,8 +528,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                 }
 
                 const userId = parseInt(partsOfSelectedUserOrGroupChatString[1]);
-                if (userId in usersAndTheirRelevantInfo && 'isVerified' in usersAndTheirRelevantInfo[userId]) {
-                    return usersAndTheirRelevantInfo[userId].isVerified;
+                if (userId in props.usersAndTheirRelevantInfo && 'isVerified' in props.usersAndTheirRelevantInfo[userId]) {
+                    return props.usersAndTheirRelevantInfo[userId].isVerified;
                 }
                 return false;
             }
@@ -562,9 +559,9 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                     return 'One of your group-chats;'
                 }
 
-                if (postSendingSuggestion.userId in usersAndTheirRelevantInfo && 'fullName' in
-                usersAndTheirRelevantInfo[postSendingSuggestion.userId]) {
-                    return usersAndTheirRelevantInfo[postSendingSuggestion.userId].fullName;
+                if (postSendingSuggestion.userId in props.usersAndTheirRelevantInfo && 'fullName' in
+                props.usersAndTheirRelevantInfo[postSendingSuggestion.userId]) {
+                    return props.usersAndTheirRelevantInfo[postSendingSuggestion.userId].fullName;
                 }
                 return 'Could not get full-name';
 
@@ -573,9 +570,9 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                     return defaultGroupChatPfp;
                 }
 
-                if (postSendingSuggestion.userId in usersAndTheirRelevantInfo && 'profilePhoto' in
-                usersAndTheirRelevantInfo[postSendingSuggestion.userId]) {
-                    return usersAndTheirRelevantInfo[postSendingSuggestion.userId].profilePhoto;
+                if (postSendingSuggestion.userId in props.usersAndTheirRelevantInfo && 'profilePhoto' in
+                props.usersAndTheirRelevantInfo[postSendingSuggestion.userId]) {
+                    return props.usersAndTheirRelevantInfo[postSendingSuggestion.userId].profilePhoto;
                 }
                 return defaultPfp;
             
@@ -584,9 +581,9 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                     return false;
                 }
 
-                if (postSendingSuggestion.userId in usersAndTheirRelevantInfo && 'isVerified' in
-                usersAndTheirRelevantInfo[postSendingSuggestion.userId]) {
-                    return usersAndTheirRelevantInfo[postSendingSuggestion.userId].isVerified;
+                if (postSendingSuggestion.userId in props.usersAndTheirRelevantInfo && 'isVerified' in
+                props.usersAndTheirRelevantInfo[postSendingSuggestion.userId]) {
+                    return props.usersAndTheirRelevantInfo[postSendingSuggestion.userId].isVerified;
                 }
                 return false;
         }

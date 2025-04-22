@@ -79,7 +79,7 @@ export class UserBar {
                 }
             }
         }
-        catch (error) {
+        catch {
             this.showErrorPopup.emit(`There was trouble connecting to the server to toggle your follow-status of
             user ${usernameToToggleFollow}`);
         }

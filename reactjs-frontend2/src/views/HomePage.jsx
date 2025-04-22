@@ -9,7 +9,7 @@ import ThreeDotsPopup from '../components/Popups/ThreeDotsPopup';
 import Footer from '../components/Footer';
 import LeftSidebar from '../components/LeftSidebar';
 import MediaPost from '../components/mediaPost';
-import StoryViewer from '../components/storyViewer';
+import StoryViewer from '../components/StoryViewer';
 import UserBar from '../components/UserBar';
 import UserIcon from '../components/UserIcon';
 
@@ -19,13 +19,13 @@ import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import rightArrow from "../assets/images/nextArrow.png";
 
-import '../HomePageStyles.css';
+import '../assets/HomePageStyles.css';
 
 import { useEffect, useState } from 'react';
 
 
 function HomePage({urlParams}) {
-    const [authUser, setAuthUser] = useState('');
+    const [authUsername, setAuthUsername] = useState('');
     const [authUserId, setAuthUserId] = useState(-1);
 
     const [originalURL, setOriginalURL] = useState('');
@@ -45,8 +45,21 @@ function HomePage({urlParams}) {
     const [aboutAccountUserProfilePhoto, setAboutAccountUserProfilePhoto] = useState(null);
 
     const [displayStoryViewer, setDisplayStoryViewer] = useState(false);
+    const [currStoryLevel, setCurrStoryLevel] = useState(0);
     const [storyViewerIsFromStoriesSection, setStoryViewerIsFromStoriesSection] = useState(false);
-    const [storyViewerUsername, setStoryViewerUsername] = useState('');
+    const [storyViewerMainUserId, setStoryViewerMainUserId] = useState(-1);
+    const [storyViewerMainUsername, setStoryViewerMainUsername] = useState('');
+    const [orderedListOfUserIdsInStoriesSection, setOrderedListOfUserIdsInStoriesSection] = useState([]);
+    const [orderedListOfUsernamesInStoriesSection, setOrderedListOfUsernamesInStoriesSection] = useState([]);
+    const [orderedListOfSponsorshipStatusesInStoriesSection, setOrderedListOfSponsorshipStatusesInStoriesSection] = useState([]);
+    const [fetchingStoriesIsComplete, setFetchingStoriesIsComplete] = useState(false);
+    const [storiesSectionErrorMessage, setStoriesSectionErrorMessage] = useState('');
+    const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
+    const [viewedStoryIds, setViewedStoryIds] = useState(new Set());
+    const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
+    const [usersAndTheirStoryPreviews, setUsersAndTheirStoryPreviews] = useState({});
+    const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
+    const [vidStoriesAndTheirPreviewImages, setVidStoriesAndTheirPreviewImages] = useState({});
 
     const [displayCommentsPopup, setDisplayCommentsPopup] = useState(false);
     const [commentsPopupPostDetails, setCommentsPopupPostDetails] = useState({});
@@ -56,7 +69,6 @@ function HomePage({urlParams}) {
     const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
 
     const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
-    const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
 
     const [cachedMessageSendingSuggestions, setCachedMessageSendingSuggestions] = useState({});
 
@@ -66,21 +78,15 @@ function HomePage({urlParams}) {
     const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
     const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState('');
     
-    const [currStoryLevel, setCurrStoryLevel] = useState(0);
     const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
-    const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
-    const [orderedListOfUsernamesInStoriesSection, setOrderedListOfUsernamesInStoriesSection] = useState([]);
-    const [fetchingStoriesIsComplete, setFetchingStoriesIsComplete] = useState(false);
+
     const [fetchingSuggestedAccountsIsComplete, setFetchingSuggestedAccountsIsComplete] = useState(false);
     const [fetchingInitialPostsIsComplete, setFetchingInitialPostsIsComplete] = useState(false);
-    const [storiesSectionErrorMessage, setStoriesSectionErrorMessage] = useState('');
     const [orderedListOfUsernamesOfSuggestedAccounts, setOrderedListOfUsernamesOfSuggestedAccounts] = useState([]);
     const [suggestedAccountsSectionErrorMessage, setSuggestedAccountsSectionErrorMessage] = useState('');
     const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
     const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
     const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
-    const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
-    const [idsOfStoriesMarkedAsViewed, setIdsOfStoriesMarkedAsViewed] = useState(new Set());
 
 
     useEffect(() => {
@@ -94,7 +100,7 @@ function HomePage({urlParams}) {
             authenticateUser(localStorage.getItem("defaultUsername"));
         }
         else {
-            setAuthUser('Anonymous Guest');
+            setAuthUsername('Anonymous Guest');
         }
 
         if(urlParams && localStorage.getItem('defaultUsername') !== urlParams.username) {
@@ -102,34 +108,34 @@ function HomePage({urlParams}) {
         }
         else if(localStorage.getItem('defaultUsername')) {
             if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
-                setAuthUser('Anonymous Guest');
+                setAuthUsername('Anonymous Guest');
             }
             else {
                 authenticateUser(
                     localStorage.getItem('defaultUsername'),
-                    localStorage.getItem('defaultUserId')
+                    parseInt(localStorage.getItem('defaultUserId'))
                 );
             }
         }
         else {
-            setAuthUser('Anonymous Guest');
+            setAuthUsername('Anonymous Guest');
         }
     }, []);
 
 
     useEffect(() => {
-        if (authUser.length > 0) {
-            localStorage.setItem('defaultUsername', authUser);
+        localStorage.setItem('defaultUserId', authUserId.toString());
+    }, [authUserId]);
+    
+    
+    useEffect(() => {
+        if (authUsername.length > 0) {
+            localStorage.setItem('defaultUsername', authUsername);
             fetchStories();
             fetchSuggestedAccounts();
             fetchPosts('initial');
         }
-    }, [authUser]);
-
-
-    useEffect(() => {
-        localStorage.setItem('defaultUserId', authUserId);
-    }, [authUserId]);
+    }, [authUsername]);
 
 
     useEffect(() => {
@@ -198,20 +204,24 @@ function HomePage({urlParams}) {
                         variables: {
                             username: username
                         }
-                    })
+                    }),
+                    credentials: 'include'
                 });
                 if (!response.ok) {
-                    setAuthUser('Anonymous Guest');
+                    setAuthUsername('Anonymous Guest');
 
-                    throw new (
+                    throw new Error(
                         `The laravelBackend1 server had trouble getting the user-id of username ${username}`
                     );
                 }
-                userId = await response.json();
+
+                let userId = await response.json();
+                userId = userId.data.getUserIdOfUsername;
+                
                 setAuthUserId(userId);
             }
             catch {
-                setAuthUser('Anonymous Guest');
+                setAuthUsername('Anonymous Guest');
 
                 throw new Error(
                     `There was trouble connecting to the laravelBackend1 server to get the user-id of username
@@ -219,26 +229,29 @@ function HomePage({urlParams}) {
                 );
             }
         }
+        else {
+            setAuthUserId(userId);
+        }
 
         try {
-            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
-            /${userId}`, {
+            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${userId}`, {
                 credentials: 'include'
             });
             if (!response1.ok) {
-                setAuthUser('Anonymous Guest');
+                setAuthUsername('Anonymous Guest');
+                setAuthUserId(-1);
 
                 throw new Error(
-                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to be 
-                    logged in as user ${userId}`
+                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
+                    be logged in as user ${userId}`
                 );
             }
 
-            setAuthUser(username);
-            setAuthUserId(userId);
+            setAuthUsername(username);
         }
         catch {
-            setAuthUser('Anonymous Guest');
+            setAuthUsername('Anonymous Guest');
+            setAuthUserId(-1);
 
             throw new Error(
                 `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
@@ -249,10 +262,10 @@ function HomePage({urlParams}) {
 
 
     async function fetchStories() {
-        if (authUser !== 'Anonymous Guest') {
+        if (authUsername !== 'Anonymous Guest') {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getOwnUnexpiredStories/${authUser}`, {
+                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getOwnUnexpiredStories/${authUsername}`, {
                     credentials: 'include'
                 });
                 if(!response.ok) {
@@ -263,14 +276,14 @@ function HomePage({urlParams}) {
                     const newUsersAndTheirStories = {};
                     const newUsersAndYourCurrSlideInTheirStories = {};
                     
-                    newUsersAndTheirStories[authUser] = ownUnexpiredStoryData.stories;
+                    newUsersAndTheirStories[authUsername] = ownUnexpiredStoryData.stories;
                     
                     if (ownUnexpiredStoryData.currSlide==='finished') {
-                        newUsersAndYourCurrSlideInTheirStories[authUser] = 0;
-                        setUsernamesWhoseStoriesYouHaveFinished(new Set([authUser]));
+                        newUsersAndYourCurrSlideInTheirStories[authUsername] = 0;
+                        setUsernamesWhoseStoriesYouHaveFinished(new Set([authUsername]));
                     }
                     else {
-                        newUsersAndYourCurrSlideInTheirStories[authUser] = ownUnexpiredStoryData.currSlide;
+                        newUsersAndYourCurrSlideInTheirStories[authUsername] = ownUnexpiredStoryData.currSlide;
                     }
                     setUsersAndTheirStories(newUsersAndTheirStories);
                     setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
@@ -284,7 +297,7 @@ function HomePage({urlParams}) {
         try {
             const response1 = await fetch(
             `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getOrderedListOfUsernamesInStoriesSection/
-            ${authUser}`, {
+            ${authUsername}`, {
                 credentials: 'include'
             });
             if(!response1.ok) {
@@ -309,7 +322,7 @@ function HomePage({urlParams}) {
     async function fetchSuggestedAccounts() {
         try {
             const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/getSuggestedAccountsForUser/${authUser}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/getSuggestedAccountsForUser/${authUsername}`, {
                 credentials: 'include'
             });
             if(!response.ok) {
@@ -341,7 +354,7 @@ function HomePage({urlParams}) {
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/getBatchOfPostsForUserFeed/${authUser}`, {
+            `http://34.111.89.101/api/Home-Page/djangoBackend2/getBatchOfPostsForUserFeed/${authUsername}`, {
                 credentials: 'include'
             });
             if(!response.ok) {
@@ -420,8 +433,8 @@ function HomePage({urlParams}) {
             ...usernamesOfAllMainPostAuthors,
             ...usernamesTaggedInVidSlides
         ];
-        if (authUser !== 'Anonymous Guest') {
-            usernamesNeededForProfilePhotos.push(authUser);
+        if (authUsername !== 'Anonymous Guest') {
+            usernamesNeededForProfilePhotos.push(authUsername);
         }
         const uniqueListOfUsernamesNeededForProfilePhotos = [...new Set(usernamesNeededForProfilePhotos)];
         if (uniqueListOfUsernamesNeededForProfilePhotos.length > 0) {
@@ -460,8 +473,8 @@ function HomePage({urlParams}) {
             ...usernamesTaggedInVidSlides,
             ...usernamesOfLikersFollowedByAuthUser
         ];
-        if (authUser !== 'Anonymous Guest') {
-            usernamesNeededForIsVerifiedStatuses.push(authUser);
+        if (authUsername !== 'Anonymous Guest') {
+            usernamesNeededForIsVerifiedStatuses.push(authUsername);
         }
         const uniqueListOfUsernamesRequiredForIsVerifiedStatuses = [... new Set(usernamesNeededForIsVerifiedStatuses)];
         if (uniqueListOfUsernamesRequiredForIsVerifiedStatuses.length > 0) {
@@ -499,8 +512,8 @@ function HomePage({urlParams}) {
             ...orderedListOfUsernamesOfSuggestedAccounts,
             ...usernamesTaggedInVidSlides
         ];
-        if (authUser !== 'Anonymous Guest') {
-            usernamesNeededForFullNames.push(authUser);
+        if (authUsername !== 'Anonymous Guest') {
+            usernamesNeededForFullNames.push(authUsername);
         }
         const uniqueListOfUsernamesNeededForFullNames = [...new Set(usernamesNeededForFullNames)];
         if (uniqueListOfUsernamesNeededForFullNames.length > 0) {
@@ -669,8 +682,8 @@ function HomePage({urlParams}) {
                 ...usernamesOfLikersFollowedByAuthUser
             ]
         );
-        if (authUser !== 'Anonymous Guest') {
-            uniqueSetOfAllUsernames.add(authUser);
+        if (authUsername !== 'Anonymous Guest') {
+            uniqueSetOfAllUsernames.add(authUsername);
         }
         else {
             newUsersAndTheirRelevantInfo['Anonymous Guest'] = {
@@ -1038,14 +1051,19 @@ function HomePage({urlParams}) {
     }
 
 
-    function showStoryViewer(newStoryViewerUsername, newStoryViewerIsFromStoriesSection) {
-        setStoryViewerUsername(newStoryViewerUsername);
+    function showStoryViewer(newStoryViewerMainUserId, newStoryViewerMainUsername, newStoryViewerIsFromStoriesSection) {
+        document.title = 'Stories';
+
+        setStoryViewerMainUserId(newStoryViewerMainUserId);
+        setStoryViewerMainUsername(newStoryViewerMainUsername);
         setStoryViewerIsFromStoriesSection(newStoryViewerIsFromStoriesSection);
         setDisplayStoryViewer(true);
     }
 
 
     function closeStoryViewer() {
+        document.title = 'Megagram';
+
         setDisplayStoryViewer(false);
 
         window.history.pushState(
@@ -1063,26 +1081,36 @@ function HomePage({urlParams}) {
     }
 
 
+    function updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews) {
+        setUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews);
+    }
+
+
     function updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories) {
         setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
     }
 
 
-    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername) {
+    function updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirPreviewImages) {
+        setVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirPreviewImages);
+    }
+
+
+    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUsername) {
         setUsernamesWhoseStoriesYouHaveFinished(new Set(
             [
                 ...usernamesWhoseStoriesYouHaveFinished,
-                newUsername
+                newFinishedUsername
             ]
         ));
     }
 
 
-    function addStoryIdToSetOfViewedStoryIds(newStoryId) {
-        setIdsOfStoriesMarkedAsViewed(new Set(
+    function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
+        setViewedStoryIds(new Set(
             [
-                ...idsOfStoriesMarkedAsViewed, 
-                newStoryId
+                ...viewedStoryIds, 
+                newlyViewedStoryId
             ]
         ));
     }
@@ -1090,12 +1118,12 @@ function HomePage({urlParams}) {
 
     return (
         <>
-            {authUser.length>0 &&
+            {authUsername.length>0 &&
                 <>
                     <LeftSidebar 
                         profilePhoto={
-                            (authUser in usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[authUser]) ?
-                            usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                            (authUsername in usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[authUsername]) ?
+                            usersAndTheirRelevantInfo[authUsername].profilePhoto : defaultPfp
                         }
                         displayPopup={displayLeftSidebarPopup}
                         authUserIsAnonymousGuest={authUserId == -1}
@@ -1115,22 +1143,22 @@ function HomePage({urlParams}) {
                             {(fetchingStoriesIsComplete && currStoryLevel == 0) &&
                                 (
                                     <UserIcon
-                                        username={authUser}
-                                        authUser={authUser}
+                                        username={authUsername}
+                                        authUsername={authUsername}
                                         inStoriesSection={true}
                                         userHasStories={
-                                            (authUser in usersAndTheirStories)
+                                            (authUsername in usersAndTheirStories)
                                         }
                                         userHasUnseenStory={
-                                            !(usernamesWhoseStoriesYouHaveFinished.has(authUser))
+                                            !(usernamesWhoseStoriesYouHaveFinished.has(authUsername))
                                         } 
                                         userPfp={
-                                            (authUser in usersAndTheirRelevantInfo) ?
-                                            usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                                            (authUsername in usersAndTheirRelevantInfo) ?
+                                            usersAndTheirRelevantInfo[authUsername].profilePhoto : defaultPfp
                                         }
                                         userIsVerified={
-                                            (authUser in usersAndTheirRelevantInfo) ?
-                                            usersAndTheirRelevantInfo[authUser].isVerified : false
+                                            (authUsername in usersAndTheirRelevantInfo) ?
+                                            usersAndTheirRelevantInfo[authUsername].isVerified : false
                                         }
                                         showStoryViewer={showStoryViewer}
                                     />
@@ -1140,7 +1168,7 @@ function HomePage({urlParams}) {
                             {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length==0) &&
                                 (
                                 orderedListOfUsernamesInStoriesSection
-                                    .filter(username => username!==authUser)
+                                    .filter(username => username!==authUsername)
                                     .slice(
                                         currStoryLevel * 6,
                                         currStoryLevel * 6 + 6
@@ -1203,7 +1231,7 @@ function HomePage({urlParams}) {
                                         <MediaPost
                                             key={postDetails.overallPostId}
                                             postDetails={postDetails}
-                                            authUser={authUser}
+                                            authUsername={authUsername}
                                             mainPostAuthorInfo={
                                                 (postDetails.authors[0] in usersAndTheirRelevantInfo) ?
                                                 usersAndTheirRelevantInfo[postDetails.authors[0]] :
@@ -1260,23 +1288,23 @@ function HomePage({urlParams}) {
                     <div id="rightmostSection" style={{display:'flex', flexDirection:'column', alignItems: 'start',
                     position: 'absolute', right:'0%', marginTop:'4em', width: '25em'}}>
                         <UserBar
-                            username={authUser}
-                            authUser={authUser}
+                            username={authUsername}
+                            authUsername={authUsername}
                             isPrivate={'?'}
                             numFollowers={'?'}
                             numFollowing={'?'} 
                             numPosts={'?'}
                             fullName={
-                                (authUser in usersAndTheirRelevantInfo) ?
-                                usersAndTheirRelevantInfo[authUser].fullName : '?'
+                                (authUsername in usersAndTheirRelevantInfo) ?
+                                usersAndTheirRelevantInfo[authUsername].fullName : '?'
                             }
                             profilePhoto={
-                                (authUser in usersAndTheirRelevantInfo) ?
-                                usersAndTheirRelevantInfo[authUser].profilePhoto : defaultPfp
+                                (authUsername in usersAndTheirRelevantInfo) ?
+                                usersAndTheirRelevantInfo[authUsername].profilePhoto : defaultPfp
                             }
                             isVerified={
-                                (authUser in usersAndTheirRelevantInfo) ?
-                                usersAndTheirRelevantInfo[authUser].isVerified : false
+                                (authUsername in usersAndTheirRelevantInfo) ?
+                                usersAndTheirRelevantInfo[authUsername].isVerified : false
                             }
                             notifyParentToShowErrorPopup={showErrorPopup}
                         />
@@ -1297,7 +1325,7 @@ function HomePage({urlParams}) {
                                     <UserBar
                                         key={username}
                                         username={username}
-                                        authUser={authUser}
+                                        authUsername={authUsername}
                                         isPrivate={
                                             (username in usersAndTheirRelevantInfo &&
                                             'isPrivate' in usersAndTheirRelevantInfo[username]) ?
@@ -1380,7 +1408,7 @@ function HomePage({urlParams}) {
                                     authUserId={authUserId}
                                     userId={aboutAccountUserId}
                                     username={aboutAccountUsername}
-                                    authUser={authUser}
+                                    authUsername={authUsername}
                                     userPfp={aboutAccountUserProfilePhoto}
                                     userIsVerified={aboutAccountUserIsVerified}
                                     userHasStories={aboutAccountUserHasStories}
@@ -1397,30 +1425,34 @@ function HomePage({urlParams}) {
                     {displayStoryViewer &&
                         (
                             <StoryViewer
-                                username={storyViewerUsername}
-                                authUser={authUser}
-                                notifyParentToCloseStoryViewer={closeStoryViewer}
-                                usersAndTheirStories={usersAndTheirStories}
-                                usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
+                                authUserId={authUserId}
+                                authUsername={authUsername}
+                                storyAuthorUsername={storyViewerMainUsername}
+                                storyAuthorId={storyViewerMainUserId}
+                                zIndex={displayErrorPopup ? '1' : '3'}
+                                orderedListOfUserIdsInStoriesSection={orderedListOfUserIdsInStoriesSection}
                                 orderedListOfUsernamesInStoriesSection={orderedListOfUsernamesInStoriesSection}
-                                isFromStoriesSection={storyViewerIsFromStoriesSection}
-                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                notifyParentToShowErrorPopup={showErrorPopup}
-                                notifyParentToUpdateUsersAndTheirStories={updateUsersAndTheirStories}
-                                notifyParentToUpdateUsersAndYourCurrSlideInTheirStories={
-                                    updateUsersAndYourCurrSlideInTheirStories
+                                orderedListOfSponsorshipStatusesInStoriesSection={
+                                    orderedListOfSponsorshipStatusesInStoriesSection
                                 }
+                                isFromStoriesSection={storyViewerIsFromStoriesSection}
+                                usersAndTheirStories={usersAndTheirStories}
+                                usersAndTheirStoryPreviews={usersAndTheirStoryPreviews}
+                                usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
+                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                vidStoriesAndTheirPreviewImages={vidStoriesAndTheirPreviewImages}
                                 usernamesWhoseStoriesYouHaveFinished={usernamesWhoseStoriesYouHaveFinished}
-                                notifyParentToAddUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
+                                viewedStoryIds={viewedStoryIds}
+                                updateUsersAndTheirStories={updateUsersAndTheirStories}
+                                updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
+                                updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
+                                updateVidStoriesAndTheirPreviewImages={updateVidStoriesAndTheirPreviewImages}
+                                addUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
                                     addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
                                 }
-                                idsOfStoriesMarkedAsViewed={idsOfStoriesMarkedAsViewed}
-                                notifyParentToAddStoryIdToSetOfViewedStoryIds={
-                                    addStoryIdToSetOfViewedStoryIds
-                                }
-                                zIndex={
-                                    displayErrorPopup ? '1' : '3'
-                                }
+                                addStoryIdToSetOfViewedStoryIds={addStoryIdToSetOfViewedStoryIds}
+                                closeStoryViewer={closeStoryViewer}
+                                showErrorPopup={showErrorPopup}
                             />
                         )
                     }
@@ -1428,7 +1460,7 @@ function HomePage({urlParams}) {
                     {displayCommentsPopup &&
                         (
                             <CommentsPopup
-                                authUser={authUser} 
+                                authUsername={authUsername} 
                                 postDetails={commentsPopupPostDetails}
                                 currSlide={commentsPopupCurrSlide}
                                 notifyParentToClosePopup={hideCommentsPopup}

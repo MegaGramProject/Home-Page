@@ -16,7 +16,7 @@ function LeftSidebar({profilePhoto, displayPopup, authUserIsAnonymousGuest, togg
             <div style={{width:'100%', height:'100%', borderStyle:'solid',
             borderColor:'lightgray',  borderWidth: '0em 0.01em 0em 0em', position: 'relative',
             paddingTop: '1.5em'}}>
-                <h1 className="headerMegagram" style={{fontFamily:'Billabong', fontSize:'1.9em', marginLeft:'-3em',
+                <h1 className="loseOpacityWhenActive" style={{fontFamily:'Billabong', fontSize:'1.9em', marginLeft:'-3em',
                 fontWeight: '100'}}>
                     <span style={{cursor:"pointer"}}>Megagram</span>
                 </h1>

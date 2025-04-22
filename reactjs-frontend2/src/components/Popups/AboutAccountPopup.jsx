@@ -108,6 +108,7 @@ addRelevantInfoToUser, closePopup, showStoryViewer, usersAndTheirRelevantInfo}) 
             <br/>
 
             <UserIcon
+                userId={userId}
                 username={username}
                 authUser={authUser}
                 inStoriesSection={false}

@@ -57,7 +57,7 @@
 import loadingAnimation from '../../assets/images/loadingAnimation.gif';
 import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
-    import { defineProps, onBeforeUnmount, onMounted, ref, toRefs } from 'vue';
+    import { defineProps, onBeforeUnmount, onMounted, ref } from 'vue';
 
 
     const props = defineProps({
@@ -71,9 +71,6 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
         showErrorPopup: Function,
         updateUsersAndTheirRelevantInfo: Function
     });
-
-    const { idOfPostOrComment, authUserId, usersAndTheirRelevantInfo, closePopup, showErrorPopup,
-    updateUsersAndTheirRelevantInfo } = toRefs(props);
 
     const likers = ref([]);
     const likerIdsToExclude = ref([]);
@@ -99,12 +96,12 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
     async function fetchLikers(initialOrAdditionalText) {
         const isInitialFetch = initialOrAdditionalText === 'initial';
-        const postOrCommentText = typeof idOfPostOrComment === 'string' ? 'post' : 'comment';
+        const postOrCommentText = typeof props.idOfPostOrComment === 'string' ? 'post' : 'comment';
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getBatchOfLikersOfPostOrComment/${authUserId}
-            /${idOfPostOrComment}`, {
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getBatchOfLikersOfPostOrComment/${props.authUserId}
+            /${props.idOfPostOrComment}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(likerIdsToExclude.value),
@@ -146,7 +143,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             likerIdsToExclude.value = [...likerIdsToExclude.value, ...newLikerIds];
 
             const newUsersAndTheirRelevantInfo = await fetchAllTheNecessaryLikerInfo(newLikerIds);
-            updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+            props.updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
 
             const newLikers = [...likers.value];
             for(let fetchedLiker of fetchedLikers) {
@@ -192,7 +189,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
                     likerIsVerified: likerIsVerified
                 };
 
-                if (likerId === authUserId) {
+                if (likerId === props.authUserId) {
                     newLikerInfo.originalFollowText = '';
                 }
                 else if (fetchedLiker.isFollowedByAuthUser) {
@@ -241,8 +238,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
         let usersAndTheirUsernames = {};
         const newLikerIdsNeededForUsernames = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('username' in
-            usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in props.usersAndTheirRelevantInfo) || !('username' in
+            props.usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -253,13 +250,13 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
             graphqlUserQueryString +=
             `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newLikerIdsNeededForUsernames) `;
-            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.authUserId = props.authUserId;
             graphqlUserVariables.newLikerIdsNeededForUsernames = newLikerIdsNeededForUsernames;
         }
 
         let usersAndTheirFullNames = {};
         const newLikerIdsNeededForFullNames = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('fullName' in usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in props.usersAndTheirRelevantInfo) || !('fullName' in props.usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -270,14 +267,14 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
             graphqlUserQueryString +=
             `getFullNamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newLikerIdsNeededForFullNames) `;
-            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.authUserId = props.authUserId;
             graphqlUserVariables.newLikerIdsNeededForFullNames = newLikerIdsNeededForFullNames;
         }
 
         let usersAndTheirVerificationStatuses = {};
         const newLikerIdsNeededForVerificationStatuses = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('isVerified' in
-            usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in props.usersAndTheirRelevantInfo) || !('isVerified' in
+            props.usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -288,7 +285,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             graphqlUserQueryString +=
             `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
             $newLikerIdsNeededForVerificationStatuses) `;
-            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.authUserId = props.authUserId;
             graphqlUserVariables.newLikerIdsNeededForVerificationStatuses = newLikerIdsNeededForVerificationStatuses;
         }
 
@@ -411,8 +408,8 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 
         let usersAndTheirPfps = {};
         const newLikerIdsNeededForPfps = newLikerIds.filter(newLikerId => {
-            if (!(newLikerId in usersAndTheirRelevantInfo) || !('profilePhoto' in
-            usersAndTheirRelevantInfo[newLikerId])) {
+            if (!(newLikerId in props.usersAndTheirRelevantInfo) || !('profilePhoto' in
+            props.usersAndTheirRelevantInfo[newLikerId])) {
                 return newLikerId;
             }
         });
@@ -442,7 +439,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
             }
         }
 
-        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
+        const newUsersAndTheirRelevantInfo = {...props.usersAndTheirRelevantInfo};
 
         for(let newLikerId of newLikerIds) {
             if (!(newLikerId in usersAndTheirFullNames) && !(newLikerId in usersAndTheirVerificationStatuses) &&

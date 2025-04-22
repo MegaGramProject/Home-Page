@@ -8,8 +8,11 @@ import StoryViewerPageWithURLParams from './views/StoryViewerPageWithURLParams';
 const Routing = () => (
     <Routes>
         <Route exact path="/" element={<HomePage />} />
-        <Route exact path="/:username" element={<HomePageWithURLParams />} />
-        <Route exact path="/stories/:username/:storyId" element={<StoryViewerPageWithURLParams />} />
+        <Route exact path="/:authUsername" element={<HomePageWithURLParams />} />
+
+        <Route exact path="/stories/:authorUsernameOrStoryId" element={<StoryViewerPageWithURLParams />} />
+        <Route exact path="/stories/:authUsername/:authorUsernameOrStoryId" element={<StoryViewerPageWithURLParams />} />
+        
         <Route path="*" element={<NotFoundPage />} />
     </Routes>
 );

@@ -10,8 +10,9 @@ alignItems:'center', width:'40em', height: '40em', overflowY: 'scroll', position
     <br />
 
     <UserIcon
+      [userId]="userId"
       [username]="username"
-      [authUser]="authUser"
+      [authUsername]="authUsername"
       [inStoriesSection]="false"
       [userHasStories]="userHasStories"
       [userHasUnseenStory]="userHasUnseenStory"

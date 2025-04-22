@@ -1,18 +1,21 @@
 import { Footer } from '../components/Footer.component';
 import { LeftSidebar } from '../components/LeftSidebar.component';
-import { ErrorPopup } from '../components/Popups/ErrorPopup.component';
 import { UserIcon } from '../components/UserIcon.component';
+import { UserBar } from '../components/UserBar.component';
+import { StoryViewer } from '../components/StoryViewer.component';
 
-import { AboutAccountPopup } from '../components/Popups/AboutAccountPopup.component';
 import { LeftSidebarPopup } from '../components/Popups/LeftSidebarPopup.component';
+import { ErrorPopup } from '../components/Popups/ErrorPopup.component';
 import { ThreeDotsPopup } from '../components/Popups/ThreeDotsPopup.component';
-
-import { CommonModule } from '@angular/common';
-import { Component, SimpleChanges } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { AboutAccountPopup } from '../components/Popups/AboutAccountPopup.component';
 import { LikersPopup } from '../components/Popups/LikersPopup.component';
 import { SendPostPopup } from '../components/Popups/SendPostPopup.component';
-import { UserBar } from '../components/UserBar.component';
+
+import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+
+import { BehaviorSubject } from 'rxjs';
 
 
 @Component({
@@ -20,14 +23,16 @@ import { UserBar } from '../components/UserBar.component';
   standalone: true,
   imports: [
     CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
-    LikersPopup, SendPostPopup
+    LikersPopup, SendPostPopup, StoryViewer
   ],
   templateUrl: './HomePage.component.html',
   styleUrl: '../HomePageStyles.css'
 })
 export class HomePage {
-  authUser:string = '';
   authUserId:number = -1;
+  authUserIdBS:BehaviorSubject<number> = new BehaviorSubject<number>(-1);
+  authUsername:string = '';
+  authUsernameBS:BehaviorSubject<string> = new BehaviorSubject<string>('');
 
   originalURL:string = '';
   numTimesRouteParamsWasWatched:number = 0;
@@ -56,9 +61,128 @@ export class HomePage {
 
   displayCommentsPopup:boolean = false;
 
-  displayStoryViewer:boolean = false;
-  storyViewerUsername:string = '';
-  storyViewerIsFromStoriesSection:boolean = false;
+  displayStoryViewer:boolean = true;
+  currStoryLevel:number = 0;
+  storyViewerIsFromStoriesSection:boolean = true;
+  storyViewerMainUserId:number = 4;
+  storyViewerMainUsername:string = 'rishavry4';
+  orderedListOfUserIdsInStoriesSection:number[] = [2, 3, 4, 5, 6];
+  orderedListOfUsernamesInStoriesSection:string[] = ['rishavry2', 'rishavry3', 'rishavry4', 'rishavry5', 'rishavry6'];
+  orderedListOfSponsorshipStatusesInStoriesSection:boolean[] = [false, false, false, true, true];
+  fetchingStoriesIsComplete:boolean = false;
+  storiesSectionErrorMessage:string = '';
+  usernamesWhoseStoriesYouHaveFinished:Set<string> = new Set();
+  viewedStoryIds:Set<number> = new Set();
+  usersAndTheirStories:any = {
+    2: [
+      {
+        id: 1,
+        src: 'misc/dogVid.mp4',
+        datetime: '3h',
+        adInfo: {
+          link: 'https://www.google.com',
+          callToAction: 'Learn something new on Google right now!'
+        },
+        vidDurationInSeconds: 60
+      },
+      {
+        id: 2,
+        src: 'images/hotAirBalloonScenery.jpg',
+        datetime: '21m',
+        adInfo: null,
+        vidDurationInSeconds: null
+      }
+    ],
+    3: [
+    {
+        id: 3,
+        src: 'misc/dogVid.mp4',
+        datetime: '3h',
+        adInfo: {
+          link: 'https://www.google.com',
+          callToAction: 'Learn something new on Google right now!'
+        },
+        vidDurationInSeconds: 60
+      },
+      {
+        id: 4,
+        src: 'images/hotAirBalloonScenery.jpg',
+        datetime: '21m',
+        adInfo: null,
+        vidDurationInSeconds: null
+      }
+    ],
+    4: [
+        {
+          id: 5,
+          src: 'misc/dogVid.mp4',
+          datetime: '3h',
+          adInfo: {
+            link: 'https://www.google.com',
+            callToAction: 'Learn something new on Google right now!'
+          },
+          vidDurationInSeconds: 60
+        },
+        {
+          id: 6,
+          src: 'images/hotAirBalloonScenery.jpg',
+          datetime: '21m',
+          adInfo: null,
+          vidDurationInSeconds: null
+        }
+    ],
+    5: [
+        {
+          id: 7,
+          src: 'misc/dogVid.mp4',
+          datetime: '3h',
+          adInfo: {
+            link: 'https://www.google.com',
+            callToAction: 'Learn something new on Google right now!'
+          },
+          vidDurationInSeconds: 60
+        },
+        {
+          id: 8,
+          src: 'images/hotAirBalloonScenery.jpg',
+          datetime: '21m',
+          adInfo: null,
+          vidDurationInSeconds: null
+        }
+    ],
+    6: [
+      {
+        id: 9,
+        src: 'misc/dogVid.mp4',
+        datetime: '3h',
+        adInfo: {
+          link: 'https://www.google.com',
+          callToAction: 'Learn something new on Google right now!'
+        },
+        vidDurationInSeconds: 60
+      },
+      {
+        id: 20,
+        src: 'images/hotAirBalloonScenery.jpg',
+        datetime: '21m',
+        adInfo: null,
+        vidDurationInSeconds: null
+      }
+    ]
+  };
+  usersAndTheirStoryPreviews:any = {
+    1: 'images/hotAirBalloonScenery.jpg',
+    3: 'images/hotAirBalloonScenery.jpg',
+    5: 'images/hotAirBalloonScenery.jpg'
+  };
+  usersAndYourCurrSlideInTheirStories:any = {
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+    6: 0
+  };
+  vidStoriesAndTheirPreviewImages:any = {};
 
   usersAndTheirRelevantInfo:any = {};
 
@@ -69,46 +193,47 @@ export class HomePage {
   constructor(private route: ActivatedRoute) { }
 
 
-  ngOnInit(): void {
+  ngOnInit() {
+    document.title = "Megagram";
     this.originalURL = window.location.href;
 
-    const username = this.route.snapshot.paramMap.get('username');
-    if(username !== null && localStorage.getItem('defaultUsername') !== username) {
-        this.authenticateUser(username, null);
-    }
-    else if(localStorage.getItem('defaultUsername')) {
-        if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
-            this.authUser = 'Anonymous Guest';
-        }
-        else {
-            this.authenticateUser(
-              localStorage.getItem('defaultUsername') ?? '',
-              parseInt(localStorage.getItem('defaultUserId') ?? '-1')
-            );
-        }
-    }
-    else {
-        this.authUser = 'Anonymous Guest';
-    }
-  }
+
+    this.authUserIdBS.subscribe(newAuthUserId => {
+      this.authUserId = newAuthUserId;
+
+      localStorage.setItem('defaultUserId', newAuthUserId.toString());
+    });
 
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['authUser']) {
-      const newVal = changes['authUser'].currentValue;
-      if (newVal && newVal.length > 0) {
-        localStorage.setItem('defaultUsername', newVal);
+    this.authUsernameBS.subscribe(newAuthUsername => {
+      this.authUsername = newAuthUsername;
+
+      if (newAuthUsername.length > 0) {
+        localStorage.setItem('defaultUsername', newAuthUsername);
         this.fetchStories();
         this.fetchSuggestedAccounts();
         this.fetchPosts('initial');
       }
-    }
+    });
 
-    if (changes['authUserId']) {
-      const newVal = changes['authUserId'].currentValue;
-      if (newVal) {
-        localStorage.setItem('defaultUserId', newVal);
+
+    const authUsernameFromRouteParams = this.route.snapshot.paramMap.get('authUsername');
+    if(authUsernameFromRouteParams !== null && localStorage.getItem('defaultUsername') !== authUsernameFromRouteParams) {
+      this.authenticateUser(authUsernameFromRouteParams, null);
+    }
+    else if(localStorage.getItem('defaultUsername')) {
+      if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
+        this.authUsernameBS.next('Anonymous Guest');
       }
+      else {
+        this.authenticateUser(
+          localStorage.getItem('defaultUsername')!,
+          parseInt(localStorage.getItem('defaultUserId')!)
+        );
+      }
+    }
+    else {
+      this.authUsernameBS.next('Anonymous Guest');
     }
   }
 
@@ -129,17 +254,19 @@ export class HomePage {
           })
         });
         if (!response.ok) {
-          this.authUser = 'Anonymous Guest';
+          this.authUsernameBS.next('Anonymous Guest');
           
           throw new Error(
             `The laravelBackend1 server had trouble getting the user-id of username ${username}`
           );
         }
-        userId = await response.json();
-        this.authUserId = userId ?? -1;
+        
+        const responseData:any = await response.json();
+        userId = responseData.data.getUserIdOfUsername;
+        this.authUserIdBS.next(userId!);
       }
       catch {
-        this.authUser = 'Anonymous Guest';
+        this.authUsernameBS.next('Anonymous Guest');
 
         throw new Error(
           `There was trouble connecting to the laravelBackend1 server to get the user-id of username ${username}`
@@ -147,15 +274,15 @@ export class HomePage {
       }
     }
     else {
-        this.authUserId = userId;
+      this.authUserIdBS.next(userId);
     }
 
     try {
       const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
       /${userId}`, { credentials: 'include' });
       if (!response1.ok) {
-        this.authUser = 'Anonymous Guest';
-        this.authUserId = -1;
+        this.authUsernameBS.next('Anonymous Guest');
+        this.authUserIdBS.next(-1);
 
         throw new Error(
           `The expressJSBackend1 server had trouble verifying you as having the proper credentials to be 
@@ -163,11 +290,11 @@ export class HomePage {
         );
       }
 
-      this.authUser = username;
+      this.authUsernameBS.next(username);
     }
     catch {
-      this.authUser = 'Anonymous Guest';
-      this.authUserId = -1;
+      this.authUsernameBS.next('Anonymous Guest');
+      this.authUserIdBS.next(-1);
 
       throw new Error(
         `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
@@ -203,6 +330,26 @@ export class HomePage {
 
   updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo:any) {
     this.usersAndTheirRelevantInfo = newUsersAndTheirRelevantInfo;
+  }
+
+
+  updateUsersAndTheirStories(newUsersAndTheirStories:any) {
+    this.usersAndTheirStories = newUsersAndTheirStories;
+  }
+
+
+  updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews:any) {
+    this.usersAndTheirStoryPreviews = newUsersAndTheirStoryPreviews;
+  }
+
+
+  updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories:any) {
+    this.usersAndYourCurrSlideInTheirStories = newUsersAndYourCurrSlideInTheirStories;
+  }
+
+
+  updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirPreviewImages:any) {
+    this.vidStoriesAndTheirPreviewImages = newVidStoriesAndTheirPreviewImages;
   }
 
 
@@ -251,12 +398,15 @@ export class HomePage {
   }
 
 
-  showStoryViewer(infoForStoryViewer:{username: string, isFromStoriesSection: boolean}) {
-    this.storyViewerUsername = infoForStoryViewer.username;
-    this.storyViewerIsFromStoriesSection = infoForStoryViewer.isFromStoriesSection;
+  showStoryViewer(relevantInfoForStoryViewer:{ newStoryViewerMainUserId: number, newStoryViewerMainUsername: string,
+  newStoryViewerIsFromStoriesSection:boolean }) {
+    document.title = 'Stories';
+
+    this.storyViewerMainUserId = relevantInfoForStoryViewer.newStoryViewerMainUserId;
+    this.storyViewerMainUsername = relevantInfoForStoryViewer.newStoryViewerMainUsername;
+    this.storyViewerIsFromStoriesSection = relevantInfoForStoryViewer.newStoryViewerIsFromStoriesSection;
     this.displayStoryViewer = true;
   }
-
 
   showLikersPopup(newLikersPopupIdOfPostOrComment:string|number) {
     this.likersPopupIdOfPostOrComment = newLikersPopupIdOfPostOrComment;
@@ -315,6 +465,21 @@ export class HomePage {
   }
 
 
+  closeStoryViewer() {
+    document.title = 'Megagram';
+
+    this.displayStoryViewer = false;
+
+    window.history.pushState(
+      {
+        page: 'Megagram',
+      },
+      'Megagram',
+      this.originalURL
+    );
+  }
+
+
   addRelevantInfoToUser(requiredInfo:{userId: number, userFieldsAndTheirValues:any}) {
     const { userId, userFieldsAndTheirValues }  = requiredInfo;
     if (!(userId in this.usersAndTheirRelevantInfo)) {
@@ -324,5 +489,25 @@ export class HomePage {
     for(let field of Object.keys(userFieldsAndTheirValues)) {
       this.usersAndTheirRelevantInfo[userId][field] = userFieldsAndTheirValues[field];
     }
+  }
+
+
+  addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUsername: string) {
+    this.usernamesWhoseStoriesYouHaveFinished = new Set(
+      [
+        ...this.usernamesWhoseStoriesYouHaveFinished,
+        newFinishedUsername
+      ]
+    );
+  }
+
+
+  addStoryIdToSetOfViewedStoryIds(newViewedStoryId: number) {
+    this.viewedStoryIds = new Set(
+      [
+        ...this.viewedStoryIds,
+        newViewedStoryId
+      ]
+    );
   }
 }

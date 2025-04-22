@@ -15,7 +15,7 @@ export class AboutAccountPopup {
   @Input() userId!:number;
 
   @Input() username!:string;
-  @Input() authUser!:string;
+  @Input() authUsername!:string;
   @Input() userPfp!:string|null;
 
   @Input() userIsVerified!:boolean;
@@ -27,8 +27,13 @@ export class AboutAccountPopup {
   @Output() addRelevantInfoToUser:EventEmitter<{userId: number, userFieldsAndTheirValues: any}> =
   new EventEmitter<{userId: number, userFieldsAndTheirValues: any}>();
   @Output() closePopup:EventEmitter<any> = new EventEmitter<any>();
-  @Output() showStoryViewer:EventEmitter<{username: string, isFromStoriesSection: boolean}> =
-  new EventEmitter<{username: string, isFromStoriesSection: boolean}>();
+  @Output() showStoryViewer:EventEmitter<{ newStoryViewerMainUserId: number, newStoryViewerMainUsername: string,
+  newStoryViewerIsFromStoriesSection: boolean }> =
+  new EventEmitter<{
+    newStoryViewerMainUserId: number,
+    newStoryViewerMainUsername: string,
+    newStoryViewerIsFromStoriesSection: boolean
+  }>();
 
   dateJoinedText:string = '';
   accountBasedInText:string = '';

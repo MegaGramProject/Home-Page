@@ -12,8 +12,9 @@
         <br />
     
         <UserIcon
+            :userId="userId"
             :username="username"
-            :authUser="authUser"
+            :authUsername="authUsername"
             :inStoriesSection="false"
             :hasStories="userHasStories"
             :hasUnseenStory="userHasUnseenStory"
@@ -83,7 +84,7 @@
 import dateJoinedIcon from '../../assets/images/dateJoined.png';
 import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
-    import { defineProps, ref, toRefs, watch } from 'vue';
+    import { defineProps, ref, watch } from 'vue';
 
     
     const props = defineProps({
@@ -91,7 +92,7 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
         userId: Number,
 
         username: String,
-        authUser:String,
+        authUsername:String,
         userPfp: String,
 
         userIsVerified: Boolean,
@@ -104,9 +105,6 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
         closePopup: Function,
         showStoryViewer: Function
     });
-
-    const { authUserId, userId, username, authUser, userPfp, userIsVerified, userHasStories, userHasUnseenStory,
-    usersAndTheirRelevantInfo, addRelevantInfoToUser, closePopup, showStoryViewer } = toRefs(props);
 
     const dateJoinedText = ref('');
     const accountBasedInText = ref('');
@@ -123,8 +121,8 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
                         getDateJoinedAndAccountBasedInOfUser(authUserId: $authUserId, userId: $userId)
                     }`,
                     variables: {
-                        authUserId: authUserId,
-                        userId: userId
+                        authUserId: props.authUserId,
+                        userId: props.userId
                     }
                 }),
                 credentials: 'include'
@@ -139,7 +137,7 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
                 dateJoinedText.value = formatDateString(relevantUserInfo[0]);
                 accountBasedInText.value = relevantUserInfo[1];
 
-                addRelevantInfoToUser(userId, {
+                props.addRelevantInfoToUser(props.userId, {
                     dateJoined: dateJoinedText.value,
                     accountBasedIn: accountBasedInText.value
                 });
@@ -172,15 +170,15 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
 
     function takeToUsersProfile() {
-        window.open(`http://34.111.89.101/profile/${username}`, '_blank');
+        window.open(`http://34.111.89.101/profile/${props.username}`, '_blank');
     }
 
 
-    watch(userId, (newVal) => {
-        if (newVal in usersAndTheirRelevantInfo && 'dateJoined' in usersAndTheirRelevantInfo[newVal]
-        && 'accountBasedIn' in usersAndTheirRelevantInfo[newVal]) {
-            dateJoinedText.value = usersAndTheirRelevantInfo[newVal].dateJoined;
-            accountBasedInText.value = usersAndTheirRelevantInfo[newVal].accountBasedIn;
+    watch(props.userId, (newUserId) => {
+        if (newUserId in props.usersAndTheirRelevantInfo && 'dateJoined' in props.usersAndTheirRelevantInfo[newUserId]
+        && 'accountBasedIn' in props.usersAndTheirRelevantInfo[newUserId]) {
+            dateJoinedText.value = props.usersAndTheirRelevantInfo[newUserId].dateJoined;
+            accountBasedInText.value = props.usersAndTheirRelevantInfo[newUserId].accountBasedIn;
         }
         else {
             fetchRelevantDataForTheAccount();

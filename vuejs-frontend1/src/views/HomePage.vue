@@ -23,7 +23,7 @@
             :authUserId="authUserId"
             :userId="aboutAccountUserId"
             :username="aboutAccountUsername"
-            :authUser="authUser"
+            :authUsername="authUsername"
             :userPfp="aboutAccountUserProfilePhoto"
             :userIsVerified="aboutAccountUserIsVerified"
             :userHasStories="aboutAccountUserHasStories"
@@ -34,6 +34,33 @@
             :showStoryViewer="showStoryViewer"
         />
     </div>
+
+    <StoryViewer v-if="displayStoryViewer"
+        :authUserId="authUserId"
+        :authUsername="authUsername"
+        :storyAuthorUsername="storyViewerMainUsername"
+        :storyAuthorId="storyViewerMainUserId"
+        :zIndex="displayErrorPopup ? '1' : '3'"
+        :orderedListOfUserIdsInStoriesSection="orderedListOfUserIdsInStoriesSection"
+        :orderedListOfUsernamesInStoriesSection="orderedListOfUsernamesInStoriesSection"
+        :orderedListOfSponsorshipStatusesInStoriesSection="orderedListOfSponsorshipStatusesInStoriesSection"
+        :isFromStoriesSection="storyViewerIsFromStoriesSection"
+        :usersAndTheirStories="usersAndTheirStories"
+        :usersAndTheirStoryPreviews="usersAndTheirStoryPreviews"
+        :usersAndYourCurrSlideInTheirStories="usersAndYourCurrSlideInTheirStories"
+        :vidStoriesAndTheirPreviewImages="vidStoriesAndTheirPreviewImages"
+        :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
+        :usernamesWhoseStoriesYouHaveFinished="usernamesWhoseStoriesYouHaveFinished"
+        :viewedStoryIds="viewedStoryIds"
+        :updateUsersAndTheirStories="updateUsersAndTheirStories"
+        :updateUsersAndTheirStoryPreviews="updateUsersAndTheirStoryPreviews"
+        :updateUsersAndYourCurrSlideInTheirStories="updateUsersAndYourCurrSlideInTheirStories"
+        :updateVidStoriesAndTheirPreviewImages="updateVidStoriesAndTheirPreviewImages"
+        :addUsernameToSetOfUsersWhoseStoriesYouHaveFinished="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished"
+        :addStoryIdToSetOfViewedStoryIds="addStoryIdToSetOfViewedStoryIds"
+        :closeStoryViewer="closeStoryViewer"
+        :showErrorPopup="showErrorPopup"
+    />
 
     <div v-if="displayLeftSidebarPopup" :style="[
         { position: 'fixed', bottom: '10%', left: '1%' },
@@ -100,7 +127,8 @@
 </template>
 
 
-<script>
+<script setup>
+/* eslint-disable no-unused-vars */
     import AboutAccountPopup from '@/components/Popups/AboutAccountPopup.vue';
 import ErrorPopup from '@/components/Popups/ErrorPopup.vue';
 import LeftSidebarPopup from '@/components/Popups/LeftSidebarPopup.vue';
@@ -110,346 +138,387 @@ import ThreeDotsPopup from '@/components/Popups/ThreeDotsPopup.vue';
 
     //import FooterSection from '@/components/FooterSection.vue';
     import LeftSidebar from '@/components/LeftSidebar.vue';
-//import UserIcon from '@/components/UserIcon.vue';
-//import UserBar from '@/components/UserBar.vue';
+    //import UserIcon from '@/components/UserIcon.vue';
+    //import UserBar from '@/components/UserBar.vue';
+    import StoryViewer from '@/components/StoryViewer.vue';
 
     import blackScreen from '@/assets/images/blackScreen.png';
 import defaultPfp from '@/assets/images/defaultPfp.png';
 
     import '../assets/HomePageStyles.css';
 
-
-    export default {
-        components: {
-            LeftSidebarPopup,
-            ErrorPopup,
-            ThreeDotsPopup,
-            AboutAccountPopup,
-            LikersPopup,
-            SendPostPopup,
-
-            LeftSidebar,
-            //FooterSection,
-            //UserIcon,
-            //UserBar,
-        },
+    import { onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 
-        data() {
-            return {
-                defaultPfp,
-                blackScreen,
+    const route = useRoute();
+    const numTimesRouteParamsWasWatched = ref(0);
+    const originalURL = ref('');
+    
+    const authUsername = ref('');
+    const authUserId = ref(-1);
 
-                authUser: '',
-                authUserId: -1,
+    const displayLeftSidebarPopup = ref(false);
 
-                originalURL: '',
-                numTimesRouteParamsWasWatched: 0,
+    const displayErrorPopup = ref(false);
+    const errorPopupMessage = ref('');
 
-                displayLeftSidebarPopup: false,
+    const displayThreeDotsPopup = ref(false);
+    const threeDotsPopupPostDetails = ref({});
 
-                displayErrorPopup: false,
-                errorPopupMessage: '',
+    const displayAboutAccountPopup = ref(false);
+    const aboutAccountUsername = ref('');
+    const aboutAccountUserId = ref(-1);
+    const aboutAccountUserIsVerified = ref(false);
+    const aboutAccountUserHasStories = ref(false);
+    const aboutAccountUserHasUnseenStory = ref(false);
+    const aboutAccountUserProfilePhoto = ref(null);
 
-                displayThreeDotsPopup: false,
-                threeDotsPopupPostDetails: {},
+    const displayLikersPopup = ref(false);
+    const likersPopupIdOfPostOrComment = ref('');
 
-                displayAboutAccountPopup: false,
-                aboutAccountUsername: '',
-                aboutAccountUserId: -1,
-                aboutAccountUserIsVerified: false,
-                aboutAccountUserHasStories: false,
-                aboutAccountUserHasUnseenStory: false,
-                aboutAccountUserProfilePhoto: null,
+    const displaySendPostPopup = ref(false);
+    const sendPostPopupOverallPostId = ref('');
 
-                displayLikersPopup: false,
-                likersPopupIdOfPostOrComment: '',
+    const displayCommentsPopup = ref(false);
 
-                displaySendPostPopup: false,
-                sendPostPopupOverallPostId: '',
+    const displayStoryViewer = ref(false);
+    const currStoryLevel = ref(0);
+    const storyViewerIsFromStoriesSection = ref(false);
+    const storyViewerMainUserId = ref(-1);
+    const storyViewerMainUsername = ref('');
+    const orderedListOfUserIdsInStoriesSection = ref([]);
+    const orderedListOfUsernamesInStoriesSection = ref([]);
+    const orderedListOfSponsorshipStatusesInStoriesSection = ref([]);
+    const fetchingStoriesIsComplete = ref(false);
+    const storiesSectionErrorMessage = ref('');
+    const usernamesWhoseStoriesYouHaveFinished = ref(new Set());
+    const viewedStoryIds = ref(new Set());
+    const usersAndTheirStories = ref({});
+    const usersAndTheirStoryPreviews = ref({});
+    const usersAndYourCurrSlideInTheirStories = ref({});
+    const vidStoriesAndTheirPreviewImages = ref({});
 
-                displayCommentsPopup: false,
+    const usersAndTheirRelevantInfo = ref({});
 
-                displayStoryViewer: false,
-                storyViewerUsername: '',
-                storyViewerIsFromStoriesSection: false,
+    const cachedMessageSendingSuggestions = ref({});
 
-                usersAndTheirRelevantInfo: {},
+    const orderedListOfPosts = ref([]);
 
-                cachedMessageSendingSuggestions: {},
 
-                orderedListOfPosts: []
+    onMounted(() => {
+        document.title = "Megagram";
+        originalURL.value = window.location.href;
+    });
+
+
+    watch(() =>
+        route.params,
+        (newRouteParams) => {
+            numTimesRouteParamsWasWatched.value++
+            if (numTimesRouteParamsWasWatched.value < 2) {
+                return;
             }
-        },
 
-
-        mounted() {
-            this.originalURL = window.location.href;
-        },
-
-
-        methods: {
-            async authenticateUser(username, userId) {
-                if (userId == null) {
-                    try {
-                        const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                query: `query getUserIdOfUsername($username: String!) {
-                                    getUserIdOfUsername(username: $username)
-                                }`,
-                                variables: {
-                                    username: username
-                                }
-                            })
-                        });
-                        if (!response.ok) {
-                            this.authUser = 'Anonymous Guest';
-
-                            throw new (
-                                `The laravelBackend1 server had trouble getting the user-id of username ${username}`
-                            );
-                        }
-                        userId = await response.json();
-                        this.authUserId = userId;
-                    }
-                    catch {
-                        this.authUser = 'Anonymous Guest';
-
-                        throw new Error(
-                            `There was trouble connecting to the laravelBackend1 server to get the user-id of username
-                            ${username}`
-                        );
-                    }
+            if (typeof newRouteParams.username !== 'undefined' && localStorage.getItem('defaultUsername') !==
+            newRouteParams.username) {
+                authenticateUser(newRouteParams.username, null);
+            }
+            else if (localStorage.getItem('defaultUsername')) {
+                if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
+                    authUsername.value = 'Anonymous Guest'
                 }
                 else {
-                    this.authUserId = userId;
-                }
-
-                try {
-                    const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
-                    /${userId}`, {
-                        credentials: 'include'
-                    });
-                    if (!response1.ok) {
-                        this.authUser = 'Anonymous Guest';
-                        this.authUserId = -1;
-
-                        throw new Error(
-                            `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
-                            be logged in as user ${userId}`
-                        );
-                    }
-
-                    this.authUser = username;
-                }
-                catch {
-                    this.authUser = 'Anonymous Guest';
-                    this.authUserId = -1;
-
-                    throw new Error(
-                        `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
-                        credentials to be logged in as user ${userId}`
+                    authenticateUser(
+                        localStorage.getItem('defaultUsername'),
+                        parseInt(localStorage.getItem('defaultUserId'))
                     );
                 }
-            },
-
-
-            async fetchStories() {
-
-            },
-
-
-            async fetchSuggestedAccounts() {
-
-            },
-
-
-            async fetchPosts(initialOrAdditionalText) {
-                initialOrAdditionalText;
-            },
-
-
-            hidePost() {
-                this.orderedListOfPosts = this.orderedListOfPosts.filter(
-                    postDetails => (postDetails.overallPostId !== this.threeDotsPopupPostDetails.overallPostId)
-                );
-                this.displayThreeDotsPopup = false;
-                this.displayCommentsPopup = false;
-            },
-
-
-            updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo) {
-                this.usersAndTheirRelevantInfo = newUsersAndTheirRelevantInfo;
-            },
-
-
-            updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions) {
-                this.cachedMessageSendingSuggestions = newCachedMessageSendingSuggestions;
-            },
-
-
-            showErrorPopup(newErrorPopupMessage) {
-                this.errorPopupMessage = newErrorPopupMessage;
-                this.displayErrorPopup = true;
-            },
-
-            
-            showAboutAccountPopup(newAboutAccountUsername, newAboutAccountUserId) {
-                this.aboutAccountUsername = newAboutAccountUsername;
-                this.aboutAccountUserId = newAboutAccountUserId;
-
-                this.aboutAccountUserIsVerified = 
-                    newAboutAccountUserId in this.usersAndTheirRelevantInfo &&
-                    'isVerified' in this.usersAndTheirRelevantInfo[newAboutAccountUserId]
-                    ? this.usersAndTheirRelevantInfo[newAboutAccountUserId].isVerified
-                    : false;
-
-                this.aboutAccountUserHasStories = 
-                    newAboutAccountUserId in this.usersAndTheirRelevantInfo &&
-                    'hasStories' in this.usersAndTheirRelevantInfo[newAboutAccountUserId]
-                    ? this.usersAndTheirRelevantInfo[newAboutAccountUserId].hasStories
-                    : false;
-
-                this.aboutAccountUserHasUnseenStory = 
-                    newAboutAccountUserId in this.usersAndTheirRelevantInfo &&
-                    'hasUnseenStory' in this.usersAndTheirRelevantInfo[newAboutAccountUserId]
-                    ? this.usersAndTheirRelevantInfo[newAboutAccountUserId].hasUnseenStory
-                    : false;
-
-                this.aboutAccountUserProfilePhoto = 
-                    newAboutAccountUserId in this.usersAndTheirRelevantInfo &&
-                    'profilePhoto' in this.usersAndTheirRelevantInfo[newAboutAccountUserId]
-                    ? this.usersAndTheirRelevantInfo[newAboutAccountUserId].profilePhoto
-                    : defaultPfp;
-
-                this.displayAboutAccountPopup = true;
-            },
-
-            
-            showStoryViewer(newStoryViewerUsername, newStoryViewerIsFromStoriesSection) {
-                this.storyViewerUsername = newStoryViewerUsername;
-                this.storyViewerIsFromStoriesSection = newStoryViewerIsFromStoriesSection;
-                this.displayStoryViewer = true;
-            },
-
-
-            showLikersPopup(newLikersPopupIdOfPostOrComment) {
-                this.likersPopupIdOfPostOrComment = newLikersPopupIdOfPostOrComment;
-                this.displayLikersPopup = true;
-            },
-
-
-            showSendPostPopup(newSendPostPopupOverallPostId) {
-                this.sendPostPopupOverallPostId = newSendPostPopupOverallPostId;
-                this.displaySendPostPopup = true;
-            },
-
-
-            toggleDisplayLeftSidebarPopup() {
-                this.displayLeftSidebarPopup = !this.displayLeftSidebarPopup;
-            },
-
-
-            closeAllPopups() {
-                if(!(this.displayCommentsPopup && (this.displayThreeDotsPopup || this.displayAboutAccountPopup ||
-                this.displayErrorPopup || this.displayLikersPopup || this.displaySendPostPopup))) {
-                    this.displayCommentsPopup = false;
-                }
-
-                this.displayLeftSidebarPopup = false;
-                this.displayErrorPopup = false;
-                this.displayThreeDotsPopup = false;
-                this.displayAboutAccountPopup = false;
-                this.displayLikersPopup = false;
-                this.displaySendPostPopup = false;
-            },
-
-
-            closeErrorPopup() {
-                this.displayErrorPopup = false;
-            },
-
-
-            closeThreeDotsPopup() {
-                this.displayThreeDotsPopup = false;
-            },
-
-
-            closeAboutAccountPopup() {
-                this.displayAboutAccountPopup = false;
-                this.displayThreeDotsPopup = false;
-            },
-
-
-            closeLikersPopup () {
-                this.displayLikersPopup = false;
-            },
-
-
-            closeSendPostPopup() {
-                this.displaySendPostPopup = false;
-            },
-
-
-            addRelevantInfoToUser(userId, userFieldsAndTheirValues) {
-                if (!(userId in this.usersAndTheirRelevantInfo)) {
-                    this.usersAndTheirRelevantInfo[userId] = {};
-                }
-
-                for(let field of Object.keys(userFieldsAndTheirValues)) {
-                    this.usersAndTheirRelevantInfo[userId][field] = userFieldsAndTheirValues[field];
-                }
+            }
+            else {
+                authUsername.value = 'Anonymous Guest'
             }
         },
+        { immediate: true }
+    );
 
 
-        watch: {
-            '$route.params': {
-                immediate: true,
-                handler(newRouteParams) {
-                    this.numTimesRouteParamsWasWatched++;
-                    if(this.numTimesRouteParamsWasWatched<2) {
-                        return;
-                    }
+    watch(authUserId, (newAuthUserId) => {
+        localStorage.setItem('defaultUserId', newAuthUserId.toString());
+    });
+    
+    
+    watch(authUsername, (newAuthUsername) => {
+        if (newAuthUsername.length > 0) {
+            localStorage.setItem('defaultUsername', newAuthUsername);
+            fetchStories();
+            fetchSuggestedAccounts();
+            fetchPosts('initial');
+        }
+    });
 
-                    if (typeof newRouteParams.username !== 'undefined' && localStorage.getItem('defaultUsername') !==
-                    newRouteParams.username) {
-                        this.authenticateUser(newRouteParams.username, null);
-                    }
-                    else if (localStorage.getItem('defaultUsername')) {
-                        if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
-                            this.authUser = 'Anonymous Guest';
+
+    async function authenticateUser(username, userId) {
+        if (userId == null) {
+            try {
+                const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: `query getUserIdOfUsername($username: String!) {
+                            getUserIdOfUsername(username: $username)
+                        }`,
+                        variables: {
+                            username: username
                         }
-                        else {
-                            this.authenticateUser(
-                                localStorage.getItem('defaultUsername'),
-                                localStorage.getItem('defaultUserId')
-                            );
-                        }
-                    }
-                    else {
-                        this.authUser = 'Anonymous Guest';
-                    }
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    authUsername.value = 'Anonymous Guest';
+
+                    throw new Error(
+                        `The laravelBackend1 server had trouble getting the user-id of username ${username}`
+                    );
                 }
-            },
 
-
-            authUser(newVal) {
-                if (newVal.length > 0) {
-                    localStorage.setItem('defaultUsername', newVal);
-                    this.fetchStories();
-                    this.fetchSuggestedAccounts();
-                    this.fetchPosts('initial');
-                }
-            },
-
-
-            authUserId(newVal) {
-                localStorage.setItem('defaultUserId', newVal);
+                let userId = await response.json();
+                userId = userId.data.getUserIdOfUsername;
+                
+                authUserId.value = userId;
             }
+            catch {
+                authUsername.value = 'Anonymous Guest';
+
+                throw new Error(
+                    `There was trouble connecting to the laravelBackend1 server to get the user-id of username
+                    ${username}`
+                );
+            }
+        }
+        else {
+            authUserId.value = userId;
+        }
+
+        try {
+            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${userId}`, {
+                credentials: 'include'
+            });
+            if (!response1.ok) {
+                authUsername.value = 'Anonymous Guest';
+                authUserId.value = -1;
+
+                throw new Error(
+                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
+                    be logged in as user ${userId}`
+                );
+            }
+
+            authUsername.value = username;
+        }
+        catch {
+            authUsername.value = 'Anonymous Guest';
+            authUserId.value = -1;
+
+            throw new Error(
+                `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
+                credentials to be logged in as user ${userId}`
+            );
         }
     }
 
+
+    async function fetchStories() {
+
+    }
+
+
+    async function fetchSuggestedAccounts() {
+
+    }
+
+
+    async function fetchPosts(initialOrAdditionalText) {
+        initialOrAdditionalText;
+    }
+
+
+    function hidePost() {
+        orderedListOfPosts.value = orderedListOfPosts.value.filter(
+            postDetails => (postDetails.overallPostId !== threeDotsPopupPostDetails.value.overallPostId)
+        );
+
+        displayThreeDotsPopup.value = false;
+        displayCommentsPopup.value = false;
+    }
+
+
+    function updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo) {
+        usersAndTheirRelevantInfo.value = newUsersAndTheirRelevantInfo;
+    }
+
+
+    function updateCachedMessageSendingSuggestions(newCachedMessageSendingSuggestions) {
+        cachedMessageSendingSuggestions.value = newCachedMessageSendingSuggestions;
+    }
+
+
+    function showErrorPopup(newErrorPopupMessage) {
+        errorPopupMessage.value = newErrorPopupMessage;
+        displayErrorPopup.value = true;
+    }
+
+
+    function showAboutAccountPopup(newAboutAccountUsername, newAboutAccountUserId) {
+        aboutAccountUsername.value = newAboutAccountUsername;
+        aboutAccountUserId.value = newAboutAccountUserId;
+
+        aboutAccountUserIsVerified.value = 
+            newAboutAccountUserId in usersAndTheirRelevantInfo.value &&
+            'isVerified' in usersAndTheirRelevantInfo.value[newAboutAccountUserId]
+            ? usersAndTheirRelevantInfo.value[newAboutAccountUserId].isVerified
+            : false;
+
+        aboutAccountUserHasStories.value = 
+            newAboutAccountUserId in usersAndTheirRelevantInfo.value &&
+            'hasStories' in usersAndTheirRelevantInfo.value[newAboutAccountUserId]
+            ? usersAndTheirRelevantInfo.value[newAboutAccountUserId].hasStories
+            : false;
+
+        aboutAccountUserHasUnseenStory.value = 
+            newAboutAccountUserId in usersAndTheirRelevantInfo.value &&
+            'hasUnseenStory' in usersAndTheirRelevantInfo.value[newAboutAccountUserId]
+            ? usersAndTheirRelevantInfo.value[newAboutAccountUserId].hasUnseenStory
+            : false;
+
+        aboutAccountUserProfilePhoto.value = 
+            newAboutAccountUserId in usersAndTheirRelevantInfo.value &&
+            'profilePhoto' in usersAndTheirRelevantInfo.value[newAboutAccountUserId]
+            ? usersAndTheirRelevantInfo.value[newAboutAccountUserId].profilePhoto
+            : defaultPfp;
+
+        displayAboutAccountPopup.value = true;
+    }
+
+
+    function showStoryViewer(newStoryViewerMainUserId, newStoryViewerMainUsername, newStoryViewerIsFromStoriesSection) {
+        document.title = 'Stories';
+
+        storyViewerMainUserId.value = newStoryViewerMainUserId;
+        storyViewerMainUsername.value = newStoryViewerMainUsername;
+        storyViewerIsFromStoriesSection.value = newStoryViewerIsFromStoriesSection;
+        displayStoryViewer.value = true;
+    }
+
+
+    function toggleDisplayLeftSidebarPopup() {
+        displayLeftSidebarPopup.value = !displayLeftSidebarPopup.value;
+    }
+
+
+    function closeAllPopups() {
+        if(!( displayCommentsPopup.value && (displayThreeDotsPopup.value || displayAboutAccountPopup.value  ||
+        displayErrorPopup.value  || displayLikersPopup.value || displaySendPostPopup.value))) {
+            displayCommentsPopup.value = false;
+        }
+
+        displayLeftSidebarPopup.value = false;
+        displayErrorPopup.value = false;
+        displayThreeDotsPopup.value = false;
+        displayAboutAccountPopup.value = false;
+        displayLikersPopup.value = false;
+        displaySendPostPopup.value = false;
+    }
+
+
+    function closeErrorPopup() {
+        displayErrorPopup.value = false;
+    }
+
+
+    function closeThreeDotsPopup() {
+        displayThreeDotsPopup.value = false;
+    }
+
+
+    function closeAboutAccountPopup() {
+        displayAboutAccountPopup.value = false;
+        displayThreeDotsPopup.value = false;
+    }
+
+
+    function closeLikersPopup () {
+        displayLikersPopup.value = false;
+    }
+
+
+    function closeSendPostPopup() {
+        displaySendPostPopup.value = false;
+    }
+
+
+    function closeStoryViewer() {
+        document.title = 'Megagram';
+        
+        displayStoryViewer.value = false;
+
+        window.history.pushState(
+            {
+                page: 'Megagram',
+            },
+            'Megagram',
+            originalURL.value
+        );
+    }
+
+
+    function addRelevantInfoToUser(userId, userFieldsAndTheirValues) {
+        if (!(userId in usersAndTheirRelevantInfo.value)) {
+            usersAndTheirRelevantInfo.value[userId] = {};
+        }
+
+        for(let field of Object.keys(userFieldsAndTheirValues)) {
+            usersAndTheirRelevantInfo.value[userId][field] = userFieldsAndTheirValues[field];
+        }
+    }
+
+
+    function updateUsersAndTheirStories(newUsersAndTheirStories) {
+        usersAndTheirStories.value = newUsersAndTheirStories;
+    }
+
+
+    function updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews) {
+        usersAndTheirStoryPreviews.value = newUsersAndTheirStoryPreviews;
+    }
+
+
+    function updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories) {
+        usersAndYourCurrSlideInTheirStories.value = newUsersAndYourCurrSlideInTheirStories;
+    }
+
+
+    function updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirPreviewImages) {
+        vidStoriesAndTheirPreviewImages.value = newVidStoriesAndTheirPreviewImages;
+    }
+
+
+    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUsername) {
+        usernamesWhoseStoriesYouHaveFinished.value = new Set(
+            [
+                ...usernamesWhoseStoriesYouHaveFinished.value,
+                newFinishedUsername
+            ]
+        );
+    }
+
+
+    function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
+        viewedStoryIds.value = new Set(
+            [
+                ...viewedStoryIds.value, 
+                newlyViewedStoryId
+            ]
+        );
+    }
 </script>

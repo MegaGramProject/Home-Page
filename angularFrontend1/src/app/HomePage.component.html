@@ -19,7 +19,7 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
         [authUserId]="authUserId"
         [userId]="aboutAccountUserId"
         [username]="aboutAccountUsername"
-        [authUser]="authUser"
+        [authUsername]="authUsername"
         [userPfp]="aboutAccountUserProfilePhoto"
         [userIsVerified]="aboutAccountUserIsVerified"
         [userHasStories]="aboutAccountUserHasStories"
@@ -30,6 +30,34 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
         (showStoryViewer)="showStoryViewer($event)"
     />
 </div>
+
+
+<StoryViewer *ngIf="displayStoryViewer"
+    [authUserId]="authUserId"
+    [authUsername]="authUsername"
+    [storyAuthorUsername]="storyViewerMainUsername"
+    [storyAuthorId]="storyViewerMainUserId"
+    [zIndex]="displayErrorPopup ? '1' : '3'"
+    [orderedListOfUserIdsInStoriesSection]="orderedListOfUserIdsInStoriesSection"
+    [orderedListOfUsernamesInStoriesSection]="orderedListOfUsernamesInStoriesSection"
+    [orderedListOfSponsorshipStatusesInStoriesSection]="orderedListOfSponsorshipStatusesInStoriesSection"
+    [isFromStoriesSection]="storyViewerIsFromStoriesSection"
+    [usersAndTheirStories]="usersAndTheirStories"
+    [usersAndTheirStoryPreviews]="usersAndTheirStoryPreviews"
+    [usersAndYourCurrSlideInTheirStories]="usersAndYourCurrSlideInTheirStories"
+    [vidStoriesAndTheirPreviewImages]="vidStoriesAndTheirPreviewImages"
+    [usersAndTheirRelevantInfo]="usersAndTheirRelevantInfo"
+    [usernamesWhoseStoriesYouHaveFinished]="usernamesWhoseStoriesYouHaveFinished"
+    [viewedStoryIds]="viewedStoryIds"
+    (updateUsersAndTheirStories)="updateUsersAndTheirStories($event)"
+    (updateUsersAndTheirStoryPreviews)="updateUsersAndTheirStoryPreviews($event)"
+    (updateUsersAndYourCurrSlideInTheirStories)="updateUsersAndYourCurrSlideInTheirStories($event)"
+    (updateVidStoriesAndTheirPreviewImages)="updateVidStoriesAndTheirPreviewImages($event)"
+    (addUsernameToSetOfUsersWhoseStoriesYouHaveFinished)="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished($event)"
+    (addStoryIdToSetOfViewedStoryIds)="addStoryIdToSetOfViewedStoryIds($event)"
+    (closeStoryViewer)="closeStoryViewer()"
+    (showErrorPopup)="showErrorPopup($event)"
+/>
 
 <div *ngIf="displayLeftSidebarPopup" [ngStyle]="{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ?
 '1' : '3'}">

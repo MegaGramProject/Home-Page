@@ -752,28 +752,25 @@
 </style>
   
 
-<script>
+<script setup>
   //import favicon from '../assets/images/favicon.ico';
   //import favicon1 from '../assets/images/favicon1.ico';
   import megagramLoading from '../assets/images/megagramLoading.png';
 
   import Parallax from 'parallax-js';
 
+  import { onMounted, ref } from 'vue';
 
-  export default {
-      data() {
-        return {
-          megagramLoading
-        }
-      },
+  
+  const sceneRef = ref(null);
 
-      mounted() {
-          document.title = "Not Found";
+  
+  onMounted(() => {
+    document.title = "Page Not Found · 404";
 
-          const scene = this.$refs.sceneRef;
-          if (scene) {
-              new Parallax(scene);
-          }
-      }
-  }
+    const scene = sceneRef.value;
+    if (scene) {
+      new Parallax(scene);
+    }
+  });
 </script>

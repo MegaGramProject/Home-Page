@@ -1,87 +1,151 @@
-import ErrorPopup from '../components/Popups/ErrorPopup';
+<template>
+    <div v-if="!storyFetchingIsComplete || storyFetchingError" style="background-color: black; position: fixed; width:
+    100%; height: 100%; top: 0%; left: 0%">
+        <img v-if="!storyFetchingIsComplete" :src="loadingAnimation" style="position: absolute; top: 50%; left: 50%;
+        height: 3em; width: 3em; transform: translate(-50%, -50%); pointer-events: none"/>
+    </div>
+  
+    <StoryViewer v-if="storyFetchingIsComplete && !storyFetchingError"
+        :authUserId="authUserId"
+        :authUsername="authUsername"
+        :authUsernameWasProvidedInRoute="authUsernameWasProvidedInRoute"
+        :storyAuthorUsername="storyAuthorUsername"
+        :storyAuthorId="storyAuthorId"
+        :zIndex="''"
+        :orderedListOfUserIdsInStoriesSection="[]"
+        :orderedListOfUsernamesInStoriesSection="[]"
+        :orderedListOfSponsorshipStatusesInStoriesSection="[]"
+        :isFromStoriesSection="false"
+        :usersAndTheirStories="usersAndTheirStories"
+        :usersAndTheirStoryPreviews="{}"
+        :usersAndYourCurrSlideInTheirStories="usersAndYourCurrSlideInTheirStories"
+        :vidStoriesAndTheirPreviewImages="vidStoriesAndTheirPreviewImages"
+        :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
+        :usernamesWhoseStoriesYouHaveFinished="new Set()"
+        :viewedStoryIds="viewedStoryIds"
+        :updateUsersAndTheirStories="updateUsersAndTheirStories"
+        :updateUsersAndTheirStoryPreviews="updateUsersAndTheirStoryPreviews"
+        :updateUsersAndYourCurrSlideInTheirStories="updateUsersAndYourCurrSlideInTheirStories"
+        :updateVidStoriesAndTheirPreviewImages="updateVidStoriesAndTheirPreviewImages"
+        :addUsernameToSetOfUsersWhoseStoriesYouHaveFinished="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished"
+        :addStoryIdToSetOfViewedStoryIds="addStoryIdToSetOfViewedStoryIds"
+        :closeStoryViewer="closeStoryViewer"
+        :showErrorPopup="showErrorPopup"
+    />
+  
+    <template v-if="displayErrorPopup">
+        <img @click="closeErrorPopup" :src="blackScreen" style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%;
+        opacity: 0.7"/>
+
+        <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%)">
+            <ErrorPopup
+                :errorMessage="errorPopupMessage"
+                :closePopup="closeErrorPopup"
+            />
+        </div>
+    </template>
+</template>
+
+
+<script setup>
+    import ErrorPopup from '../components/Popups/ErrorPopup';
 import StoryViewer from '../components/StoryViewer';
 
-import blackScreen from '../assets/images/blackScreen.png';
+    import blackScreen from '../assets/images/blackScreen.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 
-import { useEffect, useState } from 'react';
+    import { onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 
 
-function StoryViewerPage({urlParams}) {
-    const [authUsernameWasProvidedInRoute, setAuthUsernameWasProvidedInRoute] = useState(false);
-
-    const [authUserId, setAuthUserId] = useState(-1);
-    const [authUsername, setAuthUsername] = useState('');
+    const route = useRoute();
+    const numTimesRouteParamsWasWatched = ref(0);
+    const authUsernameWasProvidedInRoute = ref(false);
     
-    const [storyId, setStoryId] = useState(-1);
-    const [storyAuthorId, setStoryAuthorId] = useState(-1);
-    const [storyAuthorUsername, setStoryAuthorUsername] = useState('');
+    const authUserId = ref(-1);
+    const authUsername = ref('');
 
-    const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
-    const [errorPopupMessage, setErrorPopupMessage] = useState('');
+    const storyId = ref(-1);
+    const storyAuthorId = ref(-1);
+    const storyAuthorUsername = ref('');
 
-    const [storyFetchingError, setStoryFetchingError] = useState(false);
-    const [storyFetchingIsComplete, setStoryFetchingIsComplete] = useState(false);
+    const displayErrorPopup = ref(false);
+    const errorPopupMessage = ref('');
+   
+    const storyFetchingError = ref(false);
+    const storyFetchingIsComplete = ref(false);
 
-    const [viewedStoryIds, setViewedStoryIds] = useState(new Set());
+    const viewedStoryIds = ref(new Set());
 
-    const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
-    const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
-    const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
-    const [vidStoriesAndTheirPreviewImages, setVidStoriesAndTheirPreviewImages] = useState({});
+    const usersAndTheirRelevantInfo = ref({});
+    const usersAndTheirStories = ref({});
+    const usersAndYourCurrSlideInTheirStories = ref({});
+    const vidStoriesAndTheirPreviewImages = ref({});
 
-
-    useEffect(() => {
+    
+    onMounted(() => {
         document.title = 'Stories';
+    });
 
-        const urlParamsAuthorUsernameOrStoryId = urlParams.authorUsernameOrStoryId;
 
-        if (typeof urlParamsAuthorUsernameOrStoryId === 'string') {
-            setStoryAuthorUsername(urlParamsAuthorUsernameOrStoryId);
-        }
-        else {
-            setStoryId(urlParamsAuthorUsernameOrStoryId);
-        }
+    watch(() =>
+        route.params,
+        (newRouteParams) => {
+            numTimesRouteParamsWasWatched.value++
+            if (numTimesRouteParamsWasWatched.value < 2) {
+                return;
+            }
 
-        const urlParamsAuthUsername = urlParams.authUsername;
+            const newRouteParamsAuthorUsernameOrStoryId = newRouteParams.authorUsernameOrStoryId;
 
-        if (typeof urlParamsAuthUsername !== 'undefined') {
-            setAuthUsernameWasProvidedInRoute(true);
-        }
-
-        if (typeof urlParamsAuthUsername !== 'undefined' && localStorage.getItem('defaultUsername') !==
-        urlParamsAuthUsername) {
-            authenticateUser(urlParamsAuthUsername, null);
-        }
-        else if (localStorage.getItem('defaultUsername')) {
-            if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
-                setAuthUsername('Anonymous Guest');
+            if (typeof newRouteParamsAuthorUsernameOrStoryId === 'string') {
+                storyAuthorUsername.value = newRouteParamsAuthorUsernameOrStoryId;
             }
             else {
-                authenticateUser(
-                    localStorage.getItem('defaultUsername'),
-                    parseInt(localStorage.getItem('defaultUserId'))
-                );
+                storyId.value = newRouteParamsAuthorUsernameOrStoryId;
             }
-        }
-        else {
-            setAuthUsername('Anonymous Guest');
-        }
-    }, []);
+
+            const newRouteParamsAuthUsername = newRouteParams.authUsername;
+
+            if (typeof newRouteParamsAuthUsername !== 'undefined') {
+                authUsernameWasProvidedInRoute.value = true;
+            }
+
+            if (typeof newRouteParamsAuthUsername !== 'undefined' && localStorage.getItem('defaultUsername') !==
+            newRouteParamsAuthUsername) {
+                authenticateUser(newRouteParamsAuthUsername, null);
+            }
+            else if (localStorage.getItem('defaultUsername')) {
+                if (localStorage.getItem('defaultUsername') === 'Anonymous Guest') {
+                    authUsername.value = 'Anonymous Guest'
+                }
+                else {
+                    authenticateUser(
+                        localStorage.getItem('defaultUsername'),
+                        parseInt(localStorage.getItem('defaultUserId'))
+                    );
+                }
+            }
+            else {
+                authUsername.value = 'Anonymous Guest'
+            }
+        },
+        { immediate: true }
+    );
 
 
-    useEffect(() => {
-        localStorage.setItem('defaultUserId', authUserId.toString());
-    }, [authUserId]);
-    
-    
-    useEffect(() => {
-        if (authUsername.length > 0) {
-            localStorage.setItem('defaultUsername', authUsername);
+    watch(authUserId, (newAuthUserId) => {
+        localStorage.setItem('defaultUserId', newAuthUserId.toString());
+    });
+
+
+    watch(authUsername, (newAuthUsername) => {
+        if (newAuthUsername.length > 0) {
+            localStorage.setItem('defaultUsername', newAuthUsername);
             fetchTheNecessaryInfo();
         }
-    }, [authUsername]);
+    });
 
 
     async function authenticateUser(username, userId) {
@@ -101,7 +165,7 @@ function StoryViewerPage({urlParams}) {
                     credentials: 'include'
                 });
                 if (!response.ok) {
-                    setAuthUsername('Anonymous Guest');
+                    authUsername.value = 'Anonymous Guest';
 
                     throw new Error(
                         `The laravelBackend1 server had trouble getting the user-id of username ${username}`
@@ -111,10 +175,10 @@ function StoryViewerPage({urlParams}) {
                 let userId = await response.json();
                 userId = userId.data.getUserIdOfUsername;
                 
-                setAuthUserId(userId);
+                authUserId.value = userId;
             }
             catch {
-                setAuthUsername('Anonymous Guest');
+                authUsername.value = 'Anonymous Guest';
 
                 throw new Error(
                     `There was trouble connecting to the laravelBackend1 server to get the user-id of username
@@ -123,7 +187,7 @@ function StoryViewerPage({urlParams}) {
             }
         }
         else {
-            setAuthUserId(userId);
+            authUserId.value = userId;
         }
 
         try {
@@ -131,8 +195,8 @@ function StoryViewerPage({urlParams}) {
                 credentials: 'include'
             });
             if (!response1.ok) {
-                setAuthUsername('Anonymous Guest');
-                setAuthUserId(-1);
+                authUsername.value = 'Anonymous Guest';
+                authUserId.value = -1;
 
                 throw new Error(
                     `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
@@ -140,11 +204,11 @@ function StoryViewerPage({urlParams}) {
                 );
             }
 
-            setAuthUsername(username);
+            authUsername.value = username;
         }
         catch {
-            setAuthUsername('Anonymous Guest');
-            setAuthUserId(-1);
+            authUsername.value = 'Anonymous Guest';
+            authUserId.value = -1;
 
             throw new Error(
                 `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
@@ -160,39 +224,39 @@ function StoryViewerPage({urlParams}) {
 
 
     function showErrorPopup(errorMessage) {
-        setErrorPopupMessage(errorMessage);
-        setDisplayErrorPopup(true);
+        errorPopupMessage.value = errorMessage;
+        displayErrorPopup.value = true;
     }
 
 
     function closeErrorPopup() {
-        setDisplayErrorPopup(false);
+        displayErrorPopup.value = false;
 
-        if (storyFetchingError) {
-            window.location.href = 'http://34.111.89.101/';;
+        if(storyFetchingError.value) {
+            window.location.href = 'http://34.111.89.101/';
         }
     }
 
 
     function updateUsersAndTheirStories(newUsersAndTheirStories) {
-        setUsersAndTheirStories(newUsersAndTheirStories);
+        usersAndTheirStories.value = newUsersAndTheirStories;
     }
 
 
-    function updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews) {
+    function updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews)  {
         newUsersAndTheirStoryPreviews; //do nothing
     }
 
 
     function updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories) {
-        setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+        usersAndYourCurrSlideInTheirStories.value = newUsersAndYourCurrSlideInTheirStories;
     }
 
 
     function updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirPreviewImages) {
-        setVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirPreviewImages);
+        vidStoriesAndTheirPreviewImages.value = newVidStoriesAndTheirPreviewImages;
     }
-
+    
 
     function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername) {
         newUsername; //do nothing
@@ -200,12 +264,12 @@ function StoryViewerPage({urlParams}) {
 
 
     function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
-        setViewedStoryIds(new Set(
+        viewedStoryIds.value = new Set(
             [
-                ...viewedStoryIds, 
+                ...viewedStoryIds.value, 
                 newlyViewedStoryId
             ]
-        ));
+        );
     }
 
 
@@ -261,18 +325,18 @@ function StoryViewerPage({urlParams}) {
         
         let storyAuthorUsernameValue = '';
         let storyAuthorIdValue = -1;
-        const authUserIdValue = authUserId;
-        const storyIdValue = storyId;
+        const authUserIdValue = authUserId.value;
+        const storyIdValue = storyId.value;
         
-        if (storyAuthorUsername.length == 0) {
+        if (storyAuthorUsername.value.length == 0) {
             try {
                 const response = await fetch(
                 `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoryById/${authUserIdValue}/${storyIdValue}`, {
                     credentials: 'include'
                 });
                 if (!response.ok) {
-                    setStoryFetchingError(true);
-                    setStoryFetchingIsComplete(true);
+                    storyFetchingError.value = true;
+                    storyFetchingIsComplete.value = true;
                     showErrorPopup(`The server had trouble providing story ${storyIdValue}`);
                     return;
                 }
@@ -280,7 +344,7 @@ function StoryViewerPage({urlParams}) {
                     const userStoryData = await response.json();
 
                     storyAuthorIdValue = userStoryData.authorId; 
-                    setStoryAuthorId(storyAuthorIdValue);
+                    storyAuthorId.value = storyAuthorIdValue;
 
                     if (userStoryData.authorUsername == null) {
                         storyAuthorUsernameValue = `user ${storyAuthorIdValue}`
@@ -288,11 +352,11 @@ function StoryViewerPage({urlParams}) {
                     else {
                         storyAuthorUsernameValue = userStoryData.authorUsername;
                     }
-                    setStoryAuthorUsername(storyAuthorUsernameValue);
+                    storyAuthorUsername.value = storyAuthorUsernameValue;
 
                     if (userStoryData.currSlide == -1) {
-                        setStoryFetchingError(true);
-                        setStoryFetchingIsComplete(true);
+                        storyFetchingError.value = true;
+                        storyFetchingIsComplete.value = true;
                         showErrorPopup(`User ${storyAuthorUsernameValue} does not currently have any unexpired stories`);
                         return;
                     }
@@ -316,8 +380,8 @@ function StoryViewerPage({urlParams}) {
                 }
             }
             catch (error) {
-                setStoryFetchingError(true);
-                setStoryFetchingIsComplete(true);
+                storyFetchingError.value = true;
+                storyFetchingIsComplete.value = true;
                 showErrorPopup(
                     `There was trouble connecting to the server to provide story ${storyIdValue}`
                 );
@@ -325,7 +389,7 @@ function StoryViewerPage({urlParams}) {
             }
         }
         else {
-            storyAuthorUsernameValue = storyAuthorUsername;
+            storyAuthorUsernameValue = storyAuthorUsername.value;
         }
         
         if (storyIdValue == -1) {
@@ -345,8 +409,8 @@ function StoryViewerPage({urlParams}) {
                 },
                 );
                 if (!response1.ok) {
-                    setStoryFetchingError(true);
-                    setStoryFetchingIsComplete(true);
+                    storyFetchingError.value = true;
+                    storyFetchingIsComplete.value = true;
                     showErrorPopup(
                         `The server had trouble getting the user-id of username ${storyAuthorUsernameValue}`
                     );
@@ -356,7 +420,7 @@ function StoryViewerPage({urlParams}) {
                     storyAuthorIdValue = await response1.json();
                     storyAuthorIdValue = storyAuthorIdValue.data.getUserIdOfUsername;
                     
-                    setStoryAuthorId(storyAuthorIdValue);
+                    storyAuthorId.value = storyAuthorIdValue;
                    
                     if (!(storyAuthorIdValue in newUsersAndTheirRelevantInfo)) {
                         newUsersAndTheirRelevantInfo[storyAuthorIdValue] = {};
@@ -365,8 +429,8 @@ function StoryViewerPage({urlParams}) {
                 }
             }
             catch {
-                setStoryFetchingError(true);
-                setStoryFetchingIsComplete(true);
+                storyFetchingError.value = true;
+                storyFetchingIsComplete.value = true;
                 showErrorPopup(
                     `There was trouble connecting to the server to get the user-id of username ${storyAuthorUsernameValue}`
                 );
@@ -381,8 +445,8 @@ function StoryViewerPage({urlParams}) {
                 });
 
                 if (!response2.ok) {
-                    setStoryFetchingError(true);
-                    setStoryFetchingIsComplete(true);
+                    storyFetchingError.value = true;
+                    storyFetchingIsComplete.value = true;
                     showErrorPopup(`The server had trouble providing the stories of user ${storyAuthorUsernameValue}`);
                     return;
                 }
@@ -390,8 +454,8 @@ function StoryViewerPage({urlParams}) {
                     const userStoryData = await response2.json();
 
                     if (userStoryData.currSlide == -1) {
-                        setStoryFetchingError(true);
-                        setStoryFetchingIsComplete(true);
+                        storyFetchingError.value = true;
+                        storyFetchingIsComplete.value = true;
                         showErrorPopup(`User ${storyAuthorUsernameValue} does not currently have any unexpired stories`);
                         return;
                     }
@@ -401,7 +465,7 @@ function StoryViewerPage({urlParams}) {
                         return userStory
                     });
 
-                    const newViewedStoryIds = new Set([...viewedStoryIds]);
+                    const newViewedStoryIds = new Set([...viewedStoryIds.value]);
 
                     if (userStoryData.currSlide === 'finished') {
                         newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
@@ -422,12 +486,12 @@ function StoryViewerPage({urlParams}) {
                         }
                     }
 
-                    setViewedStoryIds(newViewedStoryIds);
+                    viewedStoryIds.value = newViewedStoryIds;
                 }
             }
             catch (error) {
-                setStoryFetchingError(true);
-                setStoryFetchingIsComplete(true);
+                storyFetchingError.value = true;
+                storyFetchingIsComplete.value = true;
                 showErrorPopup(
                     `There was trouble connecting to the server to provide the stories of user ${storyAuthorUsernameValue}`
                 );
@@ -484,83 +548,10 @@ function StoryViewerPage({urlParams}) {
             newUsersAndTheirRelevantInfo[storyAuthorIdValue].profilePhoto = defaultPfp;
         }
 
-        setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
-        setUsersAndTheirStories(newUsersAndTheirStories)
-        setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+        usersAndTheirRelevantInfo.value = newUsersAndTheirRelevantInfo;
+        usersAndTheirStories.value = newUsersAndTheirStories;
+        usersAndYourCurrSlideInTheirStories.value = newUsersAndYourCurrSlideInTheirStories;
 
-        setStoryFetchingIsComplete(true);
+        storyFetchingIsComplete.value = true;
     }
-
-
-    return (
-        <>
-            {(!storyFetchingIsComplete || storyFetchingError) &&
-                (
-                    <div style={{backgroundColor: 'black', position: 'fixed', width: '100%', height: '100%', top:
-                    '0%', left: '0%'}}>
-                        {!storyFetchingIsComplete &&
-                            (
-                                <img src={loadingAnimation} style={{position: 'absolute', top: '50%', left: '50%',
-                                height: '3em', width: '3em', transform: 'translate(-50%, -50%)', pointerEvents: 'none'}}/>
-                            )
-                        }
-                    </div>
-                )
-            }
-
-            {(storyFetchingIsComplete && !storyFetchingError) &&
-                (
-                    <StoryViewer
-                        authUserId={authUserId}
-                        authUsername={authUsername}
-                        authUsernameWasProvidedInRoute={authUsernameWasProvidedInRoute}
-                        storyAuthorUsername={storyAuthorUsername}
-                        storyAuthorId={storyAuthorId}
-                        zIndex={''}
-                        orderedListOfUserIdsInStoriesSection={[]}
-                        orderedListOfUsernamesInStoriesSection={[]}
-                        orderedListOfSponsorshipStatusesInStoriesSection={[]}
-                        isFromStoriesSection={false}
-                        usersAndTheirStories={usersAndTheirStories}
-                        usersAndTheirStoryPreviews={{}}
-                        usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
-                        vidStoriesAndTheirPreviewImages={{}}
-                        usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                        usernamesWhoseStoriesYouHaveFinished={new Set()}
-                        viewedStoryIds={viewedStoryIds}
-                        updateUsersAndTheirStories={updateUsersAndTheirStories}
-                        updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
-                        updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
-                        updateVidStoriesAndTheirPreviewImages={updateVidStoriesAndTheirPreviewImages}
-                        addUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
-                            addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
-                        }
-                        addStoryIdToSetOfViewedStoryIds={addStoryIdToSetOfViewedStoryIds}
-                        closeStoryViewer={closeStoryViewer}
-                        showErrorPopup={showErrorPopup}
-                    />
-                )
-            }
-
-            {displayErrorPopup &&
-                (
-                    <>
-                        <img onClick={closeErrorPopup} src={blackScreen} style={{position: 'fixed', 
-                        top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7'}}/>
-
-                        <div style={{position: 'fixed', top: '50%', left: '50%',
-                        transform: 'translate(-50%, -50%)'}}>
-                            <ErrorPopup
-                                errorMessage={errorPopupMessage}
-                                closePopup={closeErrorPopup}
-                            />
-                        </div>
-                    </>
-                )
-            }
-
-        </>
-    )
-}
-
-export default StoryViewerPage;
+</script>
