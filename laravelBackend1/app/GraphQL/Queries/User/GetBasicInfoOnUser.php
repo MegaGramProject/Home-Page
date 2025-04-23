@@ -105,7 +105,6 @@ class GetBasicInfoOnUser extends Query {
                     "http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserIsInBlockingsOfAuthUser/$authUserId/$id"
                 );
     
-                
                 if ($response->failed()) {
                     abort(502, "The djangoBackend2 server had trouble checking whether or not user $id is in your blockings");
                 }
@@ -151,8 +150,6 @@ class GetBasicInfoOnUser extends Query {
             //pass
         }
 
-        $basicUserInfo = null;
-
         try {
             $basicUserInfo = PublicUser::where('id', $id)
                 ->select(['username', 'fullName', 'isVerified', 'created'])
@@ -172,32 +169,16 @@ class GetBasicInfoOnUser extends Query {
                     $basicUserInfo['isPrivate'] = true;
                 }
                 else {
-                    abort(404, "There user $id does not exist");
+                    abort(404, "The user $id does not exist");
                 }
             }
+
+            return Response::json(
+                $basicUserInfo
+            );
         }
         catch (\Exception) {
             abort(502, "There was trouble fetching the basic user-info of user $id");
         }
-
-        try {
-            $this->redisClient->hMSet(
-                "dataForUser$id",
-                [
-                    'username' => $basicUserInfo['username'], 
-                    'fullName' => $basicUserInfo['fullName'],
-                    'created' => $basicUserInfo['created']->toIso8601String(),
-                    'isVerified' => $basicUserInfo['isVerified'] == true ? 'true' : 'false',
-                    'isPrivate' => $basicUserInfo['isPrivate'] == true ? 'true' : 'false'
-                ]
-            );
-        }
-        catch (\Exception) {
-            //pass
-        }
-
-        return Response::json(
-            $basicUserInfo
-        );
     }
 }

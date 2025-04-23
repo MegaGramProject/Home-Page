@@ -322,14 +322,12 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
         usersAndTheirRelevantInfo: Object,
 
         usernamesWhoseStoriesYouHaveFinished: Object,
-        viewedStoryIds: Object,
 
         updateUsersAndTheirStories: Function,
         updateUsersAndTheirStoryPreviews: Function,
         updateUsersAndYourCurrSlideInTheirStories: Function,
         updateVidStoriesAndTheirPreviewImages: Function,
         addUsernameToSetOfUsersWhoseStoriesYouHaveFinished: Function,
-        addStoryIdToSetOfViewedStoryIds: Function,
         closeStoryViewer: Function,
         showErrorPopup: Function
     });      
@@ -470,9 +468,7 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
                 );
             }
 
-            if(!(props.viewedStoryIds.has(currStoryId))) {
-                markStoryIdAsViewed(currStoryId);
-            }
+            addViewToStory(currStoryId);
     
             if(currStoriesValue[currSlideValue].vidDurationInSeconds==null) {
                 rateOfStoryProgression.value = 0.5;
@@ -636,6 +632,12 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
     }
 
 
+    function convertByteArrayToBase64String(byteArray) {
+        const binaryString = String.fromCharCode(...byteArray);
+        return btoa(binaryString);
+    }
+
+
     async function getFirstFrameForPreviewImgOfVid(videoBase64String) {
         return new Promise((resolve, reject) => {
             const video = document.createElement('video');
@@ -712,22 +714,19 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
     }
 
 
-    async function markStoryIdAsViewed(storyId) {
+    async function addViewToStory(storyId) {
         if (props.authUserId == -1) {
             return;
         } 
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/markStoryAsViewed/${props.authUserId}/${storyId}`, {
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/addViewToStory/${props.authUserId}/${storyId}`, {
                 method: 'POST',
                 credentials: 'include'
             });
             if (!response.ok) {
                 console.error(`The springBootBackend2 server had trouble mark story ${storyId} as viewed`);
-            }
-            else {
-                props.addStoryIdToSetOfViewedStoryIds(storyId);
             }
         }
         catch (error) {
@@ -748,12 +747,13 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToIndividualUser/${props.authUserId}
-            /${currStoryAuthorId.value}`, {
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToOneOrMoreUsersAndGroups/${props.authUserId}
+            /individually`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    messageToSend: `Replied to story ${currStories.value[currSlide.value].id}: ${replyToSend}`
+                    messageToSend: `Replied to story ${currStories.value[currSlide.value].id}: ${replyToSend}`,
+                    usersAndGroupsToSendTo: [`user/${currStoryAuthorId.value}`]
                 }),
                 credentials: 'include'
             });
@@ -820,40 +820,58 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
             const userIdsNeededForStoryPreviewFetching = [];
             const currIndexInStoriesSectionValue = currIndexInStoriesSection.value;
             const userIdsAndTheirUsernames = {};
+            const storySponsorshipStatusesForUsers = [];
 
             if (currIndexInStoriesSectionValue + 1 < props.orderedListOfUserIdsInStoriesSection.length &&
             !(props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 1] in props.usersAndTheirStoryPreviews)) {
                 const userId = props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 1];
+                const storySponsorshipStatus = props.orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue + 1
+                ];
                 const username =  props.orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 1];
 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
+                
             }
 
             if (currIndexInStoriesSectionValue + 2 < props.orderedListOfUserIdsInStoriesSection.length &&
             !(props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 2] in props.usersAndTheirStoryPreviews)) {
                 const userId = props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 2];
+                const storySponsorshipStatus = props.orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue + 2
+                ];
                 const username =  props.orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 2];
 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
 
             if (currIndexInStoriesSectionValue - 1 > -1 &&
             !(props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 1] in props.usersAndTheirStoryPreviews)) {
                 const userId = props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 1];
+                const storySponsorshipStatus = props.orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue - 1
+                ];
                 const username =  props.orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 1];
 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
 
             if (currIndexInStoriesSectionValue - 2 > -1 &&
             !(props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 2] in props.usersAndTheirStoryPreviews)) {
                 const userId = props.orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 2];
+                const storySponsorshipStatus = props.orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue - 2
+                ];
                 const username =  props.orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 2];
                 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
             
@@ -864,27 +882,38 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
-                            userIds: userIdsNeededForStoryPreviewFetching
+                            userIds: userIdsNeededForStoryPreviewFetching,
+                            storySponsorshipStatusesForUsers: storySponsorshipStatusesForUsers
                         }),
                         credentials: 'include'
                     });
+
                     if (!response.ok) {
                         console.error('The server had trouble providing some of the required story-previews');
                     }
                     else {
-                        const usersAndTheInfoOnTheirStoryPreviews = await response.json();
-                        const newUsersAndTheirStoryPreviews = {...props.usersAndTheirStoryPreviews};
-                        
-                        for(let userId of Object.keys(usersAndTheInfoOnTheirStoryPreviews)) {
-                            newUsersAndTheirStoryPreviews[userId] = usersAndTheInfoOnTheirStoryPreviews[userId].previewImg;
+                        let responseData = await response.json();
+                        let usersAndTheirStoryPreviewInfo = responseData.usersAndTheirStoryPreviewInfo;
 
-                            if (usersAndTheInfoOnTheirStoryPreviews[userId].currSlide === 'finished') {
-                                newUsersAndYourCurrSlideInTheirStories[userId] = 0;
-                                props.addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(userIdsAndTheirUsernames[userId]);
+                        const newUsersAndTheirStoryPreviews = {...props.usersAndTheirStoryPreviews};
+
+                        for(let userId of Object.keys(usersAndTheirStoryPreviewInfo)) {
+                            const userStoryPreviewInfo = usersAndTheirStoryPreviewInfo[userId];
+                            const storyId = userStoryPreviewInfo.storyId;
+                            const storyFileType = userStoryPreviewInfo.storyFileType;
+                            const storyFileBuffer = userStoryPreviewInfo.storyFileBuffer;
+
+                            if (storyFileType === 'image') {
+                                newUsersAndTheirStoryPreviews[userId] = storyFileBuffer;
                             }
                             else {
-                                newUsersAndYourCurrSlideInTheirStories[userId] = usersAndTheInfoOnTheirStoryPreviews[userId]
-                                .currSlide;
+                                const newVidStoriesAndTheirFirstFrames = {...props.vidStoriesAndTheirPreviewImages};
+                                newVidStoriesAndTheirFirstFrames[storyId] = await getFirstFrameForPreviewImgOfVid(
+                                    convertByteArrayToBase64String(storyFileBuffer)
+                                );
+                                props.updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirFirstFrames);
+
+                                newUsersAndTheirStoryPreviews[userId] = newVidStoriesAndTheirFirstFrames[storyId];
                             }
                         }
 
@@ -902,10 +931,16 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
         const authUserIdValue = props.authUserId;
 
         if(!(currStoryAuthorIdValue in props.usersAndTheirStories)) {
+            let onlyShowSponsoredStories = false;
+            if (props.isFromStoriesSection &&
+            props.orderedListOfSponsorshipStatusesInStoriesSection[currIndexInStoriesSection.value] == true) {
+                onlyShowSponsoredStories = true;
+            }
+
             try {
                 const response1 = await fetch(
                 `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser/${authUserIdValue}
-                /${currStoryAuthorIdValue}`, {
+                /${currStoryAuthorIdValue}/true/${onlyShowSponsoredStories}`, {
                     credentials: 'include'
                 });
 
@@ -934,10 +969,6 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
 
                         props.addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
 
-                        for(let story of userStoryData.stories) {
-                            props.addStoryIdToSetOfViewedStoryIds(story.id);
-                        }
-
                         handleChangeInStory();
                     }
                     else if (userStoryData.currSlide == -1) {
@@ -949,15 +980,6 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
 
                         newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = userStoryData.currSlide;
                         
-                        for(let i=0; i<userStoryData.stories.length; i++) {
-                            if (i == userStoryData.currSlide) {
-                                break;
-                            }
-
-                            const story = userStoryData.stories[i];
-                            props.addStoryIdToSetOfViewedStoryIds(story.id);
-                        }
-
                         handleChangeInStory();
                     }
                 }

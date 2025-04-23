@@ -1,5 +1,7 @@
 package com.megagram.springBootBackend2.Controllers.RestAPI.Story;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +36,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 
+@SuppressWarnings("unchecked")
 @RestController
 public class Mutations {
     @Autowired
@@ -107,14 +110,20 @@ public class Mutations {
         String errorMessage = "";
 
         Object resultOfGettingAuthorOfStory = this.storyService.getAuthorOfStory(
-            storyId
+            storyId,
+            true
         );
         if (resultOfGettingAuthorOfStory instanceof String[]) {
             errorMessage += "• " + ((String[]) resultOfGettingAuthorOfStory)[0] + "\n";
             throw new BadGatewayException(errorMessage);
         }
         
-        int storyAuthorId = (int) resultOfGettingAuthorOfStory;
+        Integer storyAuthorId = (Integer) resultOfGettingAuthorOfStory;
+
+        if (storyAuthorId == null) {
+            errorMessage += "• There does not exist a story with the provided storyId\n";
+            throw new ResourceDoesNotExistException(errorMessage);
+        }
 
         Object resultOfCheckingIfAuthUserHasAccessToUser = this.userInfoFetchingService.checkIfUser1HasAccessToUser2(
             authUserId,
@@ -155,7 +164,7 @@ public class Mutations {
 
     @PostMapping("/uploadStoryOrStories/{authUserId}")
     public HashMap<String, Object> uploadStoryOrStories(HttpServletRequest request, HttpServletResponse
-    response, @RequestParam int authUserId, @RequestBody HashMap<String, Object> newStoryInfo, @RequestParam("files")
+    response, @RequestParam int authUserId, @RequestBody HashMap<String, Object> uploadInfo, @RequestParam("files")
     MultipartFile[] storySlideFilesToUpload) throws Exception {
         this.processRequest(this.getClientIpAddress(request), "/uploadStoryOrStories");
 
@@ -166,12 +175,35 @@ public class Mutations {
         }
 
         ArrayList<MultipartFile> storiesToUpload = new ArrayList<MultipartFile>();
+        HashMap<String, Integer> vidFileNamesAndTheirDurationInSeconds = (HashMap<String, Integer>) uploadInfo.getOrDefault(
+            "vidFileNamesAndTheirDurationInSeconds", 
+            null
+        );
+        HashMap<String, HashMap<String, String>> fileNamesAndTheirSponsorshipInfo =
+        (HashMap<String, HashMap<String, String>>) uploadInfo.getOrDefault(
+            "fileNamesAndTheirSponsorshipInfo", 
+            null
+        );
 
         for (MultipartFile storySlideFile : storySlideFilesToUpload) {
-            if (!storySlideFile.isEmpty() &&  (storySlideFile.getContentType().startsWith("image/") ||
-            storySlideFile.getContentType().startsWith("video/"))) {
-                storiesToUpload.add(storySlideFile);
+            if (storySlideFile.isEmpty()) {
+                continue;
             }
+
+            if (storySlideFile.getContentType().startsWith("video/")) {
+                String videoFileName = storySlideFile.getOriginalFilename();
+
+                Integer vidDurationInSeconds = vidFileNamesAndTheirDurationInSeconds.getOrDefault(
+                    videoFileName, 
+                    null
+                );
+
+                if (vidDurationInSeconds == null || vidDurationInSeconds > 60) {
+                    continue;
+                }
+            }
+
+            storiesToUpload.add(storySlideFile);
         }
 
         if (storiesToUpload.size() == 0) {
@@ -229,8 +261,9 @@ public class Mutations {
         }
 
         int numStoriesThatCanBeUploaded = (int) resultOfGettingNumUnexpiredStoriesOfUser;
+        numStoriesThatCanBeUploaded = 11 - numStoriesThatCanBeUploaded;
 
-        if (numStoriesThatCanBeUploaded == 11) {
+        if (numStoriesThatCanBeUploaded == 0) {
             errorMessage += "• You already have 11 unexpired stories at the moment, which is the maximum\n";
             throw new BadRequestException(errorMessage);
         }
@@ -238,21 +271,71 @@ public class Mutations {
         ArrayList<String> idsOfNewlyPostedStories = new ArrayList<String>();
 
         for(MultipartFile storyToUpload : storiesToUpload.subList(0, numStoriesThatCanBeUploaded)) {
+            String storyFileName = storyToUpload.getOriginalFilename();
+
             try {
                 UUID uuid = UUID.randomUUID();
                 String newStoryId = uuid.toString();
                 String[] partsOfStoryContentType = storyToUpload.getContentType().split("/");
 
+                HashMap<String, String> storyMetadata = new HashMap<String, String>();
+
+                if (vidFileNamesAndTheirDurationInSeconds.containsKey(storyFileName)) {
+                    storyMetadata.put("vidDurationInSeconds", vidFileNamesAndTheirDurationInSeconds.get(
+                        "vidFileNamesAndTheirDurationInSeconds"
+                    ).toString());
+                }
+
+                if (fileNamesAndTheirSponsorshipInfo.containsKey(storyFileName)) {
+                    HashMap<String, String> storySponsorshipInfo = fileNamesAndTheirSponsorshipInfo.get(storyFileName);
+
+                    if (storySponsorshipInfo.containsKey("adLink") && storySponsorshipInfo.containsKey("adCallToAction")) {
+                        String adLink = storySponsorshipInfo.get("adLink");
+                        boolean adLinkIsValid = true;
+
+                        if (adLink != null && adLink.length() <= 80) {
+                            try {
+                                new URL(adLink);
+                            }
+                            catch (MalformedURLException e) {
+                                adLinkIsValid = false;
+                            } 
+                        }
+                        else {
+                            adLinkIsValid = false;
+                            errorMessage += "• The ad's provided link for the sponsored file named '" + storyFileName + "\'" +
+                            "is invalid";
+                        }
+
+                        if (adLinkIsValid) {
+                            storyMetadata.put("adLink", adLink);
+
+                            String adCallToAction = storySponsorshipInfo.getOrDefault("adCallToAction", null);
+
+                            if (adCallToAction == null) {
+                                adCallToAction = "Learn more";
+                            }
+                            else if (adCallToAction.length() > 20) {
+                                adCallToAction = adCallToAction.substring(0, 17) + "...";
+                                errorMessage += "• The ad's call-to-action for the sponsored file named '" + storyFileName + "'" +
+                                "has been trimmed down to 17 characters followed by a '...'";
+                            }
+
+                            storyMetadata.put("adCallToAction", adCallToAction);
+                        }
+                    }
+                }
+
                 this.storyService.uploadFile(
                     authUserId + "/" + newStoryId + "." + partsOfStoryContentType[1], 
-                    storyToUpload
+                    storyToUpload,
+                    storyMetadata
                 );
 
                 idsOfNewlyPostedStories.add(newStoryId);
             }
             catch (Exception e) {
-                errorMessage += "• There was trouble uploading the file which had the name " +
-                storyToUpload.getOriginalFilename() + "\n";
+                errorMessage += "• There was trouble uploading the file which had the name " + storyFileName + "\n";
             }
         }
 

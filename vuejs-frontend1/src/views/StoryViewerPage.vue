@@ -22,13 +22,11 @@
         :vidStoriesAndTheirPreviewImages="vidStoriesAndTheirPreviewImages"
         :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
         :usernamesWhoseStoriesYouHaveFinished="new Set()"
-        :viewedStoryIds="viewedStoryIds"
         :updateUsersAndTheirStories="updateUsersAndTheirStories"
         :updateUsersAndTheirStoryPreviews="updateUsersAndTheirStoryPreviews"
         :updateUsersAndYourCurrSlideInTheirStories="updateUsersAndYourCurrSlideInTheirStories"
         :updateVidStoriesAndTheirPreviewImages="updateVidStoriesAndTheirPreviewImages"
         :addUsernameToSetOfUsersWhoseStoriesYouHaveFinished="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished"
-        :addStoryIdToSetOfViewedStoryIds="addStoryIdToSetOfViewedStoryIds"
         :closeStoryViewer="closeStoryViewer"
         :showErrorPopup="showErrorPopup"
     />
@@ -66,7 +64,7 @@ import { useRoute } from 'vue-router';
     const authUserId = ref(-1);
     const authUsername = ref('');
 
-    const storyId = ref(-1);
+    const storyId = ref('');
     const storyAuthorId = ref(-1);
     const storyAuthorUsername = ref('');
 
@@ -75,8 +73,6 @@ import { useRoute } from 'vue-router';
    
     const storyFetchingError = ref(false);
     const storyFetchingIsComplete = ref(false);
-
-    const viewedStoryIds = ref(new Set());
 
     const usersAndTheirRelevantInfo = ref({});
     const usersAndTheirStories = ref({});
@@ -99,11 +95,14 @@ import { useRoute } from 'vue-router';
 
             const newRouteParamsAuthorUsernameOrStoryId = newRouteParams.authorUsernameOrStoryId;
 
-            if (typeof newRouteParamsAuthorUsernameOrStoryId === 'string') {
+            if (isValidUsername(newRouteParamsAuthorUsernameOrStoryId)) {
                 storyAuthorUsername.value = newRouteParamsAuthorUsernameOrStoryId;
             }
-            else {
+            else if (isValidUUID(newRouteParamsAuthorUsernameOrStoryId)) {
                 storyId.value = newRouteParamsAuthorUsernameOrStoryId;
+            }
+            else {
+                window.location.href = 'http://34.111.89.101/Page/Not/Found/404';
             }
 
             const newRouteParamsAuthUsername = newRouteParams.authUsername;
@@ -263,16 +262,6 @@ import { useRoute } from 'vue-router';
     }
 
 
-    function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
-        viewedStoryIds.value = new Set(
-            [
-                ...viewedStoryIds.value, 
-                newlyViewedStoryId
-            ]
-        );
-    }
-
-
     function formatDatetimeString(datetimeString) {
         const givenDatetime = new Date(datetimeString);
         const currentDatetime = new Date();
@@ -318,6 +307,18 @@ import { useRoute } from 'vue-router';
     }
 
 
+    function isValidUUID(potentialUUID) {
+        const regex = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+        return regex.test(potentialUUID);
+    }
+
+
+    function isValidUsername(potentialUsername) {
+        const regex = /^[a-z0-9._]{1,30}$/;
+        return regex.test(potentialUsername);
+    }
+
+
     async function fetchTheNecessaryInfo() {
         const newUsersAndTheirRelevantInfo = {};
         const newUsersAndTheirStories = {};
@@ -354,13 +355,6 @@ import { useRoute } from 'vue-router';
                     }
                     storyAuthorUsername.value = storyAuthorUsernameValue;
 
-                    if (userStoryData.currSlide == -1) {
-                        storyFetchingError.value = true;
-                        storyFetchingIsComplete.value = true;
-                        showErrorPopup(`User ${storyAuthorUsernameValue} does not currently have any unexpired stories`);
-                        return;
-                    }
-
                     if (!(storyAuthorIdValue in newUsersAndTheirRelevantInfo)) {
                         newUsersAndTheirRelevantInfo[storyAuthorIdValue] = {};
                     }
@@ -371,12 +365,7 @@ import { useRoute } from 'vue-router';
                         return userStory
                     });
 
-                    if (userStoryData.currSlide === 'finished') {
-                        newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
-                    }
-                    else {
-                        newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
-                    }
+                    newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
                 }
             }
             catch (error) {
@@ -392,7 +381,7 @@ import { useRoute } from 'vue-router';
             storyAuthorUsernameValue = storyAuthorUsername.value;
         }
         
-        if (storyIdValue == -1) {
+        if (storyIdValue.length == 0) {
             try {
                 const response1 = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
                     method: 'POST',
@@ -440,7 +429,7 @@ import { useRoute } from 'vue-router';
             try {
                 const response2 = await fetch(
                 `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser/${authUserIdValue}
-                /${storyAuthorIdValue}`, {
+                /${storyAuthorIdValue}/true/false`, {
                     credentials: 'include'
                 });
 
@@ -465,28 +454,12 @@ import { useRoute } from 'vue-router';
                         return userStory
                     });
 
-                    const newViewedStoryIds = new Set([...viewedStoryIds.value]);
-
                     if (userStoryData.currSlide === 'finished') {
                         newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
-
-                        for(let story of userStoryData.stories) {
-                            newViewedStoryIds.add(story.id)
-                        }
                     }
                     else {
                         newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
-
-                        for(let story of userStoryData.stories) {
-                            newViewedStoryIds.add(story.id)
-                            
-                            if (story.id == userStoryData.currSlide) {
-                                break;
-                            }
-                        }
                     }
-
-                    viewedStoryIds.value = newViewedStoryIds;
                 }
             }
             catch (error) {
@@ -512,7 +485,8 @@ import { useRoute } from 'vue-router';
                 newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = false;
             }
             else {
-                newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = await response3.json();
+                const response3Data = await response3.json();
+                newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = response3Data.isVerified;
             }
         }
         catch (error) {
@@ -526,7 +500,7 @@ import { useRoute } from 'vue-router';
 
         try {
             const response4 = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotoOfUser/${authUserIdValue}
+            `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotoOfUser/${authUserIdValue}
             /${storyAuthorIdValue}`);
             if (!response4.ok) {
                 console.error(

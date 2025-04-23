@@ -52,8 +52,8 @@ color: 'white', zIndex: zIndex}">
         <div style="display: flex; flex-direction: column; margin-top: 1em; gap: 1em;">
             <div *ngIf="numSlides > 0" [ngStyle]="{display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center',
             gap: (2 / (numSlides - 1)) + '%', zIndex: '2'}">
-                <div *ngFor="let _ of [].constructor(numSlides); let index = index" [ngStyle]="{width: (90 / numSlides) + '%', height:
-                '3px', backgroundColor: '#918f8e'}">
+                <div *ngFor="let _ of [].constructor(numSlides); let index = index" [ngStyle]="{width: (90 / numSlides) + '%',
+                height: '3px', backgroundColor: '#918f8e'}">
                     <div [ngStyle]="{width: (currSlide > index ? 100 : currSlide == index ? currSlideProgressPercent : 0) + '%',
                     height: '100%', backgroundColor: 'white'}"></div>
                 </div>
@@ -117,6 +117,67 @@ color: 'white', zIndex: zIndex}">
                 <b>Sponsored: </b> {{ currStories[currSlide].adInfo.callToAction }}
             </a>
         </div>
+
+        <div *ngIf="replyToStoryTextareaIsActive && replyToStoryInput.length == 0" style="position: absolute; bottom: 10%; left:
+        0%; width: 100%; height: 20%; z-index: 2; display: flex; flex-direction: column; justify-content: center; align-items:
+        center; color: white;">
+            <h2>Quick Reactions</h2>
+
+            <div style="display: flex; align-items: center; gap: 1em; width: 100%; margin-top: -1em; justify-content: center;">
+                <p (click)="sendReplyToStory('😂')" style="font-size: 2em; cursor: pointer;">
+                    😂
+                </p>
+
+                <p (click)="sendReplyToStory('😍')" style="font-size: 2em; cursor: pointer;">
+                    😍
+                </p>
+
+                <p (click)="sendReplyToStory('🥳')" style="font-size: 2em; cursor: pointer;">
+                    🥳
+                </p>
+
+                <p (click)="sendReplyToStory('😎')" style="font-size: 2em; cursor: pointer;">
+                    😎
+                </p>
+
+                <p (click)="sendReplyToStory('😡')" style="font-size: 2em; cursor: pointer;">
+                    😡
+                </p>
+
+                <p (click)="sendReplyToStory('🥺')" style="font-size: 2em; cursor: pointer;">
+                    🥺
+                </p>
+
+                <p (click)="sendReplyToStory('😢')" style="font-size: 2em; cursor: pointer;">
+                    😢
+                </p>
+
+                <p (click)="sendReplyToStory('😮')" style="font-size: 2em; cursor: pointer;">
+                    😮
+                </p>
+
+                <p (click)="sendReplyToStory('💯')" style="font-size: 2em; cursor: pointer;">
+                    💯
+                </p>
+            </div>
+        </div>
+
+        <div *ngIf="numSlides > 0 && authUserId !== currStoryAuthorId" style="position: absolute; bottom: 0.5%; left: 0%;
+        width: 100%; height: 10%; z-index: 2; display: flex; gap: 2em; justify-content: center; align-items: center;">
+            <input [value]="replyToStoryInput" (input)="updateReplyToStoryInput($event)"
+            (focus)="pauseStoryProgression(); replyToStoryTextareaIsActive = true;"
+            (blur)="handleOnBlurOfReplyToStoryTextInput()"
+            [placeholder]="'Reply to @' + currStoryAuthorUsername + '...'" style="width: 66%; border-radius: 2em;
+            font-family: Arial; outline: none; resize: none; background-color: black; border-color: white;
+            color: white; height: 3.5em; padding-left: 1em; font-size: 0.95em;"/>
+
+            <button (click)="sendReplyToStory(replyToStoryInput)" [ngStyle]="{'padding': '0.8em 0.5em', 'width': '6em',
+            'background-color': '#4aa4ff', 'color': 'white', 'cursor': replyToStoryInput.length > 0 ? 'pointer' : '',
+            'border-radius': '0.5em', 'border': 'none', 'font-weight': 'bold', 'opacity': replyToStoryInput.length > 0 ? '1' :
+            '0.5'}">
+                Send
+            </button>
+        </div>
     </div>
 
     <div *ngIf="isFromStoriesSection" style="position: absolute; top: 50%; left: 6%; height: 40%; width: 25%; transform:
@@ -134,7 +195,8 @@ color: 'white', zIndex: zIndex}">
             0.7; border-radius: 5%; z-index: 2;"/>
     
             <div style="display: flex; flex-direction: column; align-items: center; z-index: 2; gap: 0.3em;">
-                <img [src]="usersAndTheirRelevantInfo[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]?.profilePhoto ?? 'images/defaultPfp.png'"
+                <img [src]="usersAndTheirRelevantInfo[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection -
+                absoluteDiff]]?.profilePhoto ?? 'images/defaultPfp.png'"
                 [ngStyle]="{height: '3.8em', width: '3.8em', objectFit: 'contain'}"/>
     
                 <b [ngStyle]="{marginTop: '0.5em', marginBottom: '-1em', overflowWrap: 'break-word', maxWidth: '7em'}">
@@ -146,7 +208,8 @@ color: 'white', zIndex: zIndex}">
                 ]?.datetime) ?? false" [ngStyle]="{fontSize: '0.90em', overflowWrap: 'break-word', maxWidth: '4em'}">
                     {{
                         usersAndTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]?.[
-                            usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection - absoluteDiff]]
+                            usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection -
+                            absoluteDiff]]
                         ]?.datetime
                     }}
                 </p>
@@ -168,14 +231,15 @@ color: 'white', zIndex: zIndex}">
         justify-content: center; align-items: center;">
             <img [src]="usersAndTheirStoryPreviews[orderedListOfUserIdsInStoriesSection[
                 currIndexInStoriesSection + absoluteDiff
-            ]] ?? 'images/defaultVideoFrame.jpg'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%; border-radius: 5%;
-            z-index: 1; object-fit: cover;"/>
+            ]] ?? 'images/defaultVideoFrame.jpg'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%;
+            border-radius: 5%; z-index: 1; object-fit: cover;"/>
     
             <img [src]="'images/blackScreen.png'" style="position: absolute; top: 0%; left: 0%; height: 100%; width: 100%; opacity: 
             0.7; border-radius: 5%; z-index: 2;"/>
     
             <div style="display: flex; flex-direction: column; align-items: center; z-index: 2; gap: 0.3em;">
-                <img [src]="usersAndTheirRelevantInfo[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]?.profilePhoto ?? 'images/defaultPfp.png'"
+                <img [src]="usersAndTheirRelevantInfo[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection +
+                absoluteDiff]]?.profilePhoto ?? 'images/defaultPfp.png'"
                 [ngStyle]="{height: '3.8em', width: '3.8em', objectFit: 'contain'}"/>
     
                 <b [ngStyle]="{marginTop: '0.5em', marginBottom: '-1em', overflowWrap: 'break-word', maxWidth: '7em'}">
@@ -187,7 +251,8 @@ color: 'white', zIndex: zIndex}">
                 ]?.datetime) ?? false" [ngStyle]="{fontSize: '0.90em', overflowWrap: 'break-word', maxWidth: '4em'}">
                     {{
                         usersAndTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]?.[
-                            usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection + absoluteDiff]]
+                            usersAndYourCurrSlideInTheirStories[orderedListOfUserIdsInStoriesSection[currIndexInStoriesSection +
+                            absoluteDiff]]
                         ]?.datetime
                     }}
                 </p>

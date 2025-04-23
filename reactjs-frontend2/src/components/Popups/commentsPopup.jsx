@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import Comment from '../../comment';
+import Comment from '../../Comment';
 import FollowUser from '../../followUser';
 import PostDots from '../../PostDots';
 import UserIcon from '../../userIcon';

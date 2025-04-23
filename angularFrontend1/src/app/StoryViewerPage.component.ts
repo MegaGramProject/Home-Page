@@ -22,7 +22,7 @@ export class StoryViewerPage {
   authUsername:string = '';
   authUsernameBS:BehaviorSubject<string> = new BehaviorSubject<string>('');
 
-  storyId:number = -1;
+  storyId:string = '';
   storyAuthorId:number = -1;
   storyAuthorUsername:string = '';
 
@@ -32,7 +32,6 @@ export class StoryViewerPage {
   storyFetchingError:boolean = false;
   storyFetchingIsComplete:boolean = false;
 
-  viewedStoryIds:Set<number> = new Set<number>();
   usernamesWhoseStoriesYouHaveFinished:Set<string> = new Set<string>();
 
   usersAndTheirRelevantInfo:any = {};
@@ -64,14 +63,16 @@ export class StoryViewerPage {
       }
     });
 
+    const authorUsernameOrStoryIdFromRouteParams:string = this.route.snapshot.paramMap.get('authorUsernameOrStoryId')!;
 
-    const authorUsernameOrStoryIdFromRouteParams = this.route.snapshot.paramMap.get('authorUsernameOrStoryId');
-
-    if (typeof authorUsernameOrStoryIdFromRouteParams === 'string') {
+    if (this.isValidUsername(authorUsernameOrStoryIdFromRouteParams)) {
       this.storyAuthorUsername = authorUsernameOrStoryIdFromRouteParams;
     }
-    else if (typeof authorUsernameOrStoryIdFromRouteParams === 'number') {
+    else if (this.isValidUUID(authorUsernameOrStoryIdFromRouteParams)) {
       this.storyId = authorUsernameOrStoryIdFromRouteParams;
+    }
+    else {
+      window.location.href = 'http://34.111.89.101/Page/Not/Found/404';
     }
 
     const authUsernameFromRouteParams = this.route.snapshot.paramMap.get('authUsername');
@@ -211,16 +212,6 @@ export class StoryViewerPage {
   }
 
 
-  addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId:number) {
-    this.viewedStoryIds = new Set(
-      [
-        ...this.viewedStoryIds, 
-        newlyViewedStoryId
-      ]
-    );
-  }
-  
-
   formatDatetimeString(datetimeString:string) {
     const givenDatetime:any = new Date(datetimeString);
     const currentDatetime:any = new Date();
@@ -266,6 +257,18 @@ export class StoryViewerPage {
   }
 
 
+  isValidUUID(potentialUUID:string) {
+    const regex = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+    return regex.test(potentialUUID);
+  }
+
+
+  isValidUsername(potentialUsername:string) {
+    const regex = /^[a-z0-9._]{1,30}$/;
+    return regex.test(potentialUsername);
+  }
+
+
   async fetchTheNecessaryInfo() {
     const newUsersAndTheirRelevantInfo:any = {};
     const newUsersAndTheirStories:any = {};
@@ -303,13 +306,6 @@ export class StoryViewerPage {
           }
           this.storyAuthorUsername = storyAuthorUsernameValue;
 
-          if (userStoryData.currSlide == -1) {
-            this.storyFetchingError = true;
-            this.storyFetchingIsComplete = true;
-            this.showErrorPopup(`User ${storyAuthorUsernameValue} does not currently have any unexpired stories`);
-            return;
-          }
-
           if (!(storyAuthorIdValue in newUsersAndTheirRelevantInfo)) {
               newUsersAndTheirRelevantInfo[storyAuthorIdValue] = {};
           }
@@ -322,12 +318,7 @@ export class StoryViewerPage {
             return userStory
           });
 
-          if (userStoryData.currSlide === 'finished') {
-              newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
-          }
-          else {
-              newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
-          }
+          newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
         }
       }
       catch (error) {
@@ -343,7 +334,7 @@ export class StoryViewerPage {
       storyAuthorUsernameValue = this.storyAuthorUsername;
     }
     
-    if (storyIdValue == -1) {
+    if (storyIdValue.length == 0) {
       try {
         const response1 = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
           method: 'POST',
@@ -391,7 +382,7 @@ export class StoryViewerPage {
       try {
         const response2 = await fetch(
         `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser/${authUserIdValue}
-        /${storyAuthorIdValue}`, {
+        /${storyAuthorIdValue}/true/false`, {
           credentials: 'include'
         });
 
@@ -417,29 +408,13 @@ export class StoryViewerPage {
             userStory.datetime = this.formatDatetimeString(userStory.datetime);
             return userStory
           });
-          
-          const newViewedStoryIds = new Set([...this.viewedStoryIds]);
 
           if (userStoryData.currSlide === 'finished') {
             newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
-
-            for(let story of userStoryData.stories) {
-              newViewedStoryIds.add(story.id)
-            }
           }
           else {
             newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
-
-            for(let story of userStoryData.stories) {
-              newViewedStoryIds.add(story.id)
-              
-              if (story.id == userStoryData.currSlide) {
-                break;
-              }
-            }
           }
-
-          this.viewedStoryIds = newViewedStoryIds;
         }
       }
       catch (error) {
@@ -465,7 +440,8 @@ export class StoryViewerPage {
         newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = false;
       }
       else {
-        newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = await response3.json();
+        const response3Data = await response3.json();
+        newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = response3Data.isVerified;
       }
     }
     catch (error) {
@@ -479,7 +455,7 @@ export class StoryViewerPage {
 
     try {
       const response4 = await fetch(
-      `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotoOfUser/${authUserIdValue}
+      `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotoOfUser/${authUserIdValue}
       /${storyAuthorIdValue}`);
       if (!response4.ok) {
         console.error(

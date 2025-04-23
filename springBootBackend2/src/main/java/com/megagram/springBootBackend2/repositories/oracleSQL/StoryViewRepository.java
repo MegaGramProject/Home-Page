@@ -16,10 +16,11 @@ public interface StoryViewRepository extends JpaRepository<StoryView, Integer> {
 
 
     @Query(
-        "SELECT sv.storyId FROM StoryView sv " +
-        "WHERE sv.storyId IN (:setOfIdsToInclude) AND sv.viewerId = :authUserId " +
-        "GROUP BY sv.storyId " +
-        "HAVING COUNT(sv.storyId) = 0"
+        "SELECT DISTINCT storyView.storyId FROM StoryView storyView " +
+        "WHERE storyView.storyId IN (:setOfIdsToInclude) AND storyView.storyId NOT IN (" +
+        "   SELECT DISTINCT sv.storyId FROM StoryView sv WHERE sv.viewerId = :authUserId AND " +
+        " sv.storyId IN (:setOfIdsToInclude)" +
+        ")"
     )
     HashSet<String> getIdsOfStoriesInSetThatAreNotViewedByUser(
         @Param("authUserId") int authUserId,

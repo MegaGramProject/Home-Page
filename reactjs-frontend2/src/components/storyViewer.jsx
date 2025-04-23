@@ -17,10 +17,9 @@ import { useEffect, useRef, useState } from 'react';
 function StoryViewer({authUserId, authUsername, authUsernameWasProvidedInRoute, storyAuthorUsername, storyAuthorId, zIndex,
 orderedListOfUserIdsInStoriesSection, orderedListOfUsernamesInStoriesSection, orderedListOfSponsorshipStatusesInStoriesSection,
 isFromStoriesSection, usersAndTheirStories, usersAndTheirStoryPreviews, usersAndYourCurrSlideInTheirStories,
-vidStoriesAndTheirPreviewImages, usersAndTheirRelevantInfo, usernamesWhoseStoriesYouHaveFinished, viewedStoryIds,
+vidStoriesAndTheirPreviewImages, usersAndTheirRelevantInfo, usernamesWhoseStoriesYouHaveFinished,
 updateUsersAndTheirStories, updateUsersAndTheirStoryPreviews, updateUsersAndYourCurrSlideInTheirStories,
-updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHaveFinished, addStoryIdToSetOfViewedStoryIds,
-closeStoryViewer, showErrorPopup}) {
+updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHaveFinished, closeStoryViewer, showErrorPopup}) {
     const [currStoryAuthorUsername, setCurrStoryAuthorUsername] = useState('');
     const [currStoryAuthorId, setCurrStoryAuthorId] = useState(-1);
 
@@ -161,9 +160,7 @@ closeStoryViewer, showErrorPopup}) {
                 );
             }
 
-            if(!(viewedStoryIds.has(currStoryId))) {
-                markStoryIdAsViewed(currStoryId);
-            }
+            addViewToStory(currStoryId);
     
             if(currStoriesValue[currSlideValue].vidDurationInSeconds==null) {
                 setRateOfStoryProgression(0.5);
@@ -327,6 +324,12 @@ closeStoryViewer, showErrorPopup}) {
     }
 
 
+    function convertByteArrayToBase64String(byteArray) {
+        const binaryString = String.fromCharCode(...byteArray);
+        return btoa(binaryString);
+    }
+
+
     async function getFirstFrameForPreviewImgOfVid(videoBase64String) {
         return new Promise((resolve, reject) => {
             const video = document.createElement('video');
@@ -403,22 +406,19 @@ closeStoryViewer, showErrorPopup}) {
     }
 
 
-    async function markStoryIdAsViewed(storyId) {
+    async function addViewToStory(storyId) {
         if (authUserId == -1) {
             return;
         } 
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/markStoryAsViewed/${authUserId}/${storyId}`, {
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/addViewToStory/${authUserId}/${storyId}`, {
                 method: 'POST',
                 credentials: 'include'
             });
             if (!response.ok) {
                 console.error(`The springBootBackend2 server had trouble mark story ${storyId} as viewed`);
-            }
-            else {
-                addStoryIdToSetOfViewedStoryIds(storyId);
             }
         }
         catch (error) {
@@ -439,12 +439,13 @@ closeStoryViewer, showErrorPopup}) {
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToIndividualUser/${authUserId}
-            /${currStoryAuthorId}`, {
+            `http://34.111.89.101/api/Home-Page/springBootBackend2/sendMessageToOneOrMoreUsersAndGroups/${authUserId}
+            /individually`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    messageToSend: `Replied to story ${currStories[currSlide].id}: ${replyToSend}`
+                    messageToSend: `Replied to story ${currStories[currSlide].id}: ${replyToSend}`,
+                    usersAndGroupsToSendTo: [`user/${currStoryAuthorId}`]
                 }),
                 credentials: 'include'
             });
@@ -505,42 +506,58 @@ closeStoryViewer, showErrorPopup}) {
 
         if (isFromStoriesSection) {
             const userIdsNeededForStoryPreviewFetching = [];
-            const currIndexInStoriesSectionValue = currIndexInStoriesSection;
             const userIdsAndTheirUsernames = {};
+            const storySponsorshipStatusesForUsers = [];
 
             if (currIndexInStoriesSectionValue + 1 < orderedListOfUserIdsInStoriesSection.length &&
             !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 1] in usersAndTheirStoryPreviews)) {
                 const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 1];
+                const storySponsorshipStatus = orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue + 1
+                ];
                 const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 1];
 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
 
             if (currIndexInStoriesSectionValue + 2 < orderedListOfUserIdsInStoriesSection.length &&
             !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 2] in usersAndTheirStoryPreviews)) {
                 const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue + 2];
+                const storySponsorshipStatus = orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue + 2
+                ];
                 const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue + 2];
 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
 
             if (currIndexInStoriesSectionValue - 1 > -1 &&
             !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 1] in usersAndTheirStoryPreviews)) {
                 const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 1];
+                const storySponsorshipStatus = orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue - 1
+                ];
                 const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 1];
 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
 
             if (currIndexInStoriesSectionValue - 2 > -1 &&
             !(orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 2] in usersAndTheirStoryPreviews)) {
                 const userId = orderedListOfUserIdsInStoriesSection[currIndexInStoriesSectionValue - 2];
+                const storySponsorshipStatus = orderedListOfSponsorshipStatusesInStoriesSection[
+                    currIndexInStoriesSectionValue - 2
+                ];
                 const username =  orderedListOfUsernamesInStoriesSection[currIndexInStoriesSectionValue - 2];
                 
                 userIdsNeededForStoryPreviewFetching.push(userId);
+                storySponsorshipStatusesForUsers.push(storySponsorshipStatus);
                 userIdsAndTheirUsernames[userId] = username;
             }
             
@@ -551,7 +568,8 @@ closeStoryViewer, showErrorPopup}) {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
-                            userIds: userIdsNeededForStoryPreviewFetching
+                            userIds: userIdsNeededForStoryPreviewFetching,
+                            storySponsorshipStatusesForUsers: storySponsorshipStatusesForUsers
                         }),
                         credentials: 'include'
                     });
@@ -559,19 +577,28 @@ closeStoryViewer, showErrorPopup}) {
                         console.error('The server had trouble providing some of the required story-previews');
                     }
                     else {
-                        const usersAndTheInfoOnTheirStoryPreviews = await response.json();
-                        const newUsersAndTheirStoryPreviews = {...usersAndTheirStoryPreviews};
-                        
-                        for(let userId of Object.keys(usersAndTheInfoOnTheirStoryPreviews)) {
-                            newUsersAndTheirStoryPreviews[userId] = usersAndTheInfoOnTheirStoryPreviews[userId].previewImg;
+                        let responseData = await response.json();
+                        let usersAndTheirStoryPreviewInfo = responseData.usersAndTheirStoryPreviewInfo;
 
-                            if (usersAndTheInfoOnTheirStoryPreviews[userId].currSlide === 'finished') {
-                                newUsersAndYourCurrSlideInTheirStories[userId] = 0;
-                                addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(userIdsAndTheirUsernames[userId]);
+                        const newUsersAndTheirStoryPreviews = {...usersAndTheirStoryPreviews};
+
+                        for(let userId of Object.keys(usersAndTheirStoryPreviewInfo)) {
+                            const userStoryPreviewInfo = usersAndTheirStoryPreviewInfo[userId];
+                            const storyId = userStoryPreviewInfo.storyId;
+                            const storyFileType = userStoryPreviewInfo.storyFileType;
+                            const storyFileBuffer = userStoryPreviewInfo.storyFileBuffer;
+
+                            if (storyFileType === 'image') {
+                                newUsersAndTheirStoryPreviews[userId] = storyFileBuffer;
                             }
                             else {
-                                newUsersAndYourCurrSlideInTheirStories[userId] = usersAndTheInfoOnTheirStoryPreviews[userId]
-                                .currSlide;
+                                const newVidStoriesAndTheirFirstFrames = {...vidStoriesAndTheirPreviewImages};
+                                newVidStoriesAndTheirFirstFrames[storyId] = await getFirstFrameForPreviewImgOfVid(
+                                    convertByteArrayToBase64String(storyFileBuffer)
+                                );
+                                updateVidStoriesAndTheirPreviewImages(newVidStoriesAndTheirFirstFrames);
+
+                                newUsersAndTheirStoryPreviews[userId] = newVidStoriesAndTheirFirstFrames[storyId];
                             }
                         }
 
@@ -589,10 +616,15 @@ closeStoryViewer, showErrorPopup}) {
         const authUserIdValue = authUserId;
 
         if(!(currStoryAuthorIdValue in usersAndTheirStories)) {
+            let onlyShowSponsoredStories = false;
+            if (isFromStoriesSection && orderedListOfSponsorshipStatusesInStoriesSection[currIndexInStoriesSectionValue] == true) {
+                onlyShowSponsoredStories = true;
+            }
+
             try {
                 const response1 = await fetch(
                 `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser/${authUserIdValue}
-                /${currStoryAuthorIdValue}`, {
+                /${currStoryAuthorIdValue}/true/${onlyShowSponsoredStories}`, {
                     credentials: 'include'
                 });
 
@@ -622,10 +654,6 @@ closeStoryViewer, showErrorPopup}) {
 
                         addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
 
-                        for(let story of userStoryData.stories) {
-                            addStoryIdToSetOfViewedStoryIds(story.id);
-                        }
-
                         handleChangeInStory(userStoryData.stories, 0);
                     }
                     else if (userStoryData.currSlide == -1) {
@@ -637,15 +665,6 @@ closeStoryViewer, showErrorPopup}) {
                         setCurrSlide(userStoryData.currSlide);
 
                         newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = userStoryData.currSlide;
-                        
-                        for(let i=0; i<userStoryData.stories.length; i++) {
-                            if (i == userStoryData.currSlide) {
-                                break;
-                            }
-
-                            const story = userStoryData.stories[i];
-                            addStoryIdToSetOfViewedStoryIds(story.id);
-                        }
 
                         handleChangeInStory(userStoryData.stories, userStoryData.currSlide);
                     }

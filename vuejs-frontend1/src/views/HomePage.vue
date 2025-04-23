@@ -51,13 +51,11 @@
         :vidStoriesAndTheirPreviewImages="vidStoriesAndTheirPreviewImages"
         :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
         :usernamesWhoseStoriesYouHaveFinished="usernamesWhoseStoriesYouHaveFinished"
-        :viewedStoryIds="viewedStoryIds"
         :updateUsersAndTheirStories="updateUsersAndTheirStories"
         :updateUsersAndTheirStoryPreviews="updateUsersAndTheirStoryPreviews"
         :updateUsersAndYourCurrSlideInTheirStories="updateUsersAndYourCurrSlideInTheirStories"
         :updateVidStoriesAndTheirPreviewImages="updateVidStoriesAndTheirPreviewImages"
         :addUsernameToSetOfUsersWhoseStoriesYouHaveFinished="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished"
-        :addStoryIdToSetOfViewedStoryIds="addStoryIdToSetOfViewedStoryIds"
         :closeStoryViewer="closeStoryViewer"
         :showErrorPopup="showErrorPopup"
     />
@@ -193,7 +191,6 @@ import { useRoute } from 'vue-router';
     const fetchingStoriesIsComplete = ref(false);
     const storiesSectionErrorMessage = ref('');
     const usernamesWhoseStoriesYouHaveFinished = ref(new Set());
-    const viewedStoryIds = ref(new Set());
     const usersAndTheirStories = ref({});
     const usersAndTheirStoryPreviews = ref({});
     const usersAndYourCurrSlideInTheirStories = ref({});
@@ -508,16 +505,6 @@ import { useRoute } from 'vue-router';
             [
                 ...usernamesWhoseStoriesYouHaveFinished.value,
                 newFinishedUsername
-            ]
-        );
-    }
-
-
-    function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
-        viewedStoryIds.value = new Set(
-            [
-                ...viewedStoryIds.value, 
-                newlyViewedStoryId
             ]
         );
     }

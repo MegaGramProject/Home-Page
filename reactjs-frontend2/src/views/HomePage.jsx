@@ -1,5 +1,5 @@
 import AboutAccountPopup from '../components/Popups/AboutAccountPopup';
-import CommentsPopup from '../components/Popups/commentsPopup';
+import CommentsPopup from '../components/Popups/CommentsPopup';
 import ErrorPopup from '../components/Popups/ErrorPopup';
 import LeftSidebarPopup from '../components/Popups/LeftSidebarPopup';
 import LikersPopup from '../components/Popups/LikersPopup';
@@ -8,7 +8,7 @@ import ThreeDotsPopup from '../components/Popups/ThreeDotsPopup';
 
 import Footer from '../components/Footer';
 import LeftSidebar from '../components/LeftSidebar';
-import MediaPost from '../components/mediaPost';
+import MediaPost from '../components/MediaPost';
 import StoryViewer from '../components/StoryViewer';
 import UserBar from '../components/UserBar';
 import UserIcon from '../components/UserIcon';
@@ -55,7 +55,6 @@ function HomePage({urlParams}) {
     const [fetchingStoriesIsComplete, setFetchingStoriesIsComplete] = useState(false);
     const [storiesSectionErrorMessage, setStoriesSectionErrorMessage] = useState('');
     const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
-    const [viewedStoryIds, setViewedStoryIds] = useState(new Set());
     const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
     const [usersAndTheirStoryPreviews, setUsersAndTheirStoryPreviews] = useState({});
     const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
@@ -1106,16 +1105,6 @@ function HomePage({urlParams}) {
     }
 
 
-    function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
-        setViewedStoryIds(new Set(
-            [
-                ...viewedStoryIds, 
-                newlyViewedStoryId
-            ]
-        ));
-    }
-
-
     return (
         <>
             {authUsername.length>0 &&
@@ -1442,7 +1431,6 @@ function HomePage({urlParams}) {
                                 usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
                                 vidStoriesAndTheirPreviewImages={vidStoriesAndTheirPreviewImages}
                                 usernamesWhoseStoriesYouHaveFinished={usernamesWhoseStoriesYouHaveFinished}
-                                viewedStoryIds={viewedStoryIds}
                                 updateUsersAndTheirStories={updateUsersAndTheirStories}
                                 updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
                                 updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
@@ -1450,7 +1438,6 @@ function HomePage({urlParams}) {
                                 addUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
                                     addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
                                 }
-                                addStoryIdToSetOfViewedStoryIds={addStoryIdToSetOfViewedStoryIds}
                                 closeStoryViewer={closeStoryViewer}
                                 showErrorPopup={showErrorPopup}
                             />

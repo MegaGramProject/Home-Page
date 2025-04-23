@@ -79,3 +79,9 @@ Route::middleware('throttle:3,1')->delete(
     '/deleteOwnProfilePhoto/{authUserId}',
     [BackendController::class, 'deleteOwnProfilePhoto']
 );
+
+
+Route::middleware('throttle:8,1')->get(
+    '/getVerificationStatusOfUser/{authUserId}/{userId}',
+    [BackendController::class, 'getVerificationStatusOfUser']
+);

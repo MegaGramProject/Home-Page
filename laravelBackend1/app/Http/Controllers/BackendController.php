@@ -223,7 +223,7 @@ class BackendController extends Controller {
         }
 
         return response()->json([
-            'errorMessage' => $errorMessage,
+            'ErrorMessage' => $errorMessage,
             'bgMusicOfPost' => $bgMusicOfPost
         ], 200);
     }
@@ -542,7 +542,7 @@ class BackendController extends Controller {
         }
 
         return response()->json([
-            'errorMessage' => $errorMessage
+            'ErrorMessage' => $errorMessage
         ], 200);        
     }
 
@@ -1399,7 +1399,7 @@ class BackendController extends Controller {
         }
 
         return response()->json([
-            'errorMessage' => $errorMessage
+            'ErrorMessage' => $errorMessage
         ], 200);
     }
 
@@ -1718,7 +1718,7 @@ class BackendController extends Controller {
 
         return response()->json([
             'overallPostIdsAndTheirVidSubtitles' => $overallPostIdsAndTheirVidSubtitles,
-            'errorMessage' => $errorMessage
+            'ErrorMessage' => $errorMessage
         ], 200);
     }
 
@@ -2110,7 +2110,7 @@ class BackendController extends Controller {
         }
 
         return response()->json([
-            'errorMessage' => $errorMessage
+            'ErrorMessage' => $errorMessage
         ], 200);
     }
 
@@ -2254,7 +2254,7 @@ class BackendController extends Controller {
         }
 
         return response()->json([
-            'errorMessage' => $errorMessage
+            'ErrorMessage' => $errorMessage
         ], 200);
     }
 
@@ -2469,8 +2469,6 @@ class BackendController extends Controller {
             }
         }
 
-        $usersProfilePhotoStatusIsCached = false;
-
         try {
             $redisResult = $this->redisClient->hGet(
                 "dataForUser$userId",
@@ -2480,8 +2478,6 @@ class BackendController extends Controller {
             if ($redisResult == false) {
                 return response("The profile photo of user $userId could not be found", 404);
             }
-
-            $usersProfilePhotoStatusIsCached = true;
         }
         catch (\Exception) {
             //pass
@@ -2497,19 +2493,6 @@ class BackendController extends Controller {
             return response("There was trouble fetching the profile-photo of user $userId.", 502);
         }
 
-
-        if (!$usersProfilePhotoStatusIsCached) {
-            try {
-                $this->redisClient->hSet(
-                    "dataForUser$userId",
-                    'hasProfilePhoto',
-                    $profilePhoto !== null ? 'true' : 'false'
-                );
-            }
-            catch (\Exception) {
-                //pass
-            }
-        }
 
         if ($profilePhoto == null) {
             return response("The profile photo of user $userId, if they even exist, could not be found", 404);
@@ -2866,7 +2849,7 @@ class BackendController extends Controller {
             return response('There does not exist a user with the provided authUserId.', 400);
         }
 
-        $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+        $userAuthenticationResult = $this->userAuthService->authenticateUser(
             $authUserId, $request
         );
 
@@ -2946,6 +2929,151 @@ class BackendController extends Controller {
             $profilePhotoWasFoundAndDeleted,
             200
         );
+    }
+
+
+    public function getVerificationStatusOfUser(Request $request, int $authUserId, int $userId) {
+        if ($authUserId < 1 && $authUserId !== -1) {
+            return response(
+                'There does not exist a user with the provided authUserId. If you are just an anonymous guest, you must set the
+                authUserId to -1.',
+                400
+            );
+        }
+
+        if ($userId < 1) {
+            return response(
+                'There does not exist a user with the provided userId.',
+                400
+            );
+        }
+
+        $authUserIsAnonymousGuest = $authUserId == -1;
+
+        if (!$authUserIsAnonymousGuest) {
+            $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+                $authUserId, $request
+            );
+
+            if (is_bool($userAuthenticationResult)) {
+                if (!$userAuthenticationResult) {
+                    return response(
+                        "The expressJSBackend1 server could not verify you as having the proper
+                        credentials to be logged in as $authUserId",
+                        403
+                    );
+                }
+            }
+            else if (is_string($userAuthenticationResult)) {  
+                if ($userAuthenticationResult === 'The provided authUser token, if any, in your cookies has an
+                invalid structure.')  {  
+                    return response($userAuthenticationResult, 403);  
+                }  
+                return response($userAuthenticationResult, 502);  
+            }  
+            else {  
+                $refreshedAuthToken = $userAuthenticationResult[0];  
+                $expirationDate = $userAuthenticationResult[1];  
+
+                setcookie(
+                    "authToken$authUserId",
+                    $refreshedAuthToken,
+                    $expirationDate,
+                    '/',
+                    '',
+                    true,
+                    true
+                );
+            }  
+        }
+
+        if (!$authUserIsAnonymousGuest) {
+            try {
+                $response = Http::get(
+                    "http://34.111.89.101/api/Home-Page/djangoBackend2/checkIfUserIsInBlockingsOfAuthUser/$authUserId/$userId"
+                );
+    
+                if ($response->failed()) {
+                    return response(
+                        "The djangoBackend2 server had trouble checking whether or not user $userId is in your blockings",
+                        502
+                    );
+                }
+    
+                $stringifiedResponseData = $response->body();
+                $userIsInBlockingsOfAuthUser = json_decode($stringifiedResponseData);
+                
+                if ($userIsInBlockingsOfAuthUser) {
+                    return response("The user $userId does not exist", 404);
+                }
+            }
+            catch (\Exception) {
+                return response(
+                    "There was trouble connecting to the djangoBackend2 server to check whether or not user $userId is in your
+                    blockings",
+                    502
+                );
+            }
+        }
+
+        $errorMessage = '';
+
+        try {
+            $redisResult = $this->redisClient->hGet(
+                "dataForUser$userId",
+                'isVerified'
+            );
+            
+            if ($redisResult == 'true') {
+                return response(
+                    [
+                        'isVerified' => true,
+                        'ErrorMessage' => $errorMessage
+                    ],
+                    200
+                );
+            }
+            else if ($redisResult == 'false') {
+                return response(
+                    [
+                        'isVerified' => false,
+                        'ErrorMessage' => $errorMessage
+                    ],
+                    200
+                );
+            }
+
+            $errorMessage .= "• The user $userId does not exist\n";
+            return response($errorMessage, 404);
+        }
+        catch (\Exception) {
+            $errorMessage .= "• There was trouble fetching the verification-status of user $userId from the Redis-cache\n";
+        }
+
+        try {
+            $verificationStatusOfUser = PublicUser::where('id', $userId)->value('isVerified');
+            
+            if ($verificationStatusOfUser == null) {
+                $verificationStatusOfUser = PrivateUser::where('id', $userId)->value('isVerified');
+                
+                if ($verificationStatusOfUser == null) {
+                    $errorMessage .= "• The user $userId does not exist\n";
+                    return response($errorMessage, 404);
+                }
+            }
+            
+            return response(
+                [
+                    'isVerified' => $verificationStatusOfUser,
+                    'ErrorMessage' => $errorMessage
+                ],
+                200
+            );
+        }
+        catch (\Exception) {
+            $errorMessage .= "• There was trouble fetching the asked-for data from the database\n";
+            return response($errorMessage, 502);
+        }
     }
 
 

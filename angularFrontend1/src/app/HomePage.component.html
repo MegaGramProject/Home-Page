@@ -48,13 +48,11 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
     [vidStoriesAndTheirPreviewImages]="vidStoriesAndTheirPreviewImages"
     [usersAndTheirRelevantInfo]="usersAndTheirRelevantInfo"
     [usernamesWhoseStoriesYouHaveFinished]="usernamesWhoseStoriesYouHaveFinished"
-    [viewedStoryIds]="viewedStoryIds"
     (updateUsersAndTheirStories)="updateUsersAndTheirStories($event)"
     (updateUsersAndTheirStoryPreviews)="updateUsersAndTheirStoryPreviews($event)"
     (updateUsersAndYourCurrSlideInTheirStories)="updateUsersAndYourCurrSlideInTheirStories($event)"
     (updateVidStoriesAndTheirPreviewImages)="updateVidStoriesAndTheirPreviewImages($event)"
     (addUsernameToSetOfUsersWhoseStoriesYouHaveFinished)="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished($event)"
-    (addStoryIdToSetOfViewedStoryIds)="addStoryIdToSetOfViewedStoryIds($event)"
     (closeStoryViewer)="closeStoryViewer()"
     (showErrorPopup)="showErrorPopup($event)"
 />

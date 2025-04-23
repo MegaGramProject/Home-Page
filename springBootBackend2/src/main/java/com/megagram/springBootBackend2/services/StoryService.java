@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +22,9 @@ import com.azure.storage.blob.models.BlobItem;
 @Service
 public class StoryService {
     private final BlobContainerClient azureBlobStorageClient;
+    private final ArrayList<String> videoFileExtensions = (ArrayList<String>) Arrays.asList(
+        "mp4", "mkv", "avi", "mov", "flv", "wmv", "webm", "mpeg", "mpg", "3gp"
+    );
 
 
     public StoryService(@Value("${azure.storage.account-name}") String accountName,
@@ -69,9 +73,15 @@ public class StoryService {
     }
 
 
-    public Object getAuthorOfStory(String storyId) {
+    public Object getAuthorOfStory(String storyId, boolean onlyShowUnexpired) {
+        OffsetDateTime twoWeeksAgo = OffsetDateTime.now().minusWeeks(2);
+
         try {
             for (BlobItem imgOrVidStorySlideFile : this.azureBlobStorageClient.listBlobs()) {
+                if (onlyShowUnexpired && !(imgOrVidStorySlideFile.getProperties().getLastModified().isAfter(twoWeeksAgo))) {
+                    continue;
+                }
+
                 String[] partsOfFileName = imgOrVidStorySlideFile.getName().split("/");
                 String idOfThisStory = partsOfFileName[1].substring(0, partsOfFileName[1].indexOf("."));
                 
@@ -107,44 +117,66 @@ public class StoryService {
     }
 
 
-    public Object getOrderedStoriesOfUser(int userId) {
+    public Object getOrderedStoriesOfUser(int userId, boolean onlyShowUnexpired, boolean onlyShowSponsoredStories) {
         OffsetDateTime twoWeeksAgo = OffsetDateTime.now().minusWeeks(2);
         ArrayList<HashMap<String, Object>> orderedStoriesOfUser = new ArrayList<HashMap<String, Object>>();
 
         try {
             for (BlobItem imgOrVidStorySlideFile : this.azureBlobStorageClient.listBlobs()) {
-                if (imgOrVidStorySlideFile.getProperties().getLastModified().isAfter(twoWeeksAgo)) {
-                    String[] partsOfFileName = imgOrVidStorySlideFile.getName().split("/");
-                    String authorIdAsString = partsOfFileName[0];
-                    int authorId = Integer.parseInt(authorIdAsString);
+                if (onlyShowUnexpired && !(imgOrVidStorySlideFile.getProperties().getLastModified().isAfter(twoWeeksAgo))) {
+                    continue;
+                }
 
-                    if (authorId == userId) {
-                        String storyId = partsOfFileName[1].substring(0, partsOfFileName[1].indexOf("."));
+                String storyFileName = imgOrVidStorySlideFile.getName();
+                String[] partsOfStoryFileName = storyFileName.split("/");
+                String authorIdAsString = partsOfStoryFileName[0];
+                int authorId = Integer.parseInt(authorIdAsString);
+
+                if (authorId == userId) {
+                    String storyId = partsOfStoryFileName[1].substring(0, partsOfStoryFileName[1].indexOf("."));
+                    
+                    try {
+                        BlobClient blobClient = azureBlobStorageClient.getBlobClient(storyFileName);
+
+                        HashMap<String, String> storyMetadata = (HashMap<String, String>) blobClient.getProperties().getMetadata();
+
+                        String adLink = storyMetadata.getOrDefault("adLink", null);
+                        if (onlyShowSponsoredStories && adLink == null) {
+                            continue;
+                        }
+
+                        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                        blobClient.downloadStream(outputStream);
+
+                        HashMap<String, Object> newStoryForUser = new HashMap<String, Object>();
+                        newStoryForUser.put("id", storyId);
+
+                        newStoryForUser.put("datetime", imgOrVidStorySlideFile.getProperties().getLastModified());
+                        newStoryForUser.put("src", outputStream.toByteArray());
+
+                        String vidDurationInSecondsAsString = storyMetadata.getOrDefault(
+                            "vidDurationInSeconds", 
+                            null
+                        );
                         
-                        try {
-                            BlobClient blobClient = azureBlobStorageClient.getBlobClient(userId+"/"+storyId);
-                            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                            blobClient.downloadStream(outputStream);
-
-                            HashMap<String, Object> newStoryForUser = new HashMap<String, Object>();
-                            newStoryForUser.put("id", storyId);
-                            
-                            String contentType = imgOrVidStorySlideFile.getProperties().getContentType();
-                            if (contentType.startsWith("image/")) {
-                                newStoryForUser.put("type", "image");
-                            }
-                            else {
-                                newStoryForUser.put("type", "video");
-                            }
-
-                            newStoryForUser.put("datetime", imgOrVidStorySlideFile.getProperties().getLastModified());
-                            newStoryForUser.put("story", outputStream.toByteArray());
-                            orderedStoriesOfUser.add(newStoryForUser);
+                        if (vidDurationInSecondsAsString != null) {
+                            int vidDurationInSeconds = Integer.parseInt(vidDurationInSecondsAsString);
+                            newStoryForUser.put("vidDurationInSeconds", vidDurationInSeconds);
                         }
-                        catch (Exception e) {
-                            //pass
+
+                        if (adLink != null) {
+                            String adCallToAction = storyMetadata.get("adCallToAction");
+
+                            HashMap<String, String> adInfo = new HashMap<String, String>();
+                            adInfo.put("link", adLink);
+                            adInfo.put("callToAction", adCallToAction);
+
+                            newStoryForUser.put("adInfo", adInfo);
                         }
+
+                        orderedStoriesOfUser.add(newStoryForUser);
                     }
+                    catch (Exception e) {}
                 }
             }
 
@@ -156,8 +188,84 @@ public class StoryService {
         }
         catch (Exception e) {
             return new String[] {
-                "There was trouble getting ids and their authors of the unexpired stories posted by users " +
-                "in the provided set",
+                "There was trouble getting ids and their authors of the stories posted by users in the provided set",
+                "BAD_GATEWAY"
+            };
+        }
+    }
+
+
+    public Object getUnexpiredOrderedStoriesOfMultipleUsers(HashSet<Integer> setOfUserIds, HashMap<Integer, Boolean>
+    usersAndTheirStorySponsorshipStatuses) {
+        HashMap<Integer, ArrayList<HashMap<String, Object>>> usersAndTheirOrderedStories = new HashMap<Integer,
+        ArrayList<HashMap<String, Object>>> ();
+
+        for(int userId : setOfUserIds) {
+            usersAndTheirOrderedStories.put(userId, new ArrayList<HashMap<String, Object>>()); 
+        }
+
+        OffsetDateTime twoWeeksAgo = OffsetDateTime.now().minusWeeks(2);
+
+        try {
+            for (BlobItem imgOrVidStorySlideFile : this.azureBlobStorageClient.listBlobs()) {
+                if (!(imgOrVidStorySlideFile.getProperties().getLastModified().isAfter(twoWeeksAgo))) {
+                    continue;
+                }
+
+                String storyFileName = imgOrVidStorySlideFile.getName();
+                String[] partsOfStoryFileName = storyFileName.split("/");
+                String storyAuthorIdAsString = partsOfStoryFileName[0];
+                int storyAuthorId = Integer.parseInt(storyAuthorIdAsString);
+                boolean storyIsToBeSponsored = usersAndTheirStorySponsorshipStatuses.get(storyAuthorId);
+
+                if (storyIsToBeSponsored) {
+                    try {
+                        BlobClient blobClient = azureBlobStorageClient.getBlobClient(storyFileName);
+    
+                        HashMap<String, String> storyMetadata = (HashMap<String, String>) blobClient.getProperties().getMetadata();
+        
+                        String adLink = storyMetadata.getOrDefault("adLink", null);
+                        if (adLink == null) {
+                            continue;
+                        }
+                    }
+                    catch (Exception e) {
+                        continue;
+                    }
+                }
+
+                if (setOfUserIds.contains(storyAuthorId)) {
+                    String storyId = partsOfStoryFileName[1].substring(0, partsOfStoryFileName[1].indexOf("."));
+
+                    HashMap<String, Object> storyInfo = new HashMap<String, Object>();
+
+                    storyInfo.put("id", storyId);
+                    storyInfo.put("filename", storyFileName);
+
+                    String storyFileExtension = partsOfStoryFileName[1].substring(partsOfStoryFileName[1].indexOf(".") + 1);
+                    
+                    if (this.videoFileExtensions.contains(storyFileExtension)) {
+                        storyInfo.put("type", "video");
+                    }
+                    else {
+                        storyInfo.put("type", "image");
+                    }
+
+                    usersAndTheirOrderedStories.get(storyAuthorId).add(storyInfo);
+                }
+            }
+
+            for(int userId: setOfUserIds) {
+                usersAndTheirOrderedStories.get(userId).sort(
+                    Comparator.comparing(story -> ((OffsetDateTime) story.get("datetime")).toInstant())
+                );
+            }
+
+            return usersAndTheirOrderedStories;
+        }
+        catch (Exception e) {
+            return new String[] {
+                "There was trouble getting the ordered stories of the users in the provided set",
                 "BAD_GATEWAY"
             };
         }
@@ -192,9 +300,13 @@ public class StoryService {
     }
 
 
-    public boolean uploadFile(String filename, MultipartFile file) throws IOException {
+    public boolean uploadFile(String filename, MultipartFile file, HashMap<String, String> fileMetadata) throws IOException {
         BlobClient blobClient = azureBlobStorageClient.getBlobClient(filename);
         blobClient.upload(file.getInputStream(), file.getSize(), true);
+
+        if (!fileMetadata.isEmpty()) {
+            blobClient.setMetadata(fileMetadata);
+        }
         return true;
     }
 
@@ -210,5 +322,4 @@ public class StoryService {
 
         return false;
     }
-    
 }

@@ -61,127 +61,20 @@ export class HomePage {
 
   displayCommentsPopup:boolean = false;
 
-  displayStoryViewer:boolean = true;
+  displayStoryViewer:boolean = false;
   currStoryLevel:number = 0;
-  storyViewerIsFromStoriesSection:boolean = true;
-  storyViewerMainUserId:number = 4;
-  storyViewerMainUsername:string = 'rishavry4';
-  orderedListOfUserIdsInStoriesSection:number[] = [2, 3, 4, 5, 6];
-  orderedListOfUsernamesInStoriesSection:string[] = ['rishavry2', 'rishavry3', 'rishavry4', 'rishavry5', 'rishavry6'];
-  orderedListOfSponsorshipStatusesInStoriesSection:boolean[] = [false, false, false, true, true];
+  storyViewerIsFromStoriesSection:boolean = false;
+  storyViewerMainUserId:number = -1;
+  storyViewerMainUsername:string = '';
+  orderedListOfUserIdsInStoriesSection:number[] = [];
+  orderedListOfUsernamesInStoriesSection:string[] = [];
+  orderedListOfSponsorshipStatusesInStoriesSection:boolean[] = [];
   fetchingStoriesIsComplete:boolean = false;
   storiesSectionErrorMessage:string = '';
   usernamesWhoseStoriesYouHaveFinished:Set<string> = new Set();
-  viewedStoryIds:Set<number> = new Set();
-  usersAndTheirStories:any = {
-    2: [
-      {
-        id: 1,
-        src: 'misc/dogVid.mp4',
-        datetime: '3h',
-        adInfo: {
-          link: 'https://www.google.com',
-          callToAction: 'Learn something new on Google right now!'
-        },
-        vidDurationInSeconds: 60
-      },
-      {
-        id: 2,
-        src: 'images/hotAirBalloonScenery.jpg',
-        datetime: '21m',
-        adInfo: null,
-        vidDurationInSeconds: null
-      }
-    ],
-    3: [
-    {
-        id: 3,
-        src: 'misc/dogVid.mp4',
-        datetime: '3h',
-        adInfo: {
-          link: 'https://www.google.com',
-          callToAction: 'Learn something new on Google right now!'
-        },
-        vidDurationInSeconds: 60
-      },
-      {
-        id: 4,
-        src: 'images/hotAirBalloonScenery.jpg',
-        datetime: '21m',
-        adInfo: null,
-        vidDurationInSeconds: null
-      }
-    ],
-    4: [
-        {
-          id: 5,
-          src: 'misc/dogVid.mp4',
-          datetime: '3h',
-          adInfo: {
-            link: 'https://www.google.com',
-            callToAction: 'Learn something new on Google right now!'
-          },
-          vidDurationInSeconds: 60
-        },
-        {
-          id: 6,
-          src: 'images/hotAirBalloonScenery.jpg',
-          datetime: '21m',
-          adInfo: null,
-          vidDurationInSeconds: null
-        }
-    ],
-    5: [
-        {
-          id: 7,
-          src: 'misc/dogVid.mp4',
-          datetime: '3h',
-          adInfo: {
-            link: 'https://www.google.com',
-            callToAction: 'Learn something new on Google right now!'
-          },
-          vidDurationInSeconds: 60
-        },
-        {
-          id: 8,
-          src: 'images/hotAirBalloonScenery.jpg',
-          datetime: '21m',
-          adInfo: null,
-          vidDurationInSeconds: null
-        }
-    ],
-    6: [
-      {
-        id: 9,
-        src: 'misc/dogVid.mp4',
-        datetime: '3h',
-        adInfo: {
-          link: 'https://www.google.com',
-          callToAction: 'Learn something new on Google right now!'
-        },
-        vidDurationInSeconds: 60
-      },
-      {
-        id: 20,
-        src: 'images/hotAirBalloonScenery.jpg',
-        datetime: '21m',
-        adInfo: null,
-        vidDurationInSeconds: null
-      }
-    ]
-  };
-  usersAndTheirStoryPreviews:any = {
-    1: 'images/hotAirBalloonScenery.jpg',
-    3: 'images/hotAirBalloonScenery.jpg',
-    5: 'images/hotAirBalloonScenery.jpg'
-  };
-  usersAndYourCurrSlideInTheirStories:any = {
-    2: 0,
-    3: 0,
-    4: 0,
-    5: 0,
-    6: 0
-  };
+  usersAndTheirStories:any = {};
+  usersAndTheirStoryPreviews:any = {};
+  usersAndYourCurrSlideInTheirStories:any = {};
   vidStoriesAndTheirPreviewImages:any = {};
 
   usersAndTheirRelevantInfo:any = {};
@@ -497,16 +390,6 @@ export class HomePage {
       [
         ...this.usernamesWhoseStoriesYouHaveFinished,
         newFinishedUsername
-      ]
-    );
-  }
-
-
-  addStoryIdToSetOfViewedStoryIds(newViewedStoryId: number) {
-    this.viewedStoryIds = new Set(
-      [
-        ...this.viewedStoryIds,
-        newViewedStoryId
       ]
     );
   }

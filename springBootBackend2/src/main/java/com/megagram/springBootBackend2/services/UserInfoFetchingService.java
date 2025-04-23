@@ -142,7 +142,7 @@ public class UserInfoFetchingService {
     }
 
 
-    public Object getIsPrivateStatusesOfUser(int authUserId, int[] userIds) {
+    public Object getIsPrivateStatusesOfMultipleUsers(int authUserId, int[] userIds) {
         try {
             URL url = new URL("http://34.111.89.101/api/Home-Page/laravelBackend1/graphql");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -279,7 +279,7 @@ public class UserInfoFetchingService {
         int[] userIds = new int[1];
         userIds[0] = user2;
 
-        Object resultOfGettingIsPrivateStatusOfUser =  this.getIsPrivateStatusesOfUser(
+        Object resultOfGettingIsPrivateStatusOfUser =  this.getIsPrivateStatusesOfMultipleUsers(
             user1,
             userIds
         );
@@ -289,6 +289,10 @@ public class UserInfoFetchingService {
         int[] isPrivateStatusesOfList = (int[]) resultOfGettingIsPrivateStatusOfUser;
         
         if (isPrivateStatusesOfList[0] == 1) {
+            if (user1 == -1) {
+                return "Does not follow private user";
+            }
+            
             try {
                 URL url = new URL("http://34.111.89.101/api/Home-Page/djangoBackend2/graphql");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -361,6 +365,114 @@ public class UserInfoFetchingService {
         else {
             return false;
         }
+    }
+
+
+    public Object checkIfUser1HasAccessToMultipleUsers(int authUserId, int[] userIds) {
+        Object resultOfGettingIsPrivateStatusOfUser =  this.getIsPrivateStatusesOfMultipleUsers(
+            authUserId,
+            userIds
+        );
+        if (resultOfGettingIsPrivateStatusOfUser instanceof String[]) {
+            return resultOfGettingIsPrivateStatusOfUser;
+        }
+        int[] isPrivateStatusesOfList = (int[]) resultOfGettingIsPrivateStatusOfUser;
+
+        ArrayList<Integer> privateUserIds = new ArrayList<Integer>();
+        HashMap<Integer, Object> usersAndTheAccessAuthUserHasToThem = new HashMap<Integer, Object>();
+
+        for (int i=0; i<userIds.length; i++) {
+            int userId = userIds[i];
+            int isPrivateStatusOfUser = isPrivateStatusesOfList[i];
+
+            if (isPrivateStatusOfUser == 1) {
+                privateUserIds.add(userId);
+            }
+            else if (isPrivateStatusOfUser == 0) {
+                usersAndTheAccessAuthUserHasToThem.put(userId, true);
+            }
+            else {
+                usersAndTheAccessAuthUserHasToThem.put(userId, false);
+            }
+        }
+
+        if (privateUserIds.size() > 0) {
+            boolean thereWasTroubleWithAPIRequest = false;
+
+            try {
+                URL url = new URL("http://34.111.89.101/api/Home-Page/djangoBackend2/graphql");
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json");
+                connection.setDoOutput(true);
+    
+                String query = "query ($authUserId: Int!, $userIds: [Int!]!) { " + 
+                    "getUserFollowStatusesOfEachUserInList(authUserId: $authUserId, userIds: $userIds)"
+                + "}";
+                HashMap<String, Object> variables = new HashMap<String, Object>();
+                variables.put("authUserId", authUserId);
+                variables.put("userIds", privateUserIds);
+    
+                HashMap<String, Object> requestBody = new HashMap<String, Object>();
+                requestBody.put("query", query);
+                requestBody.put("variables", variables);
+    
+                ObjectMapper objectMapper = new ObjectMapper();
+                String requestBodyAsJSONString = objectMapper.writeValueAsString(requestBody);
+    
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = requestBodyAsJSONString.getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+    
+                int responseCode = connection.getResponseCode();
+    
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                   thereWasTroubleWithAPIRequest = true;
+                }
+                else {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                    reader.close();
+        
+                    String stringifiedResponseData = response.toString();
+                    HashMap<String, HashMap<String, ArrayList<Boolean>>> parsedResponseData = objectMapper.readValue(
+                        stringifiedResponseData, HashMap.class
+                    );
+
+                    ArrayList<Boolean> followStatusesOfEachUserInList = parsedResponseData.get("data").get(
+                        "getUserFollowStatusesOfEachUserInList"
+                    );
+
+                    for(int i=0; i<privateUserIds.size(); i++) {
+                        int privateUserId = privateUserIds.get(i);
+                        boolean authUserFollowsThisUser = followStatusesOfEachUserInList.get(i);
+
+                        if (authUserFollowsThisUser) {
+                            usersAndTheAccessAuthUserHasToThem.put(privateUserId, false);
+                        }
+                        else {
+                            usersAndTheAccessAuthUserHasToThem.put(privateUserId, "Does not follow private user");
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {
+                thereWasTroubleWithAPIRequest = true;
+            }
+
+            if (thereWasTroubleWithAPIRequest) {
+                for(int privateUserId : privateUserIds) {
+                    usersAndTheAccessAuthUserHasToThem.put(privateUserId, false);
+                }
+            }
+        }
+
+        return usersAndTheAccessAuthUserHasToThem;
     }
 
 

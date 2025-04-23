@@ -14,7 +14,7 @@ function StoryViewerPage({urlParams}) {
     const [authUserId, setAuthUserId] = useState(-1);
     const [authUsername, setAuthUsername] = useState('');
     
-    const [storyId, setStoryId] = useState(-1);
+    const [storyId, setStoryId] = useState('');
     const [storyAuthorId, setStoryAuthorId] = useState(-1);
     const [storyAuthorUsername, setStoryAuthorUsername] = useState('');
 
@@ -23,8 +23,6 @@ function StoryViewerPage({urlParams}) {
 
     const [storyFetchingError, setStoryFetchingError] = useState(false);
     const [storyFetchingIsComplete, setStoryFetchingIsComplete] = useState(false);
-
-    const [viewedStoryIds, setViewedStoryIds] = useState(new Set());
 
     const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
     const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
@@ -37,11 +35,14 @@ function StoryViewerPage({urlParams}) {
 
         const urlParamsAuthorUsernameOrStoryId = urlParams.authorUsernameOrStoryId;
 
-        if (typeof urlParamsAuthorUsernameOrStoryId === 'string') {
+        if (isValidUsername(urlParamsAuthorUsernameOrStoryId)) {
             setStoryAuthorUsername(urlParamsAuthorUsernameOrStoryId);
         }
-        else {
+        else if (isValidUUID(urlParamsAuthorUsernameOrStoryId)) {
             setStoryId(urlParamsAuthorUsernameOrStoryId);
+        }
+        else {
+            window.location.href = 'http://34.111.89.101/Page/Not/Found/404';
         }
 
         const urlParamsAuthUsername = urlParams.authUsername;
@@ -199,16 +200,6 @@ function StoryViewerPage({urlParams}) {
     }
 
 
-    function addStoryIdToSetOfViewedStoryIds(newlyViewedStoryId) {
-        setViewedStoryIds(new Set(
-            [
-                ...viewedStoryIds, 
-                newlyViewedStoryId
-            ]
-        ));
-    }
-
-
     function formatDatetimeString(datetimeString) {
         const givenDatetime = new Date(datetimeString);
         const currentDatetime = new Date();
@@ -254,6 +245,18 @@ function StoryViewerPage({urlParams}) {
     }
 
 
+    function isValidUUID(potentialUUID) {
+        const regex = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+        return regex.test(potentialUUID);
+    }
+
+
+    function isValidUsername(potentialUsername) {
+        const regex = /^[a-z0-9._]{1,30}$/;
+        return regex.test(potentialUsername);
+    }
+
+
     async function fetchTheNecessaryInfo() {
         const newUsersAndTheirRelevantInfo = {};
         const newUsersAndTheirStories = {};
@@ -290,12 +293,6 @@ function StoryViewerPage({urlParams}) {
                     }
                     setStoryAuthorUsername(storyAuthorUsernameValue);
 
-                    if (userStoryData.currSlide == -1) {
-                        setStoryFetchingError(true);
-                        setStoryFetchingIsComplete(true);
-                        showErrorPopup(`User ${storyAuthorUsernameValue} does not currently have any unexpired stories`);
-                        return;
-                    }
 
                     if (!(storyAuthorIdValue in newUsersAndTheirRelevantInfo)) {
                         newUsersAndTheirRelevantInfo[storyAuthorIdValue] = {};
@@ -307,12 +304,7 @@ function StoryViewerPage({urlParams}) {
                         return userStory
                     });
 
-                    if (userStoryData.currSlide === 'finished') {
-                        newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
-                    }
-                    else {
-                        newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
-                    }
+                    newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
                 }
             }
             catch (error) {
@@ -328,7 +320,7 @@ function StoryViewerPage({urlParams}) {
             storyAuthorUsernameValue = storyAuthorUsername;
         }
         
-        if (storyIdValue == -1) {
+        if (storyIdValue.length == 0) {
             try {
                 const response1 = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
                     method: 'POST',
@@ -376,7 +368,7 @@ function StoryViewerPage({urlParams}) {
             try {
                 const response2 = await fetch(
                 `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser/${authUserIdValue}
-                /${storyAuthorIdValue}`, {
+                /${storyAuthorIdValue}/true/false`, {
                     credentials: 'include'
                 });
 
@@ -401,28 +393,12 @@ function StoryViewerPage({urlParams}) {
                         return userStory
                     });
 
-                    const newViewedStoryIds = new Set([...viewedStoryIds]);
-
                     if (userStoryData.currSlide === 'finished') {
                         newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = 0;
-
-                        for(let story of userStoryData.stories) {
-                            newViewedStoryIds.add(story.id)
-                        }
                     }
                     else {
                         newUsersAndYourCurrSlideInTheirStories[storyAuthorIdValue] = userStoryData.currSlide;
-
-                        for(let story of userStoryData.stories) {
-                            newViewedStoryIds.add(story.id)
-                            
-                            if (story.id == userStoryData.currSlide) {
-                                break;
-                            }
-                        }
                     }
-
-                    setViewedStoryIds(newViewedStoryIds);
                 }
             }
             catch (error) {
@@ -448,7 +424,8 @@ function StoryViewerPage({urlParams}) {
                 newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = false;
             }
             else {
-                newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = await response3.json();
+                const response3Data = await response3.json();
+                newUsersAndTheirRelevantInfo[storyAuthorIdValue].isVerified = response3Data.isVerified;
             }
         }
         catch (error) {
@@ -462,7 +439,7 @@ function StoryViewerPage({urlParams}) {
 
         try {
             const response4 = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotoOfUser/${authUserIdValue}
+            `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotoOfUser/${authUserIdValue}
             /${storyAuthorIdValue}`);
             if (!response4.ok) {
                 console.error(
@@ -527,7 +504,6 @@ function StoryViewerPage({urlParams}) {
                         vidStoriesAndTheirPreviewImages={{}}
                         usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
                         usernamesWhoseStoriesYouHaveFinished={new Set()}
-                        viewedStoryIds={viewedStoryIds}
                         updateUsersAndTheirStories={updateUsersAndTheirStories}
                         updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
                         updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
@@ -535,7 +511,6 @@ function StoryViewerPage({urlParams}) {
                         addUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
                             addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
                         }
-                        addStoryIdToSetOfViewedStoryIds={addStoryIdToSetOfViewedStoryIds}
                         closeStoryViewer={closeStoryViewer}
                         showErrorPopup={showErrorPopup}
                     />
