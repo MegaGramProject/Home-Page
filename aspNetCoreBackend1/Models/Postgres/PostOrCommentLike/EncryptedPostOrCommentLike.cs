@@ -20,26 +20,26 @@ public class EncryptedPostOrCommentLike
     [Column("encrypted_liker_id")]
     public byte[] encryptedLikerId { get; set; }
 
-    [Column("encryption_iv")]
-    public byte[] encryptionIv { get; set; }
+    [Column("liker_id_encryption_iv")]
+    public byte[] likerIdEncryptionIv { get; set; }
 
-    [Column("encryption_auth_tag")]
-    public byte[] encryptionAuthTag { get; set; }
+    [Column("liker_id_encryption_auth_tag")]
+    public byte[] likerIdEncryptionAuthTag { get; set; }
     
-    [Column("datetime_of_like")]
-    public DateTime datetimeOfLike { get; set; }
+    [Column("datetime")]
+    public DateTime datetime { get; set; }
 
     public EncryptedPostOrCommentLike(
-        string? overallPostId, int? commentId, byte[] encryptedLikerId, byte[] encryptionIv, byte[] encryptionAuthTag,
-        DateTime datetimeOfLike
+        string? overallPostId, int? commentId, byte[] encryptedLikerId, byte[] likerIdEncryptionIv, byte[] likerIdEncryptionAuthTag,
+        DateTime datetime
     )
     {
         this.overallPostId = overallPostId;
         this.commentId = commentId;
         this.encryptedLikerId = encryptedLikerId;
-        this.encryptionIv = encryptionIv;
-        this.encryptionAuthTag = encryptionAuthTag;
-        this.datetimeOfLike = datetimeOfLike;
+        this.likerIdEncryptionIv = likerIdEncryptionIv;
+        this.likerIdEncryptionAuthTag = likerIdEncryptionAuthTag;
+        this.datetime = datetime;
     }
 }
 

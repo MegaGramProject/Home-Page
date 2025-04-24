@@ -9,196 +9,348 @@ public class CommentsService
 {
 
 
-    public List<CommentWithNumLikesAndNumReplies> SortAndFilterOutCommentsForBatch(
-        int? authUserId, int batchSize, int[] authorsOfPost, HashSet<int> setOfUsersFollowedByAuthUser, bool isEncrypted,
-        PostgresContext postgresContext, SqlServerContext sqlServerContext, List<UnencryptedCommentOfPost> allComments
-    )
+    public async Task<List<Dictionary<string, object>>> GetBatchOfCommentsWithInDepthInfo()
     {
-        List<UnencryptedCommentOfPost> commentsMadeByAuthUser = new List<UnencryptedCommentOfPost>();
-        List<UnencryptedCommentOfPost> commentsMadeByAuthUsersFollowing = new List<UnencryptedCommentOfPost>();
-        List<UnencryptedCommentOfPost> commentsMadeByAPostAuthor = new List<UnencryptedCommentOfPost>();
-        List<UnencryptedCommentOfPost> commentsMadeByOthers = new List<UnencryptedCommentOfPost>();
-        HashSet<int> setOfIdsOfCommentsNotMadeByOthers = new HashSet<int>();
-        HashSet<int> setOfIdsOfCommentsMadeByOthers = new HashSet<int>();
-        int numCommentsFound = 0;
+        int authUserId, int maxBatchSize, int[] authorsOfPost, byte[] plaintextDataEncryptionKey, PostgresContext postgresContext,
+        SqlServerContext sqlServerContext, Dictionary<string, List<Dictionary<string, object>>> commenterStatusesAndTheirComments,
+        EncryptionAndDecryptionService encryptionAndDecryptionService
+    }
+    {
+        bool isEncrypted = plaintextDataEncryptionKey == null;
 
-        foreach(UnencryptedCommentOfPost comment in allComments)
+        int numAdditionalCommentsNeededForBatch = maxBatchSize;
+        List<Dictionary<string, object>> batchOfCommentsWithInDepthInfo = new List<Dictionary<string, object>>();
+        Dictionary <int, int> commentsAndTheirNumLikes = new Dictionary<int, int>();
+        Dictionary <int, int> commentsAndTheirNumReplies = new Dictionary<int, int>();
+
+        List<Dictionary<string, object>> commentsMadeByAuthUser = commenterStatusesAndTheirComments["You"];
+        List<Dictionary<string, object>> commentsMadeByFollowing = commenterStatusesAndTheirComments["Following"];
+        List<Dictionary<string, object>> commentsMadeByAuthor = commenterStatusesAndTheirComments["Author"];
+        List<Dictionary<string, object>> commentsMadeByStranger = commenterStatusesAndTheirComments["Stranger"];
+
+        if (commentsMadeByAuthUser.Count > 0)
         {
-            int commentAuthor = comment.authorId;
+            HashSet<int> idsOfAuthUserComments = new HashSet<int>();
 
-            if (commentAuthor == authUserId)
+            foreach(Dictionary<string, object> authUserComment in commentsMadeByAuthUser)
             {
-                commentsMadeByAuthUser.Add(comment);
-                setOfIdsOfCommentsNotMadeByOthers.Add(comment.id);
-                numCommentsFound++;
-            }
-            else if (setOfUsersFollowedByAuthUser.Contains(commentAuthor))
-            {
-                commentsMadeByAuthUsersFollowing.Add(comment);
-                setOfIdsOfCommentsNotMadeByOthers.Add(comment.id);
-                numCommentsFound++;
-            }
-            else if (authorsOfPost.Contains(commentAuthor))
-            {
-                commentsMadeByAPostAuthor.Add(comment);
-                setOfIdsOfCommentsNotMadeByOthers.Add(comment.id);
-                numCommentsFound++;
-            }
-            else
-            {
-                commentsMadeByOthers.Add(comment);
-                setOfIdsOfCommentsMadeByOthers.Add(comment.id);
+                idsOfAuthUserComments.Add((int) authUserComment["id"]);
             }
 
-            if (numCommentsFound == batchSize)
-            {
-                break;
-            }
-        }
-
-        List<UnencryptedCommentOfPost> batchOfComments = commentsMadeByAuthUser.Concat(
-            commentsMadeByAuthUsersFollowing
-        ).ToList();
-        batchOfComments = batchOfComments.Concat(commentsMadeByAPostAuthor).ToList();
-
-        Dictionary <int, int> numLikesOfEachCommentMadeByOthers = new Dictionary<int, int>();
-        Dictionary <int, int> numRepliesOfEachCommentMadeByOthers = new Dictionary<int, int>();
-
-        if (numCommentsFound < batchSize && commentsMadeByOthers.Count > 0)
-        {
-            Dictionary<int, int> commentIdsAndTheirSumOfNumLikesAndNumReplies = new Dictionary<int, int>();
-            Dictionary<int, UnencryptedCommentOfPost> commentIdsAndTheirObjects = new Dictionary<int,
-            UnencryptedCommentOfPost>();
-
-            foreach(UnencryptedCommentOfPost commentMadeByOther in commentsMadeByOthers)
-            {
-                commentIdsAndTheirObjects[
-                    commentMadeByOther.id
-                ] = commentMadeByOther;
-
-                setOfIdsOfCommentsMadeByOthers.Add(commentMadeByOther.id);
-            }
-
-            if (isEncrypted)
-            {
-                numLikesOfEachCommentMadeByOthers = postgresContext
+            if (isEncrypted) {
+                commentsAndTheirNumLikes = postgresContext
                     .encryptedPostOrCommentLikes
-                    .Where(x => setOfIdsOfCommentsMadeByOthers.Contains(x.commentId ?? -1))
+                    .Where(x => idsOfAuthUserComments.Contains(x.commentId ?? -1))
                     .GroupBy(x => x.commentId!.Value)
                     .ToDictionary(g => g.Key, g => g.Count());
                 
-                numRepliesOfEachCommentMadeByOthers = sqlServerContext
+                commentsAndTheirNumReplies = sqlServerContext
                     .encryptedCommentsOfPosts
-                    .Where(x => setOfIdsOfCommentsMadeByOthers.Contains(x.parentCommentId ?? -1))
+                    .Where(x => idsOfAuthUserComments.Contains(x.parentCommentId ?? -1))
                     .GroupBy(x => x.parentCommentId!.Value)
                     .ToDictionary(g => g.Key, g => g.Count());
-
             }
-            else
-            {
-                numLikesOfEachCommentMadeByOthers = postgresContext
+            else {
+                 commentsAndTheirNumLikes = postgresContext
                     .unencryptedPostOrCommentLikes
-                    .Where(x => setOfIdsOfCommentsMadeByOthers.Contains(x.commentId ?? -1))
+                    .Where(x => idsOfAuthUserComments.Contains(x.commentId ?? -1))
                     .GroupBy(x => x.commentId!.Value)
                     .ToDictionary(g => g.Key, g => g.Count());
                 
-                numRepliesOfEachCommentMadeByOthers = sqlServerContext
+                commentsAndTheirNumReplies = sqlServerContext
                     .unencryptedCommentsOfPosts
-                    .Where(x => setOfIdsOfCommentsMadeByOthers.Contains(x.parentCommentId ?? -1))
+                    .Where(x => idsOfAuthUserComments.Contains(x.parentCommentId ?? -1))
                     .GroupBy(x => x.parentCommentId!.Value)
                     .ToDictionary(g => g.Key, g => g.Count());
             }
 
-            foreach(int commentId in setOfIdsOfCommentsMadeByOthers)
+            foreach(Dictionary<string, object> authUserComment in commentsMadeByAuthUser)
             {
-                int numLikesOfComment = numLikesOfEachCommentMadeByOthers.GetValueOrDefault(commentId, 0);
-
-                int numRepliesOfComment = numRepliesOfEachCommentMadeByOthers.GetValueOrDefault(commentId, 0);
-
-                commentIdsAndTheirSumOfNumLikesAndNumReplies[commentId] = numLikesOfComment + numRepliesOfComment;
+                authUserComment["numLikes"] = commentsAndTheirNumLikes.GetValueOrDefault(authUserComment["id"], 0);
+                authUserComment["numReplies"] = commentsAndTheirNumReplies.GetValueOrDefault(authUserComment["id"], 0);
             }
 
-            List<int> commentIdsSortedInDescOfTheirSumOfLikesAndReplies =
-            commentIdsAndTheirSumOfNumLikesAndNumReplies
-                .OrderByDescending(dict => dict.Value)
-                .Select(dict => dict.Key)
-                .ToList();
+            commentsMadeByAuthUser = commentsMadeByAuthUser.OrderByDescending(
+                authUserComment => authUserComment["numReplies"] + authUserComment["numLikes"]
+            ).ToList();
 
-            for(int i = 0; i < batchSize - numCommentsFound; i++)
-            {
-                batchOfComments.Add(commentIdsAndTheirObjects[
-                    commentIdsSortedInDescOfTheirSumOfLikesAndReplies[i]
-                ]);
+            int numAuthUserCommentsThatAreAddedInBatch = Math.Min(commentsMadeByAuthUser.Count, numAdditionalCommentsNeededForBatch);
+
+            for(int i=0; i<numAuthUserCommentsThatAreAddedInBatch; i++) {
+                batchOfCommentsWithInDepthInfo.Add(commentsMadeByAuthUser[i]);
             }
+
+            numAdditionalCommentsNeededForBatch-= numAuthUserCommentsThatAreAddedInBatch;
         }
 
-        Dictionary <int, int> numLikesOfEachCommentNotMadeByOthers = new Dictionary<int, int>();
-        Dictionary <int, int> numRepliesOfEachCommentNotMadeByOthers = new Dictionary<int, int>();
-
-        if (isEncrypted)
+        if (numAdditionalCommentsNeededForBatch > 0 && commentsMadeByFollowing.Count > 0)
         {
-            numLikesOfEachCommentNotMadeByOthers = postgresContext
-                .encryptedPostOrCommentLikes
-                .Where(x => setOfIdsOfCommentsNotMadeByOthers.Contains(x.commentId ?? -1))
-                .GroupBy(x => x.commentId!.Value)
-                .ToDictionary(g => g.Key, g => g.Count());
-            
-            numRepliesOfEachCommentNotMadeByOthers = sqlServerContext
-                .encryptedCommentsOfPosts
-                .Where(x => setOfIdsOfCommentsNotMadeByOthers.Contains(x.parentCommentId ?? -1))
-                .GroupBy(x => x.parentCommentId!.Value)
-                .ToDictionary(g => g.Key, g => g.Count());
-        }
-        else
-        {
-            numLikesOfEachCommentNotMadeByOthers = postgresContext
-                .unencryptedPostOrCommentLikes
-                .Where(x => setOfIdsOfCommentsNotMadeByOthers.Contains(x.commentId ?? -1))
-                .GroupBy(x => x.commentId!.Value)
-                .ToDictionary(g => g.Key, g => g.Count());
-            
-            numRepliesOfEachCommentNotMadeByOthers = sqlServerContext
-                .unencryptedCommentsOfPosts
-                .Where(x => setOfIdsOfCommentsNotMadeByOthers.Contains(x.parentCommentId ?? -1))
-                .GroupBy(x => x.parentCommentId!.Value)
-                .ToDictionary(g => g.Key, g => g.Count());
+            HashSet<int> idsOfCommentsMadeByFollowing = new HashSet<int>();
+
+            foreach(Dictionary<string, object> authUserFollowingComment in commentsMadeByFollowing)
+            {
+                idsOfCommentsMadeByFollowing.Add((int) authUserFollowingComment["id"]);
+            }
+
+            if (isEncrypted) {
+                commentsAndTheirNumLikes = postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => idsOfCommentsMadeByFollowing.Contains(x.commentId ?? -1))
+                    .GroupBy(x => x.commentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                commentsAndTheirNumReplies = sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => idsOfCommentsMadeByFollowing.Contains(x.parentCommentId ?? -1))
+                    .GroupBy(x => x.parentCommentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+            else {
+                 commentsAndTheirNumLikes = postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => idsOfCommentsMadeByFollowing.Contains(x.commentId ?? -1))
+                    .GroupBy(x => x.commentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                commentsAndTheirNumReplies = sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => idsOfCommentsMadeByFollowing.Contains(x.parentCommentId ?? -1))
+                    .GroupBy(x => x.parentCommentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+
+            foreach(Dictionary<string, object> authUserFollowingComment in commentsMadeByFollowing)
+            {
+                authUserFollowingComment["numLikes"] = commentsAndTheirNumLikes.GetValueOrDefault(
+                    authUserFollowingComment["id"],
+                    0
+                );
+                authUserFollowingComment["numReplies"] = commentsAndTheirNumReplies.GetValueOrDefault(
+                    authUserFollowingComment["id"],
+                    0
+                );
+            }
+
+            commentsMadeByFollowing = commentsMadeByFollowing.OrderByDescending(
+                authUserFollowingComment => authUserFollowingComment["numReplies"] + authUserFollowingComment["numLikes"]
+            ).ToList();
+
+            int numAuthUserFollowingCommentsThatAreAddedInBatch = Math.Min(
+                commentsMadeByFollowing.Count,
+                numAdditionalCommentsNeededForBatch
+            );
+
+            for(int i=0; i<numAuthUserFollowingCommentsThatAreAddedInBatch; i++) {
+                batchOfCommentsWithInDepthInfo.Add(commentsMadeByFollowing[i]);
+            }
+
+            numAdditionalCommentsNeededForBatch-= numAuthUserFollowingCommentsThatAreAddedInBatch;
         }
 
-        List<CommentWithNumLikesAndNumReplies> output = new List
-        <CommentWithNumLikesAndNumReplies>();
-        foreach(UnencryptedCommentOfPost singleCommentFromBatch in batchOfComments)
+        if (numAdditionalCommentsNeededForBatch > 0 && commentsMadeByAuthor.Count > 0)
         {
-            int commentId = singleCommentFromBatch.id;
-            if (setOfIdsOfCommentsNotMadeByOthers.Contains(commentId))
+            HashSet<int> idsOfCommentsMadeByAuthor = new HashSet<int>();
+
+            foreach(Dictionary<string, object> authorComment in commentsMadeByAuthor)
             {
-                output.Add(new CommentWithNumLikesAndNumReplies(
-                    commentId,
-                    singleCommentFromBatch.overallPostId,
-                    singleCommentFromBatch.parentCommentId,
-                    singleCommentFromBatch.isEdited,
-                    singleCommentFromBatch.datetimeOfComment,
-                    singleCommentFromBatch.authorId,
-                    singleCommentFromBatch.content,
-                    numLikesOfEachCommentNotMadeByOthers.GetValueOrDefault(commentId, 0),
-                    numRepliesOfEachCommentNotMadeByOthers.GetValueOrDefault(commentId, 0)
-                ));
+                idsOfCommentsMadeByAuthor.Add((int) authorComment["id"]);
             }
-            else
+
+            if (isEncrypted) {
+                commentsAndTheirNumLikes = postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => idsOfCommentsMadeByAuthor.Contains(x.commentId ?? -1))
+                    .GroupBy(x => x.commentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                commentsAndTheirNumReplies = sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => idsOfCommentsMadeByAuthor.Contains(x.parentCommentId ?? -1))
+                    .GroupBy(x => x.parentCommentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+            else {
+                 commentsAndTheirNumLikes = postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => idsOfCommentsMadeByAuthor.Contains(x.commentId ?? -1))
+                    .GroupBy(x => x.commentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                commentsAndTheirNumReplies = sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => idsOfCommentsMadeByAuthor.Contains(x.parentCommentId ?? -1))
+                    .GroupBy(x => x.parentCommentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+
+            foreach(Dictionary<string, object> authorComment in commentsMadeByAuthor)
             {
-                output.Add(new CommentWithNumLikesAndNumReplies(
-                    commentId,
-                    singleCommentFromBatch.overallPostId,
-                    singleCommentFromBatch.parentCommentId,
-                    singleCommentFromBatch.isEdited,
-                    singleCommentFromBatch.datetimeOfComment,
-                    singleCommentFromBatch.authorId,
-                    singleCommentFromBatch.content,
-                    numLikesOfEachCommentMadeByOthers.GetValueOrDefault(commentId, 0),
-                    numRepliesOfEachCommentMadeByOthers.GetValueOrDefault(commentId, 0)
-                ));
+                authorComment["numLikes"] = commentsAndTheirNumLikes.GetValueOrDefault(
+                    authorComment["id"],
+                    0
+                );
+                authorComment["numReplies"] = commentsAndTheirNumReplies.GetValueOrDefault(
+                    authorComment["id"],
+                    0
+                );
             }
+
+            commentsMadeByAuthor = commentsMadeByAuthor.OrderByDescending(
+                authorComment => authorComment["numReplies"] + authorComment["numLikes"]
+            ).ToList();
+
+            int numAuthorCommentsThatAreAddedInBatch = Math.Min(
+                commentsMadeByAuthor.Count,
+                numAdditionalCommentsNeededForBatch
+            );
+
+            for(int i=0; i<numAuthorCommentsThatAreAddedInBatch; i++) {
+                batchOfCommentsWithInDepthInfo.Add(commentsMadeByAuthor[i]);
+            }
+
+            numAdditionalCommentsNeededForBatch-= numAuthorCommentsThatAreAddedInBatch;
         }
 
-        return output;
+        if (numAdditionalCommentsNeededForBatch > 0 && commentsMadeByStranger.Count > 0)
+        {
+            HashSet<int> idsOfStrangerComments = new HashSet<int>();
+
+            foreach(Dictionary<string, object> strangerComment in commentsMadeByStranger)
+            {
+                idsOfStrangerComments.Add((int) authUserFollowingComment["id"]);
+            }
+
+            if (isEncrypted) {
+                commentsAndTheirNumLikes = postgresContext
+                    .encryptedPostOrCommentLikes
+                    .Where(x => idsOfStrangerComments.Contains(x.commentId ?? -1))
+                    .GroupBy(x => x.commentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                commentsAndTheirNumReplies = sqlServerContext
+                    .encryptedCommentsOfPosts
+                    .Where(x => idsOfStrangerComments.Contains(x.parentCommentId ?? -1))
+                    .GroupBy(x => x.parentCommentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+            else {
+                 commentsAndTheirNumLikes = postgresContext
+                    .unencryptedPostOrCommentLikes
+                    .Where(x => idsOfStrangerComments.Contains(x.commentId ?? -1))
+                    .GroupBy(x => x.commentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+                
+                commentsAndTheirNumReplies = sqlServerContext
+                    .unencryptedCommentsOfPosts
+                    .Where(x => idsOfStrangerComments.Contains(x.parentCommentId ?? -1))
+                    .GroupBy(x => x.parentCommentId!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+
+            foreach(Dictionary<string, object> strangerComment in commentsMadeByStranger)
+            {
+                strangerComment["numLikes"] = commentsAndTheirNumLikes.GetValueOrDefault(
+                    strangerComment["id"],
+                    0
+                );
+                strangerComment["numReplies"] = commentsAndTheirNumReplies.GetValueOrDefault(
+                    strangerComment["id"],
+                    0
+                );
+            }
+
+            commentsMadeByStranger = commentsMadeByStranger.OrderByDescending(
+                strangerComment => strangerComment["numReplies"] + strangerComment["numLikes"]
+            ).ToList();
+
+            int numStrangerCommentsAddedIntoBatch = Math.Min(
+                commentsMadeByStranger.Count,
+                numAdditionalCommentsNeededForBatch
+            );
+
+            for(int i=0; i<numStrangerCommentsAddedIntoBatch; i++) {
+                batchOfCommentsWithInDepthInfo.Add(commentsMadeByStranger[i]);
+            }
+
+            numAdditionalCommentsNeededForBatch-= numStrangerCommentsAddedIntoBatch;
+        }
+
+        HashSet<int> idsOfEachCommentInBatch = new HashSet<int>();
+
+        if (batchOfCommentsWithInDepthInfo.Count > 0)
+        {
+            foreach(Dictionary<string, object> inDepthComment in batchOfCommentsWithInDepthInfo)
+            {
+                idsOfEachCommentInBatch.add(inDepthComment["id"]);
+            } 
+
+            HashSet<int> commentIdsInBatchThatAreLikedByAuthUser = new HashSet<int>();
+            HashSet<int> commentIdsInBatchThatAreLikedByPostAuthor = new HashSet<int>();
+
+            try {
+                if (isEncrypted) {
+                    var encryptedLikesOfCommentsInBatch = await postgresContext
+                        .unencryptedPostOrCommentLikes
+                        .Where(x => 
+                            idsOfEachCommentInBatch.Contains(x.commentId ?? -1)
+                        )
+                        .Select(x => x.commentId!.Value, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag)
+                        .ToListAsync();
+                    
+                    foreach(var encryptedCommentLike in encryptedLikesOfCommentsInBatch) {
+                        int commentId = encryptedCommentLike.commentId;
+
+                        string likerIdAsString = encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
+                            encryptedCommentLike.encryptedLikerId,
+                            plaintextDataEncryptionKey,
+                            encryptedCommentLike.encryptionIv,
+                            encryptedCommentLike.encryptionAuthTag
+                        );
+
+                        int likerId = int.Parse(likerIdAsString);
+
+                        if (likerId == authUserId) {
+                            commentIdsInBatchThatAreLikedByAuthUser.Add(commentId);
+                        }
+                        else if (authorsOfPost.Contains(likerId)) {
+                            commentIdsInBatchThatAreLikedByPostAuthor.Add(commentId);
+                        }
+                    }
+                }
+                else {
+                    commentIdsInBatchThatAreLikedByAuthUser = await postgresContext
+                        .unencryptedPostOrCommentLikes
+                        .Where(x => 
+                            x.LikerId == authUserId &&
+                            idsOfEachCommentInBatch.Contains(x.commentId ?? -1)
+                        )
+                        .Select(x => x.commentId!.Value)
+                        .ToHashSetAsync();
+
+                    commentIdsInBatchThatAreLikedByPostAuthor = await postgresContext
+                        .unencryptedPostOrCommentLikes
+                        .Where(x => 
+                            authorsOfPost.Contains(x.LikerId) &&
+                            idsOfEachCommentInBatch.Contains(x.commentId ?? -1)
+                        )
+                        .Select(x => x.commentId!.Value)
+                        .ToHashSetAsync();
+                }
+
+
+                foreach(Dictionary<string, object> inDepthComment in batchOfCommentsWithInDepthInfo)
+                {
+                    inDepthComment["isLikedByAuthUser"] = commentIdsInBatchThatAreLikedByAuthUser.Contains(
+                        inDepthComment["id"];
+                    );
+                    inDepthComment["isLikedByPostAuthor"] = commentIdsInBatchThatAreLikedByPostAuthor.Contains(
+                        inDepthComment["id"];
+                    );
+                }
+            }
+            catch  {}
+        }
+
+        return batchOfCommentsWithInDepthInfo;
     }
 }

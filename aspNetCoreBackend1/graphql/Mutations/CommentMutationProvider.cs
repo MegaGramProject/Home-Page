@@ -589,7 +589,7 @@ public class CommentMutationProvider
                     encryptedCommentToEdit.encryptionIv,
                     encryptedCommentToEdit.encryptionAuthTag
                 );
-                encryptedCommentToEdit!.datetimeOfComment = DateTime.Now;
+                encryptedCommentToEdit!.datetime = DateTime.Now;
 
                 sqlServerContext.encryptedCommentsOfPosts.Update(encryptedCommentToEdit);
                 await sqlServerContext.SaveChangesAsync();
@@ -614,7 +614,7 @@ public class CommentMutationProvider
 
                 unencryptedCommentToEdit!.isEdited = true;
                 unencryptedCommentToEdit!.content = newCommentContent;
-                unencryptedCommentToEdit!.datetimeOfComment = DateTime.Now;
+                unencryptedCommentToEdit!.datetime = DateTime.Now;
 
                 sqlServerContext.unencryptedCommentsOfPosts.Update(unencryptedCommentToEdit);
                 await sqlServerContext.SaveChangesAsync();

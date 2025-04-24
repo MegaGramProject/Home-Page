@@ -19,8 +19,8 @@ public class UnencryptedCommentOfPost
     [Column("isEdited")]
     public bool isEdited { get; set; }
     
-    [Column("datetimeOfComment")]
-    public DateTime datetimeOfComment { get; set; }
+    [Column("datetime")]
+    public DateTime datetime { get; set; }
 
     [Column("authorId")]
     public int authorId { get; set; }
@@ -28,15 +28,16 @@ public class UnencryptedCommentOfPost
     [Column("content")]
     public string content { get; set; }
 
+
     public UnencryptedCommentOfPost(
-        string overallPostId, int? parentCommentId, bool isEdited, DateTime datetimeOfComment, int authorId,
+        string overallPostId, int? parentCommentId, bool isEdited, DateTime datetime, int authorId,
         string content
     )
     {
         this.overallPostId = overallPostId;
         this.parentCommentId = parentCommentId;
         this.isEdited = isEdited;
-        this.datetimeOfComment = datetimeOfComment;
+        this.datetime = datetime;
         this.authorId = authorId;
         this.content = content;
     }

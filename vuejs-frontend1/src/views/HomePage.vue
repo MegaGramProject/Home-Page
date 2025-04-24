@@ -7,8 +7,8 @@
     />
 
 
-    <div style="position: absolute; left: 74%;">
-        
+    <div style="position: absolute; left: 24%;">
+
     </div>
 
     <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup ||
@@ -143,10 +143,10 @@ import ThreeDotsPopup from '@/components/Popups/ThreeDotsPopup.vue';
     import blackScreen from '@/assets/images/blackScreen.png';
 import defaultPfp from '@/assets/images/defaultPfp.png';
 
-    import '../assets/HomePageStyles.css';
+    import '../assets/styles.css';
 
     import { onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+    import { useRoute } from 'vue-router';
 
 
     const route = useRoute();
@@ -395,6 +395,12 @@ import { useRoute } from 'vue-router';
             : defaultPfp;
 
         displayAboutAccountPopup.value = true;
+    }
+
+
+    function showLikersPopup(newLikersPopupIdOfPostOrComment) {
+        likersPopupIdOfPostOrComment.value = newLikersPopupIdOfPostOrComment;
+        displayLikersPopup.value = true;
     }
 
 

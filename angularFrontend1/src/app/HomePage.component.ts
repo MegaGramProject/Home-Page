@@ -1,15 +1,16 @@
+import { Comment } from '../components/Comment.component';
 import { Footer } from '../components/Footer.component';
 import { LeftSidebar } from '../components/LeftSidebar.component';
-import { UserIcon } from '../components/UserIcon.component';
-import { UserBar } from '../components/UserBar.component';
 import { StoryViewer } from '../components/StoryViewer.component';
+import { UserBar } from '../components/UserBar.component';
+import { UserIcon } from '../components/UserIcon.component';
 
-import { LeftSidebarPopup } from '../components/Popups/LeftSidebarPopup.component';
-import { ErrorPopup } from '../components/Popups/ErrorPopup.component';
-import { ThreeDotsPopup } from '../components/Popups/ThreeDotsPopup.component';
 import { AboutAccountPopup } from '../components/Popups/AboutAccountPopup.component';
+import { ErrorPopup } from '../components/Popups/ErrorPopup.component';
+import { LeftSidebarPopup } from '../components/Popups/LeftSidebarPopup.component';
 import { LikersPopup } from '../components/Popups/LikersPopup.component';
 import { SendPostPopup } from '../components/Popups/SendPostPopup.component';
+import { ThreeDotsPopup } from '../components/Popups/ThreeDotsPopup.component';
 
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
@@ -23,10 +24,10 @@ import { BehaviorSubject } from 'rxjs';
   standalone: true,
   imports: [
     CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
-    LikersPopup, SendPostPopup, StoryViewer
+    LikersPopup, SendPostPopup, StoryViewer, Comment
   ],
   templateUrl: './HomePage.component.html',
-  styleUrl: '../HomePageStyles.css'
+  styleUrl: '../styles.css'
 })
 export class HomePage {
   authUserId:number = -1;

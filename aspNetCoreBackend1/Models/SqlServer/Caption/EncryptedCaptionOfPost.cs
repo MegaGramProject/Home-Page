@@ -15,32 +15,41 @@ public class EncryptedCaptionOfPost
     [Column("isEdited")]
     public bool isEdited { get; set; }
     
-    [Column("datetimeOfCaption")]
-    public DateTime datetimeOfCaption { get; set; }
+    [Column("datetime")]
+    public DateTime datetime { get; set; }
 
     [Column("encryptedAuthorId")]
     public byte[] encryptedAuthorId { get; set; }
 
+    [Column("authorIdEncryptionIv")]
+    public byte[] authorIdEncryptionIv { get; set; }
+
+    [Column("authorIdEncryptionAuthTag")]
+    public byte[] authorIdEncryptionAuthTag { get; set; }
+
     [Column("encryptedContent")]
     public byte[] encryptedContent { get; set; }
     
-    [Column("encryptionIv")]
-    public byte[] encryptionIv { get; set; }
+    [Column("contentEncryptionIv")]
+    public byte[] contentEncryptionIv { get; set; }
 
-    [Column("encryptionAuthTag")]
-    public byte[] encryptionAuthTag { get; set; }
+    [Column("contentEncryptionAuthTag")]
+    public byte[] contentEncryptionAuthTag { get; set; }
+
 
     public EncryptedCaptionOfPost(
-        string overallPostId, bool isEdited, DateTime datetimeOfCaption, byte[] encryptedAuthorId, byte[]
-        encryptedContent, byte[] encryptionIv, byte[] encryptionAuthTag
+        string overallPostId, bool isEdited, DateTime datetime, byte[] encryptedAuthorId, byte[] authorIdEncryptionIv,
+        byte[] authorIdEncryptionAuthTag, byte[] encryptedContent, byte[] contentEncryptionIv, byte[] contentEncryptionAuthTag
     )
     {
         this.overallPostId = overallPostId;
         this.isEdited = isEdited;
-        this.datetimeOfCaption = datetimeOfCaption;
+        this.datetime = datetime;
         this.encryptedAuthorId = encryptedAuthorId;
+        this.authorIdEncryptionIv = authorIdEncryptionIv;
+        this.authorIdEncryptionAuthTag = authorIdEncryptionAuthTag;
         this.encryptedContent = encryptedContent;
-        this.encryptionIv = encryptionIv;
-        this.encryptionAuthTag = encryptionAuthTag;
+        this.contentEncryptionIv = contentEncryptionIv;
+        this.contentEncryptionAuthTag = contentEncryptionAuthTag;
     }
 }

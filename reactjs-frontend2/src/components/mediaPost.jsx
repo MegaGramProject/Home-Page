@@ -1240,7 +1240,7 @@ mainPostAuthorInfo, notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo})
             </div>
 
         </div>
-    )
+    );
 }
 
 export default MediaPost;

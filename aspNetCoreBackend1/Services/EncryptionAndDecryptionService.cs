@@ -96,22 +96,6 @@ public class EncryptionAndDecryptionService
     }
 
 
-     public byte[] EncryptTextWithAzureDataEncryptionKeyGivenIvAndAuthTag(
-        string plaintext, byte[] plaintextDataEncryptionKey, byte[] iv, byte[] authTag
-    )
-    {
-        using (AesGcm aesGcm = new AesGcm(plaintextDataEncryptionKey, 16))
-        {
-            byte[] plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
-            byte[] encryptedTextBuffer = new byte[plaintextBytes.Length];
-
-            aesGcm.Encrypt(iv, plaintextBytes, encryptedTextBuffer, authTag);
-
-            return encryptedTextBuffer;
-        }
-    }
-
-
     public string DecryptTextWithAzureDataEncryptionKey(
         byte[] encryptedTextBuffer, byte[] plaintextDataEncryptionKey, byte[] iv, byte[] authTag
     )

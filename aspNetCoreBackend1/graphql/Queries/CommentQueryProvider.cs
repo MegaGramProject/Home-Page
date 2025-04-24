@@ -20,8 +20,8 @@ public class CommentQueryProvider
     [UseFiltering]
     [UseSorting]
     [EnableRateLimiting("5PerMinute")]
-    public async Task<List<CommentWithNumLikesAndNumReplies>> GetBatchOfCommentsOfPost(
-        int? authUserId, string overallPostId, int[] commentIdsToExclude,
+    public async Task<List<Dictionary<string, object>>> GetBatchOfCommentsOfPost(
+        int authUserId, string overallPostId, int?[] commentIdsToExclude, int? maxBatchSize
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService encryptionAndDecryptionService,
@@ -29,24 +29,34 @@ public class CommentQueryProvider
         [Service] IConnectionMultiplexer redisClient
     )
     {
+        if (authUserId < 1 && authUserId !== -1)
+        {
+            throw new GraphQLException(new Error(
+                @"There does not exist a user with an id less than 1. If you're an anonymous guest, you must set the authUserId
+                to -1.",
+                "INVALID_INPUT")
+            );
+        }
+
         if (!ObjectId.TryParse(overallPostId, out _))
         {
             throw new GraphQLException(new Error("The provided overallPostId is invalid.", "INVALID_INPUT"));
         }
 
-        if (authUserId < 1)
+        if (commentIdsToExclude == null) {
+            commentIdsToExclude = new int[0];
+        }
+
+        if (maxBatchSize == null || maxBatchSize > 10)
         {
-            throw new GraphQLException(new Error(
-                @"There does not exist a user with an id less than 1.",
-                "INVALID_INPUT")
-            );
+            maxBatchSize = 10;
         }
 
         HttpClient httpClient = httpClientFactory.CreateClient();
         HttpClient httpClientWithMutualTLS = httpClientFactory.CreateClient("HttpClientWithMutualTLS");
 
         var requestCookies = httpContextAccessor.HttpContext?.Request.Cookies;
-        if (authUserId != null)
+        if (authUserId != -1)
         {
             var userAuthenticationResult = await userAuthService.AuthenticateUser(
                 (int) authUserId, requestCookies!, httpClient
@@ -132,14 +142,23 @@ public class CommentQueryProvider
             ];
         }
 
-        List<UnencryptedCommentOfPost> unencryptedCommentsOfPost = new List<UnencryptedCommentOfPost>();
+        Dictionary<string, List<Dictionary<string, object>>> commenterStatusesAndTheirComments =
+        new Dictionary<List<Dictionary<string, object>>> {
+            { "You", new List<Dictionary<string, object>>()}
+            { "Following", new List<Dictionary<string, object>>()}
+            { "Author", new List<Dictionary<string, object>>()}
+            { "Stranger", new List<Dictionary<string, object>>()}
+        };
+
         HashSet<int> setOfCommentIdsToExclude = new HashSet<int>(
             commentIdsToExclude.Where(x => x > 0).ToArray()
         );
 
+        byte[] plaintextDataEncryptionKey =  null;
+
         if (isEncrypted)
         {
-            if (authUserId == null)
+            if (authUserId == -1)
             {
                 throw new GraphQLException(new Error(
                     @"As an anonymous guest, you are not authorized to view comments of this private post.",
@@ -168,13 +187,12 @@ public class CommentQueryProvider
 
             try
             {
-                IDatabase redisCachingDatabase =  redisClient.GetDatabase(0);
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
                 (
                     overallPostId!,
                     postgresContext,
                     encryptionAndDecryptionService,
-                    redisCachingDatabase
+                    redisClient.GetDatabase(0)
                 );
 
                 List<EncryptedCommentOfPost> encryptedCommentsOfPost = await sqlServerContext.
@@ -188,8 +206,8 @@ public class CommentQueryProvider
                     (
                         encryptedCommentOfPost.encryptedAuthorId,
                         plaintextDataEncryptionKey,
-                        encryptedCommentOfPost.encryptionIv,
-                        encryptedCommentOfPost.encryptionAuthTag
+                        encryptedCommentOfPost.authorIdEncryptionIv,
+                        encryptedCommentOfPost.authorIdEncryptionAuthTag
                     );
                     int authorId = int.Parse(authorIdAsString);
 
@@ -203,18 +221,39 @@ public class CommentQueryProvider
                     (
                         encryptedCommentOfPost.encryptedContent,
                         plaintextDataEncryptionKey,
-                        encryptedCommentOfPost.encryptionIv,
-                        encryptedCommentOfPost.encryptionAuthTag
+                        encryptedCommentOfPost.contentEncryptionIv,
+                        encryptedCommentOfPost.contentEncryptionAuthTag
                     );
 
-                    unencryptedCommentsOfPost.Add(new UnencryptedCommentOfPost(
-                        overallPostId,
-                        encryptedCommentOfPost.parentCommentId,
-                        encryptedCommentOfPost.isEdited,
-                        encryptedCommentOfPost.datetimeOfComment,
-                        authorId,
-                        decryptedCommentContent
-                    ));
+                    string authorStatus = "";
+
+                    if (authorId == authUserId) {
+                        authorStatus = "You";
+                    }
+                    else if (setOfAuthUserFollowings.Contains(authorId)) {
+                        authorStatus = "Following";
+                    }
+                    else if (authorsOfPost.Contains(authorId)) {
+                        authorStatus = "Author";
+                    }
+                    else {
+                        authorStatus = "Stranger";
+                    }
+
+                    commenterStatusesAndTheirComments[authorStatus].Add(new Dictionary<string, object> {
+                        {"id", encryptedCommentOfPost.id},
+                        {"parentCommentId", commentId},
+                        {"authorId", authorId},
+                        {"authorStatus", authorStatus},
+                        {"isEdited", encryptedCommentOfPost.isEdited},
+                        {"datetime", encryptedCommentOfPost.datetime},
+                        {"content", decryptedCommentContent},
+                        {"authorUsername", "user " + authorId},
+                        {"isLikedByAuthUser", false},
+                        {"isLikedByPostAuthor", false},
+                        {"numLikes", 0},
+                        {"numReplies", 0}
+                    });
                 }
 
             }
@@ -228,7 +267,7 @@ public class CommentQueryProvider
         }
         else
         {
-            if (authUserId != null)
+            if (authUserId != -1)
             {
                 bool userIsBlockedByEachPostAuthor = true;
                 foreach(int authorId in authorsOfPost)
@@ -251,11 +290,44 @@ public class CommentQueryProvider
 
             try
             {
-                unencryptedCommentsOfPost = await sqlServerContext.
+                List<UnencryptedCommentOfPost> unencryptedCommentsOfPost = await sqlServerContext.
                     unencryptedCommentsOfPosts
                     .Where(x => x.overallPostId == overallPostId && !setOfCommentIdsToExclude.Contains(x.id)
                     && !setOfAuthUserBlockings.Contains(x.authorId))
                     .ToListAsync();
+                
+                foreach(UnencryptedCommentOfPost unencryptedCommentOfPost in unencryptedCommentsOfPost)
+                {
+                    int authorId = unencryptedCommentOfPost.authorId;
+
+                    if (authorId == authUserId) {
+                        authorStatus = "You";
+                    }
+                    else if (setOfAuthUserFollowings.Contains(authorId)) {
+                        authorStatus = "Following";
+                    }
+                    else if (authorsOfPost.Contains(authorId)) {
+                        authorStatus = "Author";
+                    }
+                    else {
+                        authorStatus = "Stranger";
+                    }
+
+                    commenterStatusesAndTheirComments[authorStatus].Add(new Dictionary<string, object> {
+                        {"id", unencryptedCommentOfPost.id},
+                        {"parentCommentId", commentId},
+                        {"authorId", authorId},
+                        {"authorStatus", authorStatus},
+                        {"isEdited", unencryptedCommentOfPost.isEdited},
+                        {"datetime", unencryptedCommentOfPost.datetime},
+                        {"content", unencryptedCommentOfPost.content},
+                        {"authorUsername", "user " + authorId},
+                        {"isLikedByAuthUser", false},
+                        {"isLikedByPostAuthor", false},
+                        {"numLikes", 0},
+                        {"numReplies", 0}
+                    });
+                }
             } 
             catch
             {
@@ -267,26 +339,12 @@ public class CommentQueryProvider
         }
 
 
-        List<CommentWithNumLikesAndNumReplies> unencryptedBatchOfCommentsWithNumLikesAndReplies = new List
-        <CommentWithNumLikesAndNumReplies>();
+        List<Dictionary<string, object>> batchOfRepliesWithInDepthInfo = commentsService.GetBatchOfCommentsWithInDepthInfo(
+            authUserId, maxBatchSize, authorsOfPost, plaintextDataEncryptionKey, postgresContext, sqlServerContext,
+            commenterStatusesAndTheirComments, encryptionAndDecryptionService
+        );
 
-        try
-        {
-            unencryptedBatchOfCommentsWithNumLikesAndReplies =
-            commentsService.SortAndFilterOutCommentsForBatch(
-                authUserId, 10, authorsOfPost, setOfAuthUserFollowings, isEncrypted,
-                postgresContext, sqlServerContext, unencryptedCommentsOfPost
-            );
-        }
-        catch
-        {
-            throw new GraphQLException(new Error(
-                @"There was trouble sorting and filtering out the all the comments of this post to form the batch",
-                "INTERNAL_SERVER_ERROR"
-            ));
-        }
-
-        return unencryptedBatchOfCommentsWithNumLikesAndReplies;
+        return batchOfRepliesWithInDepthInfo;
     }
 
 
@@ -294,8 +352,8 @@ public class CommentQueryProvider
     [UseFiltering]
     [UseSorting]
     [EnableRateLimiting("5PerMinute")]
-    public async Task<List<CommentWithNumLikesAndNumReplies>> GetBatchOfRepliesOfComment(
-        int? authUserId, int commentId, int[] replyIdsToExclude,
+    public async Task<List<Dictionary<string, object>>> GetBatchOfRepliesOfComment(
+        int authUserId, int commentId, int?[] replyIdsToExclude, int? maxBatchSize
         [Service] IHttpContextAccessor httpContextAccessor, [Service] UserAuthService userAuthService,
         [Service] IHttpClientFactory httpClientFactory, [Service] SqlServerContext sqlServerContext,
         [Service] PostgresContext postgresContext, [Service] EncryptionAndDecryptionService encryptionAndDecryptionService,
@@ -303,23 +361,33 @@ public class CommentQueryProvider
         [Service] IConnectionMultiplexer redisClient
     )
     {
+        if (authUserId < 1 && authUserId !== -1)
+        {
+            throw new GraphQLException(new Error(
+                @"There does not exist a user with an id less than 1. If you're an anonymous guest, you must set the authUserId
+                to -1.",
+                "INVALID_INPUT")
+            );
+        }
+
         if (commentId < 1)
         {
             throw new GraphQLException(new Error("The provided commentId is invalid.", "INVALID_INPUT"));
         }
 
-        if (authUserId < 1)
+        if (replyIdsToExclude == null) {
+            replyIdsToExclude = new int[0];
+        }
+
+        if (maxBatchSize == null || maxBatchSize > 7)
         {
-            throw new GraphQLException(new Error(
-                @"There does not exist a user with an id less than 1.",
-                "INVALID_INPUT")
-            );
+            maxBatchSize = 7;
         }
 
         HttpClient httpClient = httpClientFactory.CreateClient();
 
         var requestCookies = httpContextAccessor.HttpContext?.Request.Cookies;
-        if (authUserId != null)
+        if (authUserId != -1)
         {
             var userAuthenticationResult = await userAuthService.AuthenticateUser(
                 (int) authUserId, requestCookies!, httpClient
@@ -443,14 +511,23 @@ public class CommentQueryProvider
             ];
         }
 
-        List<UnencryptedCommentOfPost> unencryptedRepliesOfComment = new List<UnencryptedCommentOfPost>();
+        Dictionary<string, List<Dictionary<string, object>>> commenterStatusesAndTheirComments =
+        new Dictionary<List<Dictionary<string, object>>> {
+            { "You", new List<Dictionary<string, object>>()}
+            { "Following", new List<Dictionary<string, object>>()}
+            { "Author", new List<Dictionary<string, object>>()}
+            { "Stranger", new List<Dictionary<string, object>>()}
+        };
+
         HashSet<int> setOfReplyIdsToExclude = new HashSet<int>(
             replyIdsToExclude.Where(x => x > 0).ToArray()
         );
 
+        byte[] plaintextDataEncryptionKey = null;
+
         if (isEncrypted==true)
         {
-            if (authUserId == null)
+            if (authUserId == -1)
             {
                throw new GraphQLException(new Error(
                     @"As an anonymous guest, you are not authorized to view comments of this private post.",
@@ -479,13 +556,12 @@ public class CommentQueryProvider
 
             try
             {
-                IDatabase redisCachingDatabase =  redisClient.GetDatabase(0);
-                byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
+                plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
                 (
                     overallPostId!,
                     postgresContext,
                     encryptionAndDecryptionService,
-                    redisCachingDatabase
+                    redisClient.GetDatabase(0)
                 );
 
                 List<EncryptedCommentOfPost> encryptedRepliesOfComment = await sqlServerContext.
@@ -499,8 +575,8 @@ public class CommentQueryProvider
                     (
                         encryptedReplyOfComment.encryptedAuthorId,
                         plaintextDataEncryptionKey,
-                        encryptedReplyOfComment.encryptionIv,
-                        encryptedReplyOfComment.encryptionAuthTag
+                        encryptedReplyOfComment.authorIdEncryptionIv,
+                        encryptedReplyOfComment.authorIdEncryptionAuthTag
                     );
                     int authorId = int.Parse(authorIdAsString);
 
@@ -514,20 +590,40 @@ public class CommentQueryProvider
                     (
                         encryptedReplyOfComment.encryptedContent,
                         plaintextDataEncryptionKey,
-                        encryptedReplyOfComment.encryptionIv,
-                        encryptedReplyOfComment.encryptionAuthTag
+                        encryptedReplyOfComment.contentEncryptionIv,
+                        encryptedReplyOfComment.contentEncryptionAuthTag
                     );
 
-                    unencryptedRepliesOfComment.Add(new UnencryptedCommentOfPost(
-                        overallPostId!,
-                        encryptedReplyOfComment.parentCommentId,
-                        encryptedReplyOfComment.isEdited,
-                        encryptedReplyOfComment.datetimeOfComment,
-                        authorId,
-                        decryptedCommentContent
-                    ));
-                }
+                    string authorStatus = "";
 
+                    if (authorId == authUserId) {
+                        authorStatus = "You";
+                    }
+                    else if (setOfAuthUserFollowings.Contains(authorId)) {
+                        authorStatus = "Following";
+                    }
+                    else if (authorsOfPost.Contains(authorId)) {
+                        authorStatus = "Author";
+                    }
+                    else {
+                        authorStatus = "Stranger";
+                    }
+
+                    commenterStatusesAndTheirComments[authorStatus].Add(new Dictionary<string, object> {
+                        {"id", encryptedReplyOfComment.id},
+                        {"parentCommentId", commentId},
+                        {"authorId", authorId},
+                        {"authorStatus", authorStatus},
+                        {"isEdited", encryptedReplyOfComment.isEdited},
+                        {"datetime", encryptedReplyOfComment.datetime},
+                        {"content", decryptedCommentContent},
+                        {"authorUsername", "user " + authorId},
+                        {"isLikedByAuthUser", false},
+                        {"isLikedByPostAuthor", false},
+                        {"numLikes", 0},
+                        {"numReplies", 0}
+                    });
+                }
             }
             catch
             {
@@ -539,7 +635,7 @@ public class CommentQueryProvider
         }
         else
         {
-            if (authUserId != null)
+            if (authUserId != -1)
             {
                 bool userIsBlockedByEachPostAuthor = true;
                 foreach(int authorId in authorsOfPost!)
@@ -554,19 +650,52 @@ public class CommentQueryProvider
                 if (userIsBlockedByEachPostAuthor)
                 {
                     throw new GraphQLException(new Error(
-                        @"You are trying to access the data of a post that doesn't exist.",
+                        "You are trying to view the replies of a comment that does not exist",
                         "NOT_FOUND"
-                    ));  
+                    ));
                 }
             } 
 
             try
             {
-                unencryptedRepliesOfComment = await sqlServerContext.
+                List<UnencryptedCommentOfPost> unencryptedRepliesOfComment = await sqlServerContext.
                     unencryptedCommentsOfPosts
                     .Where(x => x.parentCommentId == commentId && !setOfReplyIdsToExclude.Contains(x.id)
                     && !setOfAuthUserBlockings.Contains(x.authorId))
                     .ToListAsync();
+                
+                foreach(UnencryptedCommentOfPost unencryptedReplyOfComment in unencryptedRepliesOfComment)
+                {
+                    int authorId = unencryptedReplyOfComment.authorId;
+
+                    if (authorId == authUserId) {
+                        authorStatus = "You";
+                    }
+                    else if (setOfAuthUserFollowings.Contains(authorId)) {
+                        authorStatus = "Following";
+                    }
+                    else if (authorsOfPost.Contains(authorId)) {
+                        authorStatus = "Author";
+                    }
+                    else {
+                        authorStatus = "Stranger";
+                    }
+
+                    commenterStatusesAndTheirComments[authorStatus].Add(new Dictionary<string, object> {
+                        {"id", unencryptedReplyOfComment.id},
+                        {"parentCommentId", commentId},
+                        {"authorId", authorId},
+                        {"authorStatus", authorStatus},
+                        {"isEdited", unencryptedReplyOfComment.isEdited},
+                        {"datetime", unencryptedReplyOfComment.datetime},
+                        {"content", unencryptedReplyOfComment.content},
+                        {"authorUsername", "user " + authorId},
+                        {"isLikedByAuthUser", false},
+                        {"isLikedByPostAuthor", false},
+                        {"numLikes", 0},
+                        {"numReplies", 0}
+                    });
+                }
             } 
             catch
             {
@@ -577,24 +706,11 @@ public class CommentQueryProvider
             }
         }
 
-         List<CommentWithNumLikesAndNumReplies> unencryptedBatchOfRepliesWithNumLikesAndReplies = new List
-        <CommentWithNumLikesAndNumReplies>();
+        List<Dictionary<string, object>> batchOfRepliesWithInDepthInfo = commentsService.GetBatchOfCommentsWithInDepthInfo(
+            authUserId, maxBatchSize, authorsOfPost, plaintextDataEncryptionKey, postgresContext, sqlServerContext,
+            commenterStatusesAndTheirComments, encryptionAndDecryptionService
+        );
 
-        try
-        {
-            unencryptedBatchOfRepliesWithNumLikesAndReplies = commentsService.SortAndFilterOutCommentsForBatch(
-                authUserId, 10, authorsOfPost!, setOfAuthUserFollowings, (bool) isEncrypted,
-                postgresContext, sqlServerContext, unencryptedRepliesOfComment
-            );
-        }
-        catch
-        {
-            throw new GraphQLException(new Error(
-                @"There was trouble sorting and filtering out the all the replies of this comment to form the batch",
-                "INTERNAL_SERVER_ERROR"
-            ));
-        }
-
-        return unencryptedBatchOfRepliesWithNumLikesAndReplies;
+        return batchOfRepliesWithInDepthInfo;
     }
 }

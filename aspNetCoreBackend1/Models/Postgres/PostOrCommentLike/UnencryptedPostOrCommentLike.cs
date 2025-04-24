@@ -23,15 +23,15 @@ public class UnencryptedPostOrCommentLike
     [Column("liker_id")]
     public int likerId { get; set; }
 
-    [Column("datetime_of_like")]
-    public DateTime datetimeOfLike { get; set; }
+    [Column("datetime")]
+    public DateTime datetime { get; set; }
 
-    public UnencryptedPostOrCommentLike(string? overallPostId, int? commentId, int likerId, DateTime datetimeOfLike)
+    public UnencryptedPostOrCommentLike(string? overallPostId, int? commentId, int likerId, DateTime datetime)
     {
         this.overallPostId = overallPostId;
         this.commentId = commentId;
         this.likerId = likerId;
-        this.datetimeOfLike = datetimeOfLike;
+        this.datetime = datetime;
     }
 }
 

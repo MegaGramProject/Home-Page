@@ -19,7 +19,7 @@ import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import rightArrow from "../assets/images/nextArrow.png";
 
-import '../assets/HomePageStyles.css';
+import '../assets/styles.css';
 
 import { useEffect, useState } from 'react';
 

@@ -12,7 +12,8 @@ import { BehaviorSubject } from 'rxjs';
   selector: 'StoryViewerPage',
   standalone: true,
   imports: [CommonModule, StoryViewer, ErrorPopup],
-  templateUrl: './StoryViewerPage.component.html'
+  templateUrl: './StoryViewerPage.component.html',
+  styleUrl: '../styles.css'
 })
 export class StoryViewerPage {
   authUsernameWasProvidedInRoute:boolean = false;

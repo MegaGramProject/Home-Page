@@ -303,8 +303,8 @@ public class Controller : ControllerBase
                 var infoOnEachEncryptedLikerOfPostOrComment = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => commentId == null ? x.overallPostId == overallPostId : x.commentId == commentId)
-                    .OrderByDescending(x => x.datetimeOfLike)
-                    .Select(x => new { x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag })
+                    .OrderByDescending(x => x.datetime)
+                    .Select(x => new { x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag })
                     .ToListAsync();
                 
 
@@ -313,7 +313,7 @@ public class Controller : ControllerBase
                     string stringifiedLikerId = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                         encryptedLikerInfo.encryptedLikerId,
                         plaintextDataEncryptionKey,
-                        encryptedLikerInfo.encryptionIv,
+                        encryptedLikerInfo.likerIdEncryptionIv,
                         encryptedLikerInfo.encryptionAuthTag
                     );
                     int likerId = int.Parse(stringifiedLikerId);
@@ -386,7 +386,7 @@ public class Controller : ControllerBase
                     .unencryptedPostOrCommentLikes
                     .Where(x => commentId == null ? x.overallPostId == overallPostId : x.commentId == commentId
                     && !setOfLikerIdsToExclude.Contains(x.likerId))
-                    .OrderByDescending(x => x.datetimeOfLike)
+                    .OrderByDescending(x => x.datetime)
                     .Select(x => x.likerId)
                     .ToListAsync();
                 
@@ -556,7 +556,7 @@ public class Controller : ControllerBase
                 var likersOfEncryptedPostOrComment =  await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => commentId == null ? x.overallPostId == overallPostId : x.commentId == commentId)
-                    .Select(x => new { x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag })
+                    .Select(x => new { x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag })
                     .ToListAsync();
 
                 if (likersOfEncryptedPostOrComment.Count > 0)
@@ -595,7 +595,7 @@ public class Controller : ControllerBase
                         string stringifiedLikerId = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                             encryptedLikerInfo.encryptedLikerId,
                             plaintextDataEncryptionKey,
-                            encryptedLikerInfo.encryptionIv,
+                            encryptedLikerInfo.likerIdEncryptionIv,
                             encryptedLikerInfo.encryptionAuthTag
                         );
                         int likerId = int.Parse(stringifiedLikerId);
@@ -1098,7 +1098,7 @@ public class Controller : ControllerBase
                 EncryptedCaptionOfPost newEncryptedCaptionOfPost = new EncryptedCaptionOfPost(
                     overallPostId,
                     unencryptedCaptionToDelete.isEdited,
-                    unencryptedCaptionToDelete.datetimeOfCaption,
+                    unencryptedCaptionToDelete.datetime,
                     encryptedCaptionAuthorInfo.encryptedTextBuffer,
                     encryptedCaptionContent,
                     encryptedCaptionAuthorInfo.iv,
@@ -1160,7 +1160,7 @@ public class Controller : ControllerBase
                 UnencryptedCaptionOfPost newUnencryptedCaptionOfPost = new UnencryptedCaptionOfPost(
                     overallPostId,
                     encryptedCaptionToDelete.isEdited,
-                    encryptedCaptionToDelete.datetimeOfCaption,
+                    encryptedCaptionToDelete.datetime,
                     captionAuthorId,
                     captionContent
                 );
@@ -1228,7 +1228,7 @@ public class Controller : ControllerBase
                     overallPostId,
                     unencryptedComment.parentCommentId,
                     unencryptedComment.isEdited,
-                    unencryptedComment.datetimeOfComment,
+                    unencryptedComment.datetime,
                     encryptedCommentAuthorInfo.encryptedTextBuffer,
                     encryptedCommentContent,
                     encryptedCommentAuthorInfo.iv,
@@ -1327,7 +1327,7 @@ public class Controller : ControllerBase
                     overallPostId,
                     encryptedComment.parentCommentId,
                     encryptedComment.isEdited,
-                    encryptedComment.datetimeOfComment,
+                    encryptedComment.datetime,
                     int.Parse(authorIdAsString),
                     content
                 );
@@ -1421,7 +1421,7 @@ public class Controller : ControllerBase
                         encryptedLikerIdInfo.encryptedTextBuffer,
                         encryptedLikerIdInfo.iv,
                         encryptedLikerIdInfo.authTag,
-                        unencryptedLike.datetimeOfLike
+                        unencryptedLike.datetime
                     )
                 );
             }
@@ -1471,7 +1471,7 @@ public class Controller : ControllerBase
                 string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                     encryptedLike.encryptedLikerId,
                     plaintextDataEncryptionKey!,
-                    encryptedLike.encryptionIv,
+                    encryptedLike.likerIdEncryptionIv,
                     encryptedLike.encryptionAuthTag
                 );
 
@@ -1481,7 +1481,7 @@ public class Controller : ControllerBase
                         encryptedLike.commentId == null ? null :
                         oldCommentIdToNewCommentIdMappings[encryptedLike.commentId ?? -1],
                         int.Parse(likerIdAsString),
-                        encryptedLike.datetimeOfLike
+                        encryptedLike.datetime
                     )
                 );
             }
@@ -2004,7 +2004,7 @@ public class Controller : ControllerBase
                         overallPostIdsAndTheirCaptions[overallPostId] = new UnencryptedCaptionOfPost(
                             overallPostId,
                             (bool) captionInfoOfPost!["isEdited"],
-                            (DateTime) captionInfoOfPost!["datetimeOfCaption"],
+                            (DateTime) captionInfoOfPost!["datetime"],
                             (int) captionInfoOfPost!["authorId"],
                             (string) captionInfoOfPost!["content"]
                         );
@@ -2085,7 +2085,7 @@ public class Controller : ControllerBase
                             overallPostIdsAndTheirCaptions[overallPostId] = new UnencryptedCaptionOfPost(
                                 overallPostId,
                                 encryptedCaptionOfPost.isEdited,
-                                encryptedCaptionOfPost.datetimeOfCaption,
+                                encryptedCaptionOfPost.datetime,
                                 authorId,
                                 captionContent
                             );
@@ -2408,8 +2408,8 @@ public class Controller : ControllerBase
                    var atMost3LikersFollowedByAuthUserOfEachPost = await _postgresContext
                         .encryptedPostOrCommentLikes
                         .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? ""))
-                        .OrderByDescending(x => x.datetimeOfLike)
-                        .Select(x => new { x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag})
+                        .OrderByDescending(x => x.datetime)
+                        .Select(x => new { x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag})
                         .ToListAsync();
                     
                     foreach(var authUserFollowedLikeOfPost in atMost3LikersFollowedByAuthUserOfEachPost)
@@ -2458,7 +2458,7 @@ public class Controller : ControllerBase
                             string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                                 authUserFollowedLikeOfPost.encryptedLikerId,
                                 plaintextDataEncryptionKey,
-                                authUserFollowedLikeOfPost.encryptionIv,
+                                authUserFollowedLikeOfPost.likerIdEncryptionIv,
                                 authUserFollowedLikeOfPost.encryptionAuthTag
                             );
                             int likerId = int.Parse(likerIdAsString);
@@ -2503,7 +2503,7 @@ public class Controller : ControllerBase
                         .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? "") &&
                             setOfFollowingsOfAuthUser.Contains(x.likerId)
                         )
-                        .OrderByDescending(x => x.datetimeOfLike)
+                        .OrderByDescending(x => x.datetime)
                         .GroupBy(x => x.overallPostId)
                         .Select(g => g.Take(3))
                         .SelectMany(g => g)
@@ -3025,7 +3025,7 @@ public class Controller : ControllerBase
                 var encryptedLikesOfPostsMadeByUsersInAuthUserFollowings = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId!))
-                    .Select(x => new { x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag})
+                    .Select(x => new { x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag})
                     .ToListAsync();
                 
                 foreach(var encryptedPostLike in encryptedLikesOfPostsMadeByUsersInAuthUserFollowings)
@@ -3063,7 +3063,7 @@ public class Controller : ControllerBase
                         string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                             encryptedPostLike.encryptedLikerId,
                             plaintextDataEncryptionKey,
-                            encryptedPostLike.encryptionIv,
+                            encryptedPostLike.likerIdEncryptionIv,
                             encryptedPostLike.encryptionAuthTag
                         );
                         int likerId = int.Parse(likerIdAsString);
@@ -3299,7 +3299,7 @@ public class Controller : ControllerBase
                 var encryptedLikesOfSponsoredPostsThatAuthUserCanView = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId!))
-                    .Select(x => new {x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag})
+                    .Select(x => new {x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag})
                     .ToListAsync();
                 
                 foreach(var encryptedPostLike in encryptedLikesOfSponsoredPostsThatAuthUserCanView)
@@ -3337,7 +3337,7 @@ public class Controller : ControllerBase
                         string likerIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                             encryptedPostLike.encryptedLikerId,
                             plaintextDataEncryptionKey,
-                            encryptedPostLike.encryptionIv,
+                            encryptedPostLike.likerIdEncryptionIv,
                             encryptedPostLike.encryptionAuthTag
                         );
                         int likerId = int.Parse(likerIdAsString);
@@ -3527,7 +3527,7 @@ public class Controller : ControllerBase
             postLikeUpdates = await _postgresContext
                 .unencryptedPostOrCommentLikes
                 .Where(x => setOfOverallPostIds.Contains(x.overallPostId) &&
-                x.datetimeOfLike >= datetimeForCheckingUpdatesOfPostLikes)
+                x.datetime >= datetimeForCheckingUpdatesOfPostLikes)
                 .Select(x => new { x.overallPostId, x.likerId })
                 .ToListAsync();
             
@@ -3552,10 +3552,10 @@ public class Controller : ControllerBase
                 var infoOnEachEncryptedLikerOfPostsInSet = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => setOfOverallPostIds.Contains(x.overallPostId) &&
-                    x.datetimeOfLike >= datetimeForCheckingUpdatesOfPostLikes)
+                    x.datetime >= datetimeForCheckingUpdatesOfPostLikes)
                     .Select(x => new
                         {
-                            x.overallPostId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag
+                            x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag
                         }
                     )
                     .ToListAsync();
@@ -3600,7 +3600,7 @@ public class Controller : ControllerBase
                         .DecryptTextWithAzureDataEncryptionKey(
                             encryptedLikeInfo.encryptedLikerId,
                             plaintextDataEncryptionKey,
-                            encryptedLikeInfo.encryptionIv,
+                            encryptedLikeInfo.likerIdEncryptionIv,
                             encryptedLikeInfo.encryptionAuthTag
                         );
 
@@ -3658,7 +3658,7 @@ public class Controller : ControllerBase
                 .unencryptedCommentsOfPosts
                 .Where(x => x.parentCommentId == null &&
                 setOfOverallPostIds.Contains(x.overallPostId) &&
-                x.datetimeOfComment >= datetimeForCheckingUpdatesOfPostComments)
+                x.datetime >= datetimeForCheckingUpdatesOfPostComments)
                 .Select(x => new { x.overallPostId, x.authorId, x.content })
                 .ToListAsync();
             
@@ -3685,7 +3685,7 @@ public class Controller : ControllerBase
                     .Where(x =>
                     x.parentCommentId == null &&
                     setOfOverallPostIds.Contains(x.overallPostId) &&
-                    x.datetimeOfComment >= datetimeForCheckingUpdatesOfPostComments)
+                    x.datetime >= datetimeForCheckingUpdatesOfPostComments)
                     .Select(x => new
                         {
                             x.overallPostId,
@@ -3803,7 +3803,7 @@ public class Controller : ControllerBase
             commentLikeUpdates = await _postgresContext
                 .unencryptedPostOrCommentLikes
                 .Where(x => setOfCommentIds.Contains(x.commentId) &&
-                x.datetimeOfLike >= datetimeForFetchingCommentLikeUpdates)
+                x.datetime >= datetimeForFetchingCommentLikeUpdates)
                 .Select(x => new { x.commentId, x.likerId })
                 .ToListAsync();
             
@@ -3846,10 +3846,10 @@ public class Controller : ControllerBase
                     var infoOnEachEncryptedLikerOfCommentsInSet = await _postgresContext
                         .encryptedPostOrCommentLikes
                         .Where(x => setOfCommentIds.Contains(x.commentId) &&
-                        x.datetimeOfLike >= datetimeForFetchingCommentLikeUpdates)
+                        x.datetime >= datetimeForFetchingCommentLikeUpdates)
                         .Select(x => new
                             {
-                                x.commentId, x.encryptedLikerId, x.encryptionIv, x.encryptionAuthTag
+                                x.commentId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag
                             }
                         )
                         .ToListAsync();
@@ -3896,7 +3896,7 @@ public class Controller : ControllerBase
                             .DecryptTextWithAzureDataEncryptionKey(
                                 encryptedLikeInfo.encryptedLikerId,
                                 plaintextDataEncryptionKey,
-                                encryptedLikeInfo.encryptionIv,
+                                encryptedLikeInfo.likerIdEncryptionIv,
                                 encryptedLikeInfo.encryptionAuthTag
                             );
 
@@ -3953,7 +3953,7 @@ public class Controller : ControllerBase
             commentReplyUpdates = await _postgresContext
                 .unencryptedCommentsOfPosts
                 .Where(x => setOfCommentIds.Contains(x.parentCommentId) &&
-                x.datetimeOfComment >= datetimeForFetchingCommentReplyUpdates)
+                x.datetime >= datetimeForFetchingCommentReplyUpdates)
                 .Select(x => new { x.parentCommentId, x.authorId, x.content })
                 .ToListAsync();
             
@@ -3982,7 +3982,7 @@ public class Controller : ControllerBase
                     var infoOnEachEncryptedCommentOfPostsInSet = await _postgresContext
                         .encryptedCommentsOfPosts
                         .Where(x => setOfUnencryptedCommentIds.Contains(x.parentCommentId) &&
-                        x.datetimeOfComment >= datetimeForFetchingCommentReplyUpdates)
+                        x.datetime >= datetimeForFetchingCommentReplyUpdates)
                         .Select(x => new
                             {
                                 x.overallPostId,

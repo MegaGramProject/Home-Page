@@ -1,0 +1,179 @@
+<div style="display: flex; gap: 1em; width: 33em; position: relative; padding-left: 0.5em;">
+    <a [href]="'http://34.111.89.101/profile/' + authorUsername" target="_blank" rel="noopener noreferrer">
+        <img [src]="authorPfp" style="height: 3em; width: 3em; object-fit: contain;"/>
+    </a>
+
+    <div style="display: flex; flex-direction: column; margin-top: -1em; align-items: start;">
+        <p *ngIf="!editMode" (dblclick)="!isCaption && likeComment()" style="margin-bottom: 0em; font-size: 0.95em;
+        text-align: start; max-width: 22em; overflow-wrap: break-word;">
+            <span style="display: inline-flex; align-items: center;">
+                <a [href]="'http://34.111.89.101/profile/' + authorUsername"
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style="font-weight: bold;"
+                >
+                    {{ authorUsername }}
+                </a>
+
+                <img *ngIf="authorIsVerified" [src]="'images/verifiedBlueCheck.png'" style="height: 1.4em; width: 1.4em;
+                margin-left: -0.1em; pointer-events: none; object-fit: contain;"/>
+            </span>
+
+            <ng-container *ngFor="let el of elementsForCommentContent; let index = index">
+                <ng-container *ngIf="el.type === 'span'">
+                    {{ el.text }}
+                </ng-container>
+
+                <ng-container *ngIf="el.type === 'a'">
+                    <a [href]="el.href" target="_blank" class="hashtagOrMention" style="color: #71a3f5;">
+                        {{ el.text }}
+                    </a>
+                </ng-container>
+            </ng-container>
+        </p>
+
+        <input *ngIf="editMode" [value]="editCommentInput" (change)="updateEditCommentInput($event)"
+        [placeholder]="content" style="border: none; font-family: Arial; font-size: 1em; width: 20em; outline: none; padding:
+        1em 1em; margin-left: -1em; margin-top: 0.8em;"/>
+
+        <div style="display: flex; gap: 1em; align-items: center; font-size: 0.91em; color: gray;">
+            <p style="max-width: 6em; text-align: start; overflow-wrap: break-word;">
+                {{ datetime }}
+            </p>
+
+            <b *ngIf="!isCaption" (click)="showLikersPopup.emit(id)" style="cursor: pointer; max-width: 8em; text-align: start;
+            overflow-wrap: break-word;">
+                {{ numLikes.toLocaleString() }} {{ numLikes !== 1 ? 'likes' : 'like' }}
+            </b>
+
+            <b *ngIf="!isCaption" (click)="replyToComment.emit({id: id, authorUsername: authorUsername, content: content})"
+            style="cursor: pointer;">
+                Reply
+            </b>
+
+            <p *ngIf="authorStatusToAuthUser === 'Stranger' && isEdited">• Edited</p>
+
+            <p *ngIf="authorStatusToAuthUser !== 'Stranger'">• {{ authorStatusToAuthUser }} {{ isEdited ? '(Edited)' : '' }}</p>
+        </div>
+
+        <div *ngIf="authUserId == authorId" style="display: flex; gap: 1em; align-items: center;">
+            <img *ngIf="!editMode" (click)="toggleEditMode()" [src]="'images/pencilIcon.png'" class="iconToBeAdjustedForDarkMode"
+            style="height: 1.2em; width: 1.2em; object-fit: contain; cursor: pointer;"/>
+
+            <ng-container *ngIf="editMode">
+                <button (click)="toggleEditMode()" style="cursor: pointer; padding: 0.6em 0.85em; color: white; background-color:
+                black; border: none; border-radius: 1em;">
+                    Cancel Edit
+                </button>
+
+                <button *ngIf="editCommentInput !== content" (click)="editComment()" style="cursor: pointer; padding: 0.6em 0.85em;
+                color: white; background-color: #4791ff; border: none; border-radius: 1em;">
+                    Save Edit
+                </button>
+            </ng-container>
+
+            <img (click)="deleteComment()" [src]="'images/trashIcon.png'" class="iconToBeAdjustedForDarkMode"
+            style="height: 0.9em; width: 0.9em; object-fit: contain; cursor: pointer; filter: brightness(5) contrast(0);"/>
+        </div>
+
+        <p *ngIf="isLikedByPostAuthor" style="font-size: 0.88em; color: gray; display: flex; align-items: center; gap: 0.5em;
+        margin-bottom: 0em;">
+            <img [src]="'images/likePostAnimationHeartIcon.webp'" style="pointer-events: none; height: 1em; width: 1em; object-fit:
+            'contain'"/>
+            <span>author likes this comment</span>
+        </p>
+
+        <ng-container *ngIf="numReplies > 0">
+            <p *ngIf="!displayReplies" (click)="toggleDisplayReplies()" style="color: gray; font-size: 0.92em; cursor: pointer;">
+                ───
+                <b style="margin-left: 1em;">
+                    View replies ({{ numReplies.toLocaleString() }})
+                </b>
+            </p>
+
+            <p *ngIf="displayReplies && numReplies > fetchedListOfReplies.length + newRepliesToThisCommentByAuthUser.length"
+            (click)="fetchBatchOfAdditionalReplies()" style="color: gray; font-size: 0.92em; cursor: pointer;">
+                ───
+                <b style="margin-left: 1em;">
+                    View replies ({{ (
+                        numReplies - fetchedListOfReplies.length - newRepliesToThisCommentByAuthUser.length
+                    ).toLocaleString() }})
+                </b>
+            </p>
+
+            <p *ngIf="displayReplies && !isCurrentlyFetchingReplies" (click)="toggleDisplayReplies()" style="color:
+            gray; font-size: 0.92em; cursor: pointer;">
+                ───
+                <b style="margin-left: 1em;">
+                    Hide replies
+                </b>
+            </p>
+        </ng-container>
+    </div>
+
+    <img *ngIf="!isLikedByAuthUser && !isCaption" [src]="'images/blankHeartIcon.png'" (click)="likeComment()" 
+    class="iconToBeAdjustedForDarkMode" style="height: 1.2em; width: 1.2em; object-fit: contain; cursor: pointer; position:
+    absolute; right: 12%; top: 8%;"/>
+
+    <img *ngIf="isLikedByAuthUser" [src]="'images/redHeartIcon.png'" (click)="toggleLikeComment()" style="height: 1.2em; width:
+    1.2em; object-fit: contain; cursor: pointer; position: absolute; right: 12%; top: 8%;"/>
+</div>
+
+<img *ngIf="isCurrentlyFetchingReplies" [src]="'images/loadingAnimation.gif'" style="height: 2em; width: 2em; margin-left: 2em;
+margin-top: 1em; object-fit: contain; pointer-events: none;"/>
+
+<div *ngIf="displayReplies" style="border-style: solid; margin-left: 1.5em; padding-left: 5em; border-color: lightgray;
+border-top: none; border-bottom: none; border-right: none; display: flex; flex-direction: column; align-items:
+start; justify-content: start; gap: 1.5em; margin-top: 2em; border-width: 0.07em;">
+    <Comment *ngFor="let newAuthUserReply of newRepliesToThisCommentByAuthUser"
+        [id]="newAuthUserReply.id"
+        [authUserId]="authUserId"
+        [isLikedByAuthUser]="newAuthUserReply.isLikedByAuthUser"
+        [newlyPostedRepliesByAuthUser]="newlyPostedRepliesByAuthUser"
+        [authorId]="authUserId"
+        [authorUsername]="newAuthUserReply.authorUsername"
+        [authorIsVerified]="usersAndTheirRelevantInfo[authUserId]?.authorIsVerified ?? false"
+        [authorPfp]="usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? 'images/defaultPfp.png'"
+        authorStatusToAuthUser="'You'"
+        [isEdited]="newAuthUserReply.isEdited"
+        [datetime]="newAuthUserReply.datetime"
+        [content]="newAuthUserReply.content"
+        [isLikedByPostAuthor]="false"
+        [numLikes]="newAuthUserReply.numLikes"
+        [numReplies]="newAuthUserReply.numReplies"
+        [usersAndTheirRelevantInfo]="usersAndTheirRelevantInfo"
+        (showErrorPopup)="showErrorPopup.emit($event)"
+        (updateCommentDetails)="updateCommentDetails.emit($event)"
+        (replyToComment)="replyToComment.emit($event)"
+        (showLikersPopup)="showLikersPopup.emit($event)"
+        (fetchAllTheNecessaryInfo)="fetchAllTheNecessaryInfo.emit($event)"
+        (notifyParentToEditComment)="notifyParentToEditComment.emit($event)"
+        (notifyParentToDeleteComment)="notifyParentToDeleteComment.emit($event)"
+    />
+
+    <Comment *ngFor="let fetchedReply of fetchedListOfReplies"
+        [id]="fetchedReply.id"
+        [authUserId]="authUserId"
+        [isLikedByAuthUser]="fetchedReply.isLikedByAuthUser"
+        [newlyPostedRepliesByAuthUser]="newlyPostedRepliesByAuthUser"
+        [authorId]="fetchedReply.authorId"
+        [authorUsername]="fetchedReply.authorUsername"
+        [authorIsVerified]="usersAndTheirRelevantInfo[fetchedReply.authorId]?.authorIsVerified ?? false"
+        [authorPfp]="usersAndTheirRelevantInfo[fetchedReply.authorId]?.profilePhoto ?? 'images/defaultPfp.png'"
+        [authorStatusToAuthUser]="fetchedReply.authorStatusToAuthUser"
+        [isEdited]="fetchedReply.isEdited"
+        [datetime]="fetchedReply.datetime"
+        [content]="fetchedReply.content"
+        [isLikedByPostAuthor]="fetchedReply.isLikedByPostAuthor"
+        [numLikes]="fetchedReply.numLikes"
+        [numReplies]="fetchedReply.numReplies"
+        [usersAndTheirRelevantInfo]="usersAndTheirRelevantInfo"
+        (showErrorPopup)="showErrorPopup.emit($event)"
+        (updateCommentDetails)="updateCommentDetails.emit($event)"
+        (replyToComment)="replyToComment.emit($event)"
+        (showLikersPopup)="showLikersPopup.emit($event)"
+        (fetchAllTheNecessaryInfo)="fetchAllTheNecessaryInfo.emit($event)"
+        (notifyParentToEditComment)="notifyParentToEditComment.emit($event)"
+        (notifyParentToDeleteComment)="notifyParentToDeleteComment.emit($event)"
+    />
+</div>

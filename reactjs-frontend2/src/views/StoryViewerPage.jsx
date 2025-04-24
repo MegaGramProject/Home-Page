@@ -5,6 +5,8 @@ import blackScreen from '../assets/images/blackScreen.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 
+import '../assets/styles.css';
+
 import { useEffect, useState } from 'react';
 
 

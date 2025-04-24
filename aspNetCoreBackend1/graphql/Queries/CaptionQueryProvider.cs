@@ -143,7 +143,7 @@ public class CaptionQueryProvider
                         unencryptedCaptionOfPost = new UnencryptedCaptionOfPost(
                             overallPostId,
                             (bool) captionInfo!["isEdited"],
-                            (DateTime) captionInfo!["datetimeOfCaption"],
+                            (DateTime) captionInfo!["datetime"],
                             (int) captionInfo!["authorId"],
                             (string) captionInfo!["content"]
                         );
@@ -174,7 +174,7 @@ public class CaptionQueryProvider
                 {
                     captionInfo!["overallPostId"] = encryptedCaptionOfPost!.overallPostId;
                     captionInfo!["isEdited"] = encryptedCaptionOfPost!.isEdited;
-                    captionInfo!["datetimeOfCaption"] = encryptedCaptionOfPost!.datetimeOfCaption;
+                    captionInfo!["datetime"] = encryptedCaptionOfPost!.datetime;
                     captionInfo!["encryptedAuthorId"] = encryptedCaptionOfPost!.encryptedAuthorId;
                     captionInfo!["encryptedContent"] = encryptedCaptionOfPost!.encryptedContent;
                     captionInfo!["encryptionIv"] = encryptedCaptionOfPost!.encryptionIv;
@@ -272,7 +272,7 @@ public class CaptionQueryProvider
         {
             unencryptedCaptionOfPost!.overallPostId = overallPostId;
             unencryptedCaptionOfPost!.isEdited = (bool) captionInfo!["isEdited"];
-            unencryptedCaptionOfPost!.datetimeOfCaption = (DateTime) captionInfo["datetimeOfCaption"];
+            unencryptedCaptionOfPost!.datetime = (DateTime) captionInfo["datetime"];
 
             byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
             (

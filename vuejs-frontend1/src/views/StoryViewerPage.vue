@@ -53,6 +53,8 @@ import StoryViewer from '../components/StoryViewer';
 import defaultPfp from '../assets/images/defaultPfp.png';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 
+    import '../assets/styles.css';
+
     import { onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
