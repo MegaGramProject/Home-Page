@@ -1,0 +1,360 @@
+<div style="display: flex; flex-direction: column; width: 61%; align-items: start; padding: 1em 1em;">
+    <div style="width: 100%; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 1em;">
+            <UserIcon
+                [authUserId]="authUserId"
+                [userId]="mainPostAuthorId"
+                [username]="postDetails.authorUsernames[0]"
+                [userPfp]="mainPostAuthorInfo.profilePhoto ?? 'images/defaultPfp.png'"
+                [inStoriesSection]="false"
+                [userHasStories]="mainPostAuthorInfo.hasStories ?? false"
+                [userHasUnseenStory]="mainPostAuthorInfo.hasUnseenStory ?? false"
+                [userIsVerified]="mainPostAuthorInfo.isVerified ?? false"
+                (showStoryViewer)="showStoryViewer.emit($event)"
+            />
+
+            <div style="display: flex; flex-direction: column; align-items: start; gap: 0.5em;">
+                <p style="margin-bottom: 0em; max-width: 20em; text-align: start; overflow-wrap: break-word;">
+                    <ng-container *ngFor="let authorUsername of postDetails.authorUsernames; let index = index">
+                        <a
+                            [href]="'http://34.111.89.101/profile/' + authorUsername"
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style="font-weight: bold; display: inline-flex; align-items: center; word-break: break-word;
+                            margin-right: 0.2em;"
+                        >
+                            {{ authorUsername }}
+                            <img *ngIf="usersAndTheirRelevantInfo[postDetails.authorIds[index]]?.isVerified ?? false"
+                                [src]="'images/verifiedBlueCheck.png'" 
+                                style="height: 1.4em; width: 1.4em; pointer-events: none; object-fit: contain; margin-left: -0.1em;
+                                margin-right: -0.2em;"
+                            />
+                        </a>
+
+                        <span *ngIf="index < postDetails.authorUsernames.length - 2" style="font-weight: bold; margin-right:
+                        0.2em;">, </span>
+                        <span *ngIf="index === postDetails.authorUsernames.length - 2 && index == 0" style="font-weight: bold;
+                        margin-right: 0.2em;"> and </span>
+                        <span *ngIf="index === postDetails.authorUsernames.length - 2 && index > 0" style="font-weight: bold;
+                        margin-right: 0.2em;">, and </span>
+                    </ng-container>
+
+                    <span style="color: gray;">
+                        {{ ' • ' + postDetails.datetime }}
+                    </span> 
+                </p>
+
+                <a *ngIf="postDetails.locationOfPost !== null"
+                    [href]="'http://34.111.89.101/search/locations/' + postDetails.locationOfPost"
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style="font-size: 0.9em; margin-bottom: 0em; max-width: 20em; text-align: start; overflow-wrap: break-word;">
+                    {{ postDetails.locationOfPost }} 
+                </a>
+
+                <div *ngIf="bgMusicObject !== null" style="display: flex; align-items: center; gap: 0.8em; font-size: 0.9em;
+                margin-bottom: -0.5em; margin-top: -0.5em;">
+                    <img [src]="'images/musicSymbol.png'" class="iconToBeAdjustedForDarkMode" style="pointer-events: none; height:
+                    1.1em; width: 1.1em; object-fit: contain;" />
+
+                    <p style="max-width: 17em; text-align: start; overflow-wrap: break-word;">
+                        <b>{{ postDetails.bgMusic.title }}</b> • <b>{{ postDetails.bgMusic.artist }}</b>
+                    </p>
+
+                    <img *ngIf="!bgMusicIsPlaying" [src]="'images/playIcon.webp'" class="iconToBeAdjustedForDarkMode"
+                        (click)="togglePauseBackgroundMusic()" style="cursor: pointer; height: 1.3em; width: 1.3em; object-fit:
+                        contain;"/>
+                    <img *ngIf="bgMusicIsPlaying" [src]="'images/pauseIcon.png'" class="iconToBeAdjustedForDarkMode"
+                        (click)="togglePauseBackgroundMusic()" style="cursor: pointer; height: 1.5em; width: 1.5em; object-fit:
+                        contain;"/>
+                </div>
+
+                <a *ngIf="postDetails.adInfo !== null" [href]="postDetails.adInfo.link" target="_blank" rel="noopener noreferrer"
+                    style="font-size: 0.9em;">
+                    Sponsored
+                </a>
+            </div>
+        </div>
+
+        <img [src]="'images/threeHorizontalDots.png'" class="iconToBeAdjustedForDarkMode" style="cursor: pointer; height: 2em;
+        width: 2em; object-fit: contain;" (click)="notifyParentToShowThreeDotsPopup()"/>
+    </div>
+
+    <div *ngIf="postDetails.slides[currSlide].type === 'image'" #currSlideRef style="width: 100%; height: 42em; position: relative;
+    margin-top: 1em;">
+        <img [src]="postDetails.slides[currSlide].src" (click)="notifyParentToFocusOnThisMediaPost()" (dblclick)="likePost($event)"
+            style="position: absolute; object-fit: cover; top: 0%; left: 0%; height: 100%; width: 100%;" />
+
+        <img *ngIf="currSlide > 0" [src]="'images/nextSlideArrow.png'" (click)="changeSlide('decrement')"
+            style="cursor: pointer; height: 2.4em; width: 2.4em; object-fit: contain; position: absolute; left: 1%; top:
+            50%; transform: translateY(-50%) rotate(180deg);" />
+
+        <img *ngIf="currSlide < postDetails.slides.length-1" [src]="'images/nextSlideArrow.png'" (click)="changeSlide('increment')"
+            style="cursor: pointer; height: 2.4em; width: 2.4em; object-fit: contain; position: absolute; right: 1%; top:
+            50%; transform: translateY(-50%);" />
+
+        <PostDots *ngIf="postDetails.slides.length > 1"
+            [numSlides]="postDetails.slides.length"
+            [currSlide]="currSlide"
+            [currSlideIsImage]="true"
+        />
+
+        <img *ngIf="postDetails.slides[currSlide].taggedAccounts.length > 0" [src]="'images/taggedAccountsIcon.png'"
+            (click)="toggleShowTaggedAccountsOfSlide()" style="height: 2.4em; width: 2.4em; object-fit: contain; position: absolute; 
+            bottom: 2%; left: 3%; cursor: pointer;" />
+
+        <ng-container *ngIf="displayTaggedAccountsOfSlide">
+            <a *ngFor="let taggedAccountInfo of postDetails.slides[currSlide].taggedAccounts"
+                [href]="'http://34.111.89.101/profile/' + taggedAccountInfo[0]"
+                target="_blank" 
+                rel="noopener noreferrer"
+                [style.color]="'white'"
+                [style.backgroundColor]="'rgba(0,0,0,0.6)'"
+                [style.borderRadius]="'0.3em'"
+                [style.padding]="'0.3em 0.7em'"
+                [style.position]="'absolute'"
+                [style.top]="taggedAccountInfo[1] + '%'"
+                [style.left]="taggedAccountInfo[2] + '%'"
+                [style.maxWidth]="'10em'"
+                [style.textAlign]="'start'"
+                [style.overflowWrap]="'break-word'">
+                {{ taggedAccountInfo[0] }}
+            </a>
+        </ng-container>
+
+        <img *ngIf="intervalIdForHeartAnimation !== null" [src]="'images/heartAnimationIcon.webp'" [style.height]="'6.6em'"
+            [style.width]="'6.6em'"
+            [style.pointerEvents]="'none'" [style.objectFit]="'contain'" [style.position]="'absolute'"
+            [style.top]="heartAnimationCoordinates[1] + '%'" [style.left]="heartAnimationCoordinates[0] + '%'"
+            [style.transform]="'translate(-50%, -50%)'" />  
+    </div>
+
+    <div *ngIf="postDetails.slides[currSlide].type !== 'image'" #currSlideRef style="width: 100%; height: 42em; position: relative;
+    margin-top: 1em; background-color:
+    black;">
+        <video #vidSlideRef [src]="postDetails.slides[currSlide].src" muted controls (click)="notifyParentToFocusOnThisMediaPost()"
+        (dblclick)="likePost($event)" style="width: 100%; height: 100%; position: absolute; top: 0%; left: 0%;">
+            <track *ngFor="let subtitlesInfo of postDetails.slides[currSlide].subtitles"
+                [attr.kind]="'subtitles'"
+                [attr.src]="subtitlesInfo.src"
+                [attr.srcLang]="subtitlesInfo.langCode"
+                [attr.label]="languageCodeToLabelMappings[subtitlesInfo.langCode]"
+                [attr.default]="subtitlesInfo.default ?? false"
+            />
+        </video>
+
+        <img *ngIf="currSlide > 0" [src]="'images/nextSlideArrow.png'" (click)="changeSlide('decrement')"
+            style="cursor: pointer; height: 2.4em; width: 2.4em; object-fit: contain; position: absolute; left: 1%; top:
+            50%; transform: translateY(-50%) rotate(180deg);" />
+
+        <img *ngIf="currSlide < postDetails.slides.length-1" [src]="'images/nextSlideArrow.png'" (click)="changeSlide('increment')"
+            style="cursor: pointer; height: 2.4em; width: 2.4em; object-fit: contain; position: absolute; right: 1%; top:
+            50%; transform: translateY(-50%);" />
+
+        <PostDots *ngIf="postDetails.slides.length > 1"
+            [numSlides]="postDetails.slides.length"
+            [currSlide]="currSlide"
+            [currSlideIsImage]="false"
+        />
+
+        <img *ngIf="postDetails.slides[currSlide].taggedAccounts.length > 0" [src]="'images/taggedAccountsIcon.png'"
+            (click)="toggleShowTaggedAccountsOfSlide()" style="height: 2.4em; width: 2.4em; object-fit: contain; position: absolute;
+            bottom: 16%; left: 3%; cursor: pointer;" />
+
+        <div *ngIf="!displaySectionsOfVidSlide && !displayTaggedAccountsOfSlide &&
+        postDetails.slides[currSlide].sections.length > 0" class="videoSlideChaptersOrTaggedAccountsDiv"
+            (click)="toggleShowSectionsOfVidSlide()" style="position: absolute; bottom: 0%; right: -55%; overflow-y: scroll;
+            box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; padding: 0.5em 1em; cursor: pointer; border-radius: 2em;">
+            <small style="font-weight: bold;">
+                Show Sections of this Video-Slide
+            </small>
+        </div>
+
+        <div *ngIf="displaySectionsOfVidSlide" class="videoSlideChaptersOrTaggedAccountsDiv" style="position: absolute; width:
+            100%; top: 0%; right: -105%; height: 100%; overflow-y: scroll; box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+            z-index: 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4em 1.5em; border-style:
+                solid; border-color: lightgray; border-width: 0.08em; border-top: none; border-left: none; border-right: none;">
+                <h4>Sections of this Video-Slide</h4>
+
+                <img [src]="'images/thinGrayXIcon.png'" (click)="toggleShowSectionsOfVidSlide()" style="cursor: pointer; height:
+                1.6em; width: 1.6em; object-fit: contain;" />
+            </div>
+
+            <br />
+
+            <div *ngFor="let sectionInfo of postDetails.slides[currSlide].sections" class="videoSlideSection"
+                (click)="takeUserToSectionInVideo(sectionInfo[0])" style="display: flex; width: 100%; align-items: center;
+                    cursor: pointer; padding: 0.4em 1.5em; gap: 1.5em;">
+                <img [src]="slideToVidTimeToFrameMappings[currSlide]?.[sectionInfo[0]] ?? 'images/defaultVideoFrame.jpg'"
+                    style="pointer-events: none; height: 8em; width: 8em; object-fit: contain;" />
+
+                <div style="display: flex; flex-direction: column; align-items: start;">
+                    <b>
+                        {{ sectionInfo[2] }}
+                    </b>
+                    <p>
+                        {{ sectionInfo[1] }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div *ngIf="displayTaggedAccountsOfSlide" class="videoSlideChaptersOrTaggedAccountsDiv" style="position: absolute; width:
+            100%; top: 0%; right: -105%; height: 100%; overflow-y: scroll; box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+            z-index: 2;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4em 1.5em; border-style:
+                solid; border-color: lightgray; border-width: 0.08em; border-top: none; border-left: none; border-right: none;">
+                <h4>Tagged Accounts of this Video-Slide</h4>
+
+                <img [src]="'images/thinGrayXIcon.png'" (click)="toggleShowTaggedAccountsOfSlide()" style="cursor: pointer; height:
+                1.6em; width: 1.6em; object-fit: contain;" />
+            </div>
+
+            <br />
+
+            <FollowUser *ngFor="let taggedAccountInfo of postDetails.slides[currSlide].taggedAccounts"
+                [authUserId]="authUserId"
+                [userId]="taggedAccountInfo[0]"
+                [username]="usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.username ?? ('user ' + taggedAccountInfo[0])"
+                [userFullName]="usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.fullName ?? 'Could not find full name'"
+                [userPfp]="usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.profilePhoto ?? 'images/defaultPfp.png'"
+                [originalFollowText]="taggedAccountInfo[1]"
+                [userIsVerified]="usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.isVerified ?? false"
+                (showErrorPopup)="showErrorPopup.emit($event)"
+            />
+        </div>
+
+        <img *ngIf="intervalIdForHeartAnimation !== null" [src]="'images/heartAnimationIcon.webp'" [style.height]="'6.6em'"
+            [style.width]="'6.6em'"
+            [style.pointerEvents]="'none'" [style.objectFit]="'contain'" [style.position]="'absolute'"
+            [style.top]="heartAnimationCoordinates[1] + '%'" [style.left]="heartAnimationCoordinates[0] + '%'"
+            [style.transform]="'translate(-50%, -50%)'" />
+    </div>
+
+    <a *ngIf="postDetails.adInfo !== null" [href]="postDetails.adInfo.link" style="font-weight: bold; font-size: 1.1em; width:
+    92%;">
+        <div style="width: 100%; display: flex; align-items: center; gap: 1em; justify-content: start; border-style: solid;
+            border-top: none; border-color: lightgray; border-width: 0.065em; padding: 1em 1em;">
+            <img [src]="'images/megaphone.png'" style="height: 1.8em; width: 1.8em; object-fit: contain; pointer-events: none;" />
+
+            <p style="max-width: 77%; overflow-wrap: break-word; text-align: start;">
+                {{ postDetails.adInfo.callToAction }}
+            </p>
+        </div>
+    </a>
+
+    <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-top: 1em;">
+        <div style="display: flex; align-items: center;">
+            <img *ngIf="!postDetails.isLiked" [src]="'images/blankHeartIcon.png'" (click)="toggleLikePost()"
+                class="mediaPostButton iconToBeAdjustedForDarkMode" />
+
+            <img *ngIf="postDetails.isLiked" [src]="'images/redHeartIcon.png'" (click)="toggleLikePost()" class="mediaPostButton"/>
+
+            <img [src]="'images/commentIcon.png'" class="mediaPostButton iconToBeAdjustedForDarkMode"
+                (click)="notifyParentToShowCommentsPopup()" />
+
+            <img [src]="'images/sendPostIcon.png'" class="mediaPostButton iconToBeAdjustedForDarkMode"
+                (click)="notifyParentToShowSendPostPopup()" />
+        </div>
+
+        <img *ngIf="!postDetails.isSaved" [src]="'images/blankSavedIcon.png'" (click)="toggleSavePost()"
+            class="mediaPostButton iconToBeAdjustedForDarkMode" />
+
+        <img *ngIf="postDetails.isSaved" [src]="'images/blackSavedIcon.png'" (click)="toggleSavePost()"
+            class="mediaPostButton iconToBeAdjustedForDarkMode" />
+    </div>
+
+    <b *ngIf="postDetails.likersFollowedByAuthUser.length == 0" (click)="notifyParentToShowLikersPopup()" style="margin-bottom: 0em;
+        max-width: 60%; overflow-wrap: break-word; text-align: start; margin-top: 1em; margin-left: 0.4em; cursor: pointer;">
+        {{ postDetails.numLikes.toLocaleString() + (postDetails.numLikes == 1 ? ' like' : ' likes') }}
+    </b>
+
+    <p *ngIf="postDetails.likersFollowedByAuthUser.length !== 0" style="margin-bottom: 0em; max-width: 74%; overflow-wrap:
+    break-word; text-align: start;">
+        <span>Liked by </span>
+    
+        <ng-container *ngFor="let likerId of postDetails.likersFollowedByAuthUser; let index = index">
+            <a 
+                [href]="'http://34.111.89.101/profile/' + (usersAndTheirRelevantInfo[likerId]?.username || ('user ' + likerId))"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="font-weight: bold; display: inline-flex; align-items: center; word-break: break-word; margin-right: 0.2em;"
+            >
+                {{ usersAndTheirRelevantInfo[likerId]?.username || ('user ' + likerId) }}
+    
+                <img *ngIf="usersAndTheirRelevantInfo[likerId]?.isVerified" [src]="'images/verifiedBlueCheck.png'"
+                style="height: 1.4em; width: 1.4em; pointer-events: none; object-fit: contain; margin-left: -0.1em; margin-right:
+                -0.2em;" />
+            </a>
+    
+            <span style="margin-right: 0.15em;">, </span>
+    
+            <ng-container *ngIf="index === postDetails.likersFollowedByAuthUser.length - 1">
+                <span>and </span>
+    
+                <b (click)="notifyParentToShowLikersPopup()" style="cursor: pointer;">
+                    {{ (postDetails.numLikes - postDetails.likersFollowedByAuthUser.length).toLocaleString() }}
+                </b>
+    
+                <b *ngIf="postDetails.numLikes - postDetails.likersFollowedByAuthUser.length === 1"
+                (click)="notifyParentToShowLikersPopup()" style="cursor: pointer;">
+                    other
+                </b>
+    
+                <b *ngIf="postDetails.numLikes - postDetails.likersFollowedByAuthUser.length !== 1"
+                (click)="notifyParentToShowLikersPopup()" style="cursor: pointer;">
+                    others
+                </b>
+            </ng-container>
+        </ng-container>
+    </p>
+    
+    <p *ngIf="postDetails.caption !== null" style="max-width: 100%; overflow-wrap: break-word; text-align: start; margin-bottom:
+    0em;">
+        <a 
+            [href]="'http://34.111.89.101/profile/' + (usersAndTheirRelevantInfo[postDetails.caption.authorId]?.username ||
+            ('user ' + postDetails.caption.authorId))"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="font-weight: bold; display: inline-flex; align-items: center; word-break: break-word; margin-right: 0.2em;"
+        >
+            {{ usersAndTheirRelevantInfo[postDetails.caption.authorId]?.username || ('user ' + postDetails.caption.authorId) }}
+    
+            <img *ngIf="usersAndTheirRelevantInfo[postDetails.caption.authorId]?.isVerified" [src]="'images/verifiedBlueCheck.png'"
+            style="height: 1.4em; width: 1.4em; pointer-events: none; object-fit: contain; margin-left: -0.1em; margin-right:
+            -0.2em;" />
+        </a>
+
+        <ng-container *ngFor="let el of elementsForCaption; let index = index">
+            <span *ngIf="el.type === 'span'">
+                {{ el.text }}
+            </span>
+            
+            <a *ngIf="el.type === 'a'" [href]="el.href" target="_blank" class="hashtagOrMention" style="color: #71a3f5;">
+                {{ el.text }}
+            </a>
+        </ng-container>
+    </p>
+    
+    <p (click)="notifyParentToShowCommentsPopup()" class="loseOpacityWhenActive" style="color: gray; cursor: pointer;
+    margin-bottom: 1em;">
+        {{
+            postDetails.numComments === 0 ? 'No comments yet' :
+            postDetails.numComments === 1 ? 'View 1 comment' :
+            'View all ' + postDetails.numComments.toLocaleString() + ' comments'
+        }}
+    </p>
+    
+    <div style="width: 100%; height: 3em; position: relative;">
+        <input [value]="commentInput" (input)="updateCommentInput($event)" (focus)="commentInputTextareaIsActive = true"
+        (blur)="commentInputTextareaIsActive = false" placeholder="Add a comment..." style="font-family: Arial; width: 100%;
+        outline: none; border-top: none; border-left: none; border-right: none; border-color: lightgray; font-size: 1em;
+        padding-bottom: 1em;" />
+    
+        <b *ngIf="commentInput.length > 0" (click)="postComment()" style="cursor: pointer; color: #28a2fa; position: absolute;
+        right: 0%; top: 0%;">
+            Post
+        </b>
+    </div>
+</div>  

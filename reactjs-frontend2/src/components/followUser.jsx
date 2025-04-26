@@ -65,10 +65,11 @@ showErrorPopup}) {
 
                 <div style={{display:'flex', flexDirection:'column', alignItems:'start', marginLeft:'1em'}}>
                     <div style={{display: 'flex', alignItems: 'center'}}>
-                        <b style={{maxWidth: '10em', overflowWrap: 'break-word', cursor: 'pointer', textAlign: 'start',
-                        fontWeight: 'bold'}}>
+                        <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer"
+                        style={{maxWidth: '10em', overflowWrap: 'break-word', cursor: 'pointer', textAlign: 'start', fontWeight:
+                        'bold'}}>
                             {username}
-                        </b>
+                        </a>
                         {userIsVerified &&
                             (
                                 <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',

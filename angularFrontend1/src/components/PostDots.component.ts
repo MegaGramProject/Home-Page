@@ -12,6 +12,8 @@ export class PostDots {
   @Input() currSlide!:number;
   @Input() numSlides!:number
 
+  @Input() currSlideIsImage!:boolean;
+
 
   createArray(numSlides:number) {
     return Array.from({ length: numSlides });

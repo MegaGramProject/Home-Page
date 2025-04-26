@@ -20,15 +20,13 @@
             </span>
 
             <ng-container *ngFor="let el of elementsForCommentContent; let index = index">
-                <ng-container *ngIf="el.type === 'span'">
+                <span *ngIf="el.type === 'span'">
                     {{ el.text }}
-                </ng-container>
-
-                <ng-container *ngIf="el.type === 'a'">
-                    <a [href]="el.href" target="_blank" class="hashtagOrMention" style="color: #71a3f5;">
-                        {{ el.text }}
-                    </a>
-                </ng-container>
+                </span>
+                
+                <a *ngIf="el.type === 'a'" [href]="el.href" target="_blank" class="hashtagOrMention" style="color: #71a3f5;">
+                    {{ el.text }}
+                </a>
             </ng-container>
         </p>
 

@@ -7,10 +7,11 @@
   
       <div [ngStyle]="{'display': 'flex', 'flex-direction': 'column', 'align-items': 'start', 'margin-left': '1em'}">
         <div [ngStyle]="{'display': 'flex', 'align-items': 'center'}">
-          <b [ngStyle]="{'max-width': '10em', 'overflow-wrap': 'break-word', 'cursor': 'pointer', 'text-align': 'start',
-          'font-weight': 'bold'}">
+          <a [href]="'http://34.111.89.101/profile/' + username" target="_blank" rel="noopener noreferrer"
+          [ngStyle]="{'max-width': '10em', 'overflow-wrap': 'break-word', 'cursor': 'pointer', 'text-align': 'start', 'font-weight':
+          'bold'}">
             {{ username }}
-          </b>
+          </a>
           <img *ngIf="userIsVerified" [src]="'images/verifiedBlueCheck.png'" [ngStyle]="{'pointer-events': 'none', 'height': '1.5em', 'width':
           '1.5em', 'object-fit': 'contain'}" />
         </div>
@@ -29,4 +30,3 @@
         {{ followText }}
     </button>
 </div>
-  

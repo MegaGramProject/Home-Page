@@ -66,6 +66,7 @@ function HomePage({urlParams}) {
     const [commentsPopupMainPostAuthorInfo, setCommentsPopupMainPostAuthorInfo] = useState();
 
     const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
+    const [focusedMediaPostId, setFocusedMediaPostId] = useState('');
 
     const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
 
@@ -144,7 +145,7 @@ function HomePage({urlParams}) {
     }, [fetchingStoriesIsComplete, fetchingSuggestedAccountsIsComplete, fetchingInitialPostsIsComplete]);
        
 
-    function showThreeDotsPopupForPost(newThreeDotsPopupPostDetails) {
+    function showThreeDotsPopup(newThreeDotsPopupPostDetails) {
         setThreeDotsPopupPostDetails(newThreeDotsPopupPostDetails);
         setDisplayThreeDotsPopup(true);
     }
@@ -1042,11 +1043,17 @@ function HomePage({urlParams}) {
                 for(let key of Object.keys(updatedKeyValuePairs)) {
                     postDetails[key] = updatedKeyValuePairs[key];
                 }
+
                 newOrderedListOfPosts[i] = postDetails
                 setOrderedListOfPosts(newOrderedListOfPosts);
                 return;
             }
         }
+    }
+
+
+    function updateFocusedMediaPost(newFocusedMediaPostId) {
+        setFocusedMediaPostId(newFocusedMediaPostId);
     }
 
 
@@ -1227,7 +1234,7 @@ function HomePage({urlParams}) {
                                                 {}
                                             }
                                             usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                            notifyParentToShowThreeDotsPopup={showThreeDotsPopupForPost}
+                                            notifyParentToShowThreeDotsPopup={showThreeDotsPopup}
                                             notifyParentToShowCommentsPopup={showCommentsPopup}
                                             notifyParentToShowSendPostPopup={showSendPostPopup}
                                             notifyParentToShowLikersPopup={showLikersPopup}
@@ -1456,7 +1463,7 @@ function HomePage({urlParams}) {
                                 notifyParentToShowSendPostPopup={showSendPostPopup}
                                 notifyParentToUpdatePostDetails={updatePostDetails}
                                 notifyParentToShowErrorPopup={showErrorPopup}
-                                notifyParentToShowThreeDotsPopup={showThreeDotsPopupForPost}
+                                notifyParentToShowThreeDotsPopup={showThreeDotsPopup}
                                 notifyParentToShowLikersPopup={showLikersPopup}
                                 notifyParentToUpdateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
                                 zIndex={

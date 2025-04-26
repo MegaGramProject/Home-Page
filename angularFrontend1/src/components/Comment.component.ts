@@ -92,7 +92,7 @@ export class Comment {
   }
 
 
-  finishSettingElementsForCommentContent(): void {
+  finishSettingElementsForCommentContent() {
     const newElementsForCommentContent:{ type: string, text?: string, href?: string }[] = [
       { type: 'span', text: ' ' }
     ];

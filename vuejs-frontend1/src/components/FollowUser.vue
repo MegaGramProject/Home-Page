@@ -2,16 +2,17 @@
     <div class="selectUserOrGroupChat" :style="{width: '95%', display: 'flex', alignItems: 'center', justifyContent:
     'space-between', boxShadow: 'none', padding: '0.5em 1em'}">
         <div :style="{ display: 'flex', alignItems: 'start' }">
-            <a :href="'http://34.111.89.101/profile/' + username" target="_blank" rel="noopener noreferrer">
+            <a :href="`http://34.111.89.101/profile/${username}`" target="_blank" rel="noopener noreferrer">
                 <img :src="userPfp" :style="{objectFit: 'contain', height: '3em', width: '3em', cursor: 'pointer'}" />
             </a>
 
             <div :style="{display: 'flex', flexDirection: 'column', alignItems: 'start', marginLeft: '1em'}">
                 <div :style="{ display: 'flex', alignItems: 'center' }">
-                    <b :style="{maxWidth: '10em', overflowWrap: 'break-word', cursor: 'pointer', textAlign: 'start',
+                    <a :href="`http://34.111.89.101/profile/${username}`" target="blank" rel="noopener noreferrer"
+                    :style="{maxWidth: '10em', overflowWrap: 'break-word', cursor: 'pointer', textAlign: 'start',
                     fontWeight: 'bold'}">
                         {{ username }}
-                    </b>
+                    </a>
                     <img v-if="userIsVerified" :src="verifiedBlueCheck" :style="{pointerEvents: 'none', height: '1.5em',
                     width: '1.5em', objectFit: 'contain'}"/>
                 </div>

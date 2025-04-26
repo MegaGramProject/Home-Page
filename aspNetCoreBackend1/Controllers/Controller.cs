@@ -304,7 +304,7 @@ public class Controller : ControllerBase
                     .encryptedPostOrCommentLikes
                     .Where(x => commentId == null ? x.overallPostId == overallPostId : x.commentId == commentId)
                     .OrderByDescending(x => x.datetime)
-                    .Select(x => new { x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag })
+                    .Select(x => new { x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag })
                     .ToListAsync();
                 
 
@@ -314,7 +314,7 @@ public class Controller : ControllerBase
                         encryptedLikerInfo.encryptedLikerId,
                         plaintextDataEncryptionKey,
                         encryptedLikerInfo.likerIdEncryptionIv,
-                        encryptedLikerInfo.encryptionAuthTag
+                        encryptedLikerInfo.likerIdEncryptionAuthTag
                     );
                     int likerId = int.Parse(stringifiedLikerId);
                     if (setOfLikerIdsToExclude.Contains(likerId))
@@ -556,7 +556,7 @@ public class Controller : ControllerBase
                 var likersOfEncryptedPostOrComment =  await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => commentId == null ? x.overallPostId == overallPostId : x.commentId == commentId)
-                    .Select(x => new { x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag })
+                    .Select(x => new { x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag })
                     .ToListAsync();
 
                 if (likersOfEncryptedPostOrComment.Count > 0)
@@ -596,7 +596,7 @@ public class Controller : ControllerBase
                             encryptedLikerInfo.encryptedLikerId,
                             plaintextDataEncryptionKey,
                             encryptedLikerInfo.likerIdEncryptionIv,
-                            encryptedLikerInfo.encryptionAuthTag
+                            encryptedLikerInfo.likerIdEncryptionAuthTag
                         );
                         int likerId = int.Parse(stringifiedLikerId);
                         if (likerId == authUserId)
@@ -1145,7 +1145,7 @@ public class Controller : ControllerBase
                 string captionAuthorIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                     encryptedCaptionToDelete.encryptedAuthorId,
                     plaintextDataEncryptionKey,
-                    encryptedCaptionToDelete.encryptionIv,
+                    encryptedCaptionToDelete.authorIdEncryptionIv,
                     encryptedCaptionToDelete.encryptionAuthTag
                 );
                 int captionAuthorId = int.Parse(captionAuthorIdAsString);
@@ -1313,7 +1313,7 @@ public class Controller : ControllerBase
                 string authorIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                     encryptedComment.encryptedAuthorId,
                     plaintextDataEncryptionKey,
-                    encryptedComment.encryptionIv,
+                    encryptedComment.authorIdEncryptionIv,
                     encryptedComment.encryptionAuthTag
                 );  
                 string content = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
@@ -1472,7 +1472,7 @@ public class Controller : ControllerBase
                     encryptedLike.encryptedLikerId,
                     plaintextDataEncryptionKey!,
                     encryptedLike.likerIdEncryptionIv,
-                    encryptedLike.encryptionAuthTag
+                    encryptedLike.likerIdEncryptionAuthTag
                 );
 
                 unencryptedLikesToInsert.Add(
@@ -1980,7 +1980,7 @@ public class Controller : ControllerBase
                            string authorIdAsString = _encryptionAndDecryptionService.DecryptTextWithAzureDataEncryptionKey(
                                 (byte[]) captionInfoOfPost!["encryptedAuthorId"],
                                 plaintextDataEncryptionKey,
-                                (byte[]) captionInfoOfPost!["encryptionIv"],
+                                (byte[]) captionInfoOfPost!["authorIdEncryptionIv"],
                                 (byte[]) captionInfoOfPost!["encryptionAuthTag"]
                             );
                             int authorId = int.Parse(authorIdAsString);
@@ -2409,7 +2409,7 @@ public class Controller : ControllerBase
                         .encryptedPostOrCommentLikes
                         .Where(x => setOfOverallPostIdsOfUnencryptedPosts.Contains(x.overallPostId ?? ""))
                         .OrderByDescending(x => x.datetime)
-                        .Select(x => new { x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag})
+                        .Select(x => new { x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag})
                         .ToListAsync();
                     
                     foreach(var authUserFollowedLikeOfPost in atMost3LikersFollowedByAuthUserOfEachPost)
@@ -2459,7 +2459,7 @@ public class Controller : ControllerBase
                                 authUserFollowedLikeOfPost.encryptedLikerId,
                                 plaintextDataEncryptionKey,
                                 authUserFollowedLikeOfPost.likerIdEncryptionIv,
-                                authUserFollowedLikeOfPost.encryptionAuthTag
+                                authUserFollowedLikeOfPost.likerIdEncryptionAuthTag
                             );
                             int likerId = int.Parse(likerIdAsString);
 
@@ -3025,7 +3025,7 @@ public class Controller : ControllerBase
                 var encryptedLikesOfPostsMadeByUsersInAuthUserFollowings = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => setOfOverallPostIdsOfAuthUserFollowings.Contains(x.overallPostId!))
-                    .Select(x => new { x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag})
+                    .Select(x => new { x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag})
                     .ToListAsync();
                 
                 foreach(var encryptedPostLike in encryptedLikesOfPostsMadeByUsersInAuthUserFollowings)
@@ -3064,7 +3064,7 @@ public class Controller : ControllerBase
                             encryptedPostLike.encryptedLikerId,
                             plaintextDataEncryptionKey,
                             encryptedPostLike.likerIdEncryptionIv,
-                            encryptedPostLike.encryptionAuthTag
+                            encryptedPostLike.likerIdEncryptionAuthTag
                         );
                         int likerId = int.Parse(likerIdAsString);
                         if (likerId == authUserId)
@@ -3299,7 +3299,7 @@ public class Controller : ControllerBase
                 var encryptedLikesOfSponsoredPostsThatAuthUserCanView = await _postgresContext
                     .encryptedPostOrCommentLikes
                     .Where(x => setOfOverallPostIdsOfSponsoredPostsThatAuthUserCanView.Contains(x.overallPostId!))
-                    .Select(x => new {x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag})
+                    .Select(x => new {x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag})
                     .ToListAsync();
                 
                 foreach(var encryptedPostLike in encryptedLikesOfSponsoredPostsThatAuthUserCanView)
@@ -3338,7 +3338,7 @@ public class Controller : ControllerBase
                             encryptedPostLike.encryptedLikerId,
                             plaintextDataEncryptionKey,
                             encryptedPostLike.likerIdEncryptionIv,
-                            encryptedPostLike.encryptionAuthTag
+                            encryptedPostLike.likerIdEncryptionAuthTag
                         );
                         int likerId = int.Parse(likerIdAsString);
                         if (likerId == authUserId)
@@ -3555,7 +3555,7 @@ public class Controller : ControllerBase
                     x.datetime >= datetimeForCheckingUpdatesOfPostLikes)
                     .Select(x => new
                         {
-                            x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag
+                            x.overallPostId, x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag
                         }
                     )
                     .ToListAsync();
@@ -3601,7 +3601,7 @@ public class Controller : ControllerBase
                             encryptedLikeInfo.encryptedLikerId,
                             plaintextDataEncryptionKey,
                             encryptedLikeInfo.likerIdEncryptionIv,
-                            encryptedLikeInfo.encryptionAuthTag
+                            encryptedLikeInfo.likerIdEncryptionAuthTag
                         );
 
                         int likerId = int.Parse(stringifiedLikerId);
@@ -3849,7 +3849,7 @@ public class Controller : ControllerBase
                         x.datetime >= datetimeForFetchingCommentLikeUpdates)
                         .Select(x => new
                             {
-                                x.commentId, x.encryptedLikerId, x.likerIdEncryptionIv, x.encryptionAuthTag
+                                x.commentId, x.encryptedLikerId, x.likerIdEncryptionIv, x.likerIdEncryptionAuthTag
                             }
                         )
                         .ToListAsync();
@@ -3897,7 +3897,7 @@ public class Controller : ControllerBase
                                 encryptedLikeInfo.encryptedLikerId,
                                 plaintextDataEncryptionKey,
                                 encryptedLikeInfo.likerIdEncryptionIv,
-                                encryptedLikeInfo.encryptionAuthTag
+                                encryptedLikeInfo.likerIdEncryptionAuthTag
                             );
 
                             int likerId = int.Parse(stringifiedLikerId);

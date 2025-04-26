@@ -683,17 +683,17 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
             case 'Escape':
                 props.closeStoryViewer();
                 break;
-            case 'ArrowLeft':
-                incrementOrDecrementSlideByOne('decrement');
-                break;
-            case 'ArrowRight':
-                incrementOrDecrementSlideByOne('increment');
-                break;
             case 'ArrowUp':
-                incrementOrDecrementSlideByOne('decrement');
+            case 'ArrowLeft':
+                if (!replyToStoryTextareaIsActive.value) {
+                    incrementOrDecrementSlideByOne('decrement');
+                }
                 break;
             case 'ArrowDown':
-                incrementOrDecrementSlideByOne('increment');
+            case 'ArrowRight':
+                if (!replyToStoryTextareaIsActive.value) {
+                    incrementOrDecrementSlideByOne('increment');
+                }
                 break;
             case 'm':
             case 'M':
@@ -703,12 +703,10 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
                 break;
             case 'k':
             case 'K':
+            case ' ':
                 if (!replyToStoryTextareaIsActive.value) {
                     togglePause();
                 }
-                break;
-            case ' ':
-                togglePause();
                 break;
         }
     }

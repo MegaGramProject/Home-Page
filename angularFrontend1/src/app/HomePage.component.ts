@@ -1,6 +1,7 @@
 import { Comment } from '../components/Comment.component';
 import { Footer } from '../components/Footer.component';
 import { LeftSidebar } from '../components/LeftSidebar.component';
+import { MediaPost } from '../components/MediaPost.component';
 import { StoryViewer } from '../components/StoryViewer.component';
 import { UserBar } from '../components/UserBar.component';
 import { UserIcon } from '../components/UserIcon.component';
@@ -24,7 +25,7 @@ import { BehaviorSubject } from 'rxjs';
   standalone: true,
   imports: [
     CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
-    LikersPopup, SendPostPopup, StoryViewer, Comment
+    LikersPopup, SendPostPopup, StoryViewer, Comment, MediaPost
   ],
   templateUrl: './HomePage.component.html',
   styleUrl: '../styles.css'
@@ -61,6 +62,9 @@ export class HomePage {
   sendPostPopupOverallPostId:string = '';
 
   displayCommentsPopup:boolean = false;
+  commentsPopupPostDetails:any = {};
+  commentsPopupCurrSlide:number = -1;
+  commentsPopupMainPostAuthorInfo:any = {};
 
   displayStoryViewer:boolean = false;
   currStoryLevel:number = 0;
@@ -83,6 +87,8 @@ export class HomePage {
   cachedMessageSendingSuggestions:any = {};
 
   orderedListOfPosts:Array<any> = [];
+  focusedMediaPostId:string = '';
+  
 
   constructor(private route: ActivatedRoute) { }
 
@@ -311,6 +317,54 @@ export class HomePage {
   showSendPostPopup(newSendPostPopupOverallPostId:string) {
     this.sendPostPopupOverallPostId = newSendPostPopupOverallPostId;
     this.displaySendPostPopup = true;
+  }
+
+
+  showThreeDotsPopup(newThreeDotsPopupPostDetails:any) {
+    this.threeDotsPopupPostDetails = newThreeDotsPopupPostDetails;
+    this.displayThreeDotsPopup = true;
+  }
+
+
+  showCommentsPopup(infoForCommentsPopup:{ postDetails: any, currSlide: number, mainPostAuthorInfo: any }) {
+    this.commentsPopupPostDetails = infoForCommentsPopup.postDetails;
+    this.commentsPopupCurrSlide = infoForCommentsPopup.currSlide;
+    this.commentsPopupMainPostAuthorInfo = infoForCommentsPopup.mainPostAuthorInfo;
+
+    this.displayCommentsPopup = true;
+  }
+
+
+  updatePostDetails(newPostDetails:{ overallPostId: string, isLiked?: boolean, numLikes?: number, numComments?:number, isSaved?:
+  boolean }) {
+    const newOrderedListOfPosts = [...this.orderedListOfPosts];
+
+    for(let i=0; i<newOrderedListOfPosts.length; i++) {
+      const postDetails = {...newOrderedListOfPosts[i]};
+      if(postDetails.overallPostId === newPostDetails.overallPostId) {
+        if (newPostDetails.isLiked !== null) {
+          postDetails.isLiked = newPostDetails.isLiked;
+        }
+        if (newPostDetails.numLikes !== null) {
+          postDetails.numLikes = newPostDetails.numLikes;
+        }
+        if (newPostDetails.numComments !== null) {
+          postDetails.numComments = newPostDetails.numComments;
+        }
+        if (newPostDetails.isSaved !== null) {
+          postDetails.isSaved = newPostDetails.isSaved;
+        }
+
+        newOrderedListOfPosts[i] = postDetails
+        this.orderedListOfPosts = newOrderedListOfPosts;
+        return;
+      }
+    }
+  }
+
+
+  updateFocusedMediaPost(newFocusedMediaPostId:string) {
+    this.focusedMediaPostId = newFocusedMediaPostId;
   }
 
 

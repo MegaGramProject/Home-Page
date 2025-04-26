@@ -8,7 +8,7 @@
 
 
     <div style="position: absolute; left: 24%;">
-
+       
     </div>
 
     <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup ||
@@ -134,19 +134,22 @@ import LikersPopup from '@/components/Popups/LikersPopup.vue';
 import SendPostPopup from '@/components/Popups/SendPostPopup.vue';
 import ThreeDotsPopup from '@/components/Popups/ThreeDotsPopup.vue';
 
-    //import FooterSection from '@/components/FooterSection.vue';
-    import LeftSidebar from '@/components/LeftSidebar.vue';
-    //import UserIcon from '@/components/UserIcon.vue';
-    //import UserBar from '@/components/UserBar.vue';
-    import StoryViewer from '@/components/StoryViewer.vue';
+    import FooterSection from '@/components/FooterSection.vue';
+import LeftSidebar from '@/components/LeftSidebar.vue';
+import MediaPost from '@/components/MediaPost.vue';
+import StoryViewer from '@/components/StoryViewer.vue';
+import UserBar from '@/components/UserBar.vue';
+import UserIcon from '@/components/UserIcon.vue';
+    FooterSection; MediaPost; UserBar; UserIcon;
 
     import blackScreen from '@/assets/images/blackScreen.png';
 import defaultPfp from '@/assets/images/defaultPfp.png';
 
+    
     import '../assets/styles.css';
 
     import { onMounted, ref, watch } from 'vue';
-    import { useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 
 
     const route = useRoute();
@@ -179,6 +182,9 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
     const sendPostPopupOverallPostId = ref('');
 
     const displayCommentsPopup = ref(false);
+    const commentsPopupPostDetails = ref({});
+    const commentsPopupCurrSlide = ref(-1);
+    const commentsPopupMainPostAuthorInfo = ref({});
 
     const displayStoryViewer = ref(false);
     const currStoryLevel = ref(0);
@@ -201,6 +207,7 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
     const cachedMessageSendingSuggestions = ref({});
 
     const orderedListOfPosts = ref([]);
+    const focusedMediaPostId = ref('');
 
 
     onMounted(() => {
@@ -411,6 +418,50 @@ import defaultPfp from '@/assets/images/defaultPfp.png';
         storyViewerMainUsername.value = newStoryViewerMainUsername;
         storyViewerIsFromStoriesSection.value = newStoryViewerIsFromStoriesSection;
         displayStoryViewer.value = true;
+    }
+
+
+    function showThreeDotsPopup(newThreeDotsPopupPostDetails) {
+        threeDotsPopupPostDetails.value = newThreeDotsPopupPostDetails;
+        displayThreeDotsPopup.value = true;
+    }
+
+
+    function showCommentsPopup(postDetails, currSlide, mainPostAuthorInfo) {
+        commentsPopupPostDetails.value = postDetails;
+        commentsPopupCurrSlide.value = currSlide;
+        commentsPopupMainPostAuthorInfo.value = mainPostAuthorInfo;
+
+        displayCommentsPopup.value = true;
+    }
+
+
+    function showSendPostPopup(newSendPostPopupOverallPostId) {
+        sendPostPopupOverallPostId.value = newSendPostPopupOverallPostId;
+        displaySendPostPopup.value = true;
+    }
+
+
+    function updatePostDetails(overallPostId, updatedKeyValuePairs) {
+        const newOrderedListOfPosts = [...orderedListOfPosts.value];
+
+        for(let i=0; i<newOrderedListOfPosts.length; i++) {
+            const postDetails = {...newOrderedListOfPosts[i]};
+            if(postDetails.overallPostId === overallPostId) {
+                for(let key of Object.keys(updatedKeyValuePairs)) {
+                    postDetails[key] = updatedKeyValuePairs[key];
+                }
+
+                newOrderedListOfPosts[i] = postDetails
+                orderedListOfPosts.value = newOrderedListOfPosts;
+                return;
+            }
+        }
+    }
+
+
+    function updateFocusedMediaPost(newFocusedMediaPostId) {
+        focusedMediaPostId.value = newFocusedMediaPostId;
     }
 
 

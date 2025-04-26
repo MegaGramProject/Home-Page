@@ -19,7 +19,7 @@
                         <img @click="onClickingProfilePhoto" :src="userPfp" style="height: 4.25em; width: 4.25em; object-fit: 
                         contain; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer" />
                         
-                        <a v-if="inStoriesSection && username === authUsername" href="http://34.111.89.101/postStory" target="_blank"
+                        <a v-if="inStoriesSection && userId == authUserId" href="http://34.111.89.101/postStory" target="_blank"
                         rel="noopener noreferrer">
                             <img :src="bluePlusIcon" style="height: 1.75em; width: 1.75em; object-fit: contain; position: absolute;
                             left: 65%; top: 65%; cursor: pointer" />
@@ -33,7 +33,7 @@
                     <img @click="onClickingProfilePhoto" :src="userPfp" style="height: 95%; width: 95%; object-fit: contain;
                     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer" />
 
-                    <a v-if="inStoriesSection && username === authUsername" href="http://34.111.89.101/postStory" target="_blank"
+                    <a v-if="inStoriesSection && userId == authUserId" href="http://34.111.89.101/postStory" target="_blank"
                     rel="noopener noreferrer">
                         <img :src="bluePlusIcon" style="height: 1.75em; width: 1.75em; object-fit: contain; position:
                         absolute; left: 65%; top: 65%; cursor: pointer" />
@@ -44,7 +44,7 @@
             <template v-if="inStoriesSection">
                 <div style="display: flex; justify-content: center; width: 100%; align-items: center;">
                     <p style="text-align: center; font-size: 0.8em; max-width: 7.5em; overflow-wrap: break-word">
-                        {{ username === authUsername ? 'You' : username }}
+                        {{ userId == authUserId ? 'You' : username }}
                     </p>
 
                     <img v-if="userIsVerified" :src="verifiedBlueCheck" style="pointer-events: none; height: 1.5em; width: 1.5em;
@@ -64,13 +64,14 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
     
     const props = defineProps({
-        authUsername: String,
+        authUserId: Number,
 
         userId: Number,
         username: String,
         userPfp: String,
 
         inStoriesSection: Boolean,
+        
         userHasStories: Boolean,
         userHasUnseenStory: Boolean,
         userIsVerified: Boolean,

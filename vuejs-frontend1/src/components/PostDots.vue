@@ -1,6 +1,6 @@
 <template>
     <div :style="{display: 'flex', width: '100%', position: 'absolute', top: currSlideIsImage ? '95%' : '90%', left: '0%',
-    justifyContent: 'center', alignItems: 'center', gap: '0.2em', zIndex: '10'}">
+    justifyContent: 'center', alignItems: 'center', gap: '0.2em'}">
         <img v-for="(_, index) in numSlides"
             :key="index"
             :src="index == currSlide ? solidWhiteDot : grayDot"
@@ -13,14 +13,17 @@
 
 <script setup>
     import grayDot from '../assets/images/grayDot.png';
-import solidWhiteDot from '../assets/images/solidWhiteDot.png';
+import solidWhiteDot from '../assets/images/solidWhiteDot.webp';
 
     import { defineProps } from 'vue';
 
     
     const props = defineProps({
         currSlide: Number,
-        numSlides: Number
+        numSlides: Number,
+
+        currSlideIsImage: Boolean
     });
+    props;
 </script>
   

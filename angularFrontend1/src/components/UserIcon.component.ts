@@ -9,7 +9,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
     standalone: true
 })
 export class UserIcon {
-    @Input() authUsername!:string;
+    @Input() authUserId!:number;
 
     @Input() userId!:number;
     @Input() username!:string;

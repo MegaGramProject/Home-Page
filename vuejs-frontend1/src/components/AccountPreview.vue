@@ -134,8 +134,8 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
             return;
         }
 
-        const usernameToToggleFollow = username;
-        const userIdToToggleFollow = userId;
+        const usernameToToggleFollow = props.username;
+        const userIdToToggleFollow = props.userId;
 
         try {
             const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
