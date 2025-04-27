@@ -6,8 +6,8 @@ urlpatterns = [
     Batch of Savers Of Own Post'),
     path('savePost/<int:auth_user_id>/<str:overall_post_id>', views.save_post, name='Save Post'),
     path('toggleSavePost/<int:auth_user_id>/<str:overall_post_id>', views.toggle_save_post, name='Toggle Save Post'),
-    path('removeSaveFromPost/<int:auth_user_id>/<str:overall_post_id>', views.remove_save_from_post,
-    name='Remove Save from Post'),
+    path('unsavePost/<int:auth_user_id>/<str:overall_post_id>', views.unsave_post,
+    name='Unsave Post'),
 
     path('getBatchOfThoseBlockedByMe/<int:auth_user_id>', views.get_batch_of_those_blocked_by_me, name=f'Get Batch of Those
     Blocked by Me'),

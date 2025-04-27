@@ -879,16 +879,23 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 
     async function addViewToPost() {
-        if (props.authUserId == -1) {
-            return;
-        }
-
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/springBootBackend2/addViewToPost/${props.authUserId}/${overallPostId.value}`, {
+            'http://34.111.89.101/api/Home-Page/springBootBackend2/graphql', {
                 method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `mutation ($authUserId: Int!, $overallPostId: String!) {
+                        addViewToPost(authUserId: $authUserId, overallPostId: $overallPostId)
+                    }`,
+                    variables: {
+                        authUserId: props.authUserId,
+                        overallPostId: overallPostId.value
+                    }
+                }),
                 credentials: 'include'
             });
+
             if(!response.ok) {
                 console.error(`The server had trouble adding your view to post ${overallPostId.value}`);
             }
@@ -1007,7 +1014,7 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
         if(props.postDetails.isSaved) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/removeSave/${props.authUserId}/${overallPostId.value}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/unsavePost/${props.authUserId}/${overallPostId.value}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -1028,7 +1035,7 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
         else {
            try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/addSave/${props.authUserId}/${overallPostId.value}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/savePost/${props.authUserId}/${overallPostId.value}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -1066,14 +1073,22 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addCommentToPost/${props.authUserId}/${overallPostId.value}`, {
+            'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    newComment: commentInput.value
+                    query: `mutation ($authUserId: Int!, $overallPostId: String!, $commentContent: String!) {
+                        addCommentToPost(authUserId: $authUserId, overallPostId: $overallPostId, commentContent: $commentContent)
+                    }`,
+                    variables: {
+                        authUserId: props.authUserId,
+                        overallPostId: overallPostId.value,
+                        commentContent: commentInput.value
+                    }
                 }),
                 credentials: 'include'
             });
+
             if(!response.ok) {
                 props.showErrorPopup('The server had trouble adding your comment.');
             }

@@ -48,53 +48,57 @@ public class Mutations {
     authUserId, @RequestParam String overallPostId) throws Exception {
         this.processRequest(this.getClientIpAddress(request), "/graphql-addViewToPost");
 
-        if (authUserId < 1) {
+        if (authUserId < 1 && authUserId != -1) {
             throw new BadRequestException(
-                "There does not exist a user with the provided authUserId"
+                "There does not exist a user with the provided authUserId. If you are an anonymous guest, you must " +
+                "set the authUserId to -1."
             );
         }
 
-        if (ObjectId.isValid(overallPostId)) {
+        if (!(ObjectId.isValid(overallPostId))) {
             throw new BadRequestException("The provided overallPostId is invalid");
         }
 
 
-        Object userAuthenticationResult = userAuthService.authenticateUser(request, authUserId);
+        boolean authUserIsAnonymousGuest = authUserId == -1;
 
-        if (userAuthenticationResult instanceof Boolean) {
-            if (!(Boolean) userAuthenticationResult) {
-                throw new ForbiddenException("The expressJSBackend1 server could not verify you as " + 
-                "having the proper credentials to be logged in as " + authUserId);
+        if (!authUserIsAnonymousGuest) {
+            Object userAuthenticationResult = this.userAuthService.authenticateUser(request, authUserId);
+
+            if (userAuthenticationResult instanceof Boolean) {
+                if (!(Boolean) userAuthenticationResult) {
+                    throw new ForbiddenException("The expressJSBackend1 server could not verify you as " + 
+                    "having the proper credentials to be logged in as " + authUserId);
+                }
+            }
+            else if (userAuthenticationResult instanceof String) {
+                String errorMessage = (String) userAuthenticationResult;
+                
+                if (errorMessage.equals("The provided authUser token, if any, in your cookies has an " +
+                "invalid structure.")) {
+                    throw new ForbiddenException(errorMessage);
+                }
+
+                throw new BadGatewayException(errorMessage);
+            }
+            else if (userAuthenticationResult instanceof Object[]) {
+                String authToken = (String) ((Object[])userAuthenticationResult)[0];
+                long numSecondsTillCookieExpires = (long) ((Object[])userAuthenticationResult)[1];
+
+
+                ResponseCookie cookie = ResponseCookie.from("authToken", authToken)
+                        .httpOnly(true)
+                        .secure(true)
+                        .path("/")
+                        .maxAge(numSecondsTillCookieExpires)
+                        .sameSite("Strict")
+                        .build();
+
+                response.addHeader("Set-Cookie", cookie.toString());
             }
         }
-        else if (userAuthenticationResult instanceof String) {
-            String errorMessage = (String) userAuthenticationResult;
-            
-            if (errorMessage.equals("The provided authUser token, if any, in your cookies has an " +
-            "invalid structure.")) {
-                throw new ForbiddenException(errorMessage);
-            }
 
-            throw new BadGatewayException(errorMessage);
-        }
-        else if (userAuthenticationResult instanceof Object[]) {
-            String authToken = (String) ((Object[])userAuthenticationResult)[0];
-            long numSecondsTillCookieExpires = (long) ((Object[])userAuthenticationResult)[1];
-
-
-            ResponseCookie cookie = ResponseCookie.from("authToken", authToken)
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/")
-                    .maxAge(numSecondsTillCookieExpires)
-                    .sameSite("Strict")
-                    .build();
-
-            response.addHeader("Set-Cookie", cookie.toString());
-        }
-
-        
-        Object resultOfCheckingIfAuthUserHasAccessToPost = postInfoFetchingService
+        Object resultOfCheckingIfAuthUserHasAccessToPost = this.postInfoFetchingService
         .checkIfAuthUserHasAccessToPost(authUserId, overallPostId);
         if (resultOfCheckingIfAuthUserHasAccessToPost instanceof String[]) {
             if (((String[]) resultOfCheckingIfAuthUserHasAccessToPost)[1].equals("BAD_GATEWAY")) {
@@ -106,7 +110,6 @@ public class Mutations {
             
             throw new ResourceDoesNotExistException(((String[]) resultOfCheckingIfAuthUserHasAccessToPost)[0]);
         }
-
         
         PostView newPostView = new PostView(overallPostId, authUserId);
         try {

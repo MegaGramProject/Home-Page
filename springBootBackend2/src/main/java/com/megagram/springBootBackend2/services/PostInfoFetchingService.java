@@ -170,6 +170,10 @@ public class PostInfoFetchingService {
         }
 
         if (isEncrypted) {
+            if (authUserId == -1) {
+                return false;
+            }
+
             try {
                 URL url = new URL("http://34.111.89.101/api/Home-Page/djangoBackend2/graphql");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -249,6 +253,10 @@ public class PostInfoFetchingService {
             }
         }
         else {
+            if (authUserId == -1) {
+                return true;
+            }
+
             try {
                 URL url = new URL("http://34.111.89.101/api/Home-Page/djangoBackend2/" +
                 "isEachUserInListInTheBlockingsOfAuthUser/" + authUserId);

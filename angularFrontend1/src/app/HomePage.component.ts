@@ -7,6 +7,7 @@ import { UserBar } from '../components/UserBar.component';
 import { UserIcon } from '../components/UserIcon.component';
 
 import { AboutAccountPopup } from '../components/Popups/AboutAccountPopup.component';
+import { CommentsPopup } from '../components/Popups/CommentsPopup.component';
 import { ErrorPopup } from '../components/Popups/ErrorPopup.component';
 import { LeftSidebarPopup } from '../components/Popups/LeftSidebarPopup.component';
 import { LikersPopup } from '../components/Popups/LikersPopup.component';
@@ -25,7 +26,7 @@ import { BehaviorSubject } from 'rxjs';
   standalone: true,
   imports: [
     CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
-    LikersPopup, SendPostPopup, StoryViewer, Comment, MediaPost
+    LikersPopup, SendPostPopup, StoryViewer, Comment, MediaPost, CommentsPopup
   ],
   templateUrl: './HomePage.component.html',
   styleUrl: '../styles.css'

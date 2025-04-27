@@ -464,16 +464,23 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
 
 
     async function addViewToPost() {
-        if (authUserId == -1) {
-            return;
-        }
-
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/addViewToPost/${authUserId}/${overallPostId}`, {
+            'http://34.111.89.101/api/Home-Page/springBootBackend2/graphql', {
                 method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    query: `mutation ($authUserId: Int!, $overallPostId: String!) {
+                        addViewToPost(authUserId: $authUserId, overallPostId: $overallPostId)
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        overallPostId: overallPostId
+                    }
+                }),
                 credentials: 'include'
             });
+
             if(!response.ok) {
                 console.error(`The server had trouble adding your view to post ${overallPostId}`);
             }
@@ -591,7 +598,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
         if(postDetails.isSaved) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/removeSave/${authUserId}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/unsavePost/${authUserId}/${overallPostId}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
@@ -613,7 +620,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
         else {
            try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/addSave/${authUserId}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/savePost/${authUserId}/${overallPostId}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
@@ -651,14 +658,24 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addCommentToPost/${authUserId}/${overallPostId}`, {
+            'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    newComment: commentInput
+                    query: `mutation ($authUserId: Int!, $overallPostId: String!, $commentContent: String!) {
+                        addCommentToPost(
+                            authUserId: $authUserId, overallPostId: $overallPostId, commentContent: $commentContent
+                        )
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        overallPostId: overallPostId,
+                        commentContent: commentInput
+                    }
                 }),
                 credentials: 'include'
             });
+
             if(!response.ok) {
                 showErrorPopup('The server had trouble adding your comment.');
             }

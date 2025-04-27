@@ -260,7 +260,7 @@ def toggle_save_post(request, auth_user_id, overall_post_id):
 
 
 @api_view(['DELETE'])
-def remove_save_from_post(request, auth_user_id, overall_post_id):
+def unsave_post(request, auth_user_id, overall_post_id):
     if auth_user_id < 1:
           return Response('There does not exist a user with the provided auth_user_id', status=400)
     

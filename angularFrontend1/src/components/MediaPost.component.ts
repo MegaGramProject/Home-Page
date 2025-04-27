@@ -564,10 +564,21 @@ export class MediaPost {
 
     try {
       const response = await fetch(
-      `http://34.111.89.101/api/Home-Page/springBootBackend2/addViewToPost/${this.authUserId}/${this.overallPostId}`, {
+      'http://34.111.89.101/api/Home-Page/springBootBackend2/graphql', {
         method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          query: `mutation ($authUserId: Int!, $overallPostId: String!) {
+            addViewToPost(authUserId: $authUserId, overallPostId: $overallPostId)
+          }`,
+          variables: {
+            authUserId: this.authUserId,
+            overallPostId: this.overallPostId
+          }
+        }),
         credentials: 'include'
       });
+
       if(!response.ok) {
         console.error(`The server had trouble adding your view to post ${this.overallPostId}`);
       }
@@ -685,7 +696,7 @@ export class MediaPost {
     if(this.postDetails.isSaved) {
       try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/djangoBackend2/removeSave/${this.authUserId}/${this.overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/djangoBackend2/unsavePost/${this.authUserId}/${this.overallPostId}`, {
           method: 'DELETE',
           credentials: 'include'
         });
@@ -706,7 +717,7 @@ export class MediaPost {
     else {
       try {
         const response = await fetch(
-        `http://34.111.89.101/api/Home-Page/djangoBackend2/addSave/${this.authUserId}/${this.overallPostId}`, {
+        `http://34.111.89.101/api/Home-Page/djangoBackend2/savePost/${this.authUserId}/${this.overallPostId}`, {
           method: 'POST',
           credentials: 'include'
         });
@@ -744,11 +755,18 @@ export class MediaPost {
 
     try {
       const response = await fetch(
-      `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addCommentToPost/${this.authUserId}/${this.overallPostId}`, {
+      'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            newComment: this.commentInput
+          query: `mutation ($authUserId: Int!, $overallPostId: String!, $commentContent: String!) {
+            addCommentToPost(authUserId: $authUserId, overallPostId: $overallPostId, commentContent: $commentContent)
+          }`,
+          variables: {
+            authUserId: this.authUserId,
+            overallPostId: this.overallPostId,
+            commentContent: this.commentInput
+          }
         }),
         credentials: 'include'
       });

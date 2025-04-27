@@ -27,6 +27,7 @@ import thinWhiteXIcon from '../../assets/images/thinWhiteXIcon.png';
 import threeHorizontalDots from '../../assets/images/threeHorizontalDots.png';
 import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
+
 function CommentsPopup({authUser, postDetails, currSlide, notifyParentToClosePopup, notifyParentToShowErrorPopup,
 notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo, mainPostAuthorInfo,
 notifyParentToShowThreeDotsPopup, notifyParentToShowSendPostPopup, notifyParentToShowLikersPopup,

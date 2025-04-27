@@ -25,17 +25,17 @@ public class CommentMutationProvider
         [Service] IConnectionMultiplexer redisClient
     )
     {
-        if (!ObjectId.TryParse(overallPostId, out _))
-        {
-            throw new GraphQLException(new Error("The provided overallPostId is invalid.", "INVALID_INPUT"));
-        }
-
         if (authUserId < 1)
         {
             throw new GraphQLException(new Error(
                 @"There does not exist a user with an id less than 1.",
                 "INVALID_INPUT")
             );
+        }
+
+        if (!ObjectId.TryParse(overallPostId, out _))
+        {
+            throw new GraphQLException(new Error("The provided overallPostId is invalid.", "INVALID_INPUT"));
         }
 
         if (commentContent.Length > 2200)
@@ -97,38 +97,36 @@ public class CommentMutationProvider
         HttpClient httpClientWithMutualTLS = httpClientFactory.CreateClient("HttpClientWithMutualTLS");
         bool isEncrypted = false;
 
-        var authorsAndPostEncryptionStatusIfUserHasAccessToPost = await postInfoFetchingService
+        var encryptionStatusOfPostIfAuthUserHasAccess = await postInfoFetchingService
         .getPostEncryptionStatusIfUserHasAccessToPost(
             authUserId,
             overallPostId,
             httpClientWithMutualTLS
         );
-        if (authorsAndPostEncryptionStatusIfUserHasAccessToPost is Tuple<string, string>
-        authorsAndPostEncryptionStatusIfUserHasAccessToPostErrorOutput)
+        if (encryptionStatusOfPostIfAuthUserHasAccess is Tuple<string, string> encryptionStatusOfPostIfAuthUserHasAccessErrorOutput)
         {
             throw new GraphQLException(new Error(
-                authorsAndPostEncryptionStatusIfUserHasAccessToPostErrorOutput.Item1,
-                authorsAndPostEncryptionStatusIfUserHasAccessToPostErrorOutput.Item2
+                encryptionStatusOfPostIfAuthUserHasAccessErrorOutput.Item1,
+                encryptionStatusOfPostIfAuthUserHasAccessErrorOutput.Item2
             ));
         }
-        else if (authorsAndPostEncryptionStatusIfUserHasAccessToPost is bool
-        authorsAndPostEncryptionStatusIfUserHasAccessToPostSuccessOutput)
+        else if (encryptionStatusOfPostIfAuthUserHasAccess is bool encryptionStatusOfPostIfAuthUserHasAccessSuccessOutput)
         {
-            isEncrypted = authorsAndPostEncryptionStatusIfUserHasAccessToPostSuccessOutput;
+            isEncrypted = encryptionStatusOfPostIfAuthUserHasAccessSuccessOutput;
         }
         
         int idOfNewComment = -1;
+
         if (isEncrypted)
         {   
             try
             {
-                IDatabase redisCachingDatabase = redisClient.GetDatabase(0);
                 byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
                 (
                     overallPostId!,
                     postgresContext,
                     encryptionAndDecryptionService,
-                    redisCachingDatabase
+                    redisClient.GetDatabase(0)
                 );
 
                 var encryptedAuthUserIdInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
@@ -136,12 +134,9 @@ public class CommentMutationProvider
                     plaintextDataEncryptionKey
                 );
 
-                byte[] encryptedCommentContent = encryptionAndDecryptionService
-                .EncryptTextWithAzureDataEncryptionKeyGivenIvAndAuthTag(
+                var encryptedCommentContentInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
                     commentContent,
-                    plaintextDataEncryptionKey,
-                    encryptedAuthUserIdInfo.iv,
-                    encryptedAuthUserIdInfo.authTag
+                    plaintextDataEncryptionKey
                 );
 
                 EncryptedCommentOfPost newEncryptedCommentOfPost = new EncryptedCommentOfPost(
@@ -150,9 +145,11 @@ public class CommentMutationProvider
                     false,
                     DateTime.Now,
                     encryptedAuthUserIdInfo.encryptedTextBuffer,
-                    encryptedCommentContent,
                     encryptedAuthUserIdInfo.iv,
                     encryptedAuthUserIdInfo.authTag
+                    encryptedCommentContentInfo.encryptedTextBuffer,
+                    encryptedCommentContentInfo.iv,
+                    encryptedCommentContentInfo.authTag
                 );
 
                 await sqlServerContext.encryptedCommentsOfPosts

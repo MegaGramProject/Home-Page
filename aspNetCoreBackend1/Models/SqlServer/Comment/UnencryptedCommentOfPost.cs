@@ -30,8 +30,7 @@ public class UnencryptedCommentOfPost
 
 
     public UnencryptedCommentOfPost(
-        string overallPostId, int? parentCommentId, bool isEdited, DateTime datetime, int authorId,
-        string content
+        string overallPostId, int? parentCommentId, bool isEdited, DateTime datetime, int authorId, string content
     )
     {
         this.overallPostId = overallPostId;
