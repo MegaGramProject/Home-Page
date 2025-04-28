@@ -4,12 +4,13 @@ import { UserIcon } from './UserIcon.component';
 
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, SimpleChanges } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 
 @Component({
   selector: 'MediaPost',
   templateUrl: '../templates/MediaPost.component.html',
-  imports: [CommonModule, FollowUser, UserIcon, PostDots],
+  imports: [CommonModule, FormsModule, FollowUser, UserIcon, PostDots],
   standalone: true
 })
 export class MediaPost {
@@ -28,15 +29,17 @@ export class MediaPost {
 
   @Output() showThreeDotsPopup:EventEmitter<any> = new EventEmitter<any>();
 
-  @Output() showCommentsPopup:EventEmitter<{ postDetails: any, currSlide: number, mainPostAuthorInfo: any }> =
-  new EventEmitter<{ postDetails: any, currSlide: number, mainPostAuthorInfo: any }>();
+  @Output() showCommentsPopup:EventEmitter<{ postDetails: any, currSlide: number }> =
+  new EventEmitter<{ postDetails: any, currSlide: number }>();
 
   @Output() showSendPostPopup:EventEmitter<string> = new EventEmitter<string>();
   @Output() showLikersPopup:EventEmitter<string> = new EventEmitter<string>();
   @Output() showErrorPopup:EventEmitter<string> = new EventEmitter<string>();
+
   @Output() showStoryViewer:EventEmitter<{ newStoryViewerMainUserId: number, newStoryViewerMainUsername: string,
   newStoryViewerIsFromStoriesSection:boolean }> = new EventEmitter<{ newStoryViewerMainUserId: number, newStoryViewerMainUsername:
   string, newStoryViewerIsFromStoriesSection:boolean }>();
+  
   @Output() focusOnThisMediaPost:EventEmitter<string> = new EventEmitter<string>();
 
   overallPostId:string = '';
@@ -223,6 +226,11 @@ export class MediaPost {
           this.focusOnThisMediaPost.emit('');
         }
         break;
+      case 'Enter':
+        if (this.commentInputTextareaIsActive && this.commentInput.length > 0) {
+          this.postComment();
+        }
+        break;
       case 'ArrowLeft':
       case 'ArrowUp':
         if (!this.commentInputTextareaIsActive && !currSlideIsVid && this.currSlide > 0) {
@@ -247,7 +255,6 @@ export class MediaPost {
         if (!this.commentInputTextareaIsActive && !currSlideIsVid && this.bgMusicObject !== null) {
           this.togglePauseBackgroundMusic();
         }
-        break;
     }
   }
 
@@ -410,11 +417,6 @@ export class MediaPost {
   }
 
 
-  updateCommentInput(event:any) {
-    this.commentInput = event.target.value;
-  }
-
-
   toggleShowSectionsOfVidSlide() {
     this.displayTaggedAccountsOfSlide = false;
     this.displaySectionsOfVidSlide = !this.displaySectionsOfVidSlide;
@@ -527,7 +529,7 @@ export class MediaPost {
     this.displaySectionsOfVidSlide = false;
 
     this.showCommentsPopup.emit(
-      { postDetails: this.postDetails, currSlide: this.currSlide, mainPostAuthorInfo: this.mainPostAuthorInfo }
+      { postDetails: this.postDetails, currSlide: this.currSlide }
     );
   }
 

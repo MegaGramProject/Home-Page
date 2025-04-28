@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
-
 import FollowUser from './FollowUser';
 import PostDots from './PostDots';
 import UserIcon from './UserIcon';
@@ -22,6 +20,8 @@ import thinGrayXIcon from '../assets/images/thinGrayXIcon.png';
 import threeHorizontalDots from '../assets/images/threeHorizontalDots.png';
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
+
+import { useEffect, useRef, useState } from 'react';
 
 
 function MediaPost({authUserId, postDetails, mainPostAuthorInfo, isFocused, usersAndTheirRelevantInfo, updatePostDetails,
@@ -210,6 +210,11 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                     focusOnThisMediaPost('');
                 }
                 break;
+            case 'Enter':
+                if (commentInputTextareaIsActive && commentInput.length > 0) {
+                    postComment();
+                }
+                break;
             case 'ArrowLeft':
             case 'ArrowUp':
                 if (!commentInputTextareaIsActive && !currSlideIsVid && currSlide > 0) {
@@ -234,7 +239,6 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                 if (!commentInputTextareaIsActive && !currSlideIsVid && bgMusicObject !== null) {
                     togglePauseBackgroundMusic();
                 }
-                break;
         }
     }
 
@@ -260,6 +264,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
         else {
             bgMusicObject.pause();
         }
+        
         setBgMusicIsPlaying(!bgMusicIsPlaying);
     }
 
@@ -359,11 +364,11 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
     }
 
 
-    function toggleShowSectionsOfVidSlide() {
+    async function toggleShowSectionsOfVidSlide() {
         if (!displaySectionsOfVidSlide && postDetails.slides[currSlide].sections.length > 0 &&
         !(currSlide in slideToVidTimeToFrameMappings)) {
             for(let sectionInfo of postDetails.slides[currSlide].sections) {
-                getVideoFrameAtSpecifiedSlideAndTime(currSlide, sectionInfo[0]);
+                await getVideoFrameAtSpecifiedSlideAndTime(currSlide, sectionInfo[0]);
             }
         }
 
@@ -798,7 +803,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                             )
                         }
 
-                        {postDetails.adInfo!==null &&
+                        {postDetails.adInfo !== null &&
                             (
                                 <a href={postDetails.adInfo.link} target="_blank" rel="noopener noreferrer"
                                 style={{fontSize: '0.9em'}}>
@@ -1046,7 +1051,6 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                                                         defaultPfp
                                                     }
                                                     originalFollowText={taggedAccountInfo[1]}
-                            
                                                     userIsVerified={
                                                         usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.isVerified ?? 
                                                         false
@@ -1111,7 +1115,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                         setDisplayTaggedAccountsOfSlide(false);
                         setDisplaySectionsOfVidSlide(false);
                         showCommentsPopup(
-                            postDetails, currSlide, mainPostAuthorInfo
+                            postDetails, currSlide
                         );
                     }}/>
                     
@@ -1260,7 +1264,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                 setDisplayTaggedAccountsOfSlide(false);
                 setDisplaySectionsOfVidSlide(false);
                 showCommentsPopup(
-                    postDetails, currSlide, mainPostAuthorInfo
+                    postDetails, currSlide
                 );
             }} className="loseOpacityWhenActive" style={{color: 'gray', cursor: 'pointer', marginBottom: '1em'}}>
                 {

@@ -10,11 +10,30 @@
 </div>
 
 <img [src]="'images/blackScreen.png'" *ngIf="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup ||
-displayAboutAccountPopup || displayCommentsPopup || displayLikersPopup || displaySendPostPopup" (click)="closeAllPopups()"
-style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0.7; z-index: 2;"/>
+displayAboutAccountPopup || displayCommentsPopup || displayLikersPopup || displaySendPostPopup || displayCommentsPopup"
+(click)="closeAllPopups()" style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0.7; z-index: 2;"/>
+
+<CommentsPopup *ngIf="displayCommentsPopup"
+    [authUserId]="authUserId"
+    [authUsername]="authUsername"
+    [postDetails]="commentsPopupPostDetails"
+    [usersAndTheirRelevantInfo]="usersAndTheirRelevantInfo"
+    (updateUsersAndTheirRelevantInfo)="updateUsersAndTheirRelevantInfo($event)"
+    [mainPostAuthorInfo]="usersAndTheirRelevantInfo[commentsPopupPostDetails.authorIds[0]] ?? {}"
+    [currSlide]="commentsPopupCurrSlide"
+    [zIndex]="displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup || displayAboutAccountPopup ||
+    displayErrorPopup || displayStoryViewer ? '1' : '2'"
+    (closePopup)="closeCommentsPopup()"
+    (showErrorPopup)="showErrorPopup($event)"
+    (showThreeDotsPopup)="showThreeDotsPopup($event)"
+    (showSendPostPopup)="showSendPostPopup($event)"
+    (showLikersPopup)="showLikersPopup($event)"
+    (showStoryViewer)="showStoryViewer($event)"
+    (updatePostDetails)="updatePostDetails($event)"
+/>
 
 <div *ngIf="displayAboutAccountPopup" [ngStyle]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,
--50%)', zIndex: displayStoryViewer ? '1' : '3'}">
+-50%)', zIndex: displayStoryViewer ? '1' : '2'}">
     <AboutAccountPopup
         [authUserId]="authUserId"
         [userId]="aboutAccountUserId"
@@ -31,13 +50,12 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
     />
 </div>
 
-
 <StoryViewer *ngIf="displayStoryViewer"
     [authUserId]="authUserId"
     [authUsername]="authUsername"
     [storyAuthorUsername]="storyViewerMainUsername"
     [storyAuthorId]="storyViewerMainUserId"
-    [zIndex]="displayErrorPopup ? '1' : '3'"
+    [zIndex]="displayErrorPopup ? '1' : '2'"
     [orderedListOfUserIdsInStoriesSection]="orderedListOfUserIdsInStoriesSection"
     [orderedListOfUsernamesInStoriesSection]="orderedListOfUsernamesInStoriesSection"
     [orderedListOfSponsorshipStatusesInStoriesSection]="orderedListOfSponsorshipStatusesInStoriesSection"
@@ -58,7 +76,7 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
 />
 
 <div *ngIf="displayLeftSidebarPopup" [ngStyle]="{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ?
-'1' : '3'}">
+'1' : '2'}">
     <LeftSidebarPopup
         [authUserId]="authUserId"
         [originalURL]="originalURL"
@@ -67,7 +85,7 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
 </div>
 
 <div *ngIf="displayThreeDotsPopup" [ngStyle]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,
--50%)', zIndex: displayErrorPopup ? '1' : '3'}">
+-50%)', zIndex: displayErrorPopup ? '1' : '2'}">
     <ThreeDotsPopup
         [authUserId]="authUserId"
         [postDetails]="threeDotsPopupPostDetails"
@@ -79,7 +97,7 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
 </div>
 
 <div *ngIf="displayLikersPopup" [ngStyle]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,
--50%)', zIndex: displayErrorPopup ? '1' : '3'}">
+-50%)', zIndex: displayErrorPopup ? '1' : '2'}">
     <LikersPopup
         [idOfPostOrComment]="likersPopupIdOfPostOrComment"
         [authUserId]="authUserId"
@@ -91,7 +109,7 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
 </div>
 
 <div *ngIf="displaySendPostPopup" [ngStyle]="{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,
--50%)', zIndex: displayErrorPopup ? '1' : '3'}">
+-50%)', zIndex: displayErrorPopup ? '1' : '2'}">
     <SendPostPopup
         [authUserId]="authUserId"
         [overallPostId]="sendPostPopupOverallPostId"
@@ -104,7 +122,7 @@ style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0
     />
 </div>
 
-<div *ngIf="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3;">
+<div *ngIf="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;">
     <ErrorPopup
         [errorMessage]="errorPopupMessage"
         (closePopup)="closeErrorPopup()"

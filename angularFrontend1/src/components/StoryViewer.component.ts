@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, EventEmitter, Input, Output, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import { BehaviorSubject } from 'rxjs';
 
@@ -7,7 +8,7 @@ import { BehaviorSubject } from 'rxjs';
 @Component({
   selector: 'StoryViewer',
   templateUrl: '../templates/StoryViewer.component.html',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   standalone: true
 })
 export class StoryViewer {
@@ -300,11 +301,6 @@ export class StoryViewer {
         vidSlideElement.play();
       }
     }
-  }
-
-
-  updateReplyToStoryInput(event:any) {
-    this.replyToStoryInput = event.target.value;
   }
 
 

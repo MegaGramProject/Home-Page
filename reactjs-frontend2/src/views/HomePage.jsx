@@ -63,7 +63,6 @@ function HomePage({urlParams}) {
     const [displayCommentsPopup, setDisplayCommentsPopup] = useState(false);
     const [commentsPopupPostDetails, setCommentsPopupPostDetails] = useState({});
     const [commentsPopupCurrSlide, setCommentsPopupCurrSlide] = useState(0);
-    const [commentsPopupMainPostAuthorInfo, setCommentsPopupMainPostAuthorInfo] = useState();
 
     const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
     const [focusedMediaPostId, setFocusedMediaPostId] = useState('');
@@ -151,15 +150,14 @@ function HomePage({urlParams}) {
     }
 
 
-    function showCommentsPopup(postDetails, currSlide, mainPostAuthorInfo) {
+    function showCommentsPopup(postDetails, currSlide) {
         setCommentsPopupPostDetails(postDetails);
         setCommentsPopupCurrSlide(currSlide);
-        setCommentsPopupMainPostAuthorInfo(mainPostAuthorInfo);
         setDisplayCommentsPopup(true);
     }
 
 
-    function hideCommentsPopup() {
+    function closeCommentsPopup() {
         setDisplayCommentsPopup(false);
     }
 
@@ -1386,9 +1384,8 @@ function HomePage({urlParams}) {
                         <Footer/>
                     </div>
 
-                    {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup || 
-                    displayLikersPopup || displayAboutAccountPopup || displayLeftSidebarPopup ||
-                    displayErrorPopup)
+                    {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup ||  displayLikersPopup ||
+                    displayAboutAccountPopup || displayLeftSidebarPopup || displayErrorPopup)
                     &&  (
                             <img onClick={closeAllPopups} src={blackScreen} style={{position: 'fixed', 
                             top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7', 
@@ -1396,10 +1393,38 @@ function HomePage({urlParams}) {
                         )
                     }
 
+                    {displayCommentsPopup &&
+                        (
+                            <CommentsPopup
+                                authUserId={authUserId}
+                                authUsername={authUsername}
+                                postDetails={commentsPopupPostDetails}
+                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
+                                mainPostAuthorInfo={
+                                    usersAndTheirRelevantInfo[commentsPopupPostDetails.authorIds[0]] ?? {}
+                                }
+                                currSlide={commentsPopupCurrSlide}
+                                zIndex={
+                                    (displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup ||
+                                    displayAboutAccountPopup || displayErrorPopup || displayStoryViewer) ? 
+                                    '1' : '2'
+                                }
+                                closePopup={closeCommentsPopup}
+                                showErrorPopup={showErrorPopup}
+                                showThreeDotsPopup={showThreeDotsPopup}
+                                showSendPostPopup={showSendPostPopup}
+                                showLikersPopup={showLikersPopup}
+                                showStoryViewer={showStoryViewer}
+                                updatePostDetails={updatePostDetails}
+                            />
+                        )
+                    }
+
                     {displayAboutAccountPopup &&
                         (
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayStoryViewer ? '1' : '3'}}>
+                            zIndex: displayStoryViewer ? '1' : '2'}}>
                                 <AboutAccountPopup
                                     authUserId={authUserId}
                                     userId={aboutAccountUserId}
@@ -1425,7 +1450,7 @@ function HomePage({urlParams}) {
                                 authUsername={authUsername}
                                 storyAuthorUsername={storyViewerMainUsername}
                                 storyAuthorId={storyViewerMainUserId}
-                                zIndex={displayErrorPopup ? '1' : '3'}
+                                zIndex={displayErrorPopup ? '1' : '2'}
                                 orderedListOfUserIdsInStoriesSection={orderedListOfUserIdsInStoriesSection}
                                 orderedListOfUsernamesInStoriesSection={orderedListOfUsernamesInStoriesSection}
                                 orderedListOfSponsorshipStatusesInStoriesSection={
@@ -1451,34 +1476,10 @@ function HomePage({urlParams}) {
                         )
                     }
 
-                    {displayCommentsPopup &&
-                        (
-                            <CommentsPopup
-                                authUsername={authUsername} 
-                                postDetails={commentsPopupPostDetails}
-                                currSlide={commentsPopupCurrSlide}
-                                notifyParentToClosePopup={hideCommentsPopup}
-                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                mainPostAuthorInfo={commentsPopupMainPostAuthorInfo}
-                                notifyParentToShowSendPostPopup={showSendPostPopup}
-                                notifyParentToUpdatePostDetails={updatePostDetails}
-                                notifyParentToShowErrorPopup={showErrorPopup}
-                                notifyParentToShowThreeDotsPopup={showThreeDotsPopup}
-                                notifyParentToShowLikersPopup={showLikersPopup}
-                                notifyParentToUpdateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                zIndex={
-                                    (displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup ||
-                                    displayAboutAccountPopup || displayErrorPopup) ? 
-                                    '1' : '3'
-                                }
-                            />
-                        )
-                    }
-
                     {displayLeftSidebarPopup &&
                         (
                             <div style={{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ? '1'
-                            : '3'}}>
+                            : '2'}}>
                                 <LeftSidebarPopup
                                     authUserId={authUserId}
                                     originalURL={originalURL}
@@ -1491,7 +1492,7 @@ function HomePage({urlParams}) {
                     {displayThreeDotsPopup &&
                         (
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayErrorPopup ? '1': '3'}}>
+                            zIndex: displayErrorPopup ? '1': '2'}}>
                                 <ThreeDotsPopup
                                     authUserId={authUserId}
                                     postDetails={threeDotsPopupPostDetails} 
@@ -1507,7 +1508,7 @@ function HomePage({urlParams}) {
                     {displaySendPostPopup &&
                         (
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayErrorPopup ? '1': '3'}}>
+                            zIndex: displayErrorPopup ? '1': '2'}}>
                                 <SendPostPopup
                                     authUserId={authUserId}
                                     overallPostId={sendPostPopupOverallPostId}
@@ -1525,7 +1526,7 @@ function HomePage({urlParams}) {
                     {displayLikersPopup &&
                         (
                             <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayErrorPopup ? '1': '3'}}>
+                            zIndex: displayErrorPopup ? '1': '2'}}>
                                 <LikersPopup
                                     idOfPostOrComment={likersPopupIdOfPostOrComment}
                                     authUserId={authUserId}
@@ -1541,7 +1542,7 @@ function HomePage({urlParams}) {
                     {displayErrorPopup &&
                         (
                             <div style={{position: 'fixed', top: '50%', left: '50%',
-                            transform: 'translate(-50%, -50%)', zIndex: '3'}}>
+                            transform: 'translate(-50%, -50%)', zIndex: '2'}}>
                                 <ErrorPopup
                                     errorMessage={errorPopupMessage}
                                     closePopup={closeErrorPopup}

@@ -12,12 +12,31 @@
     </div>
 
     <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup ||
-    displayLikersPopup || displaySendPostPopup" @click="closeAllPopups" :src="blackScreen" style="position: fixed; top: 0%; left: 0%;
-    width: 100%; height: 100%; opacity: 0.7; zIndex: 2;"/>
+    displayLikersPopup || displaySendPostPopup || displayCommentsPopup" @click="closeAllPopups" :src="blackScreen"
+    style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0.7; zIndex: 2;"/>
+
+    <CommentsPopup v-if="displayCommentsPopup"
+        :authUserId="authUserId"
+        :authUsername="authUsername"
+        :postDetails="commentsPopupPostDetails"
+        :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
+        :updateUsersAndTheirRelevantInfo="updateUsersAndTheirRelevantInfo"
+        :mainPostAuthorInfo="usersAndTheirRelevantInfo[commentsPopupPostDetails.authorIds[0]] ?? {}"
+        :currSlide="commentsPopupCurrSlide"
+        :zIndex="displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup || displayAboutAccountPopup ||
+        displayErrorPopup || displayStoryViewer ? '1' : '2'"
+        :closePopup="closeCommentsPopup"
+        :showErrorPopup="showErrorPopup"
+        :showThreeDotsPopup="showThreeDotsPopup"
+        :showSendPostPopup="showSendPostPopup"
+        :showLikersPopup="showLikersPopup"
+        :showStoryViewer="showStoryViewer"
+        :updatePostDetails="updatePostDetails"
+    />
 
     <div v-if="displayAboutAccountPopup" :style="[
         { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-        { zIndex: displayStoryViewer ? '1' : '3' }
+        { zIndex: displayStoryViewer ? '1' : '2' }
     ]">
         <AboutAccountPopup
             :authUserId="authUserId"
@@ -40,7 +59,7 @@
         :authUsername="authUsername"
         :storyAuthorUsername="storyViewerMainUsername"
         :storyAuthorId="storyViewerMainUserId"
-        :zIndex="displayErrorPopup ? '1' : '3'"
+        :zIndex="displayErrorPopup ? '1' : '2'"
         :orderedListOfUserIdsInStoriesSection="orderedListOfUserIdsInStoriesSection"
         :orderedListOfUsernamesInStoriesSection="orderedListOfUsernamesInStoriesSection"
         :orderedListOfSponsorshipStatusesInStoriesSection="orderedListOfSponsorshipStatusesInStoriesSection"
@@ -62,7 +81,7 @@
 
     <div v-if="displayLeftSidebarPopup" :style="[
         { position: 'fixed', bottom: '10%', left: '1%' },
-        { zIndex: displayErrorPopup ? '1' : '3' }
+        { zIndex: displayErrorPopup ? '1' : '2' }
     ]">
         <LeftSidebarPopup
             :authUserId="authUserId"
@@ -73,7 +92,7 @@
 
     <div v-if="displayThreeDotsPopup" :style="[
         { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-        { zIndex: displayErrorPopup ? '1' : '3' }
+        { zIndex: displayErrorPopup ? '1' : '2' }
     ]">
         <ThreeDotsPopup
             :authUserId="authUserId"
@@ -87,7 +106,7 @@
 
     <div v-if="displayLikersPopup" :style="[
         { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-        { zIndex: displayErrorPopup ? '1' : '3' }
+        { zIndex: displayErrorPopup ? '1' : '2' }
     ]">
         <LikersPopup
             :idOfPostOrComment="likersPopupIdOfPostOrComment"
@@ -101,7 +120,7 @@
 
     <div v-if="displaySendPostPopup" :style="[
         { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-        { zIndex: displayErrorPopup ? '1' : '3' }
+        { zIndex: displayErrorPopup ? '1' : '2' }
     ]">
         <SendPostPopup
             :authUserId="authUserId"
@@ -116,7 +135,7 @@
     </div>
 
     <div v-if="displayErrorPopup" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); zIndex:
-    3;">
+    2;">
         <ErrorPopup
             :errorMessage="errorPopupMessage"
             :closePopup="closeErrorPopup"
@@ -128,6 +147,7 @@
 <script setup>
 /* eslint-disable no-unused-vars */
     import AboutAccountPopup from '@/components/Popups/AboutAccountPopup.vue';
+import CommentsPopup from '@/components/Popups/CommentsPopup.vue';
 import ErrorPopup from '@/components/Popups/ErrorPopup.vue';
 import LeftSidebarPopup from '@/components/Popups/LeftSidebarPopup.vue';
 import LikersPopup from '@/components/Popups/LikersPopup.vue';
@@ -145,6 +165,7 @@ import UserIcon from '@/components/UserIcon.vue';
     import blackScreen from '@/assets/images/blackScreen.png';
 import defaultPfp from '@/assets/images/defaultPfp.png';
 
+    
     
     import '../assets/styles.css';
 
@@ -184,7 +205,6 @@ import { useRoute } from 'vue-router';
     const displayCommentsPopup = ref(false);
     const commentsPopupPostDetails = ref({});
     const commentsPopupCurrSlide = ref(-1);
-    const commentsPopupMainPostAuthorInfo = ref({});
 
     const displayStoryViewer = ref(false);
     const currStoryLevel = ref(0);
@@ -427,10 +447,9 @@ import { useRoute } from 'vue-router';
     }
 
 
-    function showCommentsPopup(postDetails, currSlide, mainPostAuthorInfo) {
+    function showCommentsPopup(postDetails, currSlide) {
         commentsPopupPostDetails.value = postDetails;
         commentsPopupCurrSlide.value = currSlide;
-        commentsPopupMainPostAuthorInfo.value = mainPostAuthorInfo;
 
         displayCommentsPopup.value = true;
     }
@@ -523,6 +542,11 @@ import { useRoute } from 'vue-router';
             'Megagram',
             originalURL.value
         );
+    }
+
+
+    function closeCommentsPopup() {
+        displayCommentsPopup.value = false;
     }
 
 

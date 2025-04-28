@@ -40,7 +40,8 @@
                     {{ numLikes.toLocaleString() }} {{ numLikes !== 1 ? 'likes' : 'like' }}
                 </b>
 
-                <b v-if="!isCaption" @click="() => replyToComment({id: id, authorUsername: authorUsername, content: content})"
+                <b v-if="!isCaption" @click="() => replyToComment({id: id, authorUsername: authorUsername, content: content,
+                numReplies: numReplies})"
                 style="cursor: pointer;">
                     Reply
                 </b>
@@ -126,7 +127,7 @@
             :newlyPostedRepliesByAuthUser="newlyPostedRepliesByAuthUser"
             :authorId="authUserId"
             :authorUsername="newAuthUserReply.authorUsername"
-            :authorIsVerified="usersAndTheirRelevantInfo[authUserId]?.authorIsVerified ?? false"
+            :authorIsVerified="usersAndTheirRelevantInfo[authUserId]?.isVerified ?? false"
             :authorPfp="usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp"
             :authorStatusToAuthUser="'You'"
             :isEdited="newAuthUserReply.isEdited"
@@ -153,7 +154,7 @@
             :newlyPostedRepliesByAuthUser="newlyPostedRepliesByAuthUser"
             :authorId="fetchedReply.authorId"
             :authorUsername="fetchedReply.authorUsername"
-            :authorIsVerified="usersAndTheirRelevantInfo[fetchedReply.authorId]?.authorIsVerified ?? false"
+            :authorIsVerified="usersAndTheirRelevantInfo[fetchedReply.authorId]?.isVerified ?? false"
             :authorPfp="usersAndTheirRelevantInfo[fetchedReply.authorId]?.profilePhoto ?? defaultPfp"
             :authorStatusToAuthUser="fetchedReply.authorStatusToAuthUser"
             :isEdited="fetchedReply.isEdited"
@@ -178,7 +179,7 @@
 <script setup>
     import blankHeartIcon from '../assets/images/blankHeartIcon.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
-import uniqueRedHeart from '../assets/images/likePostAnimationHeartIcon.webp';
+import uniqueRedHeart from '../assets/images/heartAnimationIcon.webp';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
 import pencilIcon from '../assets/images/pencilIcon.png';
 import redHeartIcon from '../assets/images/redHeartIcon.png';
@@ -356,6 +357,43 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
     function updateEditCommentInput(event) {
         editCommentInput.value = event.target.value;
+    }
+
+
+    function formatDatetimeString(datetimeString) {
+        const now = new Date();
+        const pastDate = new Date(datetimeString);
+        const diff = now - pastDate;
+
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const weeks = Math.floor(days / 7);
+        const months = Math.floor(days / 30);
+        const years = Math.floor(days / 365);
+
+        if (seconds < 60) {
+            return `${seconds}s`;
+        }
+        else if (minutes < 60) {
+            return `${minutes}m`;
+        }
+        else if (hours < 24) {
+            return `${hours}h`;
+        }
+        else if (days < 7) {
+            return `${days}d`;
+        }
+        else if (weeks < 4) {
+            return `${weeks}w`;
+        }
+        else if (months < 12) {
+            return `${months}mo`;
+        }
+        else {
+            return `${years}y`;
+        }
     }
 
 
@@ -540,8 +578,13 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
             else {
                 let repliesOfComment = await response.json();
                 repliesOfComment = repliesOfComment.data.getBatchOfRepliesOfComment;
+                repliesOfComment = repliesOfComment.map(reply => {
+                    reply.datetime = formatDatetimeString(reply.datetime);
+                    return reply;
+                });
                 
-                props.fetchAllTheNecessaryInfo(repliesOfComment);
+                props.fetchAllTheNecessaryInfo(repliesOfComment.map(reply => reply.authorId));
+
                 let newFetchedListOfReplies = [...repliesOfComment, ...fetchedListOfReplies.value];
                 fetchedListOfReplies.value = newFetchedListOfReplies;
 

@@ -33,17 +33,17 @@ export class Comment {
 
   @Output() showErrorPopup:EventEmitter<string> = new EventEmitter<string>();
 
-  @Output() updateCommentDetails:EventEmitter<{ id: number, isLikedByAuthUser: boolean, numLikes: number }> =
-  new EventEmitter<{ id: number, isLikedByAuthUser: boolean, numLikes: number }>();
+  @Output() updateCommentDetails:EventEmitter<{ id: number, updatedDetails: any }> =
+  new EventEmitter<{ id: number, updatedDetails: any }>();
 
-  @Output() replyToComment:EventEmitter<{ id: number, authorUsername: string, content: string }> =
-  new EventEmitter<{ id: number, authorUsername: string, content: string }>();
+  @Output() replyToComment:EventEmitter<{ id: number, authorUsername: string, content: string, numReplies: number }> =
+  new EventEmitter<{ id: number, authorUsername: string, content: string, numReplies: number }>();
 
   @Output() showLikersPopup:EventEmitter<number> = new EventEmitter<number>();
-  @Output() fetchAllTheNecessaryInfo:EventEmitter<any[]> = new EventEmitter<any[]>();
+  @Output() fetchAllTheNecessaryInfo:EventEmitter<number[]> = new EventEmitter<number[]>();
   
-  @Output() notifyParentToEditComment:EventEmitter<{ id: number, newComment: string }> =
-  new EventEmitter<{ id: number, newComment: string }>();
+  @Output() notifyParentToEditComment:EventEmitter<{ id: number, newContent: string }> =
+  new EventEmitter<{ id: number, newContent: string }>();
 
   @Output() notifyParentToDeleteComment:EventEmitter<number> = new EventEmitter<number>();
 
@@ -198,8 +198,10 @@ export class Comment {
         else {
           this.updateCommentDetails.emit({
             id: this.id,
-            isLikedByAuthUser: false,
-            numLikes: this.numLikes - 1
+            updatedDetails: {
+              isLikedByAuthUser: false,
+              numLikes: this.numLikes - 1
+            }
           });
         }
       }
@@ -231,8 +233,10 @@ export class Comment {
         else {
           this.updateCommentDetails.emit({
             id: this.id,
-            isLikedByAuthUser: true,
-            numLikes: this.numLikes + 1
+            updatedDetails: {
+              isLikedByAuthUser: true,
+              numLikes: this.numLikes + 1
+            }
           });
         }
       }
@@ -272,7 +276,7 @@ export class Comment {
       else {
         this.notifyParentToEditComment.emit({
           id: this.id,
-          newComment: this.editCommentInput
+          newContent: this.editCommentInput
         });
         this.toggleEditMode();
       }
@@ -352,10 +356,10 @@ export class Comment {
         this.showErrorPopup.emit('The server had trouble getting additional replies of this comment.');
       }
       else {
-        let repliesOfComment = await response.json();
-        repliesOfComment = repliesOfComment.data.getBatchOfRepliesOfComment;
+        let responseData:any = await response.json();
+        let repliesOfComment:any[] = responseData.data.getBatchOfRepliesOfComment;
 
-        this.fetchAllTheNecessaryInfo.emit(repliesOfComment);
+        this.fetchAllTheNecessaryInfo.emit(repliesOfComment.map(reply => reply.authorId));
         let newFetchedListOfReplies = [...repliesOfComment, ...this.fetchedListOfReplies];
         this.fetchedListOfReplies = newFetchedListOfReplies;
 

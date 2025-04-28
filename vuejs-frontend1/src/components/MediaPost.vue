@@ -203,8 +203,8 @@
                 solid; border-color: lightgray; border-width: 0.08em; border-top: none; border-left: none; border-right: none;">
                     <h4>Tagged Accounts of this Video-Slide</h4>
                     
-                    <img :src="thinGrayXIcon" @click="toggleShowTaggedAccountsOfSlide" style="cursor: pointer; height: 1.6em; width:
-                    1.6em; object-fit: contain;"/>
+                    <img :src="thinGrayXIcon" @click="toggleShowTaggedAccountsOfSlide" style="cursor: pointer; height: 1.6em;
+                    width: 1.6em; object-fit: contain;"/>
                 </div>
 
                 <br/>
@@ -259,10 +259,11 @@
             <img v-else :src="blackSavedIcon" @click="toggleSavePost" class="mediaPostButton iconToBeAdjustedForDarkMode"/>
         </div>
 
-        <b v-if="postDetails.likersFollowedByAuthUser.length == 0" @click="notifyParentToShowLikersPopup" style="margin-bottom: 0em;
-        max-width: 60%; overflow-wrap: break-word; text-align: start; margin-top: 1em; margin-left: 0.4em; cursor: pointer;">
+        <p v-if="postDetails.likersFollowedByAuthUser.length == 0" @click="notifyParentToShowLikersPopup" style="margin-bottom: 0em;
+        max-width: 60%; overflow-wrap: break-word; text-align: start; margin-top: 1em; margin-left: 0.4em; cursor: pointer;
+        font-weight: bold;">
             {{ postDetails.numLikes.toLocaleString() + (postDetails.numLikes == 1 ? ' like' : ' likes') }}
-        </b>
+        </p>
 
         <p v-else style="margin-bottom: 0em; max-width: 74%; overflow-wrap: break-word; text-align: start;">
             <span>Liked by </span>
@@ -417,11 +418,11 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
     const heartAnimationCoordinates = ref([-1, -1]);
     const intervalIdForHeartAnimation = ref(null);
 
-    const vidSlideRef = ref(null);
-    const currSlideRef = ref(null);
-
     const yourPostViewHasBeenAdded = ref(false);
 
+    const vidSlideRef = ref(null);
+    const currSlideRef = ref(null);
+    
     const languageCodeToLabelMappings = {
         "af": "Afrikaans",
         "sq": "Albanian",
@@ -578,6 +579,11 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
                     props.focusOnThisMediaPost('');
                 }
                 break;
+            case 'Enter':
+                if (commentInputTextareaIsActive.value && commentInput.value.length > 0) {
+                    postComment();
+                }
+                break;
             case 'ArrowLeft':
             case 'ArrowUp':
                 if (!commentInputTextareaIsActive.value && !currSlideIsVid && currSlide.value > 0) {
@@ -603,7 +609,6 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
                 if (!commentInputTextareaIsActive.value && !currSlideIsVid && bgMusicObject.value !== null) {
                     togglePauseBackgroundMusic();
                 }
-                break;
         }
     }
 
@@ -738,14 +743,14 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
     }
 
 
-    function toggleShowSectionsOfVidSlide() {
+    async function toggleShowSectionsOfVidSlide() {
         displayTaggedAccountsOfSlide.value = false;
         displaySectionsOfVidSlide.value = !displaySectionsOfVidSlide.value;
 
         if (displaySectionsOfVidSlide.value && props.postDetails.slides[currSlide.value].sections.length > 0 &&
         !(currSlide.value in slideToVidTimeToFrameMappings.value)) {
             for(let sectionInfo of props.postDetails.slides[currSlide.value].sections) {
-                getVideoFrameAtSpecifiedSlideAndTime(currSlide.value, sectionInfo[0]);
+                await getVideoFrameAtSpecifiedSlideAndTime(currSlide.value, sectionInfo[0]);
             }
         }
     }
@@ -849,7 +854,7 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
         displayTaggedAccountsOfSlide.value = false;
         displaySectionsOfVidSlide.value = false;
 
-        props.showCommentsPopup(props.postDetails, currSlide.value, props.mainPostAuthorInfo);
+        props.showCommentsPopup(props.postDetails, currSlide.value);
     }
 
 

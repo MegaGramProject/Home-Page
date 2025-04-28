@@ -178,7 +178,7 @@ export class LikersPopup {
   }
 
 
-  async fetchAllTheNecessaryLikerInfo(newLikerIds:any[]): Promise<any> {
+  async fetchAllTheNecessaryLikerInfo(newLikerIds:any[]) {
     let graphqlUserQueryStringHeaderInfo:any = {};
     let graphqlUserQueryString = '';
     let graphqlUserVariables:any = {};

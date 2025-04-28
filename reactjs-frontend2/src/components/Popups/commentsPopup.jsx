@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-
 import Comment from '../../Comment';
-import FollowUser from '../../followUser';
+import FollowUser from '../../FollowUser';
 import PostDots from '../../PostDots';
-import UserIcon from '../../userIcon';
+import UserIcon from '../../UserIcon';
 
 import blackSavedIcon from '../../assets/images/blackSavedIcon.png';
 import blankHeartIcon from '../../assets/images/blankHeartIcon.png';
 import blankSavedIcon from '../../assets/images/blankSavedIcon.png';
 import commentIcon from '../../assets/images/commentIcon.png';
 import defaultPfp from '../../assets/images/defaultPfp.png';
-import defaultVideoFrame from '../../assets/images/defaultVideoFrame.jpg';
-import likePostAnimationHeartIcon from '../../assets/images/likePostAnimationHeartIcon.webp';
+import heartAnimationIcon from '../../assets/images/heartAnimationIcon.webp';
 import loadingAnimation from '../../assets/images/loadingAnimation.gif';
 import megaphone from '../../assets/images/megaphone.png';
 import musicSymbol from '../../assets/images/musicSymbol.png';
@@ -27,37 +24,46 @@ import thinWhiteXIcon from '../../assets/images/thinWhiteXIcon.png';
 import threeHorizontalDots from '../../assets/images/threeHorizontalDots.png';
 import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
+import { useEffect, useRef, useState } from 'react';
 
-function CommentsPopup({authUser, postDetails, currSlide, notifyParentToClosePopup, notifyParentToShowErrorPopup,
-notifyParentToUpdatePostDetails, usersAndTheirRelevantInfo, mainPostAuthorInfo,
-notifyParentToShowThreeDotsPopup, notifyParentToShowSendPostPopup, notifyParentToShowLikersPopup,
-zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
+
+function CommentsPopup({authUserId, authUsername, postDetails, usersAndTheirRelevantInfo, updateUsersAndTheirRelevantInfo,
+mainPostAuthorInfo, currSlide, zIndex, closePopup, showErrorPopup, showThreeDotsPopup, showSendPostPopup, showLikersPopup,
+showStoryViewer, updatePostDetails}) {
     const [overallPostId, setOverallPostId] = useState('');
-    const [mainPostAuthor, setMainPostAuthor] = useState('');
+
+    const [mainPostAuthorId, setMainPostAuthorId] = useState(-1);
+
+    const [bgMusicIsPlaying, setBgMusicIsPlaying] = useState(false);
+    const [bgMusicObject, setBgMusicObject] = useState(null);
+
     const [currSlideState, setCurrSlideState] = useState(0);
-    const [elementsForTaggedAccountsOfImageSlide, setElementsForTaggedAccountsOfImageSlide] = useState([]);
-    const [displaySectionsOfVidSlide, setDisplaySectionsOfVidSlide] = useState(false);
     const [displayTaggedAccountsOfSlide, setDisplayTaggedAccountsOfSlide] = useState(false);
-    const [likePostHeartAnimationCoordinates, setLikePostHeartAnimationCoordinates] = useState([-1, -1]);
-    const [intervalIdForLikePostHeartAnimation, setIntervalIdForLikePostHeartAnimation] = useState(null);
-    const [slideToVidTimeToFrameMappings, setSlideToVidTimeToFrameMappings] = useState({});
-    const [backgroundMusicIsPlaying, setBackgroundMusicIsPlaying] = useState(false);
-    const [backgroundMusicObject, setBackgroundMusicObject] = useState(null);
+    const [displaySectionsOfVidSlide, setDisplaySectionsOfVidSlide] = useState(false);
+
     const [commentInput, setCommentInput] = useState('');
-    const [newlyPostedCommentsByAuthUser, setNewlyPostedCommentsByAuthUser] = useState([]);
+    const [commentInputTextareaIsActive, setCommentInputTextareaIsActive] = useState(false);
+
+    const [slideToVidTimeToFrameMappings, setSlideToVidTimeToFrameMappings] = useState({});
+
+    const [heartAnimationCoordinates, setHeartAnimationCoordinates] = useState([-1, -1]);
+    const [intervalIdForHeartAnimation, setIntervalIdForHeartAnimation] = useState(null);
+
     const [orderedListOfComments, setOrderedListOfComments] = useState([]);
     const [commentIdsToExclude, setCommentIdsToExclude] = useState([]);
+
+    const [newlyPostedCommentsByAuthUser, setNewlyPostedCommentsByAuthUser] = useState([]);
+    const [newlyPostedRepliesByAuthUser, setNewlyPostedRepliesByAuthUser] = useState([]);
+
     const [initialCommentsFetchingIsComplete, setInitialCommentsFetchingIsComplete] = useState(false);
     const [isCurrentlyFetchingAdditionalComments, setIsCurrentlyFetchingAdditionalComments] = useState(false);
     const [initialCommentsFetchingErrorMessage, setInitialCommentsFetchingErrorMessage] = useState("");
     const [additionalCommentsFetchingErrorMessage, setAdditionalCommentsFetchingErrorMessage] = useState("");
+    
     const [replyingToCommentInfo, setReplyingToCommentInfo] = useState(null);
-    const [newlyPostedRepliesByAuthUser, setNewlyPostedRepliesByAuthUser] = useState([]);
 
-    const slideContainerRef = useRef(null);
-    const videoSlideRef = useRef(null);
-    const hiddenVideoSlideForFrameCollectionRef = useRef(null);
-    const canvasRef = useRef(null);
+    const vidSlideRef = useRef(null);
+    const currSlideRef = useRef(null);
 
     const languageCodeToLabelMappings = {
         "af": "Afrikaans",
@@ -145,27 +151,435 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         "zu": "Zulu"
     };
 
+
     useEffect(() => {
         setOverallPostId(postDetails.overallPostId);
-        setMainPostAuthor(postDetails.authors[0]);
+        setMainPostAuthorId(postDetails.authorIds[0]);
         setCurrSlideState(currSlide);
 
-        if(postDetails.backgroundMusic!==null) {
-            setBackgroundMusicObject(new Audio(postDetails.backgroundMusic.src));
+        if(postDetails.backgroundMusic !== null) {
+            setBgMusicObject(new Audio(postDetails.backgroundMusic.src));
         }
 
+        window.addEventListener('keydown', handleKeyDownEvents);
         fetchComments('initial');
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDownEvents);
+        }
     }, []);
 
+
+    useEffect(() => {
+        bgMusicObject.addEventListener('loadedmetadata', () => {
+            if (postDetails.bgMusic.startTime > 0) {
+                bgMusicObject.currentTime = postDetails.bgMusic.startTime;
+            }
+        });
+
+        bgMusicObject.addEventListener('timeupdate', () => {
+            let bgMusicEndTime = -1;
+
+            if (postDetails.bgMusic.endTime == -1) {
+                bgMusicEndTime = bgMusicObject.duration;
+            }
+            else {
+                bgMusicEndTime = postDetails.bgMusic.endTime;
+            }
+
+            if (bgMusicObject.currentTime >= bgMusicEndTime) {
+                if (postDetails.bgMusic.startTime > 0) {
+                    bgMusicObject.currentTime = postDetails.bgMusic.startTime;
+                }
+                else {
+                    bgMusicObject.currentTime = 0;
+                }
+            }
+        });
+    }, [bgMusicObject]);
+
+
+    function handleKeyDownEvents(event) {
+        const currSlideIsVid = postDetails.slides[currSlideState].type === 'video';
+
+        switch (event.key) {
+            case 'Escape':
+                if (!currSlideIsVid) {
+                    closePopup();
+                }
+                break;
+            case 'Enter':
+                if (commentInputTextareaIsActive && commentInput.length > 0) {
+                    postComment();
+                }
+                break;
+            case 'ArrowLeft':
+            case 'ArrowUp':
+                if (!commentInputTextareaIsActive && !currSlideIsVid && currSlideState > 0) {
+                    changeSlide('decrement');
+                }
+                break;
+            case 'ArrowRight':
+            case 'ArrowDown':
+                if (!commentInputTextareaIsActive && !currSlideIsVid && currSlideState + 1 <
+                postDetails.slides.length) {
+                    changeSlide('increment');
+                }
+                break;
+            case 'm':
+            case 'M':
+                if (!commentInputTextareaIsActive && !currSlideIsVid && bgMusicIsPlaying) {
+                    togglePauseBackgroundMusic();
+                }
+                break;
+            case 'k':
+            case 'K':
+            case ' ':
+                if (!commentInputTextareaIsActive && !currSlideIsVid && bgMusicObject !== null) {
+                    togglePauseBackgroundMusic();
+                }
+        }
+    }
+
+
+    function changeSlide(incrementOrDecrementText) {
+        setDisplaySectionsOfVidSlide(false);
+        setDisplayTaggedAccountsOfSlide(false);
+
+        if(incrementOrDecrementText === 'increment') {
+            setCurrSlideState(currSlideState+1);
+        }
+        else {
+            setCurrSlideState(currSlideState-1);
+        }
+    }
+
+
+    function toggleShowTaggedAccountsOfSlide() {
+        if(!displayTaggedAccountsOfSlide) {
+            setDisplaySectionsOfVidSlide(false);
+            setDisplayTaggedAccountsOfSlide(true);
+        }
+        else {
+            setDisplayTaggedAccountsOfSlide(false);
+        }
+    }
+    
+
+    function startHeartAnimation(startX, startY) {
+        if (intervalIdForHeartAnimation !== null) {
+            return;
+        }
+    
+        setHeartAnimationCoordinates([startX, startY]);
+        
+        setIntervalIdForHeartAnimation('on the way...');
+
+        setTimeout(() => {
+            const newIntervalIdForLikePostHeartAnimation = setInterval(() => {
+                setHeartAnimationCoordinates(([x, y]) => {
+                    if (y < -7) {
+                        clearInterval(newIntervalIdForLikePostHeartAnimation);
+                        setIntervalIdForHeartAnimation(null);
+                        return [-7, -7];
+                    }
+                    return [x, y - 1];
+                });
+            }, 10);
+
+            setIntervalIdForHeartAnimation(newIntervalIdForLikePostHeartAnimation);
+        }, 400);
+    }
+
+
+    function takeUserToSectionInVideo(timeInSeconds) {
+        if (vidSlideRef.current) {
+            vidSlideRef.current.currentTime = timeInSeconds;
+            vidSlideRef.current.play();
+        }
+    }
+
+
+    async function toggleShowSectionsOfVidSlide() {
+        if (!displaySectionsOfVidSlide && postDetails.slides[currSlideState].sections.length > 0 &&
+        !(currSlideState in slideToVidTimeToFrameMappings)) {
+            for(let sectionInfo of postDetails.slides[currSlideState].sections) {
+                await getVideoFrameAtSpecifiedSlideAndTime(currSlideState, sectionInfo[0]);
+            }
+        }
+
+        setDisplayTaggedAccountsOfSlide(false);
+        setDisplaySectionsOfVidSlide(!displaySectionsOfVidSlide);
+    }
+
+
+    async function getVideoFrameAtSpecifiedSlideAndTime(slide, timeInSeconds) {
+        return new Promise((resolve, reject) => {
+            if (slide in slideToVidTimeToFrameMappings && timeInSeconds in slideToVidTimeToFrameMappings[slide]) {
+                resolve(slideToVidTimeToFrameMappings[slide][timeInSeconds]);
+            }
+    
+            const newSlideToVidTimeToFrameMappings = { ...slideToVidTimeToFrameMappings };
+        
+            if (!(slide in slideToVidTimeToFrameMappings)) {
+                newSlideToVidTimeToFrameMappings[slide] = {};
+            }
+
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.muted = true;
+            video.src = postDetails.slides[slide].src;
+
+
+            video.addEventListener('loadeddata', () => {
+                video.currentTime = timeInSeconds;
+            });
+
+
+            video.addEventListener('seeked', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                const frameImage = canvas.toDataURL('image/png');
+
+                newSlideToVidTimeToFrameMappings[slide][timeInSeconds] = frameImage;
+                setSlideToVidTimeToFrameMappings(newSlideToVidTimeToFrameMappings);
+
+                resolve(imageDataURL);
+            });
+
+
+            video.onerror = (e) => {
+                e;
+                reject(new Error('Error loading video'));
+            };
+        });
+    }
+
+
+    function togglePauseBackgroundMusic() {
+        if(!bgMusicIsPlaying) {
+            bgMusicObject.play();
+        }
+        else {
+            bgMusicObject.pause();
+        }
+
+        setBgMusicIsPlaying(!bgMusicIsPlaying);
+    }
+
+
+    function updateCommentInput(event) {
+        setCommentInput(event.target.value);
+    }
+
+
+    function updateCommentDetails(id, updatedDetails) {
+        let commentFound = false;
+
+        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.filter(commentDetails => {
+            if(commentDetails.id == id) {
+                commentFound = true;
+
+                const newCommentDetails = {...commentDetails};
+                for(let key of Object.keys(updatedDetails)) {
+                    newCommentDetails[key] = updatedDetails[key];
+                }
+                
+                return newCommentDetails;
+            }
+        });
+        if (commentFound) {
+            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
+            return;
+        }
+
+        const newNewlyPostedRepliesByAuthUser = newlyPostedCommentsByAuthUser.filter(replyDetails => {
+            if(replyDetails.id == id) {
+                commentFound = true;
+
+                const newCommentDetails = {...replyDetails};
+                for(let key of Object.keys(updatedDetails)) {
+                    newCommentDetails[key] = updatedDetails[key];
+                }
+                
+                return newCommentDetails;
+            }
+        });
+        if (commentFound) {
+            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
+            return;
+        }
+
+
+        const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
+            if(commentDetails.id == id) {
+                commentFound = true;
+
+                const newCommentDetails = {...commentDetails};
+                for(let key of Object.keys(updatedDetails)) {
+                    newCommentDetails[key] = updatedDetails[key];
+                }
+                
+                return newCommentDetails;
+            }
+        });
+
+        setOrderedListOfComments(newOrderedListOfComments);
+    }
+
+
+    function updateReplyingToCommentInfo(newReplyingToCommentInfo) {
+        if(replyingToCommentInfo !== null && replyingToCommentInfo.id == newReplyingToCommentInfo.id) {
+            setReplyingToCommentInfo(null);
+        }
+        else {
+            setReplyingToCommentInfo(newReplyingToCommentInfo);
+        }
+    }
+
+
+    function editComment(id, newContent) {
+        let commentFound = false;
+
+        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.map(commentDetails => {
+            if(commentDetails.id == id) {
+                commentFound = true;
+                const newCommentDetails = {...commentDetails};
+                newCommentDetails.content = newContent;
+                newCommentDetails.datetime = (new Date()).toISOString();
+                newCommentDetails.isEdited = true;
+                return newCommentDetails;
+            }
+            return commentDetails;
+        });
+
+        if (commentFound) {
+            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
+            return;
+        }
+
+        const newNewlyPostedRepliesByAuthUser = newlyPostedRepliesByAuthUser.map(replyDetails => {
+            if(replyDetails.id == id) {
+                commentFound = true;
+                const newReplyDetails = {...replyDetails};
+                newReplyDetails.content = newContent;
+                newReplyDetails.datetime = (new Date()).toISOString();
+                newReplyDetails.isEdited = true;
+                return newReplyDetails;
+            }
+            return replyDetails;
+        });
+
+        if (commentFound) {
+            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
+            return;
+        }
+        
+        const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
+            if(commentDetails.id == id) {
+                const newCommentDetails = {...commentDetails};
+                newCommentDetails.content = newContent;
+                newCommentDetails.datetime = (new Date()).toISOString();
+                newCommentDetails.isEdited = true;
+                return newCommentDetails;  
+            }
+            return commentDetails;
+        });
+        
+        setOrderedListOfComments(newOrderedListOfComments);
+    }
+
+
+    function deleteComment(id) {
+        let commentFound = false;
+
+        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.filter(commentDetails => {
+            if(commentDetails.id == id) {
+                commentFound = true;
+                return false;
+            }
+            return true;
+        });
+
+        if (commentFound) {
+            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
+            return;
+        }
+
+        const newNewlyPostedRepliesByAuthUser = newlyPostedRepliesByAuthUser.filter(replyDetails => {
+            if(replyDetails.id == id) {
+                commentFound = true;
+                return false;
+            }
+            return true;
+        });
+
+        if (commentFound) {
+            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
+            return;
+        }
+
+        const newOrderedListOfComments = orderedListOfComments.filter(commentDetails => {
+            if(commentDetails.id == id) {
+                return false;
+            }
+            return true;
+        });
+
+        setOrderedListOfComments(newOrderedListOfComments);
+    }
+
+
+    function formatDatetimeString(datetimeString) {
+        const now = new Date();
+        const pastDate = new Date(datetimeString);
+        const diff = now - pastDate;
+
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const weeks = Math.floor(days / 7);
+        const months = Math.floor(days / 30);
+        const years = Math.floor(days / 365);
+
+        if (seconds < 60) {
+            return `${seconds}s`;
+        }
+        else if (minutes < 60) {
+            return `${minutes}m`;
+        }
+        else if (hours < 24) {
+            return `${hours}h`;
+        }
+        else if (days < 7) {
+            return `${days}d`;
+        }
+        else if (weeks < 4) {
+            return `${weeks}w`;
+        }
+        else if (months < 12) {
+            return `${months}mo`;
+        }
+        else {
+            return `${years}y`;
+        }
+    }
+
+
     async function fetchComments(initialOrAdditionalText) {
-        if(initialOrAdditionalText==='additional') {
+        if(initialOrAdditionalText === 'additional') {
             setIsCurrentlyFetchingAdditionalComments(true);
         }
 
-        let newOrderedListOfComments = [...orderedListOfComments];
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getCommentsOfPost/${authUser}/${overallPostId}`, {
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getBatchOfCommentsOfPost/${authUserId}/${overallPostId}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -174,45 +588,50 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                 credentials: 'include'
             });
             if(!response.ok) {
-                if(initialOrAdditionalText==='initial') {
+                if(initialOrAdditionalText === 'initial') {
                     setInitialCommentsFetchingErrorMessage(
-                        'The server had trouble getting the initial comments of this post'
+                        'The server had trouble getting the initial batch of comments of this post'
                     );
                 }
                 else {
                     setAdditionalCommentsFetchingErrorMessage(
-                        'The server had trouble getting the additional comments of this post'
+                        'The server had trouble getting the additional batch of comments of this post'
                     );
                 }
             }
             else {
-                const newlyFetchedOrderedComments = await response.json();
-                newOrderedListOfComments+=newlyFetchedOrderedComments;
-                const newCommentIdsToExclude = [...commentIdsToExclude];
+                let newlyFetchedOrderedComments = await response.json();
+                newlyFetchedOrderedComments = newlyFetchedOrderedComments.map(comment => {
+                    comment.datetime = formatDatetimeString(comment.datetime);
+                    return comment;
+                });
 
+                let newOrderedListOfComments = [...orderedListOfComments, ...newlyFetchedOrderedComments];
+                
+                const newCommentIdsToExclude = [...commentIdsToExclude];
                 for(let newlyFetchedComment of newlyFetchedOrderedComments) {
                     newCommentIdsToExclude.push(newlyFetchedComment.id);
                 }
 
                 setCommentIdsToExclude(newCommentIdsToExclude);
                 setOrderedListOfComments(newOrderedListOfComments);
-                fetchAllTheNecessaryInfo(newlyFetchedOrderedComments);
+                fetchAllTheNecessaryInfo(newlyFetchedOrderedComments.map(comment => comment.authorId));
             }
         }
         catch (error) {
-            if(initialOrAdditionalText==='initial') {
+            if(initialOrAdditionalText === 'initial') {
                 setInitialCommentsFetchingErrorMessage(
-                    'There was trouble connecting to the server to get the initial comments of this post'
+                    'There was trouble connecting to the server to get the initial batch of comments of this post'
                 );
             }
             else {
                 setAdditionalCommentsFetchingErrorMessage(
-                    'There was trouble connecting to the server to get the additional comments of this post'
+                    'There was trouble connecting to the server to get the additional batch of comments of this post'
                 );
             }
         }
         finally {
-            if(initialOrAdditionalText==='initial') {
+            if(initialOrAdditionalText === 'initial') {
                 setInitialCommentsFetchingIsComplete(true);
             }
             else {
@@ -221,343 +640,263 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         }
     }
 
-    async function fetchAllTheNecessaryInfo(newComments) {
-       const newCommenters = newComments.map(newComment=>newComment.username);
 
-       let usersAndTheirIsVerifiedStatuses = {};
-       const uniqueListOfNewCommentersNeededForIsVerifiedStatuses = [
-            ...new Set(
-                newCommenters.filter(username => {
-                    return (
-                        !(username in usersAndTheirRelevantInfo) ||
-                        !('isVerified' in usersAndTheirRelevantInfo[username])
-                    )
-                })
-            )
-       ];
-       if (uniqueListOfNewCommentersNeededForIsVerifiedStatuses.length>0) {
+    async function fetchAllTheNecessaryInfo(newCommenterIds) {
+        let graphqlUserQueryStringHeaderInfo = {};
+        let graphqlUserQueryString = '';
+        let graphqlUserVariables = {};
+
+        let usersAndTheirUsernames = {};
+        const newCommenterIdsNeededForUsernames = newCommenterIds.filter(newCommenterId => {
+            if (!(newCommenterId in usersAndTheirRelevantInfo) || !('username' in usersAndTheirRelevantInfo[newCommenterId])) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newCommenterIdsNeededForUsernames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newCommenterIdsNeededForUsernames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newCommenterIdsNeededForUsernames) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newCommenterIdsNeededForUsernames = newCommenterIdsNeededForUsernames;
+        }
+
+        let usersAndTheirVerificationStatuses = {};
+        const newCommenterIdsNeededForVerificationStatuses = newCommenterIds.filter(newCommenterId => {
+            if (!(newCommenterId in usersAndTheirRelevantInfo) || !('isVerified' in usersAndTheirRelevantInfo[newCommenterId])) {
+                return true;
+            }
+            return false;
+        });
+        if (newCommenterIdsNeededForVerificationStatuses.length>0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newCommenterIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+            $newCommenterIdsNeededForVerificationStatuses) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newCommenterIdsNeededForVerificationStatuses = newCommenterIdsNeededForVerificationStatuses;
+        }
+
+        if (graphqlUserQueryString.length > 0) {
+            let graphqlUserQueryStringHeader = 'query (';
+            let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+            for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+                const key = graphqlUserQueryStringHeaderKeys[i];
+                const value = graphqlUserQueryStringHeaderInfo[key];
+
+                if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+                }
+                else {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}`;
+                }
+            }
+
+            graphqlUserQueryStringHeader+= '){ ';
+            graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
             try {
-                const response = await fetch(
-                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsVerifiedStatusesOfMultipleUsers', {
+                const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        usernames: uniqueListOfNewCommentersNeededForIsVerifiedStatuses
-                    })
+                        query: graphqlUserQueryString,
+                        variables: graphqlUserVariables
+                    }),
+                    credentials: 'include'
                 });
-                if(!response.ok) {
-                    console.error("The server had trouble fetching all the necessary isVerified statuses");
-                    for(let username in uniqueListOfNewCommentersNeededForIsVerifiedStatuses) {
-                        usersAndTheirIsVerifiedStatuses[username] = false;
+
+                if (!response.ok) {
+                    if (newCommenterIdsNeededForUsernames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the usernames of all the newly fetched comment-authors'
+                        );
+                    }
+
+                    if (newCommenterIdsNeededForVerificationStatuses.length > 0) {
+                        console.error(
+                            `The server had trouble fetching the verification-statuses of all the new fetched
+                            comment-authors`
+                        );
                     }
                 }
                 else {
-                    usersAndTheirIsVerifiedStatuses = await response.json();
+                    const responseData = await response.json();
+
+                    if (newCommenterIdsNeededForUsernames.length > 0) {
+                        const listOfUsernamesForNewCommenterIds = responseData.data.getListOfUsernamesForUserIds;
+
+                        for(let i=0; i<newCommenterIdsNeededForUsernames.length; i++) {
+                            const newCommenterId = newCommenterIdsNeededForUsernames[i];
+                            const newCommenterUsername = listOfUsernamesForNewCommenterIds[i];
+
+                            if (newCommenterUsername !== null) {
+                                usersAndTheirUsernames[newCommenterId] = newCommenterUsername;
+                            }
+                        }
+                    }
+
+                    if (newCommenterIdsNeededForVerificationStatuses.length > 0) {
+                        const listOfVerificationStatusesForNewCommenterIds = responseData.data
+                        .getListOfUserVerificationStatusesForUserIds;
+
+                        for(let i=0; i<newCommenterIdsNeededForVerificationStatuses.length; i++) {
+                            const newCommenterId = newCommenterIdsNeededForVerificationStatuses[i];
+                            const newCommenterVerificationStatus = listOfVerificationStatusesForNewCommenterIds[i];
+
+                            if (newCommenterVerificationStatus !== null) {
+                                usersAndTheirVerificationStatuses[newCommenterId] = newCommenterVerificationStatus;
+                            }
+                        }
+                    }
                 }
             }
-            catch (error) {
+            catch {
+                if (newCommenterIdsNeededForUsernames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+                        comment-authors`
+                    );
+                }
+
+                if (newCommenterIdsNeededForVerificationStatuses.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+                        fetched comment-authors`
+                    );
+                }
+            }
+        }
+
+        let usersAndTheirPfps = {};
+        const newCommenterIdsNeededForPfps = newCommenterIds.filter(newCommenterId => {
+            if (!(newCommenterId in usersAndTheirRelevantInfo) || !('profilePhoto' in usersAndTheirRelevantInfo[newCommenterId])) {
+                return true;
+            }
+            return false;
+        });
+        if (newCommenterIdsNeededForPfps.length>0) {
+            try {
+                const response2 = await fetch(
+                'http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        userIds: newCommenterIdsNeededForPfps
+                    })
+                });
+
+                if(!response2.ok) {
+                    console.error(
+                        'The server had trouble fetching the profile-photos of all the newly fetched comment-authors'
+                    );
+                }
+                else {
+                    usersAndTheirPfps = await response2.json();
+                }
+            }
+            catch {
                 console.error(
-                    "There was trouble connecting to the server to fetch all the necessary isVerified statuses"
+                    `There was trouble connecting to the server to fetch the profile-photos of all the newly fetched
+                    comment-authors`
                 );
-                for(let username in uniqueListOfNewCommentersNeededForIsVerifiedStatuses) {
-                    usersAndTheirIsVerifiedStatuses[username] = false;
-                }
             }
-       }
+        }
 
-       let usersAndTheirProfilePhotos = {};
-       const uniqueListOfNewCommentersNeededForProfilePhotos = [
-            ...new Set(
-                newCommenters.filter(username => {
-                    return (
-                        !(username in usersAndTheirRelevantInfo) ||
-                        !('profilePhoto' in usersAndTheirRelevantInfo[username])
-                    )
-                })
-            )
-       ];
-       if (uniqueListOfNewCommentersNeededForProfilePhotos.length>0) {
-            try {
-                const response1 = await fetch(
-                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotosOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfNewCommentersNeededForProfilePhotos
-                    })
-                });
-                if(!response1.ok) {
-                    console.error("The server had trouble fetching all the necessary profile-photos");
-                    for(let username in uniqueListOfNewCommentersNeededForProfilePhotos) {
-                        usersAndTheirProfilePhotos[username] = defaultPfp;
-                    }
-                }
-                else {
-                    usersAndTheirProfilePhotos = await response1.json();
-                }
-            }
-            catch (error) {
-                console.error("There was trouble connecting to the server to fetch all the necessary profile-photos");
-                for(let username in uniqueListOfNewCommentersNeededForProfilePhotos) {
-                    usersAndTheirProfilePhotos[username] = defaultPfp;
-                }
-            }
-       }
+        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
 
-       const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
-       for(let newCommenter of newCommenters) {
-            if(!(newCommenter in newUsersAndTheirRelevantInfo)) {
-                newUsersAndTheirRelevantInfo[newCommenter] = {};
+        for(let newCommenterId of newCommenterIds) {
+            if (!(newCommenterId in usersAndTheirUsernames) && !(newCommenterId in usersAndTheirVerificationStatuses) &&
+            !(newCommenterId in usersAndTheirPfps)) {
+                continue;
             }
-            if(newCommenter in usersAndTheirIsVerifiedStatuses) {
-                newUsersAndTheirRelevantInfo[newCommenter].isVerified = usersAndTheirIsVerifiedStatuses[newCommenter];
+
+            if(!(newCommenterId in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[newCommenterId] = {};
             }
-            if(newCommenter in usersAndTheirProfilePhotos) {
-                newUsersAndTheirRelevantInfo[newCommenter].profilePhoto = usersAndTheirProfilePhotos[newCommenter];
+            
+            if (newCommenterId in usersAndTheirUsernames) {
+                newUsersAndTheirRelevantInfo[newCommenterId].username = usersAndTheirUsernames[newCommenterId];
             }
-       }
-       notifyParentToUpdateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+            if (newCommenterId in usersAndTheirVerificationStatuses) {
+                newUsersAndTheirRelevantInfo[newCommenterId].isVerified = usersAndTheirVerificationStatuses[newCommenterId];
+            }
+            if (newCommenterId in usersAndTheirPfps) {
+                newUsersAndTheirRelevantInfo[newCommenterId].profilePhoto = usersAndTheirPfps[newCommenterId];
+            }
+        }
+
+        updateUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+
+        return newUsersAndTheirRelevantInfo;
     }
 
-    function changeSlide(incrementOrDecrementText) {
-        setElementsForTaggedAccountsOfImageSlide([]);
-        setDisplaySectionsOfVidSlide(false);
-        setDisplayTaggedAccountsOfSlide(false);
-
-        if(incrementOrDecrementText==='increment') {
-            setCurrSlideState(currSlideState+1);
-        }
-        else {
-            setCurrSlideState(currSlideState-1);
-        }
-    }
-
-    function toggleShowTaggedAccountsOfSlide() {
-        setDisplaySectionsOfVidSlide(false);
-        if(!displayTaggedAccountsOfSlide) {
-            if(postDetails.slides[currSlideState].type==='Image') {
-                if(postDetails.slides[currSlideState].taggedAccounts.length>0 &&
-                elementsForTaggedAccountsOfImageSlide.length==0) {
-                    finishSettingElementsForTaggedAccountsOfImageSlide();
-                }
-            }
-            setDisplayTaggedAccountsOfSlide(true);
-        }
-        else {
-            setDisplayTaggedAccountsOfSlide(false);
-        }
-    }
-
-    function finishSettingElementsForTaggedAccountsOfImageSlide() {
-        const newTaggedAccountElementsOfImageSlide = [];
-        
-        for(let taggedAccountInfo of postDetails.slides[currSlideState].taggedAccounts) {
-            newTaggedAccountElementsOfImageSlide.push(
-                <a
-                    key={taggedAccountInfo[0]}
-                    href={`http://34.111.89.101/profile/${taggedAccountInfo[0]}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{color: 'white', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: '1.2%',
-                    padding: '0.3em 0.7em', position: 'absolute', top: `${taggedAccountInfo[1]}%`,
-                    left: `${taggedAccountInfo[2]}%`, maxWidth: '10em', textAlign: 'start',
-                    overflowWrap: 'break'}}
-                >
-                    {taggedAccountInfo[0]}
-                </a>
-            );
-        }
-
-        setElementsForTaggedAccountsOfImageSlide(newTaggedAccountElementsOfImageSlide);
-    }
 
     async function likePost(event) {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup('You cannot like posts without logging into an account');
+        if (postDetails.isLiked) {
+            return;
+        }
+
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged into an account to like posts');
             return;
         }
 
         let likeWasSuccessful = true;
-        if(!postDetails.isLiked) {
-            try {
-                const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addPostLike/${authUser}/${overallPostId}`, {
-                    method: 'POST',
-                    credentials: 'include'
-                });
-                if(!response.ok) {
-                    notifyParentToShowErrorPopup('The server had trouble adding your like to this post');
-                    likeWasSuccessful = false;
-                }
-                else {
-                    notifyParentToUpdatePostDetails(
-                        overallPostId,
-                        {
-                            isLiked: true,
-                            numLikes: postDetails.numLikes+1
-                        }
-                    );
-                }
-            }
-            catch (error) {
-                notifyParentToShowErrorPopup(
-                    'There was trouble connecting to the server to add your like to this post'
-                );
+
+        try {
+            const response = await fetch(
+            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/addLikeToPostOrComment/${authUserId}/${overallPostId}`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if(!response.ok) {
+                showErrorPopup('The server had trouble adding your like to this post');
                 likeWasSuccessful = false;
             }
+            else {
+                updatePostDetails(
+                    overallPostId,
+                    {
+                        isLiked: true,
+                        numLikes: postDetails.numLikes+  1
+                    }
+                );
+            }
+        }
+        catch (error) {
+            showErrorPopup(
+                'There was trouble connecting to the server to add your like to this post'
+            );
+            likeWasSuccessful = false;
         }
 
         if (likeWasSuccessful) {
-            if(event==null) {
-                startLikePostHeartAnimation(50, 50);
+            if(event == null) {
+                startHeartAnimation(50, 50);
             }
-            else if (slideContainerRef.current) {
-                const rect = slideContainerRef.current.getBoundingClientRect();
+            else if (currSlideRef.current) {
+                const rect = currSlideRef.current.getBoundingClientRect();
                 const x = event.clientX;
                 const y = event.clientY;
                 const xPercent = ((x - rect.left) / rect.width) * 100;
                 const yPercent = ((y - rect.top) / rect.height) * 100;
-                startLikePostHeartAnimation(xPercent, yPercent);
-            }
-        }
-    }
-    
-    function startLikePostHeartAnimation(startX, startY) {
-        if (intervalIdForLikePostHeartAnimation !== null) {
-            return;
-        }
-    
-        setLikePostHeartAnimationCoordinates([startX, startY]);
-        
-        setIntervalIdForLikePostHeartAnimation('on the way...');
-        setTimeout(() => {
-            const intervalId = setInterval(() => {
-                setLikePostHeartAnimationCoordinates(([x, y]) => {
-                    if (y < -7) {
-                        clearInterval(intervalId);
-                        setIntervalIdForLikePostHeartAnimation(null);
-                        return [-1, -1];
-                    }
-                    return [x, y - 1];
-                });
-            }, 10);
-
-            setIntervalIdForLikePostHeartAnimation(intervalId);
-        }, 400);
-    }
-
-
-    function takeUserToSectionInVideo(timeInSeconds) {
-        if (videoSlideRef.current) {
-            videoSlideRef.current.currentTime = timeInSeconds;
-            videoSlideRef.current.play();
-        }
-    }
-
-    function toggleShowSectionsOfVidSlide() {
-        setDisplayTaggedAccountsOfSlide(false);
-        setDisplaySectionsOfVidSlide(!displaySectionsOfVidSlide);
-    }
-
-    function getVideoFrameAtSpecifiedSlideAndTime(slide, timeInSeconds) {
-        const newSlideToVidTimeToFrameMappings = { ...slideToVidTimeToFrameMappings };
-    
-        if (!(slide in slideToVidTimeToFrameMappings)) {
-            newSlideToVidTimeToFrameMappings[slide] = {};
-        }
-    
-        const hiddenVideoSlideForFrameCollection = hiddenVideoSlideForFrameCollectionRef.current;
-    
-        if (!hiddenVideoSlideForFrameCollection) {
-            return defaultVideoFrame;
-        }
-    
-        const canvas = canvasRef.current;
-        hiddenVideoSlideForFrameCollection.currentTime = timeInSeconds;
-    
-        hiddenVideoSlideForFrameCollection.onseeked = () => {
-            const ctx = canvas.getContext("2d");
-            canvas.width = hiddenVideoSlideForFrameCollection.videoWidth;
-            canvas.height = hiddenVideoSlideForFrameCollection.videoHeight;
-            ctx.drawImage(hiddenVideoSlideForFrameCollection, 0, 0, canvas.width, canvas.height);
-    
-            const frameImage = canvas.toDataURL("image/png");
-            newSlideToVidTimeToFrameMappings[slide][timeInSeconds] = frameImage;
-            setSlideToVidTimeToFrameMappings(newSlideToVidTimeToFrameMappings);
-        };
-    
-        return defaultVideoFrame;
-    }
-
-    function formatSecondsOfTimeAsString(timeInSeconds) {
-        const hours = Math.floor(timeInSeconds / 3600);
-        const minutes = Math.floor((timeInSeconds % 3600) / 60);
-        const remainingSeconds = timeInSeconds % 60;
-
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
-        } else {
-            return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-        }
-    }
-
-    function formatDatetimeString(datetimeString) {
-        const givenDatetime = new Date(datetimeString);
-        const currentDatetime = new Date();
-        const secondsDiff = Math.floor((currentDatetime - givenDatetime) / 1000);
-    
-        if (secondsDiff < 60) {
-            return `${secondsDiff}s`;
-        }
-        else {
-            const minutesDiff = Math.floor(secondsDiff / 60);
-            if (minutesDiff < 60) {
-                return `${minutesDiff}m`;
-            } 
-            else {
-                const hoursDiff = Math.floor(minutesDiff / 60);
-                if (hoursDiff < 24) {
-                    return `${hoursDiff}h`;
-                }
-                else {
-                    const daysDiff = Math.floor(hoursDiff/24);
-                    if (daysDiff < 7) {
-                        return `${daysDiff}d`;
-                    }
-                    else {
-                        const weeksDiff = Math.floor(daysDiff / 7);
-                        if (weeksDiff < 4) {
-                            return `${weeksDiff}w`;
-                        }
-                        else {
-                            const monthsDiff = Math.floor(daysDiff/30.417);
-                            if (monthsDiff < 12) {
-                                return `${monthsDiff}mo`;
-                            }
-                            else {
-                                const yearsDiff = Math.floor(monthsDiff/12);
-                                return `${yearsDiff}y`;
-                            }
-                        }
-                    }
-                }
+                
+                startHeartAnimation(xPercent, yPercent);
             }
         }
     }
 
-    function togglePauseBackgroundMusic() {
-        if(!backgroundMusicIsPlaying) {
-            backgroundMusicObject.play();
-        }
-        else {
-            backgroundMusicObject.pause();
-        }
-        setBackgroundMusicIsPlaying(!backgroundMusicIsPlaying);
-    }
 
     async function toggleLikePost() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup('You cannot like posts without logging into an account');
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged into an account to like posts');
             return;
         }
 
@@ -567,86 +906,88 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         else {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removePostLike/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/removeLikeFromPostOrComment/${authUserId}
+                /${overallPostId}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
                 if(!response.ok) {
-                    notifyParentToShowErrorPopup('The server had trouble removing your like of this post');
+                    showErrorPopup('The server had trouble removing your like of this post');
                 }
                 else {
-                    setIntervalIdForLikePostHeartAnimation(null);
-                    notifyParentToUpdatePostDetails(
+                    setIntervalIdForHeartAnimation(null);
+                    updatePostDetails(
                         overallPostId,
                         {
                             isLiked: false,
-                            numLikes: postDetails.numLikes-1
+                            numLikes: postDetails.numLikes - 1
                         }
                     );
                 }
             }
             catch (error) {
-                notifyParentToShowErrorPopup(
+                showErrorPopup(
                     'There was trouble connecting to the server to remove your like of this post'
                 );
             }
         }
     }
 
+
     async function toggleSavePost() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup('You cannot save posts without logging into an account');
+        if (authUserId == -1) {
+            showErrorPopup('Dear Anonymous Guest, you must be logged into an account to save posts');
             return;
         }
 
-        let toggleSaveWasSuccessful = false;
+        let toggleSaveWasSuccessful = true;
+
         if(postDetails.isSaved) {
             try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/removeSave/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/unsavePost/${authUserId}/${overallPostId}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
                 if(!response.ok) {
-                    notifyParentToShowErrorPopup(
+                    showErrorPopup(
                         'The server had trouble removing your save of this post'
                     );
-                }
-                else {
-                    toggleSaveWasSuccessful = true;
+
+                    toggleSaveWasSuccessful = false;
                 }
             }
             catch (error) {
-                notifyParentToShowErrorPopup(
-                    'There was trouble connecting to the server for removing your save of this post'
+                showErrorPopup(
+                    'There was trouble connecting to the server to remove your save of this post'
                 );
+                toggleSaveWasSuccessful = false;
             }
         }
         else {
            try {
                 const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/expressJSBackend1/addSave/${authUser}/${overallPostId}`, {
+                `http://34.111.89.101/api/Home-Page/djangoBackend2/savePost/${authUserId}/${overallPostId}`, {
                     method: 'POST',
                     credentials: 'include'
                 });
                 if(!response.ok) {
-                    notifyParentToShowErrorPopup(
+                    showErrorPopup(
                         'The server had trouble adding your save to this post'
                     );
-                }
-                else {
-                    toggleSaveWasSuccessful = true;
+                    toggleSaveWasSuccessful = false;
                 }
            }
            catch (error) {
-                notifyParentToShowErrorPopup(
-                    'There was trouble connecting to the server for adding your save to this post'
+                showErrorPopup(
+                    'There was trouble connecting to the server to add your save to this post'
                 );
+                toggleSaveWasSuccessful = false;
            }
         }
 
         if(toggleSaveWasSuccessful) {
-            notifyParentToUpdatePostDetails(
+            updatePostDetails(
                 overallPostId,
                 {
                     isSaved: !postDetails.isSaved
@@ -655,46 +996,69 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
         }
     }
 
+
     async function postComment() {
-        if (authUser === 'Anonymous Guest') {
-            notifyParentToShowErrorPopup('You cannot post comments/replies without logging into an account');
+        if (authUserId == -1) {
+            showErrorPopup('You cannot post comments/replies without logging into an account');
             return;
         }
 
         let commentOrReplyText = '';
+
         try {
             let response;
-            if(replyingToCommentInfo==null) {
+
+            if(replyingToCommentInfo == null) {
                 commentOrReplyText = 'comment';
+
                 response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postComment/${authUser}/${overallPostId}`, {
+                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        newComment: commentInput
+                        query: `mutation ($authUserId: Int!, $overallPostId: String!, $commentContent: String!) {
+                            addCommentToPost(authUserId: $authUserId, overallPostId: $overallPostId, commentContent: $commentContent)
+                        }`,
+                        variables: {
+                            authUserId: authUserId,
+                            overallPostId: overallPostId,
+                            commentContent: commentInput
+                        }
                     }),
                     credentials: 'include'
                 });
             }
             else {
                 commentOrReplyText = 'reply';
+
                 response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/postReply/${authUser}/${replyingToCommentInfo.id}`, {
+                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        newReply: commentInput
+                        query: `mutation ($authUserId: Int!, $commentId: Int!, $commentContent: String!) {
+                            addReplyToComment(authUserId: $authUserId, commentId: $commentId, commentContent: $commentContent)
+                        }`,
+                        variables: {
+                            authUserId: authUserId,
+                            commentId: replyingToCommentInfo.id,
+                            commentContent: commentInput
+                        }
                     }),
                     credentials: 'include'
                 });
             }
+
             if(!response.ok) {
-                notifyParentToShowErrorPopup(`The server had trouble adding your ${commentOrReplyText}.`);
+                showErrorPopup(`The server had trouble adding your ${commentOrReplyText}.`);
             }
             else {
-                const newCommentOrReplyId = await response.json();
-                if (commentOrReplyText==='comment') {
-                    notifyParentToUpdatePostDetails(
+                let newCommentOrReplyId = await response.json();
+
+                if (commentOrReplyText === 'comment') {
+                    newCommentOrReplyId = newCommentOrReplyId.data.addCommentToPost;
+
+                    updatePostDetails(
                         overallPostId,
                         {
                             numComments: postDetails.numComments+1
@@ -712,8 +1076,17 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                         },
                         ...newlyPostedCommentsByAuthUser
                     ]);
+                    setCommentIdsToExclude([
+                        ...commentIdsToExclude, newCommentOrReplyId
+                    ])
                 }
                 else {
+                    newCommentOrReplyId = newCommentOrReplyId.data.addReplyToComment;
+
+                    updateCommentDetails(
+                        replyingToCommentInfo.id,
+                        { numReplies: replyingToCommentInfo.numReplies + 1 }
+                    );
                     setNewlyPostedRepliesByAuthUser([
                         {
                             id: newCommentOrReplyId,
@@ -723,960 +1096,718 @@ zIndex, notifyParentToUpdateUsersAndTheirRelevantInfo}) {
                             numLikes: 0,
                             numReplies: 0,
                             isLikedByAuthUser: false,
-                            idOfParentComment: replyingToCommentInfo.id
+                            parentCommentId: replyingToCommentInfo.id
                         },
                         ...newlyPostedRepliesByAuthUser
                     ]);
                     setReplyingToCommentInfo(null);
                 }
+
                 setCommentInput('');
             }
         }
         catch (error) {
-            notifyParentToShowErrorPopup(
+            showErrorPopup(
                 `There was trouble connecting to the server to add your ${commentOrReplyText}.`
             );
         }
     }
 
-    function updateCommentInput(event) {
-        setCommentInput(event.target.value);
-    }
-
-    function updateCommentDetails(commentId, updatedDetails) {
-        let commentFound = false;
-        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.filter(commentDetails => {
-            if(commentDetails.id === commentId) {
-                commentFound = true;
-                const newCommentDetails = {...commentDetails};
-                for(let key of Object.keys(updatedDetails)) {
-                    newCommentDetails[key] = updatedDetails[key];
-                }
-                return newCommentDetails;
-            }
-        });
-        if (commentFound) {
-            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
-            return;
-        }
-
-        const newNewlyPostedRepliesByAuthUser = newlyPostedCommentsByAuthUser.filter(replyDetails => {
-            if(replyDetails.id === commentId) {
-                commentFound = true;
-                const newReplyDetails = {...replyDetails};
-                for(let key of Object.keys(updatedDetails)) {
-                    newReplyDetails[key] = updatedDetails[key];
-                }
-                return newReplyDetails;
-            }
-        });
-        if (commentFound) {
-            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
-            return;
-        }
-
-
-        const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
-            if(commentDetails.id === commentId) {
-                const newCommentDetails = {...commentDetails};
-                for(let key of Object.keys(updatedDetails)) {
-                    newCommentDetails[key] = updatedDetails[key];
-                }
-                return newCommentDetails;
-            }
-        });
-        setOrderedListOfComments(newOrderedListOfComments);
-    }
-
-    function updateReplyingToCommentInfo(newReplyingToCommentInfo) {
-        if(replyingToCommentInfo!==null && replyingToCommentInfo.id === newReplyingToCommentInfo.id) {
-            setReplyingToCommentInfo(null);
-        }
-        else {
-            setReplyingToCommentInfo(newReplyingToCommentInfo);
-        }
-    }
-
-    function deleteComment(id) {
-        let commentFound = false;
-        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.filter(commentDetails => {
-            if(commentDetails.id === id) {
-                commentFound = true;
-                return false;
-            }
-            return true;
-        });
-
-        if (commentFound) {
-            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
-            return;
-        }
-
-        const newNewlyPostedRepliesByAuthUser = newlyPostedRepliesByAuthUser.filter(replyDetails => {
-            if(replyDetails.id === id) {
-                commentFound = true;
-                return false;
-            }
-            return true;
-        });
-
-        if (commentFound) {
-            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
-            return;
-        }
-
-        const newOrderedListOfComments = orderedListOfComments.filter(commentDetails => {
-            if(commentDetails.id === id) {
-                return false;
-            }
-            return true;
-        });
-        setOrderedListOfComments(newOrderedListOfComments);
-    }
-
-    function editComment(idOfCommentToEdit, newContent) {
-        let commentFound = false;
-        const newNewlyPostedCommentsByAuthUser = newlyPostedCommentsByAuthUser.map(commentDetails => {
-            if(commentDetails.id === idOfCommentToEdit) {
-                commentFound = true;
-                const newCommentDetails = {...commentDetails};
-                newCommentDetails.content = newContent;
-                newCommentDetails.datetime = (new Date()).toISOString();
-                newCommentDetails.isEdited = true;
-                return newCommentDetails;
-            }
-            return commentDetails;
-        });
-
-        if (commentFound) {
-            setNewlyPostedCommentsByAuthUser(newNewlyPostedCommentsByAuthUser);
-            return;
-        }
-
-        const newNewlyPostedRepliesByAuthUser = newlyPostedRepliesByAuthUser.map(replyDetails => {
-            if(replyDetails.id === idOfCommentToEdit) {
-                commentFound = true;
-                const newReplyDetails = {...replyDetails};
-                newReplyDetails.content = newContent;
-                newReplyDetails.datetime = (new Date()).toISOString();
-                newReplyDetails.isEdited = true;
-                return newReplyDetails;
-            }
-            return replyDetails;
-        });
-
-        if (commentFound) {
-            setNewlyPostedRepliesByAuthUser(newNewlyPostedRepliesByAuthUser);
-            return;
-        }
-        
-        const newOrderedListOfComments = orderedListOfComments.map(commentDetails => {
-            if(commentDetails.id === idOfCommentToEdit) {
-                const newCommentDetails = {...commentDetails};
-                newCommentDetails.content = newContent;
-                newCommentDetails.datetime = (new Date()).toISOString();
-                newCommentDetails.isEdited = true;
-                return newCommentDetails;  
-            }
-            return commentDetails;
-        });
-        setOrderedListOfComments(newOrderedListOfComments);
-    }
 
     return (
         <>
-            <div className="popup" style={{position: 'fixed', top: '50%', left: '50%', transform:
-            'translate(-50%, -50%)',
-            width: ((displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type==='Video') ||
-            displaySectionsOfVidSlide) ? '90%' : '70%', height: '90%', display: 'flex',
-            zIndex: zIndex}}>
-
-                    <div ref={slideContainerRef} style={{height: '100%',
-                    width: ((displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type==='Video') ||
-                    displaySectionsOfVidSlide) ? '50%' : '58%',
-                    position: 'relative', backgroundColor: 'black'}}>
-                        {postDetails.slides[currSlideState].type === 'Image' &&
-                            (
-                                <>
-                                    <img src={postDetails.slides[currSlideState].src}
-                                    onDoubleClick={likePost}
-                                    style={{position: 'absolute', objectFit: 'cover',
-                                    top: '0%', left: '0%', height: '100%', width: '100%'}}/>
-
-                                    {currSlideState > 0 &&
-                                        (
-                                            <img src={nextSlideArrow}
-                                            onClick={() => changeSlide('decrement')}
-                                            style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
-                                            objectFit: 'contain', position: 'absolute', left: '1%', top: '50%',
-                                            transform: 'translateY(-50%) rotate(180deg)'}}/>
-                                        )
-                                    }
-
-                                    {currSlideState < postDetails.slides.length-1 &&
-                                        (
-                                            <img src={nextSlideArrow}
-                                            onClick={() => changeSlide('increment')}
-                                            style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
-                                            objectFit: 'contain', position: 'absolute', right: '1%', top: '50%',
-                                            transform: 'translateY(-50%)'}}/>
-                                        )
-                                    }
-
-                                    <PostDots
-                                        numSlides={postDetails.slides.length}
-                                        currSlide={currSlideState}
-                                        currSlideIsImage={true}
-                                    />
-
-                                    {postDetails.slides[currSlideState].taggedAccounts.length>0 &&
-                                        (
-                                            <img src={taggedAccountsIcon}
-                                            onClick={toggleShowTaggedAccountsOfSlide}
-                                            style={{height: '2.4em', width: '2.4em', objectFit: 'contain',
-                                            position: 'absolute', bottom: '2%', left: '3%', cursor: 'pointer'}}/>
-                                        )
-                                    }
-
-                                    {displayTaggedAccountsOfSlide &&
-                                        (
-                                            elementsForTaggedAccountsOfImageSlide
-                                        )
-                                    }
-
-                                    {intervalIdForLikePostHeartAnimation!==null &&
-                                        (
-                                            <img src={likePostAnimationHeartIcon} style={{height: '6.6em',
-                                            width: '6.6em', pointerEvents: 'none', objectFit: 'contain',
-                                            position: 'absolute', left: `${likePostHeartAnimationCoordinates[0]}%`,
-                                            top: `${likePostHeartAnimationCoordinates[1]}%`,
-                                            transform: 'translate(-50%, -50%)'}}/>
-                                        )
-                                    }
-                                </>
-                            )
-                        }
-
-                        {postDetails.slides[currSlideState].type === 'Video' &&
-                            (
-                                <>
-                                    <video ref={videoSlideRef} controls src={postDetails.slides[currSlideState].src}
-                                    onDoubleClick={likePost}
-                                    style={{width: '100%', height: '100%', position: 'absolute', top: '0%', left: '0%'}}>
-                                        {postDetails.slides[currSlideState].subtitles.map(subtitlesInfo =>
-                                            (
-                                                <track
-                                                    key={subtitlesInfo.langCode}
-                                                    src={subtitlesInfo.src}
-                                                    kind="subtitles"
-                                                    srcLang={subtitlesInfo.langCode}
-                                                    label={languageCodeToLabelMappings[subtitlesInfo.langCode]}
-                                                    default={'default' in subtitlesInfo && subtitlesInfo.default}
-                                                />
-                                            ))
-                                        }
-                                    </video>
-
-                                    <video ref={hiddenVideoSlideForFrameCollectionRef}
-                                    src={postDetails.slides[currSlideState].src}
-                                    style={{display: 'none'}}/>
-                                    
-                                    <canvas ref={canvasRef} style={{ display: "none" }} />
-                                    
-                                    {currSlideState > 0 &&
-                                        (
-                                            <img src={nextSlideArrow}
-                                            onClick={() => changeSlide('decrement')}
-                                            style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
-                                            objectFit: 'contain', position: 'absolute', left: '1%', top: '50%',
-                                            transform: 'translateY(-50%) rotate(180deg)'}}/>
-                                        )
-                                    }
-
-                                    {currSlideState < postDetails.slides.length-1 &&
-                                        (
-                                            <img src={nextSlideArrow}
-                                            onClick={() => changeSlide('increment')}
-                                            style={{cursor: 'pointer', height: '2.4em', width: '2.4em',
-                                            objectFit: 'contain', position: 'absolute', right: '1%', top: '50%',
-                                            transform: 'translateY(-50%)'}}/>
-                                        )
-                                    }
-                                    
-                                    <PostDots
-                                        numSlides={postDetails.slides.length}
-                                        currSlide={currSlideState}
-                                        currSlideIsImage={false}
-                                    />
-
-                                    {postDetails.slides[currSlideState].taggedAccounts.length>0 &&
-                                            (
-                                                <img src={taggedAccountsIcon}
-                                                onClick={toggleShowTaggedAccountsOfSlide}
-                                                style={{height: '2.4em', width: '2.4em', objectFit: 'contain',
-                                                position: 'absolute', bottom: '16%', left: '3%', cursor: 'pointer'}}/>
-                                            )
-                                    }
-
-                                    {intervalIdForLikePostHeartAnimation!==null &&
-                                        (
-                                            <img src={likePostAnimationHeartIcon} style={{height: '6.6em',
-                                            width: '6.6em', pointerEvents: 'none', objectFit: 'contain',
-                                            position: 'absolute', left: `${likePostHeartAnimationCoordinates[0]}%`,
-                                            top: `${likePostHeartAnimationCoordinates[1]}%`,
-                                            transform: 'translate(-50%, -50%)'}}/>
-                                        )
-                                    }
-                                </>
-                            )
-                        }
-                    </div>
-
-                    {(displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type==='Video') &&
+            <div className="popup" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: ((displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type === 'video') ||
+            displaySectionsOfVidSlide) ? '90%' : '70%', height: '90%', display: 'flex', zIndex: zIndex}}>
+                <div ref={currSlideRef} style={{height: '100%', width: ((displayTaggedAccountsOfSlide &&
+                postDetails.slides[currSlideState].type === 'video') || displaySectionsOfVidSlide) ? '50%' : '58%',
+                position: 'relative', backgroundColor: 'black'}}>
+                    {postDetails.slides[currSlideState].type === 'image' &&
                         (
-                            <div style={{height: '100%', width: '27%', borderStyle: 'solid', borderColor: 'lightgray',
-                            borderBottom: 'none', borderLeft: 'none', borderTop: 'none', overflowY: 'scroll',
-                            paddingLeft: '1em', paddingRight: '1em'}}>
-                                <h2 style={{maxWidth: '65%', marginLeft: '20%'}}>
-                                    Tagged Accounts of this Video-Slide
-                                </h2>
-                                <hr style={{width: '100%', color: 'lightgray'}}/>
-                                {
-                                    postDetails.slides[currSlideState].taggedAccounts.map(taggedAccountInfo=>
-                                        (
-                                            <FollowUser
-                                                key={taggedAccountInfo[0]}
-                                                username={taggedAccountInfo[0]}
-                                                authUser={authUser}
-                                                fullName={
-                                                (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
-                                                    'fullName' in
-                                                    usersAndTheirRelevantInfo[taggedAccountInfo[0]]) ?
-                                                    usersAndTheirRelevantInfo[taggedAccountInfo[0]].
-                                                    fullName : '?'
-                                                }
-                                                profilePhoto={
-                                                    (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
-                                                    'profilePhoto' in
-                                                    usersAndTheirRelevantInfo[taggedAccountInfo[0]]) ?
-                                                    usersAndTheirRelevantInfo[taggedAccountInfo[0]].
-                                                    profilePhoto :
-                                                    defaultPfp
-                                                }
-                                                isVerified={
-                                                    (taggedAccountInfo[0] in usersAndTheirRelevantInfo &&
-                                                    'isVerified' in
-                                                    usersAndTheirRelevantInfo[taggedAccountInfo[0]]) ?
-                                                    usersAndTheirRelevantInfo[taggedAccountInfo[0]].
-                                                    isVerified : false
-                                                }
-                                                followStatus={taggedAccountInfo[1]}
-                                                notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
-                                            />
-                                        )
+                            <>
+                                <img src={postDetails.slides[currSlideState].src} onDoubleClick={likePost}
+                                style={{position: 'absolute', objectFit: 'cover', top: '0%', left: '0%', height: '100%', width:
+                                '100%'}}/>
+
+                                {currSlideState > 0 &&
+                                    (
+                                        <img src={nextSlideArrow} onClick={() => changeSlide('decrement')} style={{cursor:
+                                        'pointer', height: '2.4em', width: '2.4em', objectFit: 'contain', position: 'absolute',
+                                        left: '1%', top: '50%', transform: 'translateY(-50%) rotate(180deg)'}}/>
                                     )
                                 }
-                            </div>
+
+                                {currSlideState < postDetails.slides.length-1 &&
+                                    (
+                                        <img src={nextSlideArrow} onClick={() => changeSlide('increment')} style={{cursor:
+                                        'pointer', height: '2.4em', width: '2.4em', objectFit: 'contain', position: 'absolute',
+                                        right: '1%', top: '50%', transform: 'translateY(-50%)'}}/>
+                                    )
+                                }
+
+                                <PostDots
+                                    numSlides={postDetails.slides.length}
+                                    currSlide={currSlideState}
+                                    currSlideIsImage={true}
+                                />
+
+                                {postDetails.slides[currSlideState].taggedAccounts.length > 0 &&
+                                    (
+                                        <img src={taggedAccountsIcon} onClick={toggleShowTaggedAccountsOfSlide}
+                                        style={{height: '2.4em', width: '2.4em', objectFit: 'contain',
+                                        position: 'absolute', bottom: '2%', left: '3%', cursor: 'pointer'}}/>
+                                    )
+                                }
+
+                                {displayTaggedAccountsOfSlide &&
+                                    (
+                                        postDetails.slides[currSlideState].taggedAccounts.map(taggedAccountInfo => {
+                                            <a
+                                                key={taggedAccountInfo[0]}
+                                                href={`http://34.111.89.101/profile/${taggedAccountInfo[0]}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                style={{color: 'white', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: '0.3em;',
+                                                padding: '0.3em 0.7em', position: 'absolute', top: `${taggedAccountInfo[1]}%`,
+                                                left: `${taggedAccountInfo[2]}%`, maxWidth: '10em', textAlign: 'start',
+                                                overflowWrap: 'break'}}
+                                            >
+                                                { taggedAccountInfo[0] }
+                                            </a>
+                                        })
+                                    )
+                                }
+
+                                {intervalIdForHeartAnimation !== null &&
+                                    (
+                                        <img src={heartAnimationIcon} style={{height: '6.6em', width: '6.6em',
+                                        pointerEvents: 'none', objectFit: 'contain', position: 'absolute', left:
+                                        `${heartAnimationCoordinates[0]}%`, top: `${heartAnimationCoordinates[1]}%`,
+                                        transform: 'translate(-50%, -50%)'}}/>
+                                    )
+                                }
+                            </>
                         )
                     }
 
-                    {displaySectionsOfVidSlide &&
-                            (
-                                <div style={{height: '100%', width: '27%', borderStyle: 'solid',
-                                borderColor: 'lightgray', borderBottom: 'none', borderLeft: 'none', borderTop: 'none',
-                                overflowY: 'scroll'}}>
-                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 
-                                    'center', padding: '0.4em 1.5em', borderStyle: 'solid', borderColor: 'lightgray',
-                                    borderWidth: '0.08em', borderTop: 'none', borderLeft: 'none', borderRight: 'none'}}>
-                                        <h4>Sections of this Video-Slide</h4>
-                                        <img src={thinGrayXIcon} onClick={toggleShowSectionsOfVidSlide}
-                                        style={{cursor: 'pointer', height: '1.6em',
-                                        width: '1.6em', objectFit: 'contain'}}/>
-                                    </div>
-
-                                    <br/>
-                                    
-                                    {postDetails.slides[currSlideState].sections.map(sectionInfo =>
+                    {postDetails.slides[currSlideState].type === 'Video' &&
+                        (
+                            <>
+                                <video ref={vidSlideRef} controls src={postDetails.slides[currSlideState].src}
+                                onDoubleClick={likePost} style={{width: '100%', height: '100%', position: 'absolute', top: '0%',
+                                left: '0%'}}>
+                                    {postDetails.slides[currSlideState].subtitles.map(subtitlesInfo =>
                                         (
-                                            <div key={sectionInfo[0]} className="videoSlideSection"
-                                            onClick={() =>takeUserToSectionInVideo(sectionInfo[0])}
-                                            style={{display: 'flex', width: '100%', alignItems: 'center',
-                                            cursor: 'pointer', padding: '0.4em 1.5em', gap: '1.5em'}}>
-                                                <img src={
-                                                    (currSlideState in slideToVidTimeToFrameMappings &&
-                                                    sectionInfo[0] in slideToVidTimeToFrameMappings[currSlideState]
-                                                    ) ?
-                                                    slideToVidTimeToFrameMappings[currSlideState][sectionInfo[0]] :
-                                                    getVideoFrameAtSpecifiedSlideAndTime(currSlideState, sectionInfo[0])
-                                                }
-                                                style={{pointerEvents: 'none',
-                                                height: '8em', width: '8em', objectFit: 'contain'}}/>
-
-                                                <div style={{display: 'flex', flexDirection: 'column',
-                                                alignItems: 'start'}}>
-                                                    <b>
-                                                        {sectionInfo[1]}
-                                                    </b>
-                                                    <p>
-                                                        {formatSecondsOfTimeAsString(sectionInfo[0])}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            <track
+                                                key={subtitlesInfo.langCode}
+                                                src={subtitlesInfo.src}
+                                                kind="subtitles"
+                                                srcLang={subtitlesInfo.langCode}
+                                                label={languageCodeToLabelMappings[subtitlesInfo.langCode]}
+                                                default={'default' in subtitlesInfo && subtitlesInfo.default}
+                                            />
                                         ))
                                     }
-                                </div>
-                            )
-                        }
+                                </video>
+                                
+                                {currSlideState > 0 &&
+                                    (
+                                        <img src={nextSlideArrow} onClick={() => changeSlide('decrement')} style={{cursor:
+                                        'pointer', height: '2.4em', width: '2.4em', objectFit: 'contain', position: 'absolute',
+                                        left: '1%', top: '50%', transform: 'translateY(-50%) rotate(180deg)'}}/>
+                                    )
+                                }
 
-                    <div style={{height: '100%',
-                    width: ((displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type==='Video') ||
-                    displaySectionsOfVidSlide) ? '23%' : '42%', overflowX: 'scroll', overflowY: 'scroll'}}>
-                        <div style={{width: '90%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '0.5em 1em'}}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '1em'}}>
-                                <UserIcon
-                                    username={mainPostAuthor}
-                                    authUser={authUser}
-                                    inStoriesSection={false}
-                                    hasStories={
-                                        ('hasStories' in mainPostAuthorInfo) ?
-                                        mainPostAuthorInfo.hasStories : false
-                                    }
-                                    hasUnseenStory={
-                                        ('hasUnseenStory' in mainPostAuthorInfo) ?
-                                        mainPostAuthorInfo.hasUnseenStory : false
-                                    } 
-                                    profilePhoto={
-                                        ('profilePhoto' in mainPostAuthorInfo) ?
-                                        mainPostAuthorInfo.profilePhoto : defaultPfp
-                                    }
-                                    isVerified={
-                                        ('isVerified' in mainPostAuthorInfo) ?
-                                        mainPostAuthorInfo.isVerified : false
-                                    }
+                                {currSlideState < postDetails.slides.length-1 &&
+                                    (
+                                        <img src={nextSlideArrow} onClick={() => changeSlide('increment')} style={{cursor:
+                                        'pointer', height: '2.4em', width: '2.4em', objectFit: 'contain', position: 'absolute',
+                                        right: '1%', top: '50%', transform: 'translateY(-50%)'}}/>
+                                    )
+                                }
+                                
+                                <PostDots
+                                    numSlides={postDetails.slides.length}
+                                    currSlide={currSlideState}
+                                    currSlideIsImage={false}
                                 />
 
-                                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em'}}>
-                                    <p style={{marginBottom: '0em', maxWidth: '12em', textAlign: 'start',
-                                    overflowWrap: 'break-word'}}>
-                                        {postDetails.authors.map((author, index) => 
-                                            (
-                                                <>
-                                                    <a
-                                                        href={`http://34.111.89.101/profile/${author}`} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        style={{ fontWeight: 'bold' }}
-                                                    >
-                                                        {author}
-                                                    </a>
+                                {postDetails.slides[currSlideState].taggedAccounts.length>0 &&
+                                    (
+                                        <img src={taggedAccountsIcon} onClick={toggleShowTaggedAccountsOfSlide}
+                                        style={{height: '2.4em', width: '2.4em', objectFit: 'contain',
+                                        position: 'absolute', bottom: '16%', left: '3%', cursor: 'pointer'}}/>
+                                    )
+                                }
 
-                                                    {(author in usersAndTheirRelevantInfo &&
-                                                    'isVerified' in usersAndTheirRelevantInfo[author] &&
-                                                    usersAndTheirRelevantInfo[author].isVerified) &&
-                                                        (
-                                                            <img src={verifiedBlueCheck} style={{height: '1.4em',
-                                                            width: '1.4em', marginLeft: '-0.1em', pointerEvents: 'none',
-                                                            marginRight: '-0.2em', objectFit: 'contain'}}/>
-                                                        )
-                                                    }
+                                {intervalIdForHeartAnimation!==null &&
+                                    (
+                                        <img src={heartAnimationIcon} style={{height: '6.6em',
+                                        width: '6.6em', pointerEvents: 'none', objectFit: 'contain',
+                                        position: 'absolute', left: `${heartAnimationCoordinates[0]}%`,
+                                        top: `${heartAnimationCoordinates[1]}%`,
+                                        transform: 'translate(-50%, -50%)'}}/>
+                                    )
+                                }
+                            </>
+                        )
+                    }
+                </div>
 
-                                                    {index < postDetails.authors.length - 2 &&
-                                                        <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>, </span>
-                                                    }
-
-                                                    {(index === postDetails.authors.length - 2 && index === 0) &&
-                                                        <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}> and </span>
-                                                    }
-
-                                                    {(index === postDetails.authors.length - 2 && index > 0) &&
-                                                        <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>, and </span>
-                                                    }
-                                                </>
-                                            ))
-                                        }
-
-                                        <span style={{ color: 'gray' }}>
-                                            {' • ' + formatDatetimeString(postDetails.datetimeOfPost)}
-                                        </span>
-                                    </p>
-
-                                    {postDetails.locationOfPost!==null &&
-                                        (
-                                            <a href={`http://34.111.89.101/search/locations/${postDetails.locationOfPost}`}
-                                            style={{fontSize: 'small', marginBottom: '-1em', maxWidth: '12em', textAlign: 'start',
-                                            overflowWrap: 'break-word'}}>
-                                                {postDetails.locationOfPost}
-                                            </a>
-                                        )
-                                    }
-
-                                    {backgroundMusicObject!==null &&
-                                        (
-                                            <div style={{display: 'flex', alignItems: 'center', gap: '0.5em',
-                                            fontSize: '0.88em', marginBottom: '-1em'}}>
-                                                <img src={musicSymbol}
-                                                className="iconToBeAdjustedForDarkMode"
-                                                style={{pointerEvents: 'none',
-                                                height: '1.1em', width: '1.1em', objectFit: 'contain'}}
-                                                />
-                                                
-                                                <p style={{maxWidth: '12em', textAlign: 'start', overflowWrap: 'break-word'}}>
-                                                    <b>{postDetails.backgroundMusic.songTitle}</b> •
-                                                    <b>{' ' + postDetails.backgroundMusic.songArtist}</b>
-                                                </p>
-
-                                                {!backgroundMusicIsPlaying &&
-                                                    (
-                                                        <img src={playIcon}
-                                                        className="iconToBeAdjustedForDarkMode"
-                                                        onClick={togglePauseBackgroundMusic}
-                                                        style={{cursor: 'pointer',
-                                                        height: '1.3em', width: '1.3em', objectFit: 'contain'}}
-                                                        />
-                                                    )
-                                                }
-
-                                                {backgroundMusicIsPlaying &&
-                                                    (
-                                                        <img src={pauseIcon}
-                                                        className="iconToBeAdjustedForDarkMode"
-                                                        onClick={togglePauseBackgroundMusic}
-                                                        style={{cursor: 'pointer',
-                                                        height: '1.5em', width: '1.5em', objectFit: 'contain'}}
-                                                        />
-                                                    )
-                                                }
-                                            </div>
-                                        )
-                                    }
-
-                                    {postDetails.adInfo!==null &&
-                                        (
-                                            <a href={postDetails.adInfo.link}
-                                            style={{fontSize: 'small', marginTop: '0.5em'}}>
-                                                Sponsored
-                                            </a>
-                                        )
-                                    }
-                                </div>
+                {(displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type === 'video') &&
+                    (
+                        <div style={{height: '100%', width: '27%', borderStyle: 'solid', borderColor: 'lightgray',
+                        borderBottom: 'none', borderLeft: 'none', borderTop: 'none', borderWidth: '0.06em', overflowY:
+                        'scroll'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 
+                            'center', padding: '0.4em 1.5em', borderStyle: 'solid', borderColor: 'lightgray',
+                            borderWidth: '0.08em', borderTop: 'none', borderLeft: 'none', borderRight: 'none'}}>
+                                <h4>Tagged Accounts of this Video-Slide</h4>
+                                
+                                <img src={thinGrayXIcon} onClick={toggleShowTaggedAccountsOfSlide} style={{cursor:
+                                'pointer', height: '1.6em', width: '1.6em', objectFit: 'contain'}}/>
                             </div>
 
-                            <img src={threeHorizontalDots}
-                                className="iconToBeAdjustedForDarkMode"
-                                onClick={() => {
-                                    setDisplayTaggedAccountsOfSlide(false);
-                                    setDisplaySectionsOfVidSlide(false);
-                                    notifyParentToShowThreeDotsPopup(postDetails);
-                                }}
-                                style={{cursor: 'pointer',
-                                height: '2em', width: '2em', objectFit: 'contain'}}
-                            />
-                        </div>
-
-                        <br/>
-
-                        {(!displaySectionsOfVidSlide && postDetails.slides[currSlideState].type==='Video' &&
-                        postDetails.slides[currSlideState].sections.length>0) &&
-                            (
-                                <p onClick={toggleShowSectionsOfVidSlide}
-                                style={{boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px',
-                                padding: '0.5em 1em', cursor: 'pointer', borderRadius: '2em', width: '15em',
-                                marginLeft: '1em'}}>
-                                    <small style={{fontWeight: 'bold'}}>
-                                        Show Sections of this Video-Slide
-                                    </small>
-                                </p>
-                            )
-                        }
-    
-                        {postDetails.adInfo!==null &&
-                            (
-                                <a href={postDetails.adInfo.link}
-                                style={{fontWeight: 'bold', fontSize: '1.1em', width: '92%'}}>
-                                    <div style={{width: '100%', display: 'flex', alignItems: 'center', gap: '1em',
-                                    justifyContent: 'start', borderStyle: 'solid', borderBottom: 'none', borderColor: 'lightgray',
-                                    borderWidth: '0.065em', padding: '1em 1em', borderLeft: 'none', borderRight: 'none'}}>
-                                        <img src={megaphone} style={{height: '1.8em', width: '1.8em', objectFit: 'contain',
-                                        pointerEvents: 'none'}}/>
-
-                                        <p style={{maxWidth: '77%', overflowWrap: 'break-word', textAlign: 'start'}}>
-                                            {'Click this to ' + postDetails.adInfo.callToAction}
-                                        </p>
-                                    </div>
-                                </a>
-                            )
-                        }
-
-                        <div style={{display: 'flex', flexDirection: 'column', width: '100%', height: '61%',
-                        overflowX: 'scroll', overflowY: 'scroll', borderStyle: 'solid',
-                        borderLeft: 'none', borderRight: 'none', borderColor: 'lightgray', borderWidth: '0.065em',
-                        padding: '1em 1em', position: 'relative', gap: '1.5em'}}>
-                            <Comment
-                                id={''}
-                                username={mainPostAuthor}
-                                profilePhoto={
-                                    ('profilePhoto' in mainPostAuthorInfo) ?
-                                    mainPostAuthorInfo.profilePhoto : defaultPfp
-                                }
-                                isVerified={
-                                    ('isVerified' in mainPostAuthorInfo) ?
-                                    mainPostAuthorInfo.isVerified : false
-                                }
-                                isEdited={postDetails.caption.isEdited}
-                                datetime={postDetails.caption.datetime}
-                                commentContent={postDetails.caption.content}
-                                numLikes={0}
-                                numReplies={0}
-                                commenterStatus={'Caption'}
-                                authUser={authUser}
-                                isLikedByAuthUser={false}
-                                isLikedByAuthor={false}
-                                notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
-                                notifyParentToUpdateCommentDetails={updateCommentDetails}
-                                notifyParentToReplyToComment={null}
-                                notifyParentToShowLikersPopup={notifyParentToShowLikersPopup}
-                                isPinned={false}
-                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                newlyPostedRepliesByAuthUser={newlyPostedRepliesByAuthUser}
-                                notifyParentToFetchAllTheNecessaryInfo={fetchAllTheNecessaryInfo}
-                                notifyParentToDeleteComment={deleteComment}
-                                notifyParentToEditComment={editComment}
-                            />
+                            <br/>
 
                             {
-                                newlyPostedCommentsByAuthUser.map(comment => 
+                                postDetails.slides[currSlideState].taggedAccounts.map(taggedAccountInfo=>
                                     (
-                                        <Comment
-                                            key={comment.id}
-                                            id={comment.id}
-                                            username={authUser}
-                                            profilePhoto={
-                                                (
-                                                    !(authUser in usersAndTheirRelevantInfo) ||
-                                                    !('profilePhoto' in usersAndTheirRelevantInfo[authUser])
-                                                ) ?
-                                                    defaultPfp :
-                                                    usersAndTheirRelevantInfo[authUser]
-                                                    .profilePhoto
+                                        <FollowUser
+                                            key={taggedAccountInfo[0]}
+                                            authUserId={authUserId}
+                                            userId={taggedAccountInfo[0]}
+                                            username={
+                                                usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.username ??
+                                                `user ${taggedAccountInfo[0]}`
                                             }
-                                            isVerified={
-                                                (
-                                                    !(authUser in usersAndTheirRelevantInfo) ||
-                                                    !('isVerified' in usersAndTheirRelevantInfo[authUser])
-                                                ) ?
-                                                    false :
-                                                    usersAndTheirRelevantInfo[authUser]
-                                                    .isVerified
+                                            userFullName={
+                                                usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.fullName ??
+                                                'Could not find full name'
                                             }
-                                            isEdited={comment.isEdited}
-                                            datetime={comment.datetime}
-                                            commentContent={comment.content}
-                                            numLikes={comment.numLikes}
-                                            numReplies={comment.numReplies}
-                                            commenterStatus={'You'}
-                                            isLikedByAuthUser={comment.isLikedByAuthUser}
-                                            authUser={authUser}
-                                            isLikedByAuthor={false}
-                                            notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
-                                            notifyParentToUpdateCommentDetails={updateCommentDetails}
-                                            notifyParentToReplyToComment={updateReplyingToCommentInfo}
-                                            notifyParentToShowLikersPopup={notifyParentToShowLikersPopup}
-                                            isPinned={false}
-                                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                            newlyPostedRepliesByAuthUser={newlyPostedRepliesByAuthUser}
-                                            notifyParentToFetchAllTheNecessaryInfo={fetchAllTheNecessaryInfo}
-                                            notifyParentToDeleteComment={deleteComment}
-                                            notifyParentToEditComment={editComment}
+                                            userPfp={
+                                                usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.profilePhoto ??
+                                                defaultPfp
+                                            }
+                                            originalFollowText={taggedAccountInfo[1]}
+                                            userIsVerified={
+                                                usersAndTheirRelevantInfo[taggedAccountInfo[0]]?.isVerified ?? 
+                                                false
+                                            }
+                                            showErrorPopup={showErrorPopup}
                                         />
                                     )
-                                )
-                            }
-
-                            {(initialCommentsFetchingIsComplete && initialCommentsFetchingErrorMessage.length==0) &&
-                                (
-                                    <>
-                                        {
-                                            orderedListOfComments.map(comment =>
-                                                (
-                                                    <Comment
-                                                        key={comment.id}
-                                                        id={comment.id}
-                                                        username={comment.username}
-                                                        profilePhoto={
-                                                            (
-                                                                !(comment.username in usersAndTheirRelevantInfo) ||
-                                                                !('profilePhoto' in usersAndTheirRelevantInfo[
-                                                                    comment.username
-                                                                ])
-                                                            ) ?
-                                                                defaultPfp :
-                                                                usersAndTheirRelevantInfo[comment.username]
-                                                                .profilePhoto
-                                                        }
-                                                        isVerified={
-                                                            (
-                                                                !(comment.username in usersAndTheirRelevantInfo) ||
-                                                                !('isVerified' in usersAndTheirRelevantInfo[
-                                                                    comment.username
-                                                                ])
-                                                            ) ?
-                                                                false :
-                                                                usersAndTheirRelevantInfo[comment.username]
-                                                                .isVerified
-                                                        }
-                                                        isEdited={comment.isEdited}
-                                                        datetime={comment.datetime}
-                                                        commentContent={comment.content}
-                                                        numLikes={comment.numLikes}
-                                                        numReplies={comment.numReplies}
-                                                        commenterStatus={comment.commenterStatus}
-                                                        isLikedByAuthUser={comment.isLikedByAuthUser}
-                                                        authUser={authUser}
-                                                        isLikedByAuthor={comment.isLikedByAuthor}
-                                                        notifyParentToShowErrorPopup={notifyParentToShowErrorPopup}
-                                                        notifyParentToUpdateCommentDetails={updateCommentDetails}
-                                                        notifyParentToReplyToComment={updateReplyingToCommentInfo}
-                                                        notifyParentToShowLikersPopup={notifyParentToShowLikersPopup}
-                                                        isPinned={'isPinned' in comment}
-                                                        usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                                        newlyPostedRepliesByAuthUser={newlyPostedRepliesByAuthUser}
-                                                        notifyParentToFetchAllTheNecessaryInfo={fetchAllTheNecessaryInfo}
-                                                        notifyParentToDeleteComment={deleteComment}
-                                                        notifyParentToEditComment={editComment}
-                                                    />
-                                                )
-                                            )
-                                        }
-
-                                        {(!isCurrentlyFetchingAdditionalComments &&
-                                        additionalCommentsFetchingErrorMessage.length==0) &&
-                                            (
-                                                <div style={{width: '100%', display: 'flex', justifyContent: 'center',
-                                                alignItems: 'center', marginTop: '2.5em'}}>
-                                                    <img onClick={() => fetchComments('additional')}
-                                                    className='iconToBeAdjustedForDarkMode' src={plusIconInCircle}
-                                                    style={{cursor: 'pointer', height: '2em',
-                                                    width: '2em', objectFit: 'contain'}}/>
-                                                </div>
-                                            )
-                                        }
-
-                                        {(!isCurrentlyFetchingAdditionalComments &&
-                                        additionalCommentsFetchingErrorMessage.length>0) &&
-                                            (
-                                                <div style={{width: '100%', display: 'flex', justifyContent: 'center',
-                                                marginTop: '2.5em'}}>
-                                                    <p style={{fontSize: '0.88em', width: '85%', color: 'gray'}}>
-                                                        {additionalCommentsFetchingErrorMessage}
-                                                    </p>
-                                                </div>
-                                            )
-                                        }
-
-                                        {isCurrentlyFetchingAdditionalComments &&
-                                            (
-                                                <div style={{width: '100%', display: 'flex', justifyContent: 'center',
-                                                marginTop: '2.5em'}}>
-                                                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                                    objectFit: 'contain', pointerEvents: 'none'}}/>
-                                                </div>
-                                            )
-                                        }
-                                    </>
-                                )
-                            }
-
-                            {(initialCommentsFetchingIsComplete && initialCommentsFetchingErrorMessage.length>0) &&
-                                (
-                                    <div style={{width: '100%', display: 'flex', justifyContent: 'center',
-                                    marginTop: '2.5em'}}>
-                                        <p style={{fontSize: '0.88em', width: '65%', color: 'gray'}}>
-                                            {initialCommentsFetchingErrorMessage}
-                                        </p>
-                                    </div>
-                                )
-                            }
-
-                            {!initialCommentsFetchingIsComplete &&
-                                (
-                                    <div style={{width: '100%', display: 'flex', justifyContent: 'center',
-                                    marginTop: '2.5em'}}>
-                                        <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                        objectFit: 'contain', pointerEvents: 'none'}}/>
-                                    </div>
                                 )
                             }
                         </div>
+                    )
+                }
 
-                        <div style={{width: '95%', display: 'flex', justifyContent: 'space-between',
-                        alignItems: 'center', paddingLeft: '0.5em', marginTop: '1em'}}>
-                            <div style={{display: 'flex', alignItems: 'center'}}>
-                                {!postDetails.isLiked &&
-                                    (
-                                        <img src={blankHeartIcon}
-                                            onClick={toggleLikePost}
-                                            className="mediaPostButton iconToBeAdjustedForDarkMode"
-                                        />
-                                    )
-                                }
-
-                                {postDetails.isLiked &&
-                                    (
-                                        <img src={redHeartIcon}
-                                            onClick={toggleLikePost}
-                                            className="mediaPostButton"
-                                        />
-                                    )
-                                }
-
-                                <img src={commentIcon}
-                                    className="mediaPostButton iconToBeAdjustedForDarkMode"
-                                />
+                {displaySectionsOfVidSlide &&
+                    (
+                        <div style={{height: '100%', width: '27%', borderStyle: 'solid', borderColor: 'lightgray',
+                        borderBottom: 'none', borderLeft: 'none', borderTop: 'none', borderWidth: '0.06em', overflowY:
+                        'scroll'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 
+                            'center', padding: '0.4em 1.5em', borderStyle: 'solid', borderColor: 'lightgray',
+                            borderWidth: '0.08em', borderTop: 'none', borderLeft: 'none', borderRight: 'none'}}>
+                                <h4>Sections of this Video-Slide</h4>
                                 
-                                <img src={sendPostIcon}
-                                    onClick={() => {
-                                        setDisplayTaggedAccountsOfSlide(false);
-                                        setDisplaySectionsOfVidSlide(false);
-                                        notifyParentToShowSendPostPopup(overallPostId);
-                                    }}
-                                    className="mediaPostButton iconToBeAdjustedForDarkMode"
-                                />
+                                <img src={thinGrayXIcon} onClick={toggleShowSectionsOfVidSlide} style={{cursor:
+                                'pointer', height: '1.6em', width: '1.6em', objectFit: 'contain'}}/>
                             </div>
 
-                            {!postDetails.isSaved &&
+                            <br/>
+                            
+                            {postDetails.slides[currSlideState].sections.map(sectionInfo =>
                                 (
-                                    <img src={blankSavedIcon}
-                                        onClick={toggleSavePost}
-                                        className="mediaPostButton iconToBeAdjustedForDarkMode"
-                                    />
-                                )
-                            }
+                                    <div key={sectionInfo[0]} onClick={() => takeUserToSectionInVideo(sectionInfo[0])}
+                                    className="videoSlideSection" style={{display: 'flex', width: '100%', alignItems:
+                                    'center', cursor: 'pointer', padding: '0.4em 1.5em', gap: '1.5em'}}>
+                                        <img src={
+                                            slideToVidTimeToFrameMappings[currSlideState]?.[sectionInfo[0]] ??
+                                            defaultVideoFrame
+                                        }
+                                        style={{pointerEvents: 'none',  height: '8em', width: '8em', objectFit:
+                                        'contain'}}/>
 
-                            {postDetails.isSaved &&
-                                (
-                                    <img src={blackSavedIcon}
-                                        onClick={toggleSavePost}
-                                        className="mediaPostButton iconToBeAdjustedForDarkMode"
-                                    />
-                                )
+                                        <div style={{display: 'flex', flexDirection: 'column',
+                                        alignItems: 'start'}}>
+                                            <b>
+                                                { sectionInfo[2] }
+                                            </b>
+                                            <p>
+                                                { sectionInfo[1] }
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
                             }
                         </div>
+                    )
+                }
 
-                        {postDetails.likersFollowedByAuthUser.length==0 &&
-                            (
-                                <b onClick={() => {
-                                    setDisplayTaggedAccountsOfSlide(false);
-                                    setDisplaySectionsOfVidSlide(false);
-                                    notifyParentToShowLikersPopup('post', overallPostId);
-                                }}
-                                style={{marginBottom: '0em', maxWidth: '60%', marginLeft: '0.5em', marginTop: '0.5em',
-                                overflowWrap: 'break-word', textAlign: 'start', cursor: 'pointer'}}>
-                                    {postDetails.numLikes.toLocaleString() + (postDetails.numLikes==1 ? ' like' : ' likes')}
-                                </b>
-                            )
-                        }
+                <div style={{height: '100%', width: ((displayTaggedAccountsOfSlide && postDetails.slides[currSlideState].type ===
+                'video') || displaySectionsOfVidSlide) ? '23%' : '42%', overflowX: 'scroll', overflowY: 'scroll'}}>
+                    <div style={{width: '90%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding:
+                    '0.5em 1em'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '1em'}}>
+                            <UserIcon
+                                authUserId={authUserId}
+                                userId={mainPostAuthorId}
+                                username={postDetails.authorUsernames[0]}
+                                userPfp={mainPostAuthorInfo.profilePhoto ?? defaultPfp}
+                                inStoriesSection={false}
+                                userHasStories={mainPostAuthorInfo.hasStories ?? false}
+                                userHasUnseenStory={mainPostAuthorInfo.hasUnseenStory ?? false}
+                                userIsVerified={mainPostAuthorInfo.isVerified ?? false}
+                                showStoryViewer={showStoryViewer}
+                            />
 
-                        {postDetails.likersFollowedByAuthUser.length>0 &&
-                            (
-                                <p style={{marginBottom: '0em', maxWidth: '75%', overflowWrap: 'break-word',
-                                textAlign: 'start', marginLeft: '1em', marginTop: '0.5em'}}>
-                                    <span>Liked by </span>
-                                    {postDetails.likersFollowedByAuthUser.map((username, index) =>
+                            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'start', gap: '0.5em'}}>
+                                <p style={{marginBottom: '0em', maxWidth: '80%', textAlign: 'start', overflowWrap:
+                                'break-word'}}>
+                                    {postDetails.authorUsernames.map((authorUsername, index) => 
                                         (
                                             <>
-                                                <span style={{ display: 'inline-flex', alignItems: 'center'}}>
-                                                    <a
-                                                        href={`http://34.111.89.101/profile/${username}`} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        style={{ fontWeight: 'bold' }}
-                                                    >
-                                                        {username}
-                                                    </a>
+                                                <a
+                                                    href={`http://34.111.89.101/profile/${authorUsername}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    style={{ fontWeight: 'bold', display: 'inline-flex', alignItems: 'center',
+                                                    wordBreak: 'break-word', marginRight: '0.2em'}}
+                                                >
+                                                    { authorUsername }
 
-                                                    {(username in usersAndTheirRelevantInfo &&
-                                                    'isVerified' in usersAndTheirRelevantInfo[username] &&
-                                                    usersAndTheirRelevantInfo[username].isVerified) &&
+                                                    {(usersAndTheirRelevantInfo[postDetails.authorIds[index]]?.isVerified ??
+                                                    false) &&
                                                         (
-                                                            <img src={verifiedBlueCheck} style={{height: '1.4em',
-                                                            width: '1.4em', pointerEvents: 'none', objectFit: 'contain',
-                                                            marginLeft: '-0.1em', marginRight: '-0.2em'}}/>
+                                                            <img src={verifiedBlueCheck} style={{height: '1.4em', width: '1.4em',
+                                                            pointerEvents: 'none', objectFit: 'contain', marginLeft: '-0.1em',
+                                                            marginRight: '-0.2em'}}/>
                                                         )
                                                     }
-                                                </span>
+                                                </a>
 
-                                                <span style={{marginRight: '0.15em'}}>, </span>
+                                                {index < postDetails.authorUsernames.length - 2 &&
+                                                    <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>, </span>
+                                                }
 
-                                                {index == postDetails.likersFollowedByAuthUser.length-1 &&
-                                                    (
-                                                        <>
-                                                            <span>and </span>
-                                                            <b onClick={() => {
-                                                                setDisplayTaggedAccountsOfSlide(false);
-                                                                setDisplaySectionsOfVidSlide(false);
-                                                                notifyParentToShowLikersPopup('post', overallPostId);
-                                                            }}
-                                                            style={{cursor: 'pointer'}}>
-                                                                {
-                                                                    (postDetails.numLikes-postDetails.likersFollowedByAuthUser.length).
-                                                                    toLocaleString()
-                                                                }
-                                                            </b>
+                                                {(index == postDetails.authorUsernames.length - 2 && index == 0) &&
+                                                    <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}> and </span>
+                                                }
 
-                                                            {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length == 1 &&
-                                                                <b onClick={() => {
-                                                                    setDisplayTaggedAccountsOfSlide(false);
-                                                                    setDisplaySectionsOfVidSlide(false);
-                                                                    notifyParentToShowLikersPopup('post', overallPostId);
-                                                                }}
-                                                                style={{cursor: 'pointer'}}> other</b>
-                                                            }
-
-                                                            {postDetails.numLikes-postDetails.likersFollowedByAuthUser.length !== 1 &&
-                                                                <b onClick={() => {
-                                                                    setDisplayTaggedAccountsOfSlide(false);
-                                                                    setDisplaySectionsOfVidSlide(false);
-                                                                    notifyParentToShowLikersPopup('post', overallPostId);
-                                                                }}
-                                                                style={{cursor: 'pointer'}}> others</b>
-                                                            }
-                                                        </>
-                                                    )
+                                                {(index == postDetails.authorUsernames.length - 2 && index > 0) &&
+                                                    <span style={{ fontWeight: 'bold', marginRight: '0.2em'}}>, and </span>
                                                 }
                                             </>
                                         ))
                                     }
                                 </p>
+
+                                {postDetails.locationOfPost!==null &&
+                                    (
+                                        <a href={`http://34.111.89.101/search/locations/${postDetails.locationOfPost}`}
+                                        target="_blank" rel="noopener noreferrer" style={{fontSize: '0.9em', marginBottom: '0',
+                                        maxWidth: '80%', textAlign: 'start', overflowWrap: 'break-word'}}>
+                                            { postDetails.locationOfPost }
+                                        </a>
+                                    )
+                                }
+
+                                {bgMusicObject !== null &&
+                                    (
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '0.5em', fontSize: '0.9em',
+                                        marginBottom: '-0.5em', marginTop: '-0.5em'}}>
+                                            <img src={musicSymbol}
+                                                className="iconToBeAdjustedForDarkMode"
+                                                style={{pointerEvents: 'none',
+                                                height: '1.1em', width: '1.1em', objectFit: 'contain'}}
+                                            />
+                                            
+                                            <p style={{maxWidth: '14em', textAlign: 'start', overflowWrap: 'break-word'}}>
+                                                <b>{ postDetails.bgMusic.title }</b> • <b>{ postDetails.bgMusic.artist }</b>
+                                            </p>
+
+                                            {!bgMusicIsPlaying &&
+                                                (
+                                                    <img src={playIcon} className="iconToBeAdjustedForDarkMode"
+                                                    onClick={togglePauseBackgroundMusic} style={{cursor: 'pointer', height:
+                                                    '1.3em', width: '1.3em', objectFit: 'contain'}}/>
+                                                )
+                                            }
+
+                                            {bgMusicIsPlaying &&
+                                                (
+                                                    <img src={pauseIcon} className="iconToBeAdjustedForDarkMode"
+                                                    onClick={togglePauseBackgroundMusic} style={{cursor: 'pointer', height:
+                                                    '1.5em', width: '1.5em', objectFit: 'contain'}}/>
+                                                )
+                                            }
+                                        </div>
+                                    )
+                                }
+
+                                {postDetails.adInfo !== null &&
+                                    (
+                                        <a href={postDetails.adInfo.link}
+                                        style={{fontSize: 'small', marginTop: '0.5em'}}>
+                                            Sponsored
+                                        </a>
+                                    )
+                                }
+                            </div>
+                        </div>
+
+                        <img src={threeHorizontalDots} className="iconToBeAdjustedForDarkMode"
+                        onClick={() => {
+                            showThreeDotsPopup(postDetails);
+                        }} style={{cursor: 'pointer', height: '2em', width: '2em', objectFit: 'contain'}}
+                        />
+                    </div>
+
+                    <br/>
+
+                    {(!displaySectionsOfVidSlide && postDetails.slides[currSlideState].type === 'video' &&
+                    postDetails.slides[currSlideState].sections.length > 0) &&
+                        (
+                            <p onClick={toggleShowSectionsOfVidSlide}
+                            style={{boxShadow: 'rgba(0, 0, 0, 0.24) 0px 3px 8px',
+                            padding: '0.5em 1em', cursor: 'pointer', borderRadius: '2em', width: '15em',
+                            marginLeft: '1em'}}>
+                                <small style={{fontWeight: 'bold'}}>
+                                    Show Sections of this Video-Slide
+                                </small>
+                            </p>
+                        )
+                    }
+
+                    {postDetails.adInfo !== null &&
+                        (
+                            <a href={postDetails.adInfo.link}
+                            style={{fontWeight: 'bold', fontSize: '1.1em', width: '100%'}}>
+                                <div style={{width: '100%', display: 'flex', alignItems: 'center', gap: '1em',
+                                justifyContent: 'start', borderStyle: 'solid', borderBottom: 'none', borderColor: 'lightgray',
+                                borderWidth: '0.065em', padding: '1em 1em', borderLeft: 'none', borderRight: 'none'}}>
+                                    <img src={megaphone} style={{height: '1.8em', width: '1.8em', objectFit: 'contain',
+                                    pointerEvents: 'none'}}/>
+
+                                    <p style={{maxWidth: '77%', overflowWrap: 'break-word', textAlign: 'start'}}>
+                                        postDetails.adInfo.callToAction
+                                    </p>
+                                </div>
+                            </a>
+                        )
+                    }
+
+                    <div style={{display: 'flex', flexDirection: 'column', width: '100%', height: '61%', overflowX: 'scroll',
+                    overflowY: 'scroll', borderStyle: 'solid', borderLeft: 'none', borderRight: 'none', borderColor:
+                    'lightgray', borderWidth: '0.065em', padding: '2em 1em', position: 'relative', gap: '1.5em'}}>
+                        <Comment
+                            id={postDetails.caption.id}
+                            authUserId={authUserId}
+                            isLikedByAuthUser={false}
+                            newlyPostedRepliesByAuthUser={newlyPostedRepliesByAuthUser}
+                            authorId={postDetails.caption.authorId}
+                            authorUsername={postDetails.authorUsernames[postDetails.authorIds.indexOf(
+                                postDetails.caption.authorId
+                            )]}
+                            authorIsVerified={usersAndTheirRelevantInfo[postDetails.caption.authorId]?.isVerified ?? false}
+                            authorPfp={usersAndTheirRelevantInfo[postDetails.caption.authorId]?.profilePhoto ?? defaultPfp}
+                            authorStatusToAuthUser={'Caption'}
+                            isEdited={postDetails.caption.isEdited}
+                            datetime={postDetails.caption.datetime}
+                            content={postDetails.caption.content}
+                            isLikedByPostAuthor={false}
+                            numLikes={0}
+                            numReplies={0}
+                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                            showErrorPopup={showErrorPopup}
+                            updateCommentDetails={updateCommentDetails}
+                            replyToComment={updateReplyingToCommentInfo}
+                            showLikersPopup={showLikersPopup}
+                            fetchAllTheNecessaryInfo={fetchAllTheNecessaryInfo}
+                            notifyParentToEditComment={editComment}
+                            notifyParentToDeleteComment={deleteComment}
+                        />
+
+                        {newlyPostedCommentsByAuthUser.map(comment =>
+                                (
+                                    <Comment
+                                        key={comment.id}
+                                        id={comment.id}
+                                        authUserId={authUserId}
+                                        isLikedByAuthUser={comment.isLikedByAuthUser}
+                                        newlyPostedRepliesByAuthUser={newlyPostedRepliesByAuthUser}
+                                        authorId={authUserId}
+                                        authorUsername={authUsername}
+                                        authorIsVerified={usersAndTheirRelevantInfo[authUserId]?.isVerified ?? false}
+                                        authorPfp={usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp}
+                                        authorStatusToAuthUser={'You'}
+                                        isEdited={comment.isEdited}
+                                        datetime={comment.datetime}
+                                        content={comment.content}
+                                        isLikedByPostAuthor={false}
+                                        numLikes={comment.numLikes}
+                                        numReplies={comment.numReplies}
+                                        usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                        showErrorPopup={showErrorPopup}
+                                        updateCommentDetails={updateCommentDetails}
+                                        replyToComment={updateReplyingToCommentInfo}
+                                        showLikersPopup={showLikersPopup}
+                                        fetchAllTheNecessaryInfo={fetchAllTheNecessaryInfo}
+                                        notifyParentToEditComment={editComment}
+                                        notifyParentToDeleteComment={deleteComment}
+                                    />
+                                )
+                            )
+                        }   
+
+                        {(initialCommentsFetchingIsComplete && initialCommentsFetchingErrorMessage.length == 0) &&
+                            (
+                                <>
+                                    {
+                                        orderedListOfComments.map(comment =>
+                                            (
+                                                <Comment
+                                                    key={comment.id}
+                                                    id={comment.id}
+                                                    authUserId={authUserId}
+                                                    isLikedByAuthUser={comment.isLikedByAuthUser}
+                                                    newlyPostedRepliesByAuthUser={newlyPostedRepliesByAuthUser}
+                                                    authorId={comment.authorId}
+                                                    authorUsername={comment.authorUsername}
+                                                    authorIsVerified={usersAndTheirRelevantInfo[comment.authorId]?.isVerified ??
+                                                    false}
+                                                    authorPfp={usersAndTheirRelevantInfo[comment.authorId]?.profilePhoto ??
+                                                    defaultPfp}
+                                                    authorStatusToAuthUser={'You'}
+                                                    isEdited={comment.isEdited}
+                                                    datetime={comment.datetime}
+                                                    content={comment.content}
+                                                    isLikedByPostAuthor={comment.isLikedByPostAuthor}
+                                                    numLikes={comment.numLikes}
+                                                    numReplies={comment.numReplies}
+                                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                                    showErrorPopup={showErrorPopup}
+                                                    updateCommentDetails={updateCommentDetails}
+                                                    replyToComment={updateReplyingToCommentInfo}
+                                                    showLikersPopup={showLikersPopup}
+                                                    fetchAllTheNecessaryInfo={fetchAllTheNecessaryInfo}
+                                                    notifyParentToEditComment={editComment}
+                                                    notifyParentToDeleteComment={deleteComment}
+                                                />
+                                            )
+                                        )
+                                    }
+
+                                    {(!isCurrentlyFetchingAdditionalComments && additionalCommentsFetchingErrorMessage.length ==
+                                    0) &&
+                                        (
+                                            <div style={{width: '100%', display: 'flex', justifyContent: 'center',
+                                            alignItems: 'center', marginTop: '2.5em'}}>
+                                                <img src={plusIconInCircle} onClick={() => fetchComments('additional')}
+                                                className='iconToBeAdjustedForDarkMode' style={{cursor: 'pointer', height: '2em',
+                                                width: '2em', objectFit: 'contain'}}/>
+                                            </div>
+                                        )
+                                    }
+
+
+                                    {(!isCurrentlyFetchingAdditionalComments &&
+                                    additionalCommentsFetchingErrorMessage.length > 0) &&
+                                        (
+                                            <div style={{width: '100%', display: 'flex', justifyContent: 'center',
+                                            marginTop: '2.5em'}}>
+                                                <p style={{fontSize: '0.88em', width: '85%', color: 'gray'}}>
+                                                    { additionalCommentsFetchingErrorMessage }
+                                                </p>
+                                            </div>
+                                        )
+                                    }
+
+                                    {isCurrentlyFetchingAdditionalComments &&
+                                        (
+                                            <div style={{width: '100%', display: 'flex', justifyContent: 'center',
+                                            marginTop: '2.5em'}}>
+                                                <img src={loadingAnimation} style={{height: '2em', width: '2em',
+                                                objectFit: 'contain', pointerEvents: 'none'}}/>
+                                            </div>
+                                        )
+                                    }
+                                </>
                             )
                         }
 
-                        <div style={{width: '100%', height: '3em', position: 'relative', marginTop: '2em',
-                        padding: '1em 1em', borderStyle: 'solid', borderColor: 'lightgray', borderLeft: 'none',
-                        borderRight: 'none', borderBottom: 'none'}}>
-                            <input value={commentInput} onChange={updateCommentInput}
-                            placeholder={replyingToCommentInfo !== null ? 
-                            `Replying to @${replyingToCommentInfo.username}: ${replyingToCommentInfo.content}` : 
-                            "Add a comment..."}
-                            style={{fontFamily: 'Arial', width: '85%', outline: 'none', border: 'none',
-                            fontSize: '1em', paddingLeft: '1em', marginLeft: '-5em'}}/>
+                        {(initialCommentsFetchingIsComplete && initialCommentsFetchingErrorMessage.length > 0) &&
+                            (
+                                <div style={{width: '100%', display: 'flex', justifyContent: 'center',
+                                marginTop: '2.5em'}}>
+                                    <p style={{fontSize: '0.88em', width: '65%', color: 'gray'}}>
+                                        { initialCommentsFetchingErrorMessage }
+                                    </p>
+                                </div>
+                            )
+                        }
 
-                            {commentInput.length>0 &&
+                        {!initialCommentsFetchingIsComplete &&
+                            (
+                                <div style={{width: '100%', display: 'flex', justifyContent: 'center',
+                                marginTop: '2.5em'}}>
+                                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
+                                    objectFit: 'contain', pointerEvents: 'none'}}/>
+                                </div>
+                            )
+                        }
+                    </div>
+
+                    <div style={{width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    paddingLeft: '0.5em', marginTop: '1em'}}>
+                        <div style={{display: 'flex', alignItems: 'center'}}>
+                            {!postDetails.isLiked &&
                                 (
-                                    <b onClick={postComment} style={{cursor: 'pointer', color: '#28a2fa',
-                                    position: 'absolute', right: '10%', top: '30%', backgroundColor: 'white',
-                                    padding: '0.3em 0.3em'}}>
-                                        Post
-                                    </b>
+                                    <img src={blankHeartIcon} onClick={toggleLikePost}
+                                    className="mediaPostButton iconToBeAdjustedForDarkMode"
+                                    />
                                 )
                             }
+
+                            {postDetails.isLiked &&
+                                (
+                                    <img src={redHeartIcon} onClick={toggleLikePost} className="mediaPostButton"/>
+                                )
+                            }
+
+                            <img src={commentIcon} className="mediaPostButton iconToBeAdjustedForDarkMode"/>
+                            
+                            <img src={sendPostIcon}
+                                onClick={() => {
+                                    showSendPostPopup(overallPostId);
+                                }}
+                                className="mediaPostButton iconToBeAdjustedForDarkMode"
+                            />
                         </div>
+
+                        {!postDetails.isSaved &&
+                            (
+                                <img src={blankSavedIcon} onClick={toggleSavePost}
+                                className="mediaPostButton iconToBeAdjustedForDarkMode"/>
+                            )
+                        }
+
+                        {postDetails.isSaved &&
+                            (
+                                <img src={blackSavedIcon} onClick={toggleSavePost}
+                                className="mediaPostButton iconToBeAdjustedForDarkMode"/>
+                            )
+                        }
                     </div>
+
+                    {postDetails.likersFollowedByAuthUser.length == 0 &&
+                        (
+                            <b onClick={() => {
+                                showLikersPopup(overallPostId);
+                            }}
+                            style={{marginBottom: '0em', maxWidth: '74%', overflowWrap: 'break-word', textAlign: 'start',
+                            marginTop: '1em', marginLeft: '1em', cursor: 'pointer'}}>
+                                { postDetails.numLikes.toLocaleString() + (postDetails.numLikes == 1 ? ' like' : ' likes') }
+                            </b>
+                        )
+                    }
+
+                    {postDetails.likersFollowedByAuthUser.length > 0 &&
+                        (
+                            <p style={{marginBottom: '0em', maxWidth: '74%', marginLeft: '1em', overflowWrap: 'break-word',
+                            textAlign: 'start'}}>
+                                <span>Liked by </span>
+
+                                {postDetails.likersFollowedByAuthUser.map((likerId, index) =>
+                                    (
+                                        <>
+                                            <a 
+                                                href={`http://34.111.89.101/profile/${usersAndTheirRelevantInfo[likerId]?.username ??
+                                                `user ${likerId}`}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                style={{ fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', wordBreak:
+                                                'break-word', marginRight: '0.2em'}}
+                                            >
+                                                { usersAndTheirRelevantInfo[likerId]?.username ?? `user ${likerId}` }
+
+                                                {(usersAndTheirRelevantInfo[likerId]?.isVerified ?? false) &&
+                                                    (
+                                                        <img src={verifiedBlueCheck} style={{height: '1.4em', width: '1.4em',
+                                                        pointerEvents: 'none', objectFit: 'contain', marginLeft: '-0.1em', marginRight:
+                                                        '-0.2em'}}/>
+                                                    )
+                                                }
+                                            </a>
+
+                                            <span style={{marginRight: '0.15em'}}>, </span>
+
+                                            {index == postDetails.likersFollowedByAuthUser.length - 1 &&
+                                                (
+                                                    <>
+                                                        <span>and </span>
+
+                                                        <b onClick={() => {
+                                                            showLikersPopup(overallPostId);
+                                                        }}
+                                                        style={{cursor: 'pointer'}}>
+                                                            {
+                                                                (postDetails.numLikes - postDetails.likersFollowedByAuthUser.length).
+                                                                toLocaleString()
+                                                            }
+                                                        </b>
+
+                                                        {postDetails.numLikes - postDetails.likersFollowedByAuthUser.length == 1 &&
+                                                            <b onClick={() => {
+                                                                showLikersPopup(overallPostId);
+                                                            }}
+                                                            style={{cursor: 'pointer'}}> other</b>
+                                                        }
+
+                                                        {postDetails.numLikes - postDetails.likersFollowedByAuthUser.length !== 1 &&
+                                                            <b onClick={() => {
+                                                                showLikersPopup(overallPostId);
+                                                            }}
+                                                            style={{cursor: 'pointer'}}> others</b>
+                                                        }
+                                                    </>
+                                                )
+                                            }
+                                        </>
+                                    ))
+                                }
+                            </p>
+                        )
+                    }
+
+                    <div style={{width: '100%', height: '2em', position: 'relative', marginTop: '2em', padding: '1em 1em',
+                    borderStyle: 'solid', borderColor: 'lightgray', borderLeft: 'none', borderRight: 'none', borderBottom:
+                    'none'}}>
+                        <input value={commentInput} onChange={updateCommentInput}
+                        onFocus={() => setCommentInputTextareaIsActive(true)} onBlur={() => setCommentInputTextareaIsActive(
+                        false)} placeholder={replyingToCommentInfo !== null ? 
+                        `Replying to @${replyingToCommentInfo.authorUsername}: ${replyingToCommentInfo.content}` : 
+                        "Add a comment..."} style={{fontFamily: 'Arial', width: '85%', outline: 'none', border: 'none',
+                        fontSize: '1em', paddingLeft: '1em', marginLeft: '-5em'}}/>
+
+                        {commentInput.length > 0 &&
+                            (
+                                <b onClick={postComment} style={{cursor: 'pointer', color: '#28a2fa',
+                                position: 'absolute', right: '10%', top: '30%', backgroundColor: 'white',
+                                padding: '0.3em 0.3em'}}>
+                                    Post
+                                </b>
+                            )
+                        }
+                    </div>  
+                </div>
             </div>
 
-            <img src={thinWhiteXIcon} onClick={notifyParentToClosePopup}
-            style={{height: '3em', width: '3em', objectFit: 'contain', cursor: 'pointer', position: 'fixed',
-            top: '1.5%', right: '1.5%', zIndex: zIndex}}/>
+            <img src={thinWhiteXIcon} onClick={closePopup} style={{height: '3em', width: '3em', objectFit: 'contain', cursor:
+            'pointer', position: 'fixed', top: '1.5%', right: '1.5%', zIndex: zIndex}}/>
         </>
     )
 }

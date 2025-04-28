@@ -32,7 +32,7 @@ import { BehaviorSubject } from 'rxjs';
   styleUrl: '../styles.css'
 })
 export class HomePage {
-  authUserId:number = -1;
+  authUserId:number = 1;
   authUserIdBS:BehaviorSubject<number> = new BehaviorSubject<number>(-1);
   authUsername:string = '';
   authUsernameBS:BehaviorSubject<string> = new BehaviorSubject<string>('');
@@ -65,7 +65,6 @@ export class HomePage {
   displayCommentsPopup:boolean = false;
   commentsPopupPostDetails:any = {};
   commentsPopupCurrSlide:number = -1;
-  commentsPopupMainPostAuthorInfo:any = {};
 
   displayStoryViewer:boolean = false;
   currStoryLevel:number = 0;
@@ -327,10 +326,9 @@ export class HomePage {
   }
 
 
-  showCommentsPopup(infoForCommentsPopup:{ postDetails: any, currSlide: number, mainPostAuthorInfo: any }) {
+  showCommentsPopup(infoForCommentsPopup:{ postDetails: any, currSlide: number }) {
     this.commentsPopupPostDetails = infoForCommentsPopup.postDetails;
     this.commentsPopupCurrSlide = infoForCommentsPopup.currSlide;
-    this.commentsPopupMainPostAuthorInfo = infoForCommentsPopup.mainPostAuthorInfo;
 
     this.displayCommentsPopup = true;
   }
@@ -426,6 +424,11 @@ export class HomePage {
       'Megagram',
       this.originalURL
     );
+  }
+
+
+  closeCommentsPopup() {
+    this.displayCommentsPopup = false;
   }
 
 
