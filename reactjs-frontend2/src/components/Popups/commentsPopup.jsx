@@ -579,14 +579,24 @@ showStoryViewer, updatePostDetails}) {
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getBatchOfCommentsOfPost/${authUserId}/${overallPostId}`, {
+            'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    commentIdsToExclude: commentIdsToExclude
+                    query: `query ($authUserId: Int!, $overallPostId: String!, $commentIdsToExclude: [Int!]!) {
+                        getBatchOfCommentsOfPost(
+                            authUserId: $authUserId, overallPostId: $overallPostId, commentIdsToExclude: $commentIdsToExclude
+                        )
+                    }`,
+                    variables: {
+                        authUserId: authUserId,
+                        overallPostId: overallPostId,
+                        commentIdsToExclude: commentIdsToExclude,
+                    }
                 }),
                 credentials: 'include'
             });
+            
             if(!response.ok) {
                 if(initialOrAdditionalText === 'initial') {
                     setInitialCommentsFetchingErrorMessage(
@@ -1036,13 +1046,13 @@ showStoryViewer, updatePostDetails}) {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        query: `mutation ($authUserId: Int!, $commentId: Int!, $commentContent: String!) {
-                            addReplyToComment(authUserId: $authUserId, commentId: $commentId, commentContent: $commentContent)
+                        query: `mutation ($authUserId: Int!, $commentId: Int!, $replyContent: String!) {
+                            addReplyToComment(authUserId: $authUserId, commentId: $commentId, replyContent: $replyContent)
                         }`,
                         variables: {
                             authUserId: authUserId,
                             commentId: replyingToCommentInfo.id,
-                            commentContent: commentInput
+                            replyContent: commentInput
                         }
                     }),
                     credentials: 'include'

@@ -552,11 +552,11 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
         try {
             const response = await fetch(
-            "http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql", {
+            'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    query: `query ($authUserId: Int!, $commentId: Int!, replyIdsToExclude: [Int!]!, maxBatchSize: Int!) {
+                    query: `query ($authUserId: Int!, $commentId: Int!, $replyIdsToExclude: [Int!]!, $maxBatchSize: Int!) {
                         getBatchOfRepliesOfComment(
                             authUserId: $authUserId, commentId: $commentId, replyIdsToExclude: $replyIdsToExclude, maxBatchSize:
                             $maxBatchSize
@@ -566,7 +566,8 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
                         authUserId: props.authUserId,
                         commentId: props.id,
                         replyIdsToExclude: replyIdsToExclude.value,
-                        maxBatchSize: props.numReplies - fetchedListOfReplies.value.length - newRepliesToThisCommentByAuthUser.value.length
+                        maxBatchSize: props.numReplies - fetchedListOfReplies.value.length - 
+                        newRepliesToThisCommentByAuthUser.value.length
                     }
                 }),
                 credentials: 'include'

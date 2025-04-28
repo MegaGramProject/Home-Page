@@ -206,17 +206,17 @@ public class CommentMutationProvider
         [Service] IConnectionMultiplexer redisClient
     )
     {
-        if (commentId < 1)
-        {
-            throw new GraphQLException(new Error("The provided commentId is invalid", "INVALID_INPUT"));
-        }
-
         if (authUserId < 1)
         {
             throw new GraphQLException(new Error(
                 @"There does not exist a user with an id less than 1.",
                 "INVALID_INPUT")
             );
+        }
+
+        if (commentId < 1)
+        {
+            throw new GraphQLException(new Error("The provided commentId is invalid", "INVALID_INPUT"));
         }
 
         if (replyContent.Length > 2200)
@@ -277,6 +277,7 @@ public class CommentMutationProvider
 
         bool? isEncrypted = null;
         string? overallPostId = null;
+
         try
         {
             overallPostId = await sqlServerContext
@@ -300,6 +301,7 @@ public class CommentMutationProvider
                         "NOT_FOUND"
                     ));
                 }
+
                 isEncrypted = true;
             }
             else
@@ -334,17 +336,17 @@ public class CommentMutationProvider
         }
 
         int idOfNewReply = -1;
+
         if (isEncrypted == true)
         {   
             try
             {
-                IDatabase redisCachingDatabase = redisClient.GetDatabase(0);
                 byte[] plaintextDataEncryptionKey = await encryptionAndDecryptionService.getPlaintextDataEncryptionKeyOfPost
                 (
                     overallPostId!,
                     postgresContext,
                     encryptionAndDecryptionService,
-                    redisCachingDatabase
+                    redisClient.GetDatabase(0);
                 );
 
                 var encryptedAuthUserIdInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
@@ -352,12 +354,9 @@ public class CommentMutationProvider
                     plaintextDataEncryptionKey
                 );
 
-                byte[] encryptedReplyContent = encryptionAndDecryptionService
-                .EncryptTextWithAzureDataEncryptionKeyGivenIvAndAuthTag(
+                var encryptedReplyContentInfo = encryptionAndDecryptionService.EncryptTextWithAzureDataEncryptionKey(
                     replyContent,
-                    plaintextDataEncryptionKey,
-                    encryptedAuthUserIdInfo.iv,
-                    encryptedAuthUserIdInfo.authTag
+                    plaintextDataEncryptionKey
                 );
 
                 EncryptedCommentOfPost newEncryptedReplyOfComment = new EncryptedCommentOfPost(
@@ -366,14 +365,16 @@ public class CommentMutationProvider
                     false,
                     DateTime.Now,
                     encryptedAuthUserIdInfo.encryptedTextBuffer,
-                    encryptedReplyContent,
                     encryptedAuthUserIdInfo.iv,
                     encryptedAuthUserIdInfo.authTag
+                    encryptedReplyContentInfo.encryptedTextBuffer,
+                    encryptedReplyContentInfo.iv,
+                    encryptedReplyContentInfo.authTag
                 );
 
                 await sqlServerContext.encryptedCommentsOfPosts
                     .AddAsync(newEncryptedReplyOfComment);
-
+                
                 idOfNewReply = newEncryptedReplyOfComment.id;
             }
             catch
@@ -413,6 +414,7 @@ public class CommentMutationProvider
 
         return idOfNewReply;
     }
+
 
     [EnableRateLimiting("8PerMinute")]
     public async Task<bool> EditComment(
@@ -627,6 +629,7 @@ public class CommentMutationProvider
 
         return true;
     }
+
 
     [EnableRateLimiting("8PerMinute")]
     public async Task<InfoAfterDeletingComment> DeleteComment(

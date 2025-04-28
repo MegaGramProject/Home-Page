@@ -333,11 +333,11 @@ export class Comment {
 
     try {
       const response = await fetch(
-      "http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql", {
+      'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          query: `query ($authUserId: Int!, $commentId: Int!, replyIdsToExclude: [Int!]!, maxBatchSize: Int!) {
+          query: `query ($authUserId: Int!, $commentId: Int!, $replyIdsToExclude: [Int!]!, $maxBatchSize: Int!) {
             getBatchOfRepliesOfComment(
               authUserId: $authUserId, commentId: $commentId, replyIdsToExclude: $replyIdsToExclude, maxBatchSize: $maxBatchSize
             )

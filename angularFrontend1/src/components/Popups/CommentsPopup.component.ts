@@ -590,16 +590,24 @@ export class CommentsPopup {
 
     try {
       const response = await fetch(
-      `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getBatchOfCommentsOfPost/${this.authUserId}
-      /${this.overallPostId}`, {
+      'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          commentIdsToExclude: this.commentIdsToExclude,
-          limit: this.postDetails.numComments - this.commentIdsToExclude.length
+          query: `query ($authUserId: Int!, $overallPostId: Int!, $commentIdsToExclude: [Int!]!) {
+            getBatchOfCommentsOfPost(
+              authUserId: $authUserId, overallPostId: $overallPostId, commentIdsToExclude: $commentIdsToExclude
+            )
+          }`,
+          variables: {
+            authUserId: this.authUserId,
+            overallPostId: this.overallPostId,
+            commentIdsToExclude: this.commentIdsToExclude,
+          }
         }),
         credentials: 'include'
       });
+
       if(!response.ok) {
         if(initialOrAdditionalText === 'initial') {
           this.initialCommentsFetchingErrorMessage = `The server had trouble getting the initial batch of comments of this
@@ -1048,13 +1056,13 @@ export class CommentsPopup {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
-            query: `mutation ($authUserId: Int!, $commentId: Int!, $commentContent: String!) {
-              addReplyToComment(authUserId: $authUserId, commentId: $commentId, commentContent: $commentContent)
+            query: `mutation ($authUserId: Int!, $commentId: Int!, $replyContent: String!) {
+              addReplyToComment(authUserId: $authUserId, commentId: $commentId, replyContent: $replyContent)
             }`,
             variables: {
               authUserId: this.authUserId,
               commentId: this.replyingToCommentInfo.id,
-              commentContent: this.commentInput
+              replyContent: this.commentInput
             }
           }),
           credentials: 'include'
@@ -1097,7 +1105,7 @@ export class CommentsPopup {
 
           this.updateCommentDetails(
             {
-              id:this.replyingToCommentInfo.id,
+              id: this.replyingToCommentInfo.id,
               updatedDetails: {
                 numReplies: this.replyingToCommentInfo.numReplies + 1
               }

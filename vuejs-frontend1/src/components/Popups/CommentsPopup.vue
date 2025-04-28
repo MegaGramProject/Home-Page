@@ -1052,15 +1052,24 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
         try {
             const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getBatchOfCommentsOfPost/${props.authUserId}
-            /${overallPostId.value}`, {
+            'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/graphql', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    commentIdsToExclude: commentIdsToExclude.value
+                    query: `query ($authUserId: Int!, $overallPostId: String!, $commentIdsToExclude: [Int!]!) {
+                        getBatchOfCommentsOfPost(
+                            authUserId: $authUserId, overallPostId: $overallPostId, commentIdsToExclude: $commentIdsToExclude
+                        )
+                    }`,
+                    variables: {
+                        authUserId: props.authUserId,
+                        overallPostId: overallPostId.value,
+                        commentIdsToExclude: commentIdsToExclude.value,
+                    }
                 }),
                 credentials: 'include'
             });
+
             if(!response.ok) {
                 if(initialOrAdditionalText === 'initial') {
                     initialCommentsFetchingErrorMessage.value = `The server had trouble getting the initial batch of comments of
@@ -1512,13 +1521,13 @@ import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        query: `mutation ($authUserId: Int!, $commentId: Int!, $commentContent: String!) {
-                            addReplyToComment(authUserId: $authUserId, commentId: $commentId, commentContent: $commentContent)
+                        query: `mutation ($authUserId: Int!, $commentId: Int!, $replyContent: String!) {
+                            addReplyToComment(authUserId: $authUserId, commentId: $commentId, replyContent: $replyContent)
                         }`,
                         variables: {
                             authUserId: props.authUserId,
                             commentId: replyingToCommentInfo.value.id,
-                            commentContent: commentInput.value
+                            replyContent: commentInput.value
                         }
                     }),
                     credentials: 'include'
