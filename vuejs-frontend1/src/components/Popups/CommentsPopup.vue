@@ -447,7 +447,6 @@
 
 
 <script setup>
-    /* eslint-disable no-unused-vars */
     import CommentOfPost from '../CommentOfPost.vue';
 import FollowUser from '../FollowUser.vue';
 import PostDots from '../PostDots.vue';

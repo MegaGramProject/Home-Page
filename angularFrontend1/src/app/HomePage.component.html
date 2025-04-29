@@ -128,3 +128,14 @@ displayAboutAccountPopup || displayCommentsPopup || displayLikersPopup || displa
         (closePopup)="closeErrorPopup()"
     />
 </div>
+
+<ng-container *ngIf="orderedListOfNotifications.length > 0">
+    <UserNotification *ngFor="let notification of orderedListOfNotifications.slice(0,1); trackBy: notificationsTrackByFn"
+        [leftImage]="notification.leftImage"
+        [rightImage]="notification.rightImage"
+        [description]="notification.description"
+        [leftImageLink]="notification.leftImageLink"
+        [entireNotificationLink]="notification.entireNotificationLink"
+        (deleteThis)="deleteNotification($event)"
+    />
+</ng-container>

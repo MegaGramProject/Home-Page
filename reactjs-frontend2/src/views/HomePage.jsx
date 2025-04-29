@@ -12,6 +12,7 @@ import MediaPost from '../components/MediaPost';
 import StoryViewer from '../components/StoryViewer';
 import UserBar from '../components/UserBar';
 import UserIcon from '../components/UserIcon';
+import UserNotification from '../components/UserNotification';
 
 import backArrow from "../assets/images/backArrow.png";
 import blackScreen from "../assets/images/blackScreen.png";
@@ -22,6 +23,9 @@ import rightArrow from "../assets/images/nextArrow.png";
 import '../assets/styles.css';
 
 import { useEffect, useState } from 'react';
+
+import * as signalR from '@microsoft/signalr';
+import { io } from "socket.io-client";
 
 
 function HomePage({urlParams}) {
@@ -68,6 +72,7 @@ function HomePage({urlParams}) {
     const [focusedMediaPostId, setFocusedMediaPostId] = useState('');
 
     const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
+    const [postsAndTheirPreviewImgs, setPostsAndTheirPreviewImgs] = useState({});
 
     const [cachedMessageSendingSuggestions, setCachedMessageSendingSuggestions] = useState({});
 
@@ -86,6 +91,8 @@ function HomePage({urlParams}) {
     const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
     const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
     const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
+
+    const [orderedListOfNotifications, setOrderedListOfNotifications] = useState([]);
 
 
     useEffect(() => {
@@ -124,6 +131,13 @@ function HomePage({urlParams}) {
 
     useEffect(() => {
         localStorage.setItem('defaultUserId', authUserId.toString());
+
+        if (authUserId !== -1) {
+            establishCollaborationWithNodeJSWebSocketDotIO();
+            establishCollaborationWithCSharpSignalRWebSocket();
+            establishCollaborationWithPhpRatchetWebSocket();
+            establishCollaborationWithPythonWebSocket();
+        }
     }, [authUserId]);
     
     
@@ -159,6 +173,15 @@ function HomePage({urlParams}) {
 
     function closeCommentsPopup() {
         setDisplayCommentsPopup(false);
+    }
+
+
+    function deleteNotification(event) {
+        if (event !== null) {
+            event.preventDefault();
+        }
+
+        setOrderedListOfNotifications([...orderedListOfNotifications.slice(1)]);
     }
 
 
@@ -1110,9 +1133,402 @@ function HomePage({urlParams}) {
     }
 
 
+    function establishCollaborationWithNodeJSWebSocketDotIO() {
+        const nodeJSWebSocketDotIO = io('http://34.111.89.101/socket/Home-Page/nodeJSWebSocketDotIO',
+            {
+                withCredentials: true, 
+                query: {
+                    userId: authUserId,
+                    updatesToSubscribeTo: JSON.stringify(['post-likes', 'post-comments'])
+                }
+            }
+        );
+
+
+        nodeJSWebSocketDotIO.on('error', (_) => {
+            console.error(`There was trouble with the nodeJSWebSocketDotIO connection, which is responsible
+            for providing info for notifications of new post-likes and post-comments.`);
+        });
+
+
+        nodeJSWebSocketDotIO.on('NewLikeOfPost', async (data) => {
+            const { likerId } = data;
+
+            if (likerId == authUserId) {
+                return;
+            }
+
+            let likerProfilePhoto = null;
+
+            if (!(likerId in usersAndTheirRelevantInfo) ||
+            !('profilePhoto' in usersAndTheirRelevantInfo[likerId])) {
+                likerProfilePhoto = await getProfilePhotoOfUser(likerId);
+            }
+
+            const { overallPostId, likerName } = data;
+
+            let postPreviewImage = null;
+
+            if (!(overallPostId in postsAndTheirPreviewImgs)) {
+                postPreviewImage = await getPreviewImageOfPost(overallPostId);
+            }
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications,
+                {
+                    leftImage: likerProfilePhoto !== null ? likerProfilePhoto :
+                    usersAndTheirRelevantInfo[likerId]?.profilePhoto ?? defaultPfp,
+                    rightImage: postPreviewImage !== null ? postPreviewImage :
+                    postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
+                    description: `@${likerName} liked your post`,
+                    leftImageLink: `http://34.111.89.101/profile/${likerName}`,
+                    entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}`
+                }
+            ]);
+        });
+
+
+        nodeJSWebSocketDotIO.on('NewCommentOfPost', async (data) => {
+            const { commenterId } = data;
+            if (authUserId == commenterId) {
+                return;
+            }
+
+            let commenterProfilePhoto = null;
+
+            if (!(commenterId in usersAndTheirRelevantInfo) ||
+            !('profilePhoto' in usersAndTheirRelevantInfo[commenterId])) {
+                commenterProfilePhoto = await getProfilePhotoOfUser(commenterId);
+            }
+
+            const { overallPostId, id, commenterName, comment } = data;
+
+            let postPreviewImage = null;
+
+            if (!(overallPostId in postsAndTheirPreviewImgs)) {
+                postPreviewImage = await getPreviewImageOfPost(overallPostId);
+            }
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications,
+                {
+                    leftImage: commenterProfilePhoto !== null ? commenterProfilePhoto :
+                    usersAndTheirRelevantInfo[commenterId]?.profilePhoto ?? defaultPfp,
+                    rightImage: postPreviewImage !== null ? postPreviewImage :
+                    postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
+                    description: `@${commenterName} commented on your post: '${comment}'`,
+                    leftImageLink: `http://34.111.89.101/profile/${commenterName}`,
+                    entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${id}`
+                }
+            ]);
+        });
+    }
+
+
+    function establishCollaborationWithCSharpSignalRWebSocket() {
+        const cSharpSignalRWebSocket = new signalR.HubConnectionBuilder()
+        .withUrl('http://34.111.89.101/socket/Home-Page/cSharpSignalRWebSocket', {
+            withCredentials: true,
+            accessTokenFactory: () => "",
+            transport: signalR.HttpTransportType.WebSockets,
+            headers: {
+                "userId": authUserId.toString(),
+                "updatesToSubscribeTo": JSON.stringify(['comment-likes', 'comment-replies'])
+            }
+        })
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+
+        cSharpSignalRWebSocket.onclose((_) => {
+            console.error(`There was trouble with the cSharpSignalRWebSocket connection, which is responsible
+            for providing info for notifications of new comment-likes and comment-replies.`);
+        });
+
+
+        cSharpSignalRWebSocket.on('NewLikeOfComment', async (data) => {
+            const { likerId } = data;
+
+            if (likerId == authUserId) {
+                return;
+            }
+
+            let likerProfilePhoto = null;
+
+            if (!(likerId in usersAndTheirRelevantInfo) ||
+            !('profilePhoto' in usersAndTheirRelevantInfo[likerId])) {
+                likerProfilePhoto = await getProfilePhotoOfUser(likerId);
+            }
+
+            const { overallPostId, commentId, comment, likerName } = data;
+
+            let postPreviewImage = null;
+
+            if (!(overallPostId in postsAndTheirPreviewImgs)) {
+                postPreviewImage = await getPreviewImageOfPost(overallPostId);
+            }
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications,
+                {
+                    leftImage: likerProfilePhoto !== null ? likerProfilePhoto :
+                    usersAndTheirRelevantInfo[likerId]?.profilePhoto ?? defaultPfp,
+                    rightImage: postPreviewImage !== null ? postPreviewImage :
+                    postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
+                    description: `@${likerName} liked your comment: '${comment}'`,
+                    leftImageLink: `http://34.111.89.101/profile/${likerName}`,
+                    entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${commentId}`
+                }
+            ]);
+        });
+
+
+        cSharpSignalRWebSocket.on('NewReplyOfComment', async (data) => {
+            const { replierId } = data;
+
+            if (replierId == authUserId) {
+                return;
+            }
+
+            let replierProfilePhoto = null;
+
+            if (!(replierId in usersAndTheirRelevantInfo) ||
+            !('profilePhoto' in usersAndTheirRelevantInfo[replierId])) {
+                replierProfilePhoto = await getProfilePhotoOfUser(replierId);
+            }
+
+            const { overallPostId, replyId, replierName, reply } = data;
+
+            let postPreviewImage = null;
+
+            if (!(overallPostId in postsAndTheirPreviewImgs)) {
+                postPreviewImage = await getPreviewImageOfPost(overallPostId);
+            }
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications,
+                {
+                    leftImage: replierProfilePhoto !== null ? replierProfilePhoto :
+                    usersAndTheirRelevantInfo[replierId]?.profilePhoto ?? defaultPfp,
+                    rightImage: postPreviewImage !== null ? postPreviewImage :
+                    postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
+                    description: `@${replierName} replied to your comment with this: '${reply}'`,
+                    leftImageLink: `http://34.111.89.101/profile/${replierName}`,
+                    entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${replyId}`
+                }
+            ]);
+        });
+
+
+        cSharpSignalRWebSocket.start().catch(_ => {
+            console.error(`There was trouble with the cSharpSignalRWebSocket connection, which is responsible
+            for providing info for notifications of new comment-likes and comment-replies.`);
+        });
+    }
+
+
+    function establishCollaborationWithPhpRatchetWebSocket() {
+        const queryParams = new URLSearchParams({
+            userId: authUserId.toString()
+        });
+
+
+        const phpRatchetWebSocket = new WebSocket(
+            `ws://34.111.89.101/socket/Home-Page/phpRatchetWebSocket?${queryParams.toString()}`
+        );
+
+
+        phpRatchetWebSocket.onerror = (_) => {
+            console.error(`There was trouble with the phpRatchetWebSocket connection, which is responsible
+            for providing info for notifications of new followings/follow-requests.`);
+        };
+
+
+        phpRatchetWebSocket.onmessage = async (messageEvent) => {
+            const parsedMessageData = JSON.parse(messageEvent.data);
+
+            if (parsedMessageData.event === 'NewFollowRequest') {
+                const { requesterId } = parsedMessageData.data;
+
+                let requesterProfilePhoto = null;
+
+                if (!(requesterId in usersAndTheirRelevantInfo) ||
+                !('profilePhoto' in usersAndTheirRelevantInfo[requesterId])) {
+                    requesterProfilePhoto = await getProfilePhotoOfUser(requesterId);
+                }
+
+                const { requesterName } = parsedMessageData.data;
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications,
+                    {
+                        leftImage: requesterProfilePhoto !== null ? requesterProfilePhoto :
+                        usersAndTheirRelevantInfo[requesterId]?.profilePhoto ?? defaultPfp,
+                        rightImage: null, 
+                        description: `@${requesterName} requested to follow you`,
+                        leftImageLink: `http://34.111.89.101/profile/${requesterName}`,
+                        entireNotificationLink: `http://34.111.89.101/profile/${requesterName}`
+                    }
+                ]);
+            } 
+            else if (parsedMessageData.event === 'NewFollowing') {
+                const { followerId } = parsedMessageData.data;
+
+                let followerProfilePhoto = null;
+
+                if (!(followerId in usersAndTheirRelevantInfo) ||
+                !('profilePhoto' in usersAndTheirRelevantInfo[followerId])) {
+                    followerProfilePhoto = await getProfilePhotoOfUser(followerId);
+                }
+
+                const { followerName } = parsedMessageData.data;
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications,
+                    {
+                        leftImage: followerProfilePhoto !== null ? followerProfilePhoto :
+                        usersAndTheirRelevantInfo[followerId]?.profilePhoto ?? defaultPfp,
+                        rightImage: null, 
+                        description: `@${followerName} is now following you`,
+                        leftImageLink: `http://34.111.89.101/profile/${followerName}`,
+                        entireNotificationLink: `http://34.111.89.101/profile/${followerName}`
+                    }
+                ]);
+            }
+        }
+    }
+
+
+    function establishCollaborationWithPythonWebSocket() {
+        const pythonWebSocket = new WebSocket(
+            `ws://34.111.89.101/socket/Home-Page/pythonWebSocket?userId=${encodeURIComponent(authUserId)}&updatesToSubscribeTo=${encodeURIComponent(JSON.stringify(['new-messages']))}`
+        );
+
+        
+        pythonWebSocket.onerror = (_) => {
+            console.error(`There was trouble with the pythonWebSocket connection, which is responsible for providing info for
+            new messages.`);
+        };
+
+
+        pythonWebSocket.onmessage = async (messageEvent) => {
+            const parsedMessageData = JSON.parse(messageEvent.data);
+
+            if (parsedMessageData.event === 'NewMessageOfConvo') {
+                const { senderId } = parsedMessageData.data;
+
+                if (senderId == authUserId) {
+                    return;
+                }
+
+                let senderProfilePhoto = null;
+
+                if (!(senderId in usersAndTheirRelevantInfo) ||
+                !('profilePhoto' in usersAndTheirRelevantInfo[senderId])) {
+                    senderProfilePhoto = await getProfilePhotoOfUser(senderId);
+                }
+
+                const { convoId, convoTitle, isGroupChat, senderName, message } = parsedMessageData.data;
+
+                let description = '';
+
+                if (isGroupChat) {
+                    if (convoTitle !== null) {
+                        description = `@${senderName} sent a message in your group-chat named '${convoTitle}': ${message}`;
+                    }
+                    else {
+                        description = `@${senderName} sent a message in your group-chat: ${message}`;
+                    }
+                }
+                else {
+                    if (convoTitle !== null) {
+                        description = `@${senderName} sent a message to you in the convo named '${convoTitle}': ${message}`;
+                    }
+                    else {
+                        description = `@${senderName} sent a message to you: ${message}`;
+                    }
+                }
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications,
+                    {
+                        leftImage: senderProfilePhoto !== null ? senderProfilePhoto : 
+                        usersAndTheirRelevantInfo[senderId]?.profilePhoto ?? defaultPfp,
+                        rightImage: isGroupChat ? defaultGroupChatPfp : null, 
+                        description: description,
+                        leftImageLink: `http://34.111.89.101/profile/${senderId}`,
+                        entireNotificationLink: `http://34.111.89.101/messages/${convoId}`
+                    }
+                ]);
+            } 
+        }
+    }
+
+
+    async function getProfilePhotoOfUser(userId) {
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotoOfUser
+            /${authUserId}/${userId}`, {
+                credentials: 'include'
+            });
+
+            if(response.ok) {
+                const userProfilePhotoBlob = await response.blob();
+                const userProfilePhotoURL = URL.createObjectURL(userProfilePhotoBlob);
+
+                setUsersAndTheirRelevantInfo((currentUsersAndTheirRelevantInfo) => {
+                    if (!(userId in currentUsersAndTheirRelevantInfo)) {
+                        currentUsersAndTheirRelevantInfo[userId] = {};
+                    }
+
+                    currentUsersAndTheirRelevantInfo[userId].profilePhoto = userProfilePhotoURL;
+
+                    return currentUsersAndTheirRelevantInfo;
+                });
+
+                return userProfilePhotoURL;
+            }
+        }
+        catch {
+            console.error(`There was trouble getting the profile-photo of user ${userId}, which is needed for at-least one
+            of the notifications`);
+        }
+
+        return null;
+    }
+
+
+    async function getPreviewImageOfPost(overallPostId) {
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/getPreviewImageOfPost
+            /${authUserId}/${overallPostId}`, {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const previewImageBlob = await response.blob();
+                const previewImageURL = URL.createObjectURL(previewImageBlob);
+
+                postsAndTheirPreviewImgs[overallPostId] = previewImageURL;
+                setPostsAndTheirPreviewImgs((currentPostsAndTheirPreviewImgs) => {
+                    currentPostsAndTheirPreviewImgs[overallPostId] = previewImageURL;
+                    return currentPostsAndTheirPreviewImgs;
+                });
+
+                return previewImageURL;
+            }
+        }
+        catch {
+            console.error(`There was trouble getting the preview-image of post ${overallPostId}, which is needed
+            for at-least one of the notifications`);
+        }
+
+        return null;
+    }
+
+
     return (
         <>
-            {authUsername.length>0 &&
+            {authUsername.length > 0 &&
                 <>
                     <LeftSidebar 
                         profilePhoto={
@@ -1548,6 +1964,24 @@ function HomePage({urlParams}) {
                                     closePopup={closeErrorPopup}
                                 />
                             </div>
+                        )
+                    }
+                    
+                    {orderedListOfNotifications.length > 0 &&
+                        (
+                            orderedListOfNotifications.slice(0,1).map(notification =>
+                                (
+                                    <UserNotification
+                                        key={notification.description}
+                                        leftImage={notification.leftImage}
+                                        rightImage={notification.rightImage}
+                                        description={notification.description}
+                                        leftImageLink={notification.leftImageLink}
+                                        entireNotificationLink={notification.entireNotificationLink}
+                                        deleteThis={deleteNotification}
+                                    />
+                                )
+                            )
                         )
                     }
                 </>
