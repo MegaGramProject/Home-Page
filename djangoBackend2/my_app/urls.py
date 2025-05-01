@@ -14,7 +14,7 @@ urlpatterns = [
     path('blockUser/<int:auth_user_id>/<int:id_of_user_to_block>', views.block_user, name='Block User'),
     path('toggleBlockUser/<int:auth_user_id>/<int:id_of_user_to_toggle_block', views.toggle_block_user, name='Toggle Block User'),
     path('unblockUser/<int:auth_user_id>/<int:id_of_user_to_unblock>', views.unblock_user, name='Unblock User'),
-    path('getBlockingsOfUser/<int:auth_user_id>', views.get_blockings_of_user, name=f'Get Blockings of User'),
+    path('getBlockingsOfUser/<int:user_id>', views.get_blockings_of_user, name=f'Get Blockings of User'),
     path('isEachUserInListInTheBlockingsOfAuthUser/<int:auth_user_id>', views.is_each_user_in_list_in_the_blockings_of_auth_user,
     name=f'Is Each User in List in the Blockings of Auth User'),
     path('getFollowingsAndBlockingsOfUser/<int:auth_user_id>', views.get_followings_and_blockings_of_user, name=f'Get Followings

@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "Qn4R7TnlCxESUfXvOZ1H6Vy1dI5hV0+ek1h+MDLDtBQ=",
+  "Source": "cSharpSignalRWebSocket",
+  "BasePath": "_content/cSharpSignalRWebSocket",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}

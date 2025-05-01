@@ -12,6 +12,7 @@ const {
     GenerateDataKeyCommand, ScheduleKeyDeletionCommand
 } = require("@aws-sdk/client-kms");
 const rateLimit = require('express-rate-limit');
+const { error } = require("console");
 require('dotenv').config();
 
 
@@ -32,9 +33,7 @@ async function initializeMongodbClient() {
         );
         imageAndVideoSlidesOfPostsDotFilesCollection = mongodbDatabase.collection('imageAndVideoSlidesOfPosts.files');
     }
-    catch (error) {
-        console.error(error);
-    }
+    catch {}
 }
 
 initializeMongodbClient();
@@ -48,17 +47,13 @@ try {
     gcMySQLSpannerInstance = gcMySQLSpannerClient.instance('mg-ms-sp');
     gcMySQLSpannerDatabase = gcMySQLSpannerInstance.database('Megagram');
 }
-catch (error) {
-    console.error(error);
-}
+catch {}
 
 let awsKMSClient;
 try {
     awsKMSClient = new KMSClient({ region: "us-east-1" });
 }
-catch (error) {
-    console.error(error);
-}
+catch {}
 
 
 const listOfValidPostCategories = ['scenery', 'entertainment', 'random', 'comedy', 'thriller', 'drama',
@@ -191,7 +186,7 @@ app.use(cors(corsOptions));
 
 app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, async (req, res) => {
     let { authUserId } = req.params;
-    if (authUserId !== 'Anonymous Guest') {
+    if (authUserId !== -1) {
         const userTokenValidationResult = validateUserAuthToken(authUserId, req.cookies);
 
         if (userTokenValidationResult instanceof Date) {
@@ -208,10 +203,6 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         else if (userTokenValidationResult === 'Forbidden') {
             return res.sendStatus(401);
         }
-    }
-    else
-    {
-        authUserId = -1;
     }
 
     let successMessage = '';
@@ -240,7 +231,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         authUserFollowings = responseData.authUserFollowings;
         usersWithSponsoredPostsThatAuthUserCanView = responseData.usersWithSponsoredPostsThatAuthUserCanView;
     }
-    catch (error) {
+    catch {
         errorMessage += `• The server is supposed to provide the list of top 10 users you follow and whose posts you engage with
         the most(based on numLikes/numComments/numPostViews). Furthermore, it's supposed to provide the list of the top 10 users
         whose ad-posts you engage with the most(based on numLikes/numComments/numPostViews/numAdLinkClicks). However,
@@ -287,7 +278,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             };
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble connecting to the server to get the ordered list of overallPostIds of the batch of posts for your
         home-page feed.\n`;
         return res.status(500).send(
@@ -443,7 +434,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         }
         successMessage += `• The image-&-video slide data of the posts for your feed has been fetched successfully\n`;
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble that took place during the fetching of the image-&-video-slide data of the posts for
         your feed.\n`;
         return res.status(500).send(
@@ -489,7 +480,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             successMessage += `• The captions of each of the posts of your feed have been fetched successfully\n`;
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble connecting to the server to fetch the captions of each of the posts of your
         feed\n`;
     }
@@ -517,7 +508,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             successMessage += `• The background-music of each of the posts for your feed has been fetched successfully\n`;
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble connecting to the server to fetch the background-music of each of the posts for your
         feed\n`;
     }
@@ -569,7 +560,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             successMessage += `• The video-subtitle-files of each of the posts of your feed have been fetched successfully\n`;
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble connecting to the server to fetch the video-subtitle-files of each of the posts of your
         feed\n`;
     }
@@ -605,7 +596,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             response5WasSuccessful = true;
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble connecting to the server to fetch the numLikes/numComments/likersFollowedByAuthUser of
         each of the posts of your feed\n`;
     }
@@ -640,7 +631,7 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
             for your feed have been fetched successfully\n`;
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble connecting to the server to fetch the usernames associated with the authors/slideTaggedAccounts/
         likersFollowedByYou of each of the posts of your feed\n`
     }
@@ -788,7 +779,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 }
             }
         }
-        catch (error) {
+        catch {
             authorsIsValidlyStructured = false;
         }
 
@@ -840,7 +831,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             plaintextDataEncryptionKey = newAWSDataEncryptionKeyInfo[0];
             encryptedDataEncryptionKey = newAWSDataEncryptionKeyInfo[1];
         }
-        catch (error) {
+        catch {
             errorMessage += `• There was trouble in the process of generating the data-encryption keys required for encrypting the
             sensitive private-post-data.\n`;
             return res.status(500).send(errorMessage);;
@@ -859,7 +850,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 encryptedDataEncryptionKey: encryptedDataEncryptionKey
             }
         }
-        catch (error) {
+        catch {
             errorMessage += `• There was trouble encrypting the authors of this intended-to-be-private post.\n`;
             return res.status(500).send(errorMessage);;
         }
@@ -889,7 +880,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 }
             }
     
-            catch (error) {
+            catch {
                 errorMessage += `• There was trouble encrypting the location of this this intended-to-be-private
                 post.\n`;
                 delete validPostData.locationOfPost;
@@ -955,14 +946,14 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                     }
                 }
         
-                catch (error) {
+                catch {
                     errorMessage += `• There was trouble encrypting the ad-info of this this
                     intended-to-be-private post.\n`;
                     delete validPostData.adInfo;
                 }
             }
         }
-        catch (error) {}
+        catch {}
 
         if (!adInfoIsValid) {
             errorMessage += `• The adInfo, if provided, must be an object with two keys: 'link'(required) and
@@ -983,7 +974,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 slidesInfoIsValid = true;
             }
         }
-        catch (error) {}
+        catch {}
 
         if (!slidesInfoIsValid) {
             errorMessage += `• slidesInfo, if you decide to submit it, is a stringified dict where 
@@ -1184,7 +1175,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                 }
             }
     
-            catch (error) {
+            catch {
                 errorMessage += `• There was trouble encrypting the image/vid slide file-buffer associated
                 with the slide-number ${currSlideNumber}, for this intended-to-be-private post.\n`;
                 return res.status(500).send(errorMessage);;
@@ -1217,7 +1208,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                                 }
                             }
                     
-                            catch (error) {
+                            catch {
                                 errorMessage += `• There was trouble encrypting the taggedAccounts
                                 of the intended-to-be-private post for slide-number ${currSlideNumber}.\n`;
                                 delete newSlideInfo.taggedAccounts;
@@ -1259,7 +1250,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                                 }
                             }
                     
-                            catch (error) {
+                            catch {
                                 errorMessage += `• There was trouble encrypting the the taggedAccounts
                                 of the intended-to-be-private post for slide-number ${currSlideNumber}.\n`;
                                 delete newSlideInfo.taggedAccounts;
@@ -1288,7 +1279,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
                                 }
                             }
                     
-                            catch (error) {
+                            catch {
                                 errorMessage += `• There was trouble encrypting the the sections
                                 of the intended-to-be-private post for slide-number
                                 ${currSlideNumber}.\n`;
@@ -1343,7 +1334,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
         });
         await uploadImageOrVideoSlide(postSlides[0].data, uploadStream);
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble uploading image/video slide number 0 of your post into the database\n`;
         return res.status(500).send(errorMessage);;
     }
@@ -1385,7 +1376,7 @@ app.post('/uploadPost/:authUserId', threePerMinuteRateLimiter, upload.any(), asy
             await uploadImageOrVideoSlide(postSlide.data, uploadStream);
             successMessage += `• Image/video slide number ${i} of your post has successfully been uploaded to the database.\n`;
         }
-        catch (error) {
+        catch {
             errorMessage += `• There was trouble uploading postSlide ${i} into the database\n`;
             if (successMessage.length == 0) {
                 return res.status(500).send(errorMessage);
@@ -1652,7 +1643,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             plaintextDataEncryptionKey = newAWSDataEncryptionKeyInfo[0];
             encryptedDataEncryptionKey = newAWSDataEncryptionKeyInfo[1];
         }
-        catch (error) {
+        catch {
             errorMessage += `• There was trouble in the process of generating the data-encryption
             keys required for encrypting the sensitive intended-to-be-private post-data.\n`;
             return res.status(500).send(errorMessage);;
@@ -1701,7 +1692,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 });
             }
         }
-        catch (error) {
+        catch {
             errorMessage += `• There was trouble fetching all the image and video files of the slides of this post, which
             is necessary for changing the encryption-status.\n`;
             return res.status(500).send(errorMessage);;
@@ -1743,7 +1734,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     authTag: encryptedLocationOfPostInfo.authTag
                 }
             }
-            catch (error) {
+            catch {
                 errorMessage += `• There was trouble encrypting the updated location of this intended-to-be-private
                 post.\n`;
                 delete updatedDataForEntirePost.locationOfPost;
@@ -1822,7 +1813,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     }
                 }
         
-                catch (error) {
+                catch {
                     errorMessage += `• There was trouble encrypting the ad-info of this this
                     intended-to-be-private post.\n`;
                     delete updatedDataForEntirePost.adInfo;
@@ -1832,7 +1823,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 updatedDataForEntirePost.$unset.adInfoEncryptionInfo = "";
             }
         }
-        catch (error) {
+        catch {
             adInfoIsValid = false;
         }
 
@@ -1912,7 +1903,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 slideNumberToUpdatedTaggedAccountsIsValid = false;
             }
         }
-        catch (error) {
+        catch {
             slideNumberToUpdatedTaggedAccountsIsValid = false;
         }
 
@@ -1988,7 +1979,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 slideNumberToUpdatedSectionsIsValid = false;
             }
         }
-        catch (error) {
+        catch {
             slideNumberToUpdatedSectionsIsValid = false;
         }
 
@@ -2104,7 +2095,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     }
                 }
             }
-            catch (error) {
+            catch {
                 errorMessage += `• There was trouble encrypting the data of this intended-to-be-private
                 post.\n`;
                 return res.status(500).send(errorMessage);;
@@ -2198,7 +2189,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                     }
                 }
             }
-            catch (error) {
+            catch {
                 errorMessage += `• There was trouble decrypting the data of this intended-to-be-public post.\n`;
                 return res.status(500).send(errorMessage);;
             }
@@ -2316,7 +2307,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
             }
         }
     }
-    catch (error) {
+    catch {
         errorMessage += `• There was trouble applying your desired updates to all the image/video slide-data of this post.\n`;
 
         if (successMessage.length == 0 ) {
@@ -2383,7 +2374,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
         try {
             await deleteAWSCustomerMasterKey(`post${overallPostId}`);
         }
-        catch (error) {
+        catch {
             errorMessage += `• There was trouble scheduling-for-deletion the AWS Customer-Master-Key(CMK) used for encrypting/
             decrypting the Data-Encryption-Keys for the data of this post.\n`; 
         }
@@ -2417,7 +2408,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                                 successMessage += `• There was success deleting one of the image/video slides of this post, specifically of the
                                 post's slide number ${slideNumber}\n`;
                             }
-                            catch (error) {
+                            catch {
                                 errorMessage += `• There was trouble deleting one of the image/video slides of this post, specifically of the
                                 post's slide number ${slideNumber}\n`;
                                 if (successMessage.length == 0 ) {
@@ -2481,7 +2472,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 slideNumbersToDeleteIsValid = false;
             }
         }
-        catch (error) {
+        catch {
             slideNumbersToDeleteIsValid = false;
         }
 
@@ -2557,7 +2548,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 }
             }
         }
-        catch (error) {
+        catch {
             errorMessage += `• The subtitleFilesToRemove parameter must include a list of dicts that contain info
             on the subtitleFiles you would like to remove. Each dict must have two keys: langCode and slideNumber\n`;
         }
@@ -2599,7 +2590,7 @@ app.patch('/updatePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, u
                 backgroundMusicInfoIsValid = false;
             }
         }
-        catch (error) {
+        catch {
             backgroundMusicInfoIsValid = false;
         }
 
@@ -2773,7 +2764,7 @@ app.delete('/deletePost/:authUserId/:overallPostId', threePerMinuteRateLimiter, 
         }
         successMessage += '• There was success deleting all the image and video slide-data of this post\n';
     }
-    catch (error) {
+    catch {
         errorMessage += '• There was trouble deleting all the image and video slide-data of this post.\n'
         return res.status(500).send(errorMessage);;
     }
@@ -2884,7 +2875,7 @@ app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', async (req, res) 
     {
         const authorsAndIsEncryptedOfPost = await imageAndVideoSlidesOfPostsDotFilesCollection.findOne(
             {
-                "metadata.overallPostId": overallPostId,
+                "metadata.overallPostId": new ObjectId(overallPostId),
                 "metadata.slideNumber": 0
             },
             {
@@ -2909,15 +2900,13 @@ app.get('/getAuthorsAndEncryptionStatusOfPost/:overallPostId', async (req, res) 
             let plaintextDataEncryptionKey;
             let plaintextDataEncryptionKeyWasFound = true;
 
-            try
-            {
+            try {
                 const decryptResponse = await awsKMSClient.send(new DecryptCommand({
                     CiphertextBlob: encryptedDataEncryptionKey,
                 }));
                 plaintextDataEncryptionKey = decryptResponse.Plaintext;
             }
-            catch (error)
-            {
+            catch {
                 plaintextDataEncryptionKeyWasFound = false;
             }
             
@@ -2996,15 +2985,13 @@ app.post('/getTheOverallPostIdsOfEachUserInList/:postsFromAtMostThisManyMonthsAg
         {
             const { encryptedDataEncryptionKey, iv, authTag } = authorsEncryptionInfo;
             let plaintextDataEncryptionKey;
-            try
-            {
+            try {
                 const decryptResponse = await awsKMSClient.send(new DecryptCommand({
                     CiphertextBlob: encryptedDataEncryptionKey,
                 }));
                 plaintextDataEncryptionKey = decryptResponse.Plaintext;
             }
-            catch (error)
-            {
+            catch {
                 plaintextDataEncryptionKeyWasFound = false;
             }
             
@@ -3091,15 +3078,13 @@ async (req, res) => {
         {
             const { encryptedDataEncryptionKey, iv, authTag } = authorsEncryptionInfo;
             let plaintextDataEncryptionKey;
-            try
-            {
+            try {
                 const decryptResponse = await awsKMSClient.send(new DecryptCommand({
                     CiphertextBlob: encryptedDataEncryptionKey,
                 }));
                 plaintextDataEncryptionKey = decryptResponse.Plaintext;
             }
-            catch (error)
-            {
+            catch {
                 plaintextDataEncryptionKeyWasFound = false;
             }
             
@@ -3170,77 +3155,258 @@ async (req, res) => {
 });
 
 
-app.get('/getOverallPostIdsOfUser/:userId', async (req, res) => {
-    const { userId } = req.params;
+app.get('/getPreviewImageOfPost/:authUserId/:overallPostId', async (req, res) => {
+    const {authUserId, overallPostId } = req;
 
-    const overallPostIdsOfUser = [];
-    const errorMessage = '';
-    let allImageAndVidSlidesOfPosts = [];
+    if (authUserId < 1 && authUserId !== -1) {
+        return res.status(400).send(`There does not exist a user with the provided userId. If you are an anonymous guest,
+        you must set the authUserId to -1.`);
+    } 
+
+    if (!ObjectId.isValid(overallPostId) ||  (String)(new ObjectId(overallPostId)) !== overallPostId) {
+        return res.status(400).send('The provided overallPostId is invalid');
+    }
+
+    const authUserIsAnonymousGuest = authUserId == -1;
+
+    if (!authUserIsAnonymousGuest) {
+        const userTokenValidationResult = validateUserAuthToken(authUserId, req.cookies);
+
+        if (userTokenValidationResult instanceof Date) {
+            const refreshedAuthToken = refreshUserAuthToken(authUserId);
+            if (refreshedAuthToken!==null) {
+                res.cookie(`authToken${authUserId}`, refreshedAuthToken, {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: 'Strict',
+                    expires: userTokenValidationResult
+                });
+            }
+        }
+        else if (userTokenValidationResult === 'Forbidden') {
+            return res.sendStatus(401);
+        }
+    }
+
+    let errorMessage = '';
+    let allSlidesOfThisPost = [];
 
     try {
-        allImageAndVidSlidesOfPosts = await imageAndVideoSlidesOfPostsDotFilesCollection.find(
+        allSlidesOfThisPost = await imageAndVideoSlidesOfPostsDotFilesCollection.find(
             {
-                'metadata.slideNumber': 0
+                'metadata.overallPostId': new ObjectId(overallPostId),
             },
             {
                 projection: {
-                    'metadata.overallPostId': 1,
+                    '_id': 1,
+                    'filename': 1,
                     'metadata.authors': 1,
-                    'metadata.authorsEncryptionInfo': 1
+                    'metadata.authorsEncryptionInfo': 1,
+                    'metadata.imageEncryptionInfo': 1
                 }
             }
-        ).toArray();
+        ).sort({ 'metadata.slideNumber': 1 }).toArray();
     }
-    catch (error) {
-        errorMessage += `• There was trouble fetching all the image and vid-slides of posts
-        of Megagram from the database\n`;
-
+    catch {
+        errorMessage += '• There was trouble fetching all the image and vid-slides of this post from the database\n';
         res.status(502).send(errorMessage);
     }
 
-    for(let imageOrVidSlideOfPost of allImageAndVidSlidesOfPosts) {
-        const { overallPostId } = imageOrVidSlideOfPost.metadata;
-        let { authors } = imageOrVidSlideOfPost.metadata;
+    if (allSlidesOfThisPost.length == 0) {
+        errorMessage += `• Post ${overallPostId} does not exist\n`;
+        res.status(404).send(errorMessage);
+    }
 
-        if ('authorsEncryptionInfo' in imageOrVidSlideOfPost.metadata) {
-            const { encryptedDataEncryptionKey } = imageOrVidSlideOfPost.metadata
-            .authorsEncryptionInfo;
+    const firstPostSlide = allSlidesOfThisPost[0];
 
-            let plaintextDataEncryptionKey = null;
+    let { authors } = firstPostSlide.metadata;
 
-            try {
-                const decryptResponse = await awsKMSClient.send(new DecryptCommand({
-                    CiphertextBlob: encryptedDataEncryptionKey,
-                }));
+    let plaintextDataEncryptionKey = null;
 
-                plaintextDataEncryptionKey = decryptResponse.Plaintext;
-            }
-            catch (error) {
-                errorMessage += `There was trouble getting the plaintextDEK for post
-                ${overallPostId}, which may or may not be a post of the user\n`;
-                continue;
-            }
-            
-            const decryptedAuthors = decryptTextWithAWSDataEncryptionKey(
-                authors,
-                plaintextDataEncryptionKey,
-                imageOrVidSlideOfPost.metadata.authorsEncryptionInfo.iv,
-                imageOrVidSlideOfPost.metadata.authorsEncryptionInfo.authTag,
-            );
+    if ('authorsEncryptionInfo' in firstPostSlide.metadata) {
+        if (authUserIsAnonymousGuest) {
+            errorMessage += '• As an anonymous guest, you do not have access to the preview-image of a private-post\n';
+            return res.status(403).send(errorMessage);
+        }
 
-            authors = JSON.parse(decryptedAuthors);
+        const { encryptedDataEncryptionKey } = imageOrVidSlideOfPost.metadata
+        .authorsEncryptionInfo;
+
+        try {
+            const decryptResponse = await awsKMSClient.send(new DecryptCommand({
+                CiphertextBlob: encryptedDataEncryptionKey,
+            }));
+
+            plaintextDataEncryptionKey = decryptResponse.Plaintext;
+        }
+        catch {
+            errorMessage += `• There was trouble getting the plaintextDEK for post ${overallPostId}, which is
+            required for decrypting necessary details of this encrypted post.\n`;
         }
         
-        if (authors.includes(userId)){
-            overallPostIdsOfUser.push(overallPostId);
+        const decryptedAuthors = decryptTextWithAWSDataEncryptionKey(
+            authors,
+            plaintextDataEncryptionKey,
+            imageOrVidSlideOfPost.metadata.authorsEncryptionInfo.iv,
+            imageOrVidSlideOfPost.metadata.authorsEncryptionInfo.authTag,
+        );
+
+        authors = JSON.parse(decryptedAuthors);
+
+        if (!(authors.includes(authUserId))) {
+            const setOfAuthUserFollowings = await getSetOfFollowingsOfUser(authUserId);
+            if (Array.isArray(setOfAuthUserFollowings)) {
+                errorMessage += `• ${setOfAuthUserFollowings[0]}\n`;
+                return res.status(502).send(errorMessage);
+            }
+
+            let authUserFollowsAtLeastOneAuthor =  false;
+
+            for(let authorId of authors) {
+                if (setOfAuthUserFollowings.has(authorId)) {
+                    authUserFollowsAtLeastOneAuthor = true;
+                    break;
+                }
+            }
+
+            if (!authUserFollowsAtLeastOneAuthor) {
+                errorMessage += `• As someone who doesn't follow any of the authors of this post, you do not have access to
+                the preview-image of a private-post\n`;
+                return res.status(403).send(errorMessage);
+            }
+         }
+    }
+    else if (!authUserIsAnonymousGuest) {
+        const setOfAuthUserBlockings = await getSetOfBlockingsOfUser(authUserId);
+        if (Array.isArray(setOfAuthUserBlockings)) {
+            errorMessage += `• ${setOfAuthUserBlockings[0]}\n`;
+            return res.status(502).send(errorMessage);
+        }
+
+        let authUserIsBlockedByEachAuthor =  true;
+
+        for(let authorId of authors) {
+            if (!(setOfAuthUserBlockings.has(authorId))) {
+                authUserIsBlockedByEachAuthor = false;
+                break;
+            }
+        }
+
+        if (authUserIsBlockedByEachAuthor) {
+            errorMessage += `• Post ${overallPostId} does not exist\n`;
+            res.status(404).send(errorMessage);
         }
     }
-    
-    res.send({
-        errorMessage: errorMessage,
-        overallPostIdsOfUser: overallPostIdsOfUser
-    });
+
+    let previewImageOfPost = null;
+
+    for(let slideNumber=0; slideNumber<allSlidesOfThisPost.length; slideNumber++) {
+        const postSlide = allSlidesOfThisPost[slideNumber];
+
+        if (postSlide.filename === 'vid') {
+            continue;
+        }
+
+        try {
+            const downloadStream = imageAndVideoSlidesOfPostsBucket.openDownloadStream(postSlide._id);
+            let currSlideFileChunks = [];
+            let currSlideFileBuffer = null;
+
+            await new Promise((resolve, reject) => {
+                downloadStream.on('data', (chunk) => currSlideFileChunks.push(chunk));
+                downloadStream.on('end', () => {
+                    currSlideFileBuffer = Buffer.concat(currSlideFileChunks);
+                    resolve();
+                });
+                downloadStream.on('error', reject);
+            });
+
+            if (plaintextDataEncryptionKey !== null) {
+                previewImageOfPost = decryptFileBufferWithAWSDataEncryptionKey(
+                    currSlideFileBuffer,
+                    plaintextDataEncryptionKey,
+                    postSlide.metadata.imageEncryptionInfo.iv,
+                    postSlide.metadata.imageEncryptionInfo.authTag,
+                ); 
+            }
+            else {
+                previewImageOfPost = currSlideFileBuffer;
+            }
+
+            break;
+        }
+        catch {
+            errorMessage += `• There was trouble getting the image-file for slide ${slideNumber} of this post, which could've 
+            been used as the preview-image\n`;
+            continue;
+        }
+    }
+
+    if (previewImageOfPost !== null) {
+        return res.send(previewImageOfPost);
+    }
+
+    errorMessage += `• No image-slide-file-buffers of this post, if they even exist, could be retrieved for usage as the
+    preview-image of this post\n`;
+    return res.status(404).send(errorMessage);
 });
+
+
+async function getSetOfFollowingsOfUser(userId) {
+    try {
+        const response = await fetch('http://34.111.89.101/api/Home-Page/djangoBackend2/graphql', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                query: `query ($userId: Int!) {
+                    getFollowingsOfUser(userId: $userId)
+                }`,
+                variables: {
+                    userId: userId
+                }
+            })
+        });
+
+        if (!response.ok) {
+            return [
+                `The djangoBackend2 server had trouble retrieving the set of followings of user ${userId}`,
+                'BAD_GATEWAY'
+            ];
+        }
+
+        const responseData = await response.json();
+        return new Set(responseData.data.getFollowingsOfUser);
+    }
+    catch {
+        return [
+            `There was trouble connecting to the djangoBackend2 server to retrieve the set of followings of user ${userId}`,
+            'BAD_GATEWAY'
+        ];
+    }
+}
+
+
+async function getSetOfBlockingsOfUser(userId) {
+    try {
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2/getBlockingsOfUser/${userId}`);
+
+        if (!response.ok) {
+            return [
+                `The djangoBackend2 server had trouble retrieving the set of followings of user ${userId}`,
+                'BAD_GATEWAY'
+            ];
+        }
+
+        const blockingsOfUser = await response.json();
+        return new Set(blockingsOfUser);
+    }
+    catch {
+        return [
+            `There was trouble connecting to the djangoBackend2 server to retrieve the set of followings of user ${userId}`,
+            'BAD_GATEWAY'
+        ];
+    }
+}
 
 
 async function validateUserAuthToken(userId, requestCookies) {
@@ -3277,7 +3443,7 @@ async function validateUserAuthToken(userId, requestCookies) {
 
         correctUserToken["authTokenExpiry"] = new Date(correctUserToken["authTokenExpiry"]);
     }
-    catch (error) {
+    catch {
         return 'Forbidden';
     }
 
@@ -3347,7 +3513,7 @@ async function refreshUserAuthToken(userId) {
         }
         return null;
     }
-    catch (error) {
+    catch {
         return null;
     }
 }
@@ -3391,7 +3557,7 @@ async function getIsPrivateStatusesOfListOfUsers(authUserId, userIds) {
             return isPrivateStatusesOfList = isPrivateStatusesOfList.data.getIsPrivateStatusesOfList;
         }
     }
-    catch (error) {
+    catch {
         return `There was trouble connecting to the server to get the isPrivate and existence statuses of
         the users in the list ${JSON.stringify(userIds)}.`
     }
@@ -3460,7 +3626,7 @@ async function getValidatedImageSlideTaggedAccounts(authUserId, taggedAccounts) 
                 }
                 return validatedTaggedAccounts;
             }
-            catch (error) {
+            catch {
                 return `There was trouble connecting to the server to validate the existence
                 of the userIds in this list: ${JSON.stringify(taggedAccounts)}. For context, this list was
                 provided as the taggedAccounts for one of the image-slides.`;
@@ -3508,7 +3674,7 @@ async function getValidatedVideoSlideTaggedAccounts(authUserId, taggedAccounts) 
             validatedTaggedAccounts = validatedTaggedAccounts.data.getTheUserIdsThatExistInList;
             return validatedTaggedAccounts.slice(0,20);
         }
-        catch (error) {
+        catch {
             return `There was trouble connecting to the server to validate the existence
             of the userIds in this list: ${JSON.stringify(taggedAccounts)}. For context, this list was
             provided as the taggedAccounts for one of the video-slides.`;
@@ -3563,7 +3729,7 @@ async function addCaptionToPost(authUserId, captionContent, overallPostId, isEnc
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3587,7 +3753,7 @@ async function editCaptionOfPost(authUserId, newCaptionContent, overallPostId, i
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3605,7 +3771,7 @@ async function toggleEncryptionStatusOfCaptionCommentsAndLikesOfPost(overallPost
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3622,7 +3788,7 @@ async function deleteCaptionOfPost(overallPostId, isEncrypted) {
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3640,7 +3806,7 @@ async function removeCaptionCommentsAndLikesOfPostAfterDeletingPost(overallPostI
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3665,7 +3831,7 @@ async function addBackgroundMusicToPost(backgroundMusicInfo, overallPostId, isEn
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3690,7 +3856,7 @@ async function updateBackgroundMusicOfPost(backgroundMusicInfo, overallPostId, i
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3708,7 +3874,7 @@ async function removeBgMusicAndVidSubtitlesFromPost(overallPostId, isEncrypted) 
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3748,7 +3914,7 @@ async function addVidSubtitleFilesToPost(vidSlideNumbersAndTheirSubtitleFiles, o
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3766,7 +3932,7 @@ async function toggleEncryptionStatusOfBgMusicAndVidSubtitlesOfPost(overallPostI
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3801,7 +3967,7 @@ async function removeSpecifiedVidSubtitleFilesFromPost(overallPostId, subtitleFi
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3819,7 +3985,7 @@ async function addEncryptionInfoForCaptionCommentsAndLikesOfNewlyUploadedEncrypt
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3837,7 +4003,7 @@ async function addEncryptionInfoForBgMusicAndVidSubsOfNewlyUploadedEncryptedPost
         }
         return true;
     }
-    catch (error) {
+    catch {
         return false;
     }
 }
@@ -3861,6 +4027,7 @@ async function createNewAWSCustomerMasterKey(description, keyAlias) {
     await awsKMSClient.send(aliasCommand);
 }
 
+
 async function deleteAWSCustomerMasterKey(awsCustomerMasterKeyAlias) {
     const params = {
         KeyId: `alias/${awsCustomerMasterKeyAlias}`,
@@ -3870,6 +4037,7 @@ async function deleteAWSCustomerMasterKey(awsCustomerMasterKeyAlias) {
     const command = new ScheduleKeyDeletionCommand(params);
     await awsKMSClient.send(command);
 }
+
 
 async function createNewAWSDataEncryptionKey(awsCustomerMasterKeyAlias) {
     const dataKeyParams = {

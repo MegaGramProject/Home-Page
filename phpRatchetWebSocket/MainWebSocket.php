@@ -2,370 +2,297 @@
 
 require 'vendor/autoload.php';
 
-use App\Services\FollowInfoFetchingService;
-use App\Services\UserInfoFetchingService;
-use App\Services\UserTokenAuthService;
+use Services\UserAuthService;
+use Services\UserInfoFetchingService;
+
+use DI\ContainerBuilder;
+
+use function \DI\create;
+use function \DI\get;
+
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Ratchet\Server\IoServer;
 use Ratchet\Http\HttpServer;
 use Ratchet\WebSocket\WsServer;
-use DI\ContainerBuilder;
-use Ramsey\Uuid\Uuid;
-use React\EventLoop\LoopInterface;
-
-use function \DI\create;
-use function \DI\get;
 
 
 class MainWebSocket implements MessageComponentInterface {
-    protected $loop;
-    protected $periodicTimerForPublicUserFollowings;
-    protected $periodicTimerForPrivateUserFollowRequests;
-    protected $datetimeToCheckForUpdatesOfPublicFollowings;
-    protected $datetimeToCheckForUpdatesOfPrivateFollowRequests;
+    protected $usersAndTheirConnections = [];
 
-    protected $pendingConnections = [];
-    protected $confirmedConnections = [];
+    protected $userIdsAndTheirUsernames = [];
 
-    protected $usersAndTheirIsPrivateStatuses = [];
-    protected $usersAndTheConnectionsSubscribedToTheirUpdates = [];
+    protected UserAuthService $userAuthService;
 
-    protected $publicUserIds = [];
-    protected $privateUserIds = [];
-
-    protected $followInfoFetchingService;
-    protected $userInfoFetchingService;
-    protected $userTokenAuthService;
+    protected UserInfoFetchingService $userInfoFetchingService;
 
 
-    public function __construct(
-        FollowInfoFetchingService $followInfoFetchingService,
-        UserInfoFetchingService $userInfoFetchingService,
-        UserTokenAuthService $userTokenAuthService,
-        LoopInterface $loop
-    ) {
-        $this->followInfoFetchingService = $followInfoFetchingService;
+    public function __construct(UserAuthService $userAuthService, UserInfoFetchingService $userInfoFetchingService) {
+       $this->userAuthService = $userAuthService;
         $this->userInfoFetchingService = $userInfoFetchingService;
-        $this->userTokenAuthService = $userTokenAuthService;
-        $this->loop = $loop;
     }
 
 
     public function onOpen(ConnectionInterface $connection) {
         $connectionId = $connection->resourceId;
+        $request = $connection->httpRequest;
 
-        $this->pendingConnections[$connectionId] = $connection;
+        $query = $request->getUri()->getQuery();
+        parse_str($query, $queryParams);
 
-        $this->loop->addTimer(20, function () use ($connectionId, $connection) {
-            if (isset($this->pendingConnections[$connectionId])) {
-                $connection->close();
-            }
-        });
-    }
+        $userId = $queryParams['userId'] ?? null;
+        $backendId = $queryParams['backendId'] ?? null;
 
+        $userIdIsProvided = $userId !== null;
+        $backendIdIsProvided = $backendId !== null;
 
-    public function onMessage(ConnectionInterface $connection, $msg) {
-        $connectionId = $connection->resourceId;
+        if ((!$userIdIsProvided && !$backendIdIsProvided) || ($userIdIsProvided && $backendIdIsProvided)) {
+            $connection->send(json_encode([
+                'event' => 'BadRequestError',
+                'data' => "You must either provide a userId or a backendId in order to proceed with this connection.
+                Furthermore, you cannot provide both a userId and a backendId. Because you didn't follow these rules, you are
+                being disconnected."
+            ]));
+    
+            sleep(2);
 
-        $data = json_decode($msg, true);
-
-        if (!$data || !isset($data['event'])) {
+            $connection->close();
             return;
         }
 
-        switch ($data['event']) {
-            case 'Register':
-                if (!isset($this->pendingConnections[$connectionId])) {
-                    $connection->send(json_encode(
-                        [
-                            'event' => 'BadRequestError',
-                            'message' => 'You\'ve already registered to this web-socket for this connection'
-                        ]
-                    ));
-                    break;
+        if ($userIdIsProvided) {
+            $userIsValid = true;
+
+            try {
+                $userId = (int) $userId;
+
+                if ($userId < 1) {
+                    $userIsValid = false;
                 }
+            }
+            catch (\Exception $e){
+                $userIsValid = false;
+            }
 
-                if (!isset($data['userId']) || !is_int($data['userId']) || $data['userId'] < 1) {
-                    $connection->send(json_encode(
-                        [
-                            'event' => 'BadRequestError',
-                            'message' => 'You didn\'t provide a valid user-id to register to this web-socket with'
-                        ]
-                    ));
-                    break;
-                }
-
-                $userId = $data['userId'];
-                
-                if (!isset($data['token']) || !is_string($data['token']) || !Uuid::isValid($data['token'])) {
-                    $connection->send(json_encode(
-                        [
-                            'event' => 'BadRequestError',
-                            'message' => 'You didn\'t provide a valid token to register to this web-socket with'
-                        ]
-                    ));
-                    break;
-                }
-
-                $token = $data['token'];
-
-                $resultOfAuthenticatingUserToken = $this->userTokenAuthService->authenticateUsersToken(
-                    $userId,
-                    $token
-                );
+            if (!$userIsValid) {
+                $connection->send(json_encode([
+                    'event' => 'BadRequestError',
+                    'data' => 'The provided userId is invalid'
+                ]));
         
-                if (is_bool($resultOfAuthenticatingUserToken)) {
-                    if (!$resultOfAuthenticatingUserToken) {
-                        $connection->send(json_encode(
-                            [
-                                'event' => 'UserAuthenticationError',
-                                'message' =>  "The backend server could not verify you as having the credentials to be logged into this
-                                websocket as user $userId"
-                            ]
-                        ));
-                        break;
-                    }
+                sleep(2);
+    
+                $connection->close();
+                return;
+            }
+
+            $userAuthenticationResult =  $this->userAuthService->authenticateUser(
+                $userId, $request
+            );
+    
+            if (is_bool($userAuthenticationResult)) {
+                if (!$userAuthenticationResult) {
+                    $connection->send(json_encode([
+                        'event' => 'UserAuthenticationError',
+                        'data' => "The expressJSBackend1 server could not verify you as having the proper credentials to be
+                        logged in as $userId"
+                    ]));
+            
+                    sleep(2);
+        
+                    $connection->close();
+                    return;
                 }
-                else {  
-                    $connection->send(json_encode(
-                        [
-                            'event' => 'UserAuthenticationError',
-                            'message' => $resultOfAuthenticatingUserToken[0]
-                        ]
-                    ));
-                    break;
-                }  
+            }
+            else if (is_string($userAuthenticationResult)) {  
+                $connection->send(json_encode([
+                    'event' => 'UserAuthenticationError',
+                    'data' => $userAuthenticationResult
+                ]));
 
-                if (!isset($this->usersAndTheirIsPrivateStatuses[$userId])) {
-                    $resultOfGettingIsPrivateStatusOfUser = $this->userInfoFetchingService->getIsPrivateStatusOfUser(
-                        $userId
-                    );
+                sleep(2);
+        
+                $connection->close();
+                return;
+            }  
 
-                    if (is_int($resultOfGettingIsPrivateStatusOfUser)) {
-                        if ($resultOfGettingIsPrivateStatusOfUser == 1) {
-                            $this->usersAndTheirIsPrivateStatuses[$userId] = true;
-                            $this->privateUserIds[] = $userId;
-                            
-                        }
-                        else {
-                            $this->usersAndTheirIsPrivateStatuses[$userId] = false;
-                            $this->publicUserIds[] = $userId;
-                        }
-                    }
-                    else {
-                        $connection->send(json_encode(
-                            [
-                                'event' => 'UserAuthenticationError',
-                                'message' => $resultOfGettingIsPrivateStatusOfUser[0]
-                            ]
-                        ));
-                        break;
-                    }
-                }
+            if (!array_key_exists($userId, $this->usersAndTheirConnections)) {
+                $this->usersAndTheirConnections[$userId] = [];
+            }
 
-                unset($this->pendingConnections[$connectionId]);
+            $this->usersAndTheirConnections[$userId][$connectionId] = $connection;
 
-                if (!isset($this->usersAndTheConnectionsSubscribedToTheirUpdates[$userId])) {
-                    $this->usersAndTheConnectionsSubscribedToTheirUpdates[$userId] = [];
-                }
+            $connection->userId = $userId;
+        }
 
-                $this->usersAndTheConnectionsSubscribedToTheirUpdates[$userId][$connectionId] = $connection;
+        if ($backendIdIsProvided) {
+            $acceptedBackendIds = ['djangoBackend2'];
 
-                $this->confirmedConnections[$connectionId] = [
-                    'connection' => $connection,
-                    'userId' => $userId
-                ];
+            if (!in_array($backendId, $acceptedBackendIds)) {
+                $connection->send(json_encode([
+                    'event' => 'BadRequestError',
+                    'data' => 'The provided backendId is invalid'
+                ]));
+        
+                sleep(2);
+    
+                $connection->close();
+                return;
+            }
 
-
-                if (is_null($this->datetimeToCheckForUpdatesOfPrivateFollowRequests) && $this->usersAndTheirIsPrivateStatuses[$userId]) {
-                    $this->datetimeToCheckForUpdatesOfPrivateFollowRequests = new DateTime();
-
-                    $this->periodicTimerForPrivateUserFollowRequests = $this->loop->addPeriodicTimer(
-                        5, function() {
-                            $resultOfFetchingUpdatedFollowRequests = $this->followInfoFetchingService->
-                            getUpdatedFollowRequestsOfMultiplePrivateUsers(
-                                $this->datetimeToCheckForUpdatesOfPrivateFollowRequests,
-                                $this->privateUserIds
-                            );
-
-                            $this->datetimeToCheckForUpdatesOfPrivateFollowRequests = new DateTime();
-
-                            if ($resultOfFetchingUpdatedFollowRequests[1] === 'BAD_GATEWAY') {
-                                foreach($this->privateUserIds as $privateUserId) {
-                                    $connectionsSubscribedToThisPrivateUser = $this->usersAndTheConnectionsSubscribedToTheirUpdates[
-                                        $privateUserId
-                                    ];
-
-                                    foreach($connectionsSubscribedToThisPrivateUser as $connectionId => $client) {
-                                        $client->send(json_encode(
-                                            [
-                                                'event' => 'UpdateFetchingError',
-                                                'message' => $resultOfFetchingUpdatedFollowRequests[0] + ' of user-ids whose new
-                                                follow-requests are being tracked by this WebSocket-server'
-                                            ]
-                                        ));
-                                    }
-                                }
-                            }
-                            else {
-                                $privateUsersAndTheirUpdatedFollowRequests = [];
-                                foreach($resultOfFetchingUpdatedFollowRequests as $newFollowRequest) {
-                                    $newFollowRequester = $newFollowRequest['requester'];
-                                    $newFollowRequestee = $newFollowRequest['requested'];
-
-                                    if (!isset($privateUsersAndTheirUpdatedFollowRequests[$newFollowRequestee])) {
-                                        $privateUsersAndTheirUpdatedFollowRequests[$newFollowRequestee] = [];
-                                    }
-
-                                    $privateUsersAndTheirUpdatedFollowRequests[$newFollowRequestee][] = $newFollowRequester;
-                                }
-
-                                foreach(array_keys($privateUsersAndTheirUpdatedFollowRequests) as $privateUserId) {
-                                    $updatedFollowRequestsOfThisPrivateUser = $privateUsersAndTheirUpdatedFollowRequests[
-                                        $privateUserId
-                                    ];
-
-                                    $connectionsSubscribedToThisPrivateUser = $this->usersAndTheConnectionsSubscribedToTheirUpdates[
-                                        $privateUserId
-                                    ];
-
-                                    foreach($connectionsSubscribedToThisPrivateUser as $connectionId => $client) {
-                                        $client->send(json_encode(
-                                            [
-                                                'event' => 'UpdatedFollowRequests',
-                                                'data' => $updatedFollowRequestsOfThisPrivateUser
-                                            ]
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    );
-                }
-                else if (is_null($this->datetimeToCheckForUpdatesOfPublicFollowings) && !$this->usersAndTheirIsPrivateStatuses[$userId]) {
-                    $this->periodicTimerForPublicUserFollowings = $this->loop->addPeriodicTimer(
-                        5, function () {
-                            $resultOfFetchingUpdatedFollowers = $this->followInfoFetchingService->
-                            getUpdatedFollowersOfMultiplePublicUsers(
-                                $this->datetimeToCheckForUpdatesOfPublicFollowings,
-                                $this->publicUserIds
-                            );
-
-                            $this->datetimeToCheckForUpdatesOfPublicFollowings = new DateTime();
-
-                            if ($resultOfFetchingUpdatedFollowers[1] === 'BAD_GATEWAY') {
-                                foreach($this->publicUserIds as $publicUserId) {
-                                    $connectionsSubscribedToThisPublicUser = $this->usersAndTheConnectionsSubscribedToTheirUpdates[
-                                        $publicUserId
-                                    ];
-
-                                    foreach($connectionsSubscribedToThisPublicUser as $connectionId => $client) {
-                                        $client->send(json_encode(
-                                            [
-                                                'event' => 'UpdateFetchingError',
-                                                'message' => $resultOfFetchingUpdatedFollowers[0] + ' of user-ids whose new followers
-                                                are being tracked by this WebSocket-server'
-                                            ]
-                                        ));
-                                    }
-                                }
-                            }
-                            else {
-                                $publicUsersAndTheirUpdatedFollowers = [];
-                                foreach($resultOfFetchingUpdatedFollowers as $newUserFollowing) {
-                                    $newFollower = $newUserFollowing['follower'];
-                                    $newFollowee = $newUserFollowing['followed'];
-
-                                    if (!isset($publicUsersAndTheirUpdatedFollowers[$newFollowee])) {
-                                        $publicUsersAndTheirUpdatedFollowers[$newFollowee] = [];
-                                    }
-
-                                    $publicUsersAndTheirUpdatedFollowers[$newFollowee][] = $newFollower;
-                                }
-
-                                foreach(array_keys($publicUsersAndTheirUpdatedFollowers) as $publicUserId) {
-                                    $updatedFollowersOfThisPublicUser = $publicUsersAndTheirUpdatedFollowers[
-                                        $publicUserId
-                                    ];
-
-                                    $connectionsSubscribedToThisPublicUser = $this->usersAndTheConnectionsSubscribedToTheirUpdates[
-                                        $publicUserId
-                                    ];
-
-                                    foreach($connectionsSubscribedToThisPublicUser as $connectionId => $client) {
-                                        $client->send(json_encode(
-                                            [
-                                                'event' => 'UpdatedFollowers',
-                                                'data' => $updatedFollowersOfThisPublicUser
-                                            ]
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    );
-                }
+            $connection->backendId = $backendId;
         }
     }
 
 
-    public function onClose(ConnectionInterface $connection) {
-        $connectionId = $connection->resourceId;
+    public function onMessage(ConnectionInterface $connection, $data) {
+        if (!isset($connection->backendId)) {
+            return;
+        }
 
-        unset($this->pendingConnections[$connectionId]);
+        $data = json_decode($data, true);
 
-        if (isset($this->confirmedConnections[$connectionId])) {
-            $userId = $this->confirmedConnections[$connectionId]['userId'];
-            
-            unset($this->confirmedConnections[$connectionId]);
-            unset($this->usersAndTheConnectionsSubscribedToTheirUpdates[$userId][$connectionId]);
+        switch ($data['event']) {
+            case 'Following':
+                $followerId = $data['data']['followerId'];
+                $followedId = $data['data']['followedId'];
 
-            if (count($this->usersAndTheConnectionsSubscribedToTheirUpdates[$userId]) == 0) {
-                if ($this->usersAndTheirIsPrivateStatuses[$userId]) {
-                    $this->privateUserIds = array_filter($this->privateUserIds, function($privateUserId) use ($userId) {
-                        return $privateUserId !== $userId;
-                    });
+                $followerName = '';
 
-
-                    if (!is_null($this->datetimeToCheckForUpdatesOfPrivateFollowRequests)) {
-                        $this->periodicTimerForPrivateUserFollowRequests->cancel();
-                        $this->datetimeToCheckForUpdatesOfPrivateFollowRequests = null;
-                    }
+                if (array_key_exists($followerId, $this->userIdsAndTheirUsernames)) {
+                    $followerName = $this->userIdsAndTheirUsernames[$followerId];
                 }
                 else {
-                    $this->publicUserIds = array_filter($this->publicUserIds, function($publicUserId) use ($userId) {
-                        return $publicUserId !== $userId;
-                    });
-
-                    if (!is_null($this->datetimeToCheckForUpdatesOfPublicFollowings)) {
-                        $this->periodicTimerForPublicUserFollowings->cancel();
-                        $this->datetimeToCheckForUpdatesOfPublicFollowings = null;
+                    $followerName = $this->userInfoFetchingService->getUsernameOfUser($followerId);
+                    
+                    if ($followerName !== "user $followerId") {
+                        $this->userIdsAndTheirUsernames[$followerId] = $followerName;
                     }
                 }
-            }
+
+                foreach($this->usersAndTheirConnections[$followedId] as $_ => $client) {
+                    $client->send(json_encode([
+                        'event' => 'Following',
+                        'data' => [
+                            'followerId' => $followerId,
+                            'followerName' => $followerName,
+                        ]
+                    ]));
+                }
+                
+            case 'Unfollowing':
+                $followerId = $data['data']['followerId'];
+                $followedId = $data['data']['followedId'];
+
+                $followerName = '';
+
+                if (array_key_exists($followerId, $this->userIdsAndTheirUsernames)) {
+                    $followerName = $this->userIdsAndTheirUsernames[$followerId];
+                }
+                else {
+                    $followerName = $this->userInfoFetchingService->getUsernameOfUser($followerId);
+                    
+                    if ($followerName !== "user $followerId") {
+                        $this->userIdsAndTheirUsernames[$followerId] = $followerName;
+                    }
+                }
+
+                foreach($this->usersAndTheirConnections[$followedId] as $_ => $client) {
+                    $client->send(json_encode([
+                        'event' => 'Unfollowing',
+                        'data' => [
+                            'followerId' => $followerId,
+                            'followerName' => $followerName,
+                        ]
+                    ]));
+                }
+
+            case 'FollowRequest':
+                $requesterId = $data['data']['requesterId'];
+                $requestedId = $data['data']['requestedId'];
+
+                $requesterName = '';
+
+                if (array_key_exists($requesterId, $this->userIdsAndTheirUsernames)) {
+                    $requesterName = $this->userIdsAndTheirUsernames[$requesterId];
+                }
+                else {
+                    $requesterName = $this->userInfoFetchingService->getUsernameOfUser($requesterId);
+                    
+                    if ($requesterName !== "user $requesterId") {
+                        $this->userIdsAndTheirUsernames[$requesterId] = $requesterName;
+                    }
+                }
+
+                foreach($this->usersAndTheirConnections[$requestedId] as $_ => $client) {
+                    $client->send(json_encode([
+                        'event' => 'FollowRequest',
+                        'data' => [
+                            'requesterId' => $requesterId,
+                            'requesterName' => $requesterName,
+                        ]
+                    ]));
+                }
+
+            case 'FollowRequestCancellation':
+                $requesterId = $data['data']['requesterId'];
+                $requestedId = $data['data']['requestedId'];
+
+                $requesterName = '';
+
+                if (array_key_exists($requesterId, $this->userIdsAndTheirUsernames)) {
+                    $requesterName = $this->userIdsAndTheirUsernames[$requesterId];
+                }
+                else {
+                    $requesterName = $this->userInfoFetchingService->getUsernameOfUser($requesterId);
+                    
+                    if ($requesterName !== "user $requesterId") {
+                        $this->userIdsAndTheirUsernames[$requesterId] = $requesterName;
+                    }
+                }
+
+                foreach($this->usersAndTheirConnections[$requestedId] as $_ => $client) {
+                    $client->send(json_encode([
+                        'event' => 'FollowRequestCancellation',
+                        'data' => [
+                            'requesterId' => $requesterId,
+                            'requesterName' => $requesterName,
+                        ]
+                    ]));
+                }
         }
     }
 
 
     public function onError(ConnectionInterface $connection, \Exception $e) {
-        $connection->close();
+        $connection->send(json_encode([
+            'event' => 'Error',
+            'data' => [
+                'ExceptionMessage' =>  $e->getMessage()
+            ]
+        ]));
+    }
+
+
+    public function onClose(ConnectionInterface $connection) {
+        if (isset($connection->userId)) {
+            unset($this->usersAndTheirConnections[$connection->userId][$connection->resourceId]);
+            if (count($this->usersAndTheirConnections[$connection->userId]) == 0) {
+                unset($this->usersAndTheirConnections[$connection->userId]);
+            }
+        }
     }
 }
 
 
 $dependencyInjectionContainerBuilder = new ContainerBuilder();
 $dependencyInjectionContainerBuilder->addDefinitions([
-    FollowInfoFetchingService::class => create(FollowInfoFetchingService::class),
+    UserAuthService::class => create(UserAuthService::class),
     UserInfoFetchingService::class => create(UserInfoFetchingService::class),
-    UserTokenAuthService::class => create(UserTokenAuthService::class),
-    LoopInterface::class => create(LoopInterface::class),
 
     MainWebSocket::class => create(MainWebSocket::class)->constructor(
-        get(FollowInfoFetchingService::class),
+        get(UserAuthService::class),
         get(UserInfoFetchingService::class),
-        get(UserTokenAuthService::class),
-        get(LoopInterface::class)
     )
 ]);
 $container = $dependencyInjectionContainerBuilder->build();

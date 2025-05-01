@@ -84,7 +84,8 @@ return [
                 'getUsernamesForListOfUserIds' => App\GraphQL\Queries\User\GetUsernamesForListOfUserIds::class,
                 'getUsernamesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetUsernamesForListOfUserIdsAsAuthUser::class,
                 'getFullNamesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetFullNamesForListOfUserIdsAsAuthUser::class,
-                'getVerificationStatusesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetVerificationStatusesForListOfUserIdsAsAuthUser::class
+                'getVerificationStatusesForListOfUserIdsAsAuthUser' => App\GraphQL\Queries\User\GetVerificationStatusesForListOfUserIdsAsAuthUser::class,
+                'getUsernameOfUserIdFromWebSocket' => App\GraphQL\Queries\User\getUsernameOfUserIdFromWebSocket::class
             ],
 
             'mutation' => [

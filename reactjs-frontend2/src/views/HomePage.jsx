@@ -1147,25 +1147,18 @@ function HomePage({urlParams}) {
 
         nodeJSWebSocketDotIO.on('error', (_) => {
             console.error(`There was trouble with the nodeJSWebSocketDotIO connection, which is responsible
-            for providing info for notifications of new post-likes and post-comments.`);
+            for providing info for notifications of updates to post-likes and post-comments.`);
         });
 
 
-        nodeJSWebSocketDotIO.on('NewLikeOfPost', async (data) => {
-            const { likerId } = data;
-
-            if (likerId == authUserId) {
-                return;
-            }
+        nodeJSWebSocketDotIO.on('PostLike', async (data) => {
+            const { likeId, overallPostId, likerId, likerName } = data;
 
             let likerProfilePhoto = null;
 
-            if (!(likerId in usersAndTheirRelevantInfo) ||
-            !('profilePhoto' in usersAndTheirRelevantInfo[likerId])) {
-                likerProfilePhoto = await getProfilePhotoOfUser(likerId);
+            if (!(likerId in usersAndTheirRelevantInfo) || !('profilePhoto' in usersAndTheirRelevantInfo[likerId])) {
+                likerProfilePhoto =  await getProfilePhotoOfUser(likerId);
             }
-
-            const { overallPostId, likerName } = data;
 
             let postPreviewImage = null;
 
@@ -1176,6 +1169,7 @@ function HomePage({urlParams}) {
             setOrderedListOfNotifications([
                 ...orderedListOfNotifications,
                 {
+                    postLikeId: likeId,
                     leftImage: likerProfilePhoto !== null ? likerProfilePhoto :
                     usersAndTheirRelevantInfo[likerId]?.profilePhoto ?? defaultPfp,
                     rightImage: postPreviewImage !== null ? postPreviewImage :
@@ -1188,20 +1182,28 @@ function HomePage({urlParams}) {
         });
 
 
-        nodeJSWebSocketDotIO.on('NewCommentOfPost', async (data) => {
-            const { commenterId } = data;
-            if (authUserId == commenterId) {
-                return;
-            }
+        nodeJSWebSocketDotIO.on('PostUnlike', (data) => {
+            const { likeId } = data;
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications.filter(notification => {
+                    if ('postLikeId' in notification && notification.postLikeId == likeId) {
+                        return false;
+                    }
+                    return true;
+                })
+            ]);
+        });
+
+
+        nodeJSWebSocketDotIO.on('PostComment', async (data) => {
+            const { commentId, overallPostId, commenterId, commenterName, comment } = data;
 
             let commenterProfilePhoto = null;
 
-            if (!(commenterId in usersAndTheirRelevantInfo) ||
-            !('profilePhoto' in usersAndTheirRelevantInfo[commenterId])) {
+            if (!(commenterId in usersAndTheirRelevantInfo) || !('profilePhoto' in usersAndTheirRelevantInfo[commenterId])) {
                 commenterProfilePhoto = await getProfilePhotoOfUser(commenterId);
             }
-
-            const { overallPostId, id, commenterName, comment } = data;
 
             let postPreviewImage = null;
 
@@ -1212,55 +1214,107 @@ function HomePage({urlParams}) {
             setOrderedListOfNotifications([
                 ...orderedListOfNotifications,
                 {
+                    postCommentId: commentId,
                     leftImage: commenterProfilePhoto !== null ? commenterProfilePhoto :
                     usersAndTheirRelevantInfo[commenterId]?.profilePhoto ?? defaultPfp,
                     rightImage: postPreviewImage !== null ? postPreviewImage :
                     postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
                     description: `@${commenterName} commented on your post: '${comment}'`,
                     leftImageLink: `http://34.111.89.101/profile/${commenterName}`,
-                    entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${id}`
+                    entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${commentId}`
                 }
+            ]);
+        });
+
+
+        nodeJSWebSocketDotIO.on('EditedPostComment', async (data) => {
+            const { commentId, commenterId, commenterName, comment } = data;
+
+            let commentIdWasFoundInNotifications = false;
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications.map(notification => {
+                    if ('postCommentId' in notification && notification.postCommentId == commentId) {
+                        commentIdWasFoundInNotifications = true;
+                        notification.description = `@${commenterName} edited their comment on your post to this: '${comment}'`;
+                    }
+                    return notification;
+                }),
+            ]);
+
+            if (!commentIdWasFoundInNotifications) {
+                let commenterProfilePhoto = null;
+
+                if (!(commenterId in usersAndTheirRelevantInfo) ||
+                !('profilePhoto' in usersAndTheirRelevantInfo[commenterId])) {
+                    commenterProfilePhoto = await getProfilePhotoOfUser(commenterId);
+                }
+
+                const { overallPostId } = data;
+
+                let postPreviewImage = null;
+
+                if (!(overallPostId in postsAndTheirPreviewImgs)) {
+                    postPreviewImage = await getPreviewImageOfPost(overallPostId);
+                }
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications,
+                    {
+                        postCommentId: commentId,
+                        leftImage: commenterProfilePhoto !== null ? commenterProfilePhoto :
+                        usersAndTheirRelevantInfo[commenterId]?.profilePhoto ?? defaultPfp,
+                        rightImage: postPreviewImage !== null ? postPreviewImage :
+                        postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
+                        description: `@${commenterName} edited their comment on your post to this: '${comment}'`,
+                        leftImageLink: `http://34.111.89.101/profile/${commenterName}`,
+                        entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${commentId}`
+                    }
+                ]);
+            }
+        });
+
+
+        nodeJSWebSocketDotIO.on('DeletedPostComment', (data) => {
+            const { commentId } = data;
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications.filter(notification => {
+                    if ('postCommentId' in notification && notification.postCommentId == commentId) {
+                        return false;
+                    }
+                    return true;
+                })
             ]);
         });
     }
 
 
     function establishCollaborationWithCSharpSignalRWebSocket() {
-        const cSharpSignalRWebSocket = new signalR.HubConnectionBuilder()
-        .withUrl('http://34.111.89.101/socket/Home-Page/cSharpSignalRWebSocket', {
+        const webSocketForCommentLikes = new signalR.HubConnectionBuilder()
+        .withUrl(`http://34.111.89.101/socket/Home-Page/cSharpSignalRWebSocket/websocketForCommentLikes?userId=${authUserId}`, {
             withCredentials: true,
-            accessTokenFactory: () => "",
-            transport: signalR.HttpTransportType.WebSockets,
-            headers: {
-                "userId": authUserId.toString(),
-                "updatesToSubscribeTo": JSON.stringify(['comment-likes', 'comment-replies'])
-            }
+            accessTokenFactory: () => '',
+            transport: signalR.HttpTransportType.WebSockets
         })
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
 
-        cSharpSignalRWebSocket.onclose((_) => {
-            console.error(`There was trouble with the cSharpSignalRWebSocket connection, which is responsible
-            for providing info for notifications of new comment-likes and comment-replies.`);
+        webSocketForCommentLikes.onclose((_) => {
+            console.error(`There was trouble with the C#-SignalR webSocketForCommentLikes connection.`);
         });
 
 
-        cSharpSignalRWebSocket.on('NewLikeOfComment', async (data) => {
-            const { likerId } = data;
-
-            if (likerId == authUserId) {
-                return;
-            }
+        webSocketForCommentLikes.on('CommentLike', async (data) => {
+            const { likeId, overallPostId, commentId, comment, likerId, likerName } = data;
 
             let likerProfilePhoto = null;
 
             if (!(likerId in usersAndTheirRelevantInfo) ||
             !('profilePhoto' in usersAndTheirRelevantInfo[likerId])) {
-                likerProfilePhoto = await getProfilePhotoOfUser(likerId);
+                likerProfilePhoto =  await getProfilePhotoOfUser(likerId);
             }
-
-            const { overallPostId, commentId, comment, likerName } = data;
 
             let postPreviewImage = null;
 
@@ -1271,6 +1325,7 @@ function HomePage({urlParams}) {
             setOrderedListOfNotifications([
                 ...orderedListOfNotifications,
                 {
+                    commentLikeId: likeId,
                     leftImage: likerProfilePhoto !== null ? likerProfilePhoto :
                     usersAndTheirRelevantInfo[likerId]?.profilePhoto ?? defaultPfp,
                     rightImage: postPreviewImage !== null ? postPreviewImage :
@@ -1283,12 +1338,42 @@ function HomePage({urlParams}) {
         });
 
 
-        cSharpSignalRWebSocket.on('NewReplyOfComment', async (data) => {
-            const { replierId } = data;
+        webSocketForCommentLikes.on('CommentUnlike', (data) => {
+            const { likeId } = data;
 
-            if (replierId == authUserId) {
-                return;
-            }
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications.filter(notification => {
+                    if ('commentLikeId' in notification && notification.commentLikeId == likeId) {
+                        return false;
+                    }
+                    return true;
+                })
+            ]);
+        });
+
+
+        webSocketForCommentLikes.start().catch(_ => {
+            console.error(`There was trouble with the C#-SignalR webSocketForCommentLikes connection.`);
+        });
+
+
+        const webSocketForCommentReplies = new signalR.HubConnectionBuilder()
+        .withUrl(`http://34.111.89.101/socket/Home-Page/cSharpSignalRWebSocket/websocketForCommentReplies?userId=${authUserId}`, {
+            withCredentials: true,
+            accessTokenFactory: () => '',
+            transport: signalR.HttpTransportType.WebSockets
+        })
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+
+        webSocketForCommentReplies.onclose((_) => {
+            console.error(`There was trouble with the C#-SignalR webSocketForCommentReplies connection.`);
+        });
+
+
+        webSocketForCommentReplies.on('CommentReply', async (data) => {
+            const { replyId, overallPostId, replierId, replierName, reply } = data;
 
             let replierProfilePhoto = null;
 
@@ -1296,8 +1381,6 @@ function HomePage({urlParams}) {
             !('profilePhoto' in usersAndTheirRelevantInfo[replierId])) {
                 replierProfilePhoto = await getProfilePhotoOfUser(replierId);
             }
-
-            const { overallPostId, replyId, replierName, reply } = data;
 
             let postPreviewImage = null;
 
@@ -1308,6 +1391,7 @@ function HomePage({urlParams}) {
             setOrderedListOfNotifications([
                 ...orderedListOfNotifications,
                 {
+                    commentReplyId: replyId,
                     leftImage: replierProfilePhoto !== null ? replierProfilePhoto :
                     usersAndTheirRelevantInfo[replierId]?.profilePhoto ?? defaultPfp,
                     rightImage: postPreviewImage !== null ? postPreviewImage :
@@ -1320,9 +1404,71 @@ function HomePage({urlParams}) {
         });
 
 
-        cSharpSignalRWebSocket.start().catch(_ => {
-            console.error(`There was trouble with the cSharpSignalRWebSocket connection, which is responsible
-            for providing info for notifications of new comment-likes and comment-replies.`);
+        webSocketForCommentReplies.on('EditedCommentReply', async (data) => {
+            const { replyId, replierId, replierName, reply } = data;
+
+            let replyIdWasFoundInNotifications = false;
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications.map(notification => {
+                    if ('commentReplyId' in notification && notification.commentReplyId == replyId) {
+                        replyIdWasFoundInNotifications = true;
+                        notification.description =
+                        `@${replierName} edited their reply to your comment with this: '${reply}'`;
+                    }
+                    return notification;
+                }),
+            ]);
+
+            let replierProfilePhoto = null;
+
+            if (!replyIdWasFoundInNotifications) {
+                if (!(replierId in usersAndTheirRelevantInfo) ||
+                !('profilePhoto' in usersAndTheirRelevantInfo[replierId])) {
+                    replierProfilePhoto = await getProfilePhotoOfUser(replierId);
+                }
+
+                const { overallPostId } = data;
+
+                let postPreviewImage = null;
+
+                if (!(overallPostId in postsAndTheirPreviewImgs)) {
+                    postPreviewImage = await getPreviewImageOfPost(overallPostId);
+                }
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications,
+                    {
+                        commentReplyId: replyId,
+                        leftImage: replierProfilePhoto !== null ? replierProfilePhoto :
+                        usersAndTheirRelevantInfo[replierId]?.profilePhoto ?? defaultPfp,
+                        rightImage: postPreviewImage !== null ? postPreviewImage :
+                        postsAndTheirPreviewImgs[overallPostId] ?? defaultVideoFrame,
+                        description: `@${replierName} edited their reply to your comment with this: '${reply}'`,
+                        leftImageLink: `http://34.111.89.101/profile/${replierName}`,
+                        entireNotificationLink: `http://34.111.89.101/posts/${overallPostId}?commentId=${replyId}`
+                    }
+                ]);
+            }
+        });
+
+
+        webSocketForCommentReplies.on('DeletedCommentReply', (data) => {
+            const { replyId } = data;
+
+            setOrderedListOfNotifications([
+                ...orderedListOfNotifications.filter(notification => {
+                    if ('commentReplyId' in notification && notification.commentReplyId == replyId) {
+                        return false;
+                    }
+                    return true;
+                })
+            ]);
+        });
+
+
+        webSocketForCommentReplies.start().catch(_ => {
+            console.error(`There was trouble with the C#-SignalR webSocketForCommentReplies connection.`);
         });
     }
 
@@ -1340,14 +1486,14 @@ function HomePage({urlParams}) {
 
         phpRatchetWebSocket.onerror = (_) => {
             console.error(`There was trouble with the phpRatchetWebSocket connection, which is responsible
-            for providing info for notifications of new followings/follow-requests.`);
+            for providing info for notifications of updates to followings/follow-requests.`);
         };
 
 
         phpRatchetWebSocket.onmessage = async (messageEvent) => {
             const parsedMessageData = JSON.parse(messageEvent.data);
 
-            if (parsedMessageData.event === 'NewFollowRequest') {
+            if (parsedMessageData.event === 'FollowRequest') {
                 const { requesterId } = parsedMessageData.data;
 
                 let requesterProfilePhoto = null;
@@ -1362,6 +1508,7 @@ function HomePage({urlParams}) {
                 setOrderedListOfNotifications([
                     ...orderedListOfNotifications,
                     {
+                        requesterId: requesterId,
                         leftImage: requesterProfilePhoto !== null ? requesterProfilePhoto :
                         usersAndTheirRelevantInfo[requesterId]?.profilePhoto ?? defaultPfp,
                         rightImage: null, 
@@ -1370,8 +1517,20 @@ function HomePage({urlParams}) {
                         entireNotificationLink: `http://34.111.89.101/profile/${requesterName}`
                     }
                 ]);
-            } 
-            else if (parsedMessageData.event === 'NewFollowing') {
+            }
+            else if (parsedMessageData.event === 'FollowRequestCancellation') {
+                const { requesterId } = parsedMessageData.data;
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications.filter(notification => {
+                        if ('requesterId' in notification && notification.requesterId == requesterId) {
+                            return false;
+                        }
+                        return true;
+                    })
+                ]);
+            }
+            else if (parsedMessageData.event === 'Following') {
                 const { followerId } = parsedMessageData.data;
 
                 let followerProfilePhoto = null;
@@ -1386,6 +1545,7 @@ function HomePage({urlParams}) {
                 setOrderedListOfNotifications([
                     ...orderedListOfNotifications,
                     {
+                        followerId: followerId,
                         leftImage: followerProfilePhoto !== null ? followerProfilePhoto :
                         usersAndTheirRelevantInfo[followerId]?.profilePhoto ?? defaultPfp,
                         rightImage: null, 
@@ -1393,6 +1553,17 @@ function HomePage({urlParams}) {
                         leftImageLink: `http://34.111.89.101/profile/${followerName}`,
                         entireNotificationLink: `http://34.111.89.101/profile/${followerName}`
                     }
+                ]);
+            }
+            else if (parsedMessageData.event === 'Unfollowing') {
+                const { followerId } = parsedMessageData.data;
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications.filter(notification => {
+                        if ('followerId' in notification && notification.requesterId == followerId) {
+                            return false;
+                        }
+                        return true;
+                    })
                 ]);
             }
         }
@@ -1407,19 +1578,15 @@ function HomePage({urlParams}) {
         
         pythonWebSocket.onerror = (_) => {
             console.error(`There was trouble with the pythonWebSocket connection, which is responsible for providing info for
-            new messages.`);
+            notifications of updates to messages.`);
         };
 
 
         pythonWebSocket.onmessage = async (messageEvent) => {
             const parsedMessageData = JSON.parse(messageEvent.data);
 
-            if (parsedMessageData.event === 'NewMessageOfConvo') {
-                const { senderId } = parsedMessageData.data;
-
-                if (senderId == authUserId) {
-                    return;
-                }
+            if (parsedMessageData.event === 'Message') {
+                const { messageId, convoId, convoTitle, isGroupChat, senderId, senderName, message } = parsedMessageData.data;
 
                 let senderProfilePhoto = null;
 
@@ -1427,8 +1594,6 @@ function HomePage({urlParams}) {
                 !('profilePhoto' in usersAndTheirRelevantInfo[senderId])) {
                     senderProfilePhoto = await getProfilePhotoOfUser(senderId);
                 }
-
-                const { convoId, convoTitle, isGroupChat, senderName, message } = parsedMessageData.data;
 
                 let description = '';
 
@@ -1452,6 +1617,7 @@ function HomePage({urlParams}) {
                 setOrderedListOfNotifications([
                     ...orderedListOfNotifications,
                     {
+                        messageId: messageId,
                         leftImage: senderProfilePhoto !== null ? senderProfilePhoto : 
                         usersAndTheirRelevantInfo[senderId]?.profilePhoto ?? defaultPfp,
                         rightImage: isGroupChat ? defaultGroupChatPfp : null, 
@@ -1460,7 +1626,19 @@ function HomePage({urlParams}) {
                         entireNotificationLink: `http://34.111.89.101/messages/${convoId}`
                     }
                 ]);
-            } 
+            }
+            else if (parsedMessageData.event === 'MessageDelete') {
+                const { messageId } = parsedMessageData.data;
+
+                setOrderedListOfNotifications([
+                    ...orderedListOfNotifications.filter(notification => {
+                        if ('messageId' in notification && notification.messageId == messageId) {
+                            return false;
+                        }
+                        return true;
+                    })
+                ]);
+            }
         }
     }
 

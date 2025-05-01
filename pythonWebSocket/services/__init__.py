@@ -1,2 +1,2 @@
-from .UserAuthService import UserAuthService
-from .UserConvoAndMessageInfoFetchingService import UserConvoAndMessageInfoFetchingService
+from .UserAuthService import authenticate_user
+from .UserInfoFetchingService import get_username_of_user

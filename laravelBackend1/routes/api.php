@@ -64,8 +64,8 @@ Route::middleware('throttle:8,1')->get(
     [BackendController::class, 'getProfilePhotoOfUser']
 );
 Route::middleware('throttle:4,1')->post(
-    '/getProfilePhotosOfMultipleUsersAsAuthUser/{authUserId}',
-    [BackendController::class, 'getProfilePhotosOfMultipleUsersAsAuthUser']
+    '/getProfilePhotosOfMultipleUsers/{authUserId}',
+    [BackendController::class, 'getProfilePhotosOfMultipleUsers']
 );
 Route::middleware('throttle:3,1')->post(
     '/addOwnProfilePhoto/{authUserId}',

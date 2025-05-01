@@ -593,14 +593,14 @@ def unblock_user(request, auth_user_id, id_of_user_to_unblock):
 
 
 @api_view('GET')
-def get_blockings_of_user(request, auth_user_id):
+def get_blockings_of_user(request, user_id):
     try:
         all_blockings_of_user = (UserBlocking.objects
-            .filter(Q(blocker=auth_user_id) | Q(blocked=auth_user_id))
+            .filter(Q(blocker=user_id) | Q(blocked=user_id))
             .annotate(
                 other_user=Case(
-                    When(blocker=auth_user_id, then=F('blocked')),
-                    When(blocked=auth_user_id, then=F('blocker'))
+                    When(blocker=user_id, then=F('blocked')),
+                    When(blocked=user_id, then=F('blocker'))
                 )
             )
             .values_list('other_user', flat=True)
@@ -608,7 +608,7 @@ def get_blockings_of_user(request, auth_user_id):
 
         return Response(all_blockings_of_user, status=200)
     except:
-        return Response(f'There was trouble getting all the blockings of user {auth_user_id}', status=502)
+        return Response(f'There was trouble getting all the blockings of user {user_id}', status=502)
 
 
 @api_view('POST')

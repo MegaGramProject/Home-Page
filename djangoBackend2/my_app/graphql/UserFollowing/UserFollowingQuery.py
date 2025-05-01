@@ -38,7 +38,7 @@ class Query(graphene.ObjectType):
 
     get_followings_of_user = graphene.List(
         graphene.Int,
-        auth_user_id=graphene.Int(required=True)
+        user_id=graphene.Int(required=True)
     )
 
     check_if_user_follows_at_least_one_in_list = graphene.Boolean(
@@ -304,15 +304,15 @@ class Query(graphene.ObjectType):
         return num_followers_and_followings_of_each_user_in_order
     
 
-    def resolve_get_followings_of_user(root, auth_user_id):
+    def resolve_get_followings_of_user(root, user_id):
         try:
             all_followings_of_user = (UserFollowing.objects
-                .filter(follower=auth_user_id)
+                .filter(follower=user_id)
                 .values_list('followed', flat=True)
             )
             return all_followings_of_user
         except:
-            raise GraphQLError(f'There was trouble getting all the followings of user {auth_user_id}')
+            raise GraphQLError(f'There was trouble getting all the followings of user {user_id}')
     
 
     def resolve_check_if_user_follows_at_least_one_in_list(root, auth_user_id, user_ids):

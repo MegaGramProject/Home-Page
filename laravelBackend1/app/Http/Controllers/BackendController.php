@@ -2502,7 +2502,7 @@ class BackendController extends Controller {
     }
 
 
-    public function getProfilePhotosOfMultipleUsersAsAuthUser(int $authUserId, Request $request) {
+    public function getProfilePhotosOfMultipleUsers(int $authUserId, Request $request) {
         if ($authUserId < 1 && $authUserId !== -1) {
             return response('There does not exist a user with the provided authUserId. If you are just an anonymous guest,
             you must set the authUserId to -1.', 400);

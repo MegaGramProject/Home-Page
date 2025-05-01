@@ -794,12 +794,13 @@ showStoryViewer, updatePostDetails}) {
         if (newCommenterIdsNeededForPfps.length>0) {
             try {
                 const response2 = await fetch(
-                'http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers', {
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${authUserId}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         userIds: newCommenterIdsNeededForPfps
-                    })
+                    }),
+                    credentials: 'include'
                 });
 
                 if(!response2.ok) {
