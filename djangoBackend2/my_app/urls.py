@@ -35,5 +35,11 @@ urlpatterns = [
         'getOrderedListOfUserSuggestionsBasedOnNumFollowersAndOtherMetrics/<int:auth_user_id>/<str:username_starts_with_this>/<int:limit>',
         views.get_ordered_list_of_user_suggestions_based_on_num_followers_and_other_metrics,
         name='Get Ordered List of User-Suggestions Based on Num-Followers and Other Metrics'
+    ),
+
+    path(
+        'getNumFollowersFollowingsAndPostsOfMyTop5UserSuggestions/<int:auth_user_id>',
+        views.get_num_followers_followings_and_posts_of_my_top_5_user_suggestions,
+        name='Get Number of Followers, Followings, & Posts Of My Top 5 User-Suggestions'
     )
 ]

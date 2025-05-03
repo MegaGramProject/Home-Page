@@ -52,11 +52,11 @@ public class Queries {
     public Queries() {}
 
 
-    @GetMapping("/getOrderedListOfUsernamesForStoriesSection/{authUserId}")
+    @GetMapping("/getOrderedListOfUsersForStoriesSection/{authUserId}")
     @CrossOrigin({"http://34.111.89.101", "http://localhost:8004"})
-    public HashMap<String, Object> getOrderedListOfUsernamesForStoriesSection(HttpServletRequest request, HttpServletResponse
+    public HashMap<String, Object> getOrderedListOfUsersForStoriesSection(HttpServletRequest request, HttpServletResponse
     response, @RequestParam int authUserId) throws Exception {
-        this.processRequest(this.getClientIpAddress(request), "/getOrderedListOfUsernamesForStoriesSection");
+        this.processRequest(this.getClientIpAddress(request), "/getOrderedListOfUsersForStoriesSection");
 
         if (authUserId < 1) {
             throw new BadRequestException(
@@ -142,20 +142,14 @@ public class Queries {
             throw new BadGatewayException(errorMessage);
         }
 
-
-        ArrayList<Integer> idsOfMostViewedStoryAuthorsForAuthUser = new ArrayList<Integer>();
-        HashSet<Integer> setOfIdsOfMostViewedStoryAuthorsForAuthUser = new HashSet<Integer>();
-        
+        ArrayList<Integer> orderedListOfUsersForStoriesSection = new ArrayList<Integer>();
+    
         try {
-            idsOfMostViewedStoryAuthorsForAuthUser = this.storyViewRepository
+            orderedListOfUsersForStoriesSection = this.storyViewRepository
             .getAuthorIdsOfThoseInSetThatUserGivesMostStoryViewsTo(
                 authUserId,
                 setOfAuthorIdsOfStoriesAvailableToAuthUser,
                 22
-            );
-
-            setOfIdsOfMostViewedStoryAuthorsForAuthUser = new HashSet<Integer>(
-                idsOfMostViewedStoryAuthorsForAuthUser
             );
         }
         catch (Exception e) {
@@ -163,25 +157,15 @@ public class Queries {
             "most story-views to\n";
         }
 
-        ArrayList<Integer> orderedListOfUsernamesForStoriesSection = new ArrayList<Integer>();
-        for (int authorId : idsOfMostViewedStoryAuthorsForAuthUser) {
-            orderedListOfUsernamesForStoriesSection.add(authorId);
-        }
+        ArrayList<Boolean> orderedListOfSponsorshipStatuses = new ArrayList<Boolean>();
 
-        if (orderedListOfUsernamesForStoriesSection.size() < 22) {
-            for(int authorId: setOfAuthorIdsOfStoriesAvailableToAuthUser) {
-                if (!setOfIdsOfMostViewedStoryAuthorsForAuthUser.contains(authorId)) {
-                    orderedListOfUsernamesForStoriesSection.add(authorId);
-
-                    if (orderedListOfUsernamesForStoriesSection.size() == 22) {
-                        break;
-                    }
-                }
-            }
+        for (int authorId : orderedListOfUsersForStoriesSection) {
+            orderedListOfSponsorshipStatuses.add(false);
         }
 
         HashMap<String, Object> output = new HashMap<String, Object>();
-        output.put("orderedListOfUsernamesForStoriesSection", orderedListOfUsernamesForStoriesSection);
+        output.put("orderedListOfUsersForStoriesSection", orderedListOfUsersForStoriesSection);
+        output.put("orderedListOfSponsorshipStatuses", orderedListOfSponsorshipStatuses);
         output.put("ErrorMessage", errorMessage);
         
         return output;
@@ -696,7 +680,7 @@ public class Queries {
         Bandwidth limit = null;
 
         switch (endpoint) {
-            case "/getOrderedListOfUsernamesForStoriesSection":
+            case "/getOrderedListOfUsersForStoriesSection":
                 limit = Bandwidth.classic(3, Refill.greedy(3, Duration.ofMinutes(1)));
                 break;
             case "/getStoriesOfUser":

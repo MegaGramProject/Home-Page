@@ -2,6 +2,8 @@ from .models import PostSave, UserBlocking, UserFollowing
 from .serializers import PostSaveSerializer, UserBlockingSerializer
 from .services import authenticate_user, check_if_auth_user_has_access_to_post, check_if_user_exists, check_if_auth_user_is_an_author_of_post, get_usernames_of_multiple_user_ids
 
+from random import randrange
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -778,6 +780,7 @@ username_starts_with_this, limit):
         except:
             error_message += '• There was trouble getting the blockings of user ' + auth_user_id + '\n'
             response = Response(error_message, status=502)
+
             if refreshed_auth_token is not None:
                 response.set_cookie(
                     f'authToken{auth_user_id}',
@@ -791,7 +794,7 @@ username_starts_with_this, limit):
             return response
 
     users_and_their_num_followers = {}
-    
+
     try:
         users_and_their_num_followers = {
             entry['followed']: entry['num_followers']
@@ -822,9 +825,7 @@ username_starts_with_this, limit):
         error_message += f'• There was trouble fetching from the database the dict for
         users_and_their_num_followers_who_are_followed_by_auth_user\n'
 
-    all_users_found = set(
-        users_and_their_num_followers_who_are_followed_by_auth_user.keys()) | set(users_and_their_num_followers.keys()
-    )
+    all_users_found = set(users_and_their_num_followers.keys())
 
     users_found_and_their_usernames = None
     if len(all_users_found) > 0:
@@ -881,9 +882,9 @@ username_starts_with_this, limit):
         ordered_list_of_usernames.append(info_of_each_user_found_of_interest[i]['username'])
 
     response = Response({
-        'error_message': error_message,
-        'ordered_list_of_user_ids': ordered_list_of_user_ids,
-        'ordered_list_of_usernames': ordered_list_of_usernames
+        'ErrorMessage': error_message,
+        'OrderedListOfUserIds': ordered_list_of_user_ids,
+        'OrderedListOfUsernames': ordered_list_of_usernames
     }, status=200)
 
     if refreshed_auth_token is not None:
@@ -897,3 +898,177 @@ username_starts_with_this, limit):
         )
         
     return response
+
+@api_view(['GET'])
+def get_num_followers_followings_and_posts_of_my_top_5_user_suggestions(request, auth_user_id):
+    if auth_user_id < 1 and auth_user_id != -1:
+        return Response(f'There does not exist a user with the provided auth_user_id. If you are an anonymous-guest, you
+        must set the auth_user_id to -1', status=400)
+    
+    auth_user_is_anonymous_guest = auth_user_id == -1
+
+    set_of_auth_user_followings = set()
+    set_of_auth_user_blockings = set()
+    error_message = ''
+
+    if not auth_user_is_anonymous_guest:
+        user_authentication_result = authenticate_user(request, auth_user_id)
+        refreshed_auth_token = None
+        expires_timestamp = None
+
+        if isinstance(user_authentication_result, bool):
+            if not user_authentication_result:
+                return Response(
+                    f'The expressJSBackend1 server could not verify you as having the proper credentials to be logged in as
+                    {auth_user_id}', 
+                    status=403
+                )
+        elif isinstance(user_authentication_result, str):
+            if user_authentication_result == 'The provided authUser token, if any, in your cookies has an invalid structure.':
+                return Response(user_authentication_result, status=403)
+            return Response(user_authentication_result, status=502)
+        else:
+            refreshed_auth_token, expiration_date = user_authentication_result
+            expires_timestamp = datetime.datetime.fromtimestamp(expiration_date).strftime('%a, %d-%b-%Y %H:%M:%S GMT')
+
+        try:
+            set_of_auth_user_followings = set(UserFollowing.objects
+                .filter(follower=auth_user_id)
+                .values_list('followed', flat=True)
+            )
+        except:
+            error_message += '• There was trouble getting all the followings of user {auth_user_id}\n'
+
+        try:
+            set_of_auth_user_blockings = set(UserBlocking.objects
+                .filter(Q(blocker=auth_user_id) | Q(blocked=auth_user_id))
+                .annotate(
+                    other_user=Case(
+                        When(blocker=auth_user_id, then=F('blocked')),
+                        When(blocked=auth_user_id, then=F('blocker'))
+                    )
+                )
+                .values_list('other_user', flat=True)
+            )
+        except:
+            error_message += '• There was trouble getting all the blockings of user {auth_user_id}\n'
+            response = Response(error_message, status=502)
+
+            if refreshed_auth_token is not None:
+                response.set_cookie(
+                    f'authToken{auth_user_id}',
+                    refreshed_auth_token,
+                    expires=expires_timestamp,
+                    path='/',
+                    secure=True,
+                    httponly=True
+                )
+                
+            return response
+        
+    users_and_their_num_followers = {}
+
+    try:
+        users_and_their_num_followers = {
+            entry['followed']: entry['num_followers']
+            for entry in (
+                UserFollowing.objects
+                .exclude(followed__in=set_of_auth_user_blockings)
+                .values('followed')
+                .annotate(num_followers=Count('followed'))
+            )
+        }
+    except:
+        error_message += '• There was trouble fetching from the database the dict for users_and_their_num_followers\n'
+
+    users_and_their_num_followers_who_are_followed_by_auth_user = {}
+    
+    if not auth_user_is_anonymous_guest:
+        try:
+            users_and_their_num_followers_who_are_followed_by_auth_user = {
+                entry['followed']: entry['num_followers_who_are_followed_by_auth_user']
+                for entry in (
+                    UserFollowing.objects
+                    .filter(follower__in=set_of_auth_user_followings) 
+                    .exclude(followed__in=set_of_auth_user_blockings)
+                    .values('followed')
+                    .annotate(num_followers_who_are_followed_by_auth_user=Count('followed'))
+                )
+            }
+        except:
+            error_message += f'• There was trouble fetching from the database the dict for
+            users_and_their_num_followers_who_are_followed_by_auth_user\n'
+    
+    info_of_each_user_found_of_interest = []
+
+    for user_id in users_and_their_num_followers:
+        info_of_each_user_found_of_interest.append({
+            'user_id': user_id,
+            'num_followers': users_and_their_num_followers[user_id],
+            'num_followers_who_are_followed_by_auth_user': users_and_their_num_followers_who_are_followed_by_auth_user.get(
+                user_id, 0
+            ),
+        })
+
+    user_ids_of_the_top_5 = []
+
+    info_of_each_user_found_of_interest = sorted(
+        info_of_each_user_found_of_interest,
+        key=lambda x: (
+            x['num_followers_who_are_followed_by_auth_user'],
+            x['num_followers'],
+        ),
+        reverse=True
+    )[:5]
+
+    user_ids_of_the_top_5 = [user_info['user_id'] for user_info in info_of_each_user_found_of_interest]
+    
+    num_followers_followings_and_posts_of_the_top_5 = {}
+
+    for user_id in user_ids_of_the_top_5:
+        num_followers_followings_and_posts_of_the_top_5[user_id] = {
+            'num_followers': users_and_their_num_followers[user_id],
+            'num_followings': -1,
+            'num_posts': randrange(200)
+        }
+
+    set_of_user_ids_of_the_top_5 = set(user_ids_of_the_top_5)
+
+    try:
+        users_in_the_top_5_and_their_num_followings = {
+            entry['follower']: entry['num_followings']
+            for entry in (
+                UserFollowing.objects
+                .filter(follower__in=set_of_user_ids_of_the_top_5)
+                .values('follower')
+                .annotate(num_followings=Count('follower'))
+            )
+        }
+
+        for user_id in user_ids_of_the_top_5:
+            num_followers_followings_and_posts_of_the_top_5[user_id]['num_followings'] = (
+                users_in_the_top_5_and_their_num_followings.get(user_id, 0)
+            )
+    except: 
+       error_message += f'• There was trouble fetching from the database the number of followings of each of the users in the
+        top-5\n'
+
+    response = Response({
+        'ErrorMessage': error_message,
+        'userIdsOfTheTop5': user_ids_of_the_top_5,
+        'numFollowersFollowingsAndPostsOfTheTop5': num_followers_followings_and_posts_of_the_top_5
+    }, status=200)
+
+    if refreshed_auth_token is not None:
+        response.set_cookie(
+            f'authToken{auth_user_id}',
+            refreshed_auth_token,
+            expires=expires_timestamp,
+            path='/',
+            secure=True,
+            httponly=True
+        )
+        
+    return response
+
+        

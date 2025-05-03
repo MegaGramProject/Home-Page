@@ -1018,9 +1018,11 @@ export class HomePage {
 
   async fetchStories() {
     try {
-      const response = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/getMyOwnStories/${this.authUserId}`, {
+      const response = await fetch( `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser
+      /${this.authUserId}/${this.authUserId}/true/false`, {
         credentials: 'include'
       });
+
       if (!response.ok) {
         console.error('The springBootBackend2 server had trouble getting your stories, if any');
       }
@@ -1086,7 +1088,7 @@ export class HomePage {
   async fetchSuggestedAccounts() {
     try {
       const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2
-      /getNumFollowersFollowingsAndPostsOfMyTopFiveUserSuggestions/${this.authUserId}`, {
+      /getNumFollowersFollowingsAndPostsOfMyTop5UserSuggestions/${this.authUserId}`, {
         credentials: 'include'
       });
 
@@ -1165,24 +1167,25 @@ export class HomePage {
           window.removeEventListener('scroll', () => this.fetchAdditionalPostsWhenUserScrollsToBottomOfPage());
         }
       }
-      else {
-        const batchOfPostsForHomePageFeed:any[] = await response.json();
+      else {         
+        const responseData:any = await response.json();
+        const orderedBatchOfPostsForHomePageFeed:any[] = responseData.orderedBatchOfPostsForHomePageFeed;
 
-        for(let postDetails of batchOfPostsForHomePageFeed) {
+        for(let postDetails of orderedBatchOfPostsForHomePageFeed) {
           const authorIdsOfPost:number[] = postDetails.authorIds;
           postDetails.authorUsernames = authorIdsOfPost.map(authorId => `user ${authorId}`);
         }
         
         this.orderedListOfPosts = [
           ...this.orderedListOfPosts,
-          ...batchOfPostsForHomePageFeed
+          ...orderedBatchOfPostsForHomePageFeed
         ];
 
         if (isInitialFetch) {
           window.addEventListener('scroll', () => this.fetchAdditionalPostsWhenUserScrollsToBottomOfPage());
         }
         else {
-          this.fetchAllTheNecessaryUserInfoOfAdditionalPosts(batchOfPostsForHomePageFeed);
+          this.fetchAllTheNecessaryUserInfoOfAdditionalPosts(orderedBatchOfPostsForHomePageFeed);
         }
       }
     }

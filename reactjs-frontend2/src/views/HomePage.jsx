@@ -1050,10 +1050,11 @@ function HomePage({urlParams}) {
 
     async function fetchStories() {
         try {
-            const response = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/getMyOwnStories
-            /${authUserId}`, {
+            const response = await fetch( `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser
+            /${authUserId}/${authUserId}/true/false`, {
                 credentials: 'include'
             });
+            
             if (!response.ok) {
                 console.error('The springBootBackend2 server had trouble getting your stories, if any');
             }
@@ -1123,7 +1124,7 @@ function HomePage({urlParams}) {
     async function fetchSuggestedAccounts() {
         try {
             const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2
-            /getNumFollowersFollowingsAndPostsOfMyTopFiveUserSuggestions/${authUserId}`, {
+            /getNumFollowersFollowingsAndPostsOfMyTop5UserSuggestions/${authUserId}`, {
                 credentials: 'include'
             });
 
@@ -1206,19 +1207,20 @@ function HomePage({urlParams}) {
                 }
             }
             else {
-                const batchOfPostsForHomePageFeed = await response.json();
+                const responseData = await response.json();
+                const orderedBatchOfPostsForHomePageFeed = responseData.orderedBatchOfPostsForHomePageFeed;
                 
                 setOrderedListOfPosts([
                     ...orderedListOfPosts,
-                    ...batchOfPostsForHomePageFeed.map(postDetails => postDetails.authorUsernames = postDetails.authorIds.map(
-                    authorId => `user ${authorId}`))
+                    ...orderedBatchOfPostsForHomePageFeed.map(postDetails => postDetails.authorUsernames =
+                    postDetails.authorIds.map(authorId => `user ${authorId}`))
                 ]);
 
                 if (isInitialFetch) {
                     window.addEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
                 }
                 else {
-                    fetchAllTheNecessaryUserInfoOfAdditionalPosts(batchOfPostsForHomePageFeed);
+                    fetchAllTheNecessaryUserInfoOfAdditionalPosts(orderedBatchOfPostsForHomePageFeed);
                 }
             }
         }

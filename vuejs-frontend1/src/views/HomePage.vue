@@ -1319,10 +1319,11 @@ import { io } from 'socket.io-client';
 
     async function fetchStories() {
         try {
-            const response = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/getMyOwnStories
-            /${authUserId.value}`, {
+            const response = await fetch( `http://34.111.89.101/api/Home-Page/springBootBackend2/getStoriesOfUser
+            /${authUserId.value}/${authUserId.value}/true/false`, {
                 credentials: 'include'
             });
+            
             if (!response.ok) {
                 console.error('The springBootBackend2 server had trouble getting your stories, if any');
             }
@@ -1385,7 +1386,7 @@ import { io } from 'socket.io-client';
     async function fetchSuggestedAccounts() {
         try {
             const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2
-            /getNumFollowersFollowingsAndPostsOfMyTopFiveUserSuggestions/${authUserId.value}`, {
+            /getNumFollowersFollowingsAndPostsOfMyTop5UserSuggestions/${authUserId.value}`, {
                 credentials: 'include'
             });
 
@@ -1461,19 +1462,20 @@ import { io } from 'socket.io-client';
                 }
             }
             else {
-                const batchOfPostsForHomePageFeed = await response.json();
+                const responseData = await response.json();
+                const orderedBatchOfPostsForHomePageFeed = responseData.orderedBatchOfPostsForHomePageFeed;
                 
                 orderedListOfPosts.value = [
                     ...orderedListOfPosts.value,
-                    ...batchOfPostsForHomePageFeed.map(postDetails => postDetails.authorUsernames = postDetails.authorIds.map(
-                    authorId => `user ${authorId}`))
+                    ...orderedBatchOfPostsForHomePageFeed.map(postDetails => postDetails.authorUsernames =
+                    postDetails.authorIds.map(authorId => `user ${authorId}`))
                 ];
 
                 if (isInitialFetch) {
                     window.addEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
                 }
                 else {
-                    fetchAllTheNecessaryUserInfoOfAdditionalPosts(batchOfPostsForHomePageFeed);
+                    fetchAllTheNecessaryUserInfoOfAdditionalPosts(orderedBatchOfPostsForHomePageFeed);
                 }
             }
         }

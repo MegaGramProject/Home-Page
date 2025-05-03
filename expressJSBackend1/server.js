@@ -184,7 +184,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 
-app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, async (req, res) => {
+app.get('/getBatchOfPostsForHomePageFeed/:authUserId', fivePerMinuteRateLimiter, async (req, res) => {
     let { authUserId } = req.params;
     if (authUserId !== -1) {
         const userTokenValidationResult = validateUserAuthToken(authUserId, req.cookies);
@@ -713,20 +713,20 @@ app.get('/getBatchOfPostsForUserFeed/:authUserId', fivePerMinuteRateLimiter, asy
         delete overallPostIdToPostInfoMappings[overallPostId].plaintextDataEncryptionKey;
     }
 
-    const orderedListOfPostsForUserFeed = [];
+    const orderedBatchOfPostsForHomePageFeed = [];
     for(const overallPostId of orderedListOfOverallPostIdsForAuthUsersFeed) {
         overallPostIdToPostInfoMappings[overallPostId].slides = Object.values(overallPostIdToPostInfoMappings[overallPostId].slides)
 
-        orderedListOfPostsForUserFeed.push({
+        orderedBatchOfPostsForHomePageFeed.push({
             overallPostId: overallPostId,
             ...overallPostIdToPostInfoMappings[overallPostId],
         });
     }
 
     return res.send({
-        successes: successMessage,
-        Errors: errorMessage,
-        output: orderedListOfPostsForUserFeed
+        SuccessMessage: successMessage,
+        ErrorMessage: errorMessage,
+        orderedBatchOfPostsForHomePageFeed: orderedBatchOfPostsForHomePageFeed
     });
 }); 
 
