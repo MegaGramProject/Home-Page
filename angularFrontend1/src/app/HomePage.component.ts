@@ -1,5 +1,4 @@
 import { Comment } from '../components/Comment.component';
-import { Footer } from '../components/Footer.component';
 import { LeftSidebar } from '../components/LeftSidebar.component';
 import { MediaPost } from '../components/MediaPost.component';
 import { StoryViewer } from '../components/StoryViewer.component';
@@ -29,14 +28,14 @@ import { io } from "socket.io-client";
   selector: 'HomePage',
   standalone: true,
   imports: [
-    CommonModule, LeftSidebar, LeftSidebarPopup, Footer, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
+    CommonModule, LeftSidebar, LeftSidebarPopup, ErrorPopup, ThreeDotsPopup, UserIcon, AboutAccountPopup, UserBar,
     LikersPopup, SendPostPopup, StoryViewer, Comment, MediaPost, CommentsPopup, UserNotification
   ],
   templateUrl: './HomePage.component.html',
   styleUrl: '../styles.css'
 })
 export class HomePage {
-  authUserId:number = 1;
+  authUserId:number = -1;
   authUserIdBS:BehaviorSubject<number> = new BehaviorSubject<number>(-1);
   authUsername:string = '';
   authUsernameBS:BehaviorSubject<string> = new BehaviorSubject<string>('');
@@ -80,7 +79,7 @@ export class HomePage {
   orderedListOfSponsorshipStatusesInStoriesSection:boolean[] = [];
   fetchingStoriesIsComplete:boolean = false;
   storiesSectionErrorMessage:string = '';
-  usernamesWhoseStoriesYouHaveFinished:Set<string> = new Set();
+  userIdsWhoseStoriesYouHaveFinished:Set<number> = new Set();
   usersAndTheirStories:any = {};
   usersAndTheirStoryPreviews:any = {};
   usersAndYourCurrSlideInTheirStories:any = {};
@@ -89,10 +88,19 @@ export class HomePage {
   usersAndTheirRelevantInfo:any = {};
   postsAndTheirPreviewImgs:any = {};
 
+  orderedListOfSuggestedUserIds:number[] = [];
+  orderedListOfSuggestedUsernames:string[] = [];
+  fetchingSuggestedUsersIsComplete = false;
+  suggestedUsersSectionErrorMessage = '';
+
   cachedMessageSendingSuggestions:any = {};
 
   orderedListOfPosts:Array<any> = [];
   focusedMediaPostId:string = '';
+  initialPostsFetchingIsComplete:boolean = false;
+  isCurrentlyFetchingAdditionalPosts:boolean = false;
+  initialPostsFetchingErrorMessage:string = '';
+  additionalPostsFetchingErrorMessage:string = '';
 
   orderedListOfNotifications:any[] = [];
   
@@ -130,7 +138,6 @@ export class HomePage {
       }
     });
 
-
     const authUsernameFromRouteParams = this.route.snapshot.paramMap.get('authUsername');
     if(authUsernameFromRouteParams !== null && localStorage.getItem('defaultUsername') !== authUsernameFromRouteParams) {
       this.authenticateUser(authUsernameFromRouteParams, null);
@@ -152,84 +159,12 @@ export class HomePage {
   }
 
 
-  async authenticateUser(username:string , userId:number|null) {
-    if (userId == null) {
-      try {
-        const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            query: `query getUserIdOfUsername($username: String!) {
-              getUserIdOfUsername(username: $username)
-            }`,
-            variables: {
-              username: username
-            }
-          })
-        });
-        if (!response.ok) {
-          this.authUsernameBS.next('Anonymous Guest');
-          
-          throw new Error(
-            `The laravelBackend1 server had trouble getting the user-id of username ${username}`
-          );
-        }
-        
-        const responseData:any = await response.json();
-        userId = responseData.data.getUserIdOfUsername;
-        this.authUserIdBS.next(userId!);
-      }
-      catch {
-        this.authUsernameBS.next('Anonymous Guest');
-
-        throw new Error(
-          `There was trouble connecting to the laravelBackend1 server to get the user-id of username ${username}`
-        );
-      }
+  fetchAdditionalPostsWhenUserScrollsToBottomOfPage() {
+    if (!this.isCurrentlyFetchingAdditionalPosts && window.innerHeight + window.scrollY >=
+    document.documentElement.scrollHeight) {
+      this.isCurrentlyFetchingAdditionalPosts = true;
+      this.fetchPosts('additional');
     }
-    else {
-      this.authUserIdBS.next(userId);
-    }
-
-    try {
-      const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
-      /${userId}`, { credentials: 'include' });
-      if (!response1.ok) {
-        this.authUsernameBS.next('Anonymous Guest');
-        this.authUserIdBS.next(-1);
-
-        throw new Error(
-          `The expressJSBackend1 server had trouble verifying you as having the proper credentials to be 
-          logged in as user ${userId}`
-        );
-      }
-
-      this.authUsernameBS.next(username);
-    }
-    catch {
-      this.authUsernameBS.next('Anonymous Guest');
-      this.authUserIdBS.next(-1);
-
-      throw new Error(
-        `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
-        credentials to be logged in as user ${userId}`
-      );
-    }
-  }
-
-
-  async fetchStories() {
-
-  }
-
-
-  async fetchSuggestedAccounts() {
-
-  }
-
-
-  async fetchPosts(initialOrAdditionalText:string) {
-    initialOrAdditionalText;
   }
 
 
@@ -376,6 +311,16 @@ export class HomePage {
   }
 
 
+  changeStoryLevel(incrementOrDecrementText:string) {
+    if (incrementOrDecrementText === 'increment') {
+      this.currStoryLevel++;
+    }
+    else {
+      this.currStoryLevel--;
+    }
+  }
+
+
   updateFocusedMediaPost(newFocusedMediaPostId:string) {
     this.focusedMediaPostId = newFocusedMediaPostId;
   }
@@ -460,6 +405,21 @@ export class HomePage {
   }
 
 
+  postsTrackByFn(index: number, postDetails:any) {
+    return postDetails.overallPostId;
+  }
+
+
+  storiesSectionTrackByFn(index: number, storyAuthorId:number) {
+    return storyAuthorId;
+  }
+
+
+  userSuggestionsTrackByFn(index: number, suggestedUserId:number) {
+    return suggestedUserId;
+  }
+
+
   addRelevantInfoToUser(requiredInfo:{userId: number, userFieldsAndTheirValues:any}) {
     const { userId, userFieldsAndTheirValues }  = requiredInfo;
     if (!(userId in this.usersAndTheirRelevantInfo)) {
@@ -472,11 +432,11 @@ export class HomePage {
   }
 
 
-  addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUsername: string) {
-    this.usernamesWhoseStoriesYouHaveFinished = new Set(
+  addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUserId: number) {
+    this.userIdsWhoseStoriesYouHaveFinished = new Set(
       [
-        ...this.usernamesWhoseStoriesYouHaveFinished,
-        newFinishedUsername
+        ...this.userIdsWhoseStoriesYouHaveFinished,
+        newFinishedUserId
       ]
     );
   }
@@ -987,5 +947,744 @@ export class HomePage {
       console.error(`There was trouble getting the preview-image of post ${overallPostId}, which is needed
       for at-least one of the notifications`);
     }
+  }
+
+
+  async authenticateUser(username:string , userId:number|null) {
+    if (userId == null) {
+      try {
+        const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            query: `query getUserIdOfUsername($username: String!) {
+              getUserIdOfUsername(username: $username)
+            }`,
+            variables: {
+              username: username
+            }
+          })
+        });
+        if (!response.ok) {
+          this.authUsernameBS.next('Anonymous Guest');
+          
+          throw new Error(
+            `The laravelBackend1 server had trouble getting the user-id of username ${username}`
+          );
+        }
+        
+        const responseData:any = await response.json();
+        userId = responseData.data.getUserIdOfUsername;
+        this.authUserIdBS.next(userId!);
+      }
+      catch {
+        this.authUsernameBS.next('Anonymous Guest');
+
+        throw new Error(
+          `There was trouble connecting to the laravelBackend1 server to get the user-id of username ${username}`
+        );
+      }
+    }
+    else {
+      this.authUserIdBS.next(userId);
+    }
+
+    try {
+      const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser
+      /${userId}`, { credentials: 'include' });
+      if (!response1.ok) {
+        this.authUsernameBS.next('Anonymous Guest');
+        this.authUserIdBS.next(-1);
+
+        throw new Error(
+          `The expressJSBackend1 server had trouble verifying you as having the proper credentials to be 
+          logged in as user ${userId}`
+        );
+      }
+
+      this.authUsernameBS.next(username);
+    }
+    catch {
+      this.authUsernameBS.next('Anonymous Guest');
+      this.authUserIdBS.next(-1);
+
+      throw new Error(
+        `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
+        credentials to be logged in as user ${userId}`
+      );
+    }
+  }
+
+
+  async fetchStories() {
+    try {
+      const response = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/getMyOwnStories/${this.authUserId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        console.error('The springBootBackend2 server had trouble getting your stories, if any');
+      }
+      else {
+        const responseData = await response.json();
+
+        if (responseData.currSlide === 'finished') {
+          this.usersAndYourCurrSlideInTheirStories[this.authUserId] = 0;
+          this.userIdsWhoseStoriesYouHaveFinished = new Set([
+            ...this.userIdsWhoseStoriesYouHaveFinished,
+            this.authUserId
+          ]);
+        }
+        else if (responseData.currSlide > -1) {
+          this.usersAndYourCurrSlideInTheirStories[this.authUserId] = 0;
+        }
+
+        if (responseData.currSlide !== -1) {
+          this.usersAndTheirStories[this.authUserId] = responseData.stories;
+        }
+      }
+    }
+    catch {
+      console.error('There was trouble connecting to the springBootBackend2 server to get your stories, if any');
+    }
+
+    try {
+      const response2 = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/
+      getOrderedListOfUsersForMyStoriesSection/${this.authUserId}`, {
+        credentials: 'include'
+      });
+      if (!response2.ok) {
+        this.storiesSectionErrorMessage = `The server had trouble getting the ordered list of users for your
+        stories-section.`;
+      }
+      else {
+        const response2Data = await response2.json();
+
+        this.orderedListOfUserIdsInStoriesSection = response2Data.orderedListOfUserIds;
+
+        const newOrderedListOfUsernamesInStoriesSection = [];
+        for(let storyAuthorId of response2Data.orderedListOfUserIds) {
+          newOrderedListOfUsernamesInStoriesSection.push(`user ${storyAuthorId}`);
+        }
+        this.orderedListOfUsernamesInStoriesSection = newOrderedListOfUsernamesInStoriesSection;
+
+        this.orderedListOfSponsorshipStatusesInStoriesSection = response2Data.orderedListOfSponsorshipStatuses
+      }
+    }
+    catch {
+      this.storiesSectionErrorMessage = `There was trouble connecting to the server to get the ordered list of users for
+      your stories-section.`;
+    }
+
+    this.fetchingStoriesIsComplete = true;
+
+    if (this.initialPostsFetchingIsComplete && this.fetchingSuggestedUsersIsComplete) {
+      this.fetchAllTheNecessaryUserInfo();
+    }
+  }
+
+
+  async fetchSuggestedAccounts() {
+    try {
+      const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2
+      /getNumFollowersFollowingsAndPostsOfMyTopFiveUserSuggestions/${this.authUserId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        this.suggestedUsersSectionErrorMessage = 'The server had trouble getting your top-5 user-suggestions';
+      }
+      else {
+        const responseData = await response.json();
+
+        this.orderedListOfSuggestedUserIds = responseData.userIdsOfTheTop5;
+
+        const newOrderedListOfSuggestedUsernames = [];
+        for(let topSuggestedUserId of responseData.userIdsOfTheTop5) {
+          newOrderedListOfSuggestedUsernames.push(`user ${topSuggestedUserId}`);
+        }
+        this.orderedListOfSuggestedUsernames = newOrderedListOfSuggestedUsernames;
+
+        const { numFollowersFollowingsAndPostsOfTheTop5 } = responseData;
+
+        for(let suggestedUserId of responseData.userIdsOfTheTop5) {
+          if (!(suggestedUserId in this.usersAndTheirRelevantInfo)) {
+            this.usersAndTheirRelevantInfo[suggestedUserId] = {};
+          }
+
+          this.usersAndTheirRelevantInfo[suggestedUserId].numFollowers = numFollowersFollowingsAndPostsOfTheTop5[
+            suggestedUserId
+          ].numFollowers;
+
+          this.usersAndTheirRelevantInfo[suggestedUserId].numFollowings = numFollowersFollowingsAndPostsOfTheTop5[
+            suggestedUserId
+          ].numFollowings;
+
+          this.usersAndTheirRelevantInfo[suggestedUserId].numPosts = numFollowersFollowingsAndPostsOfTheTop5[
+            suggestedUserId
+          ].numPosts;
+        }
+      }
+    }
+    catch {
+      this.suggestedUsersSectionErrorMessage = `There was trouble connecting to the server to get your top-5 
+      user-suggestions.`;
+    }
+
+    this.fetchingSuggestedUsersIsComplete = true;
+
+    if (this.fetchingStoriesIsComplete && this.initialPostsFetchingIsComplete) {
+      this.fetchAllTheNecessaryUserInfo();
+    }
+  }
+
+
+  async fetchPosts(initialOrAdditionalText:string) {
+    let isInitialFetch;
+
+    if (initialOrAdditionalText === 'initial') {
+      isInitialFetch = true;
+    } 
+    else {
+      isInitialFetch = false;
+    }
+
+    try {
+      const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/getBatchOfPostsForHomePageFeed
+      /${this.authUserId}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) { 
+        if (isInitialFetch) {
+          this.initialPostsFetchingErrorMessage = `The server had trouble getting the initial batch of posts for your
+          home-page feed`;
+        }
+        else {
+          this.additionalPostsFetchingErrorMessage = `The server had trouble getting an additional batch of posts
+          for your home-page feed`;
+
+          window.removeEventListener('scroll', () => this.fetchAdditionalPostsWhenUserScrollsToBottomOfPage());
+        }
+      }
+      else {
+        const batchOfPostsForHomePageFeed:any[] = await response.json();
+
+        for(let postDetails of batchOfPostsForHomePageFeed) {
+          const authorIdsOfPost:number[] = postDetails.authorIds;
+          postDetails.authorUsernames = authorIdsOfPost.map(authorId => `user ${authorId}`);
+        }
+        
+        this.orderedListOfPosts = [
+          ...this.orderedListOfPosts,
+          ...batchOfPostsForHomePageFeed
+        ];
+
+        if (isInitialFetch) {
+          window.addEventListener('scroll', () => this.fetchAdditionalPostsWhenUserScrollsToBottomOfPage());
+        }
+        else {
+          this.fetchAllTheNecessaryUserInfoOfAdditionalPosts(batchOfPostsForHomePageFeed);
+        }
+      }
+    }
+    catch {
+      if (isInitialFetch) {
+        this.initialPostsFetchingErrorMessage = `There was trouble connecting to the server to get the intial batch of
+        posts for your home-page feed`;
+      }
+      else {
+        this.additionalPostsFetchingErrorMessage = `There was trouble connecting to the server to get an additional
+        batch of posts for your home-page feed`;
+
+        window.removeEventListener('scroll', () => this.fetchAdditionalPostsWhenUserScrollsToBottomOfPage());
+      }
+    }
+
+    if (isInitialFetch) {
+      this.initialPostsFetchingIsComplete = true;
+      
+      if (this.fetchingStoriesIsComplete && this.fetchingSuggestedUsersIsComplete) {
+        this.fetchAllTheNecessaryUserInfo();
+      }
+    }
+    else {
+      this.isCurrentlyFetchingAdditionalPosts = false;
+    }
+  }
+
+
+  async fetchAllTheNecessaryUserInfo() {
+    const setOfStoryAuthorIds:Set<number> = new Set(this.orderedListOfUserIdsInStoriesSection);
+
+    const setOfSuggestedUserIds:Set<number> = new Set(this.orderedListOfSuggestedUserIds);
+
+    const setOfAuthorIds:Set<number> = new Set();
+    const setOfMainAuthorIds:Set<number> = new Set();
+    const setOfLikerIdsFollowedByAuthUser:Set<number> = new Set();
+
+    for(let postDetails of this.orderedListOfPosts) {
+      setOfMainAuthorIds.add(postDetails.authorIds[0]);
+
+      for(let authorId of postDetails.authorIds) {
+        setOfAuthorIds.add(authorId);
+      }
+
+      for(let likerIdFollowedByAuthUser of postDetails.likersFollowedByAuthUser) {
+        setOfLikerIdsFollowedByAuthUser.add(likerIdFollowedByAuthUser);
+      }
+    }
+
+    const setOfAllUserIds:Set<number> = new Set([
+      ...setOfStoryAuthorIds, ...setOfSuggestedUserIds, ...setOfAuthorIds, ...setOfMainAuthorIds,
+      ...setOfLikerIdsFollowedByAuthUser
+    ]);
+
+    let graphqlUserQueryStringHeaderInfo:any = {};
+    let graphqlUserQueryString = '';
+    let graphqlUserVariables:any = {};
+
+    let usersAndTheirUsernames:any = {};
+    const newUserIdsNeededForUsernames:number[] = [...setOfAllUserIds];
+
+    if (newUserIdsNeededForUsernames.length > 0) {
+      graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+      graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForUsernames'] = '[Int!]!';
+
+      graphqlUserQueryString +=
+      `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForUsernames) `;
+      graphqlUserVariables.authUserId = this.authUserId;
+      graphqlUserVariables.newUserIdsNeededForUsernames = newUserIdsNeededForUsernames;
+    }
+
+    let usersAndTheirFullNames:any = {};
+    const newUserIdsNeededForFullNames:number[] = [...setOfSuggestedUserIds];
+
+    if (newUserIdsNeededForFullNames.length > 0) {
+      graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+      graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForFullNames'] = '[Int!]!';
+
+      graphqlUserQueryString +=
+      `getFullNamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForFullNames) `;
+      graphqlUserVariables.authUserId = this.authUserId;
+      graphqlUserVariables.newUserIdsNeededForFullNames = newUserIdsNeededForFullNames;
+    }
+
+    let usersAndTheirVerificationStatuses:any = {};
+    const newUserIdsNeededForVerificationStatuses:number[] = newUserIdsNeededForUsernames;
+
+    if (newUserIdsNeededForVerificationStatuses.length>0) {
+      graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+      graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+      graphqlUserQueryString +=
+      `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+      $newUserIdsNeededForVerificationStatuses) `;
+      graphqlUserVariables.authUserId = this.authUserId;
+      graphqlUserVariables.newUserIdsNeededForVerificationStatuses = newUserIdsNeededForVerificationStatuses;
+    }
+
+    if (graphqlUserQueryString.length > 0) {
+      let graphqlUserQueryStringHeader = 'query (';
+      let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+      for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+        const key = graphqlUserQueryStringHeaderKeys[i];
+        const value = graphqlUserQueryStringHeaderInfo[key];
+
+        if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+          graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+        }
+        else {
+          graphqlUserQueryStringHeader+= `${key}: ${value}`;
+        }
+      }
+
+      graphqlUserQueryStringHeader+= '){ ';
+      graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
+      try {
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            query: graphqlUserQueryString,
+            variables: graphqlUserVariables
+          }),
+          credentials: 'include'
+        });
+        if (!response.ok) {
+          if (newUserIdsNeededForUsernames.length > 0) {
+            console.error(
+              'The server had trouble fetching the usernames of all the newly fetched users'
+            );
+          }
+
+          if (newUserIdsNeededForFullNames.length > 0) {
+            console.error(
+              'The server had trouble fetching the full-names of all the newly fetched users'
+            );
+          }
+
+          if (newUserIdsNeededForVerificationStatuses.length > 0) {
+            console.error(
+              `The server had trouble fetching the verification-statuses of all the new fetched
+              users`
+            );
+          }
+        }
+        else {
+          const responseData = await response.json();
+
+          if (newUserIdsNeededForUsernames.length > 0) {
+            const listOfUsernamesForNewUserIds = responseData.data.getListOfUsernamesForUserIds;
+
+            for(let i=0; i<newUserIdsNeededForUsernames.length; i++) {
+              const newUserId = newUserIdsNeededForUsernames[i];
+              const newUsername = listOfUsernamesForNewUserIds[i];
+
+              if (newUsername !== null) {
+                usersAndTheirUsernames[newUserId] = newUsername;
+              }
+            }
+          }
+          
+          if (newUserIdsNeededForFullNames.length > 0) {
+            const listOfFullNamesForNewUserIds = responseData.data.getListOfFullNamesForUserIds;
+
+            for(let i=0; i<newUserIdsNeededForFullNames.length; i++) {
+              const newUserId = newUserIdsNeededForFullNames[i];
+              const newUserFullName = listOfFullNamesForNewUserIds[i];
+
+              if (newUserFullName !== null) {
+                usersAndTheirFullNames[newUserId] = newUserFullName;
+              }
+            }
+          }
+
+          if (newUserIdsNeededForVerificationStatuses.length > 0) {
+            const listOfVerificationStatusesForNewUserIds = responseData.data
+            .getListOfUserVerificationStatusesForUserIds;
+
+            for(let i=0; i<newUserIdsNeededForVerificationStatuses.length; i++) {
+              const newUserId = newUserIdsNeededForVerificationStatuses[i];
+              const newUserVerificationStatus = listOfVerificationStatusesForNewUserIds[i];
+
+              if (newUserVerificationStatus !== null) {
+                usersAndTheirVerificationStatuses[newUserId] = newUserVerificationStatus;
+              }
+            }
+          }
+        }
+      }
+      catch {
+        if (newUserIdsNeededForUsernames.length > 0) {
+          console.error(
+            `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+            users`
+          );
+        }
+
+        if (newUserIdsNeededForFullNames.length > 0) {
+          console.error(
+            `There was trouble connecting to the server to fetch the full-names of all the newly fetched
+            users`
+          ); 
+        }
+
+        if (newUserIdsNeededForVerificationStatuses.length > 0) {
+          console.error(
+            `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+            fetched users`
+          );
+        }
+      }
+    }
+
+    let usersAndTheirProfilePhotos:any = {};
+    const newUserIdsNeededForProfilePhotos = [
+      ...new Set([
+        ...setOfStoryAuthorIds, ...setOfSuggestedUserIds, ...setOfMainAuthorIds
+      ])
+    ];
+
+    if (newUserIdsNeededForProfilePhotos.length>0) {
+      try {
+        const response2 = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${this.authUserId}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            userIds: newUserIdsNeededForProfilePhotos
+          }),
+          credentials: 'include'
+        });
+        if(!response2.ok) {
+          console.error(
+            'The server had trouble fetching the profile-photos of all the newly fetched users'
+          );
+        }
+        else {
+          usersAndTheirProfilePhotos = await response2.json();
+        }
+      }
+      catch {
+        console.error(
+          'There was trouble connecting to the server to fetch the profile-photos of all the newly fetched users'
+        );
+      }
+    }
+
+    const newUsersAndTheirRelevantInfo = { ...this.usersAndTheirRelevantInfo };
+
+    for(let userId of setOfAllUserIds) {
+      if (!(userId in newUsersAndTheirRelevantInfo)) {
+        newUsersAndTheirRelevantInfo[userId] = {};
+      }
+
+      if (userId in usersAndTheirUsernames) {
+        newUsersAndTheirRelevantInfo[userId].username = usersAndTheirUsernames[userId];
+      }
+
+      if (userId in usersAndTheirVerificationStatuses) {
+        newUsersAndTheirRelevantInfo[userId].isVerified = usersAndTheirVerificationStatuses[userId];
+      }
+
+      if (userId in usersAndTheirFullNames) {
+        newUsersAndTheirRelevantInfo[userId].fullName = usersAndTheirFullNames[userId];
+      }
+
+      if (userId in usersAndTheirProfilePhotos) {
+        newUsersAndTheirRelevantInfo[userId].profilePhoto = usersAndTheirProfilePhotos[userId];
+      }
+    }
+
+    const newOrderedListOfUsernamesInStoriesSection = [];
+    for(let userId of this.orderedListOfUserIdsInStoriesSection) {
+      newOrderedListOfUsernamesInStoriesSection.push(
+        newUsersAndTheirRelevantInfo[userId].username ?? `user ${userId}`
+      );
+    }
+    this.orderedListOfUsernamesInStoriesSection = newOrderedListOfUsernamesInStoriesSection;
+
+    const newOrderedListOfSuggestedUsernames = [];
+    for(let userId of this.orderedListOfSuggestedUsernames) {
+      newOrderedListOfSuggestedUsernames.push(
+        newUsersAndTheirRelevantInfo[userId].username ?? `user ${userId}`
+      );
+    }
+    this.orderedListOfSuggestedUsernames = newOrderedListOfSuggestedUsernames;
+
+    this.usersAndTheirRelevantInfo = { ...newUsersAndTheirRelevantInfo };
+  }
+
+
+  async fetchAllTheNecessaryUserInfoOfAdditionalPosts(additionalPosts:any[]) {
+    const setOfAuthorIds:Set<number> = new Set();
+    const setOfMainAuthorIds:Set<number> = new Set();
+    const setOfLikerIdsFollowedByAuthUser:Set<number> = new Set();
+
+    for(let postDetails of additionalPosts) {
+      setOfMainAuthorIds.add(postDetails.authorIds[0]);
+
+      for(let authorId of postDetails.authorIds) {
+        setOfAuthorIds.add(authorId);
+      }
+
+      for(let likerIdFollowedByAuthUser of postDetails.likersFollowedByAuthUser) {
+        setOfLikerIdsFollowedByAuthUser.add(likerIdFollowedByAuthUser);
+      }
+    }
+
+    const setOfAllUserIds:Set<number> = new Set([...setOfAuthorIds, ...setOfMainAuthorIds,
+    ...setOfLikerIdsFollowedByAuthUser]);
+
+    let graphqlUserQueryStringHeaderInfo:any = {};
+    let graphqlUserQueryString = '';
+    let graphqlUserVariables:any = {};
+
+    let usersAndTheirUsernames:any = {};
+    const newUserIdsNeededForUsernames = [...setOfAllUserIds].filter(userId => {
+      if (!(userId in this.usersAndTheirRelevantInfo) || !('username' in this.usersAndTheirRelevantInfo)) {
+        return true;
+      }
+      return false;
+    });
+
+    if (newUserIdsNeededForUsernames.length > 0) {
+      graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+      graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForUsernames'] = '[Int!]!';
+
+      graphqlUserQueryString +=
+      `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForUsernames) `;
+      graphqlUserVariables.authUserId = this.authUserId;
+      graphqlUserVariables.newUserIdsNeededForUsernames = newUserIdsNeededForUsernames;
+    }
+
+    let usersAndTheirVerificationStatuses:any = {};
+    const newUserIdsNeededForVerificationStatuses = [...setOfAllUserIds].filter(userId => {
+      if (!(userId in this.usersAndTheirRelevantInfo) || !('isVerified' in this.usersAndTheirRelevantInfo[userId])) {
+        return true;
+      }
+      return false;
+    });
+
+    if (newUserIdsNeededForVerificationStatuses.length>0) {
+      graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+      graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+      graphqlUserQueryString +=
+      `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+      $newUserIdsNeededForVerificationStatuses) `;
+      graphqlUserVariables.authUserId = this.authUserId;
+      graphqlUserVariables.newUserIdsNeededForVerificationStatuses = newUserIdsNeededForVerificationStatuses;
+    }
+
+    if (graphqlUserQueryString.length > 0) {
+      let graphqlUserQueryStringHeader = 'query (';
+      let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+      for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+        const key = graphqlUserQueryStringHeaderKeys[i];
+        const value = graphqlUserQueryStringHeaderInfo[key];
+
+        if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+          graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+        }
+        else {
+          graphqlUserQueryStringHeader+= `${key}: ${value}`;
+        }
+      }
+
+      graphqlUserQueryStringHeader+= '){ ';
+      graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
+      try {
+        const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            query: graphqlUserQueryString,
+            variables: graphqlUserVariables
+          }),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (newUserIdsNeededForUsernames.length > 0) {
+            console.error(
+              'The server had trouble fetching the usernames of all the newly fetched users'
+            );
+          }
+
+          if (newUserIdsNeededForVerificationStatuses.length > 0) {
+            console.error(
+              `The server had trouble fetching the verification-statuses of all the new fetched
+              users`
+            );
+          }
+        }
+        else {
+          const responseData = await response.json();
+
+          if (newUserIdsNeededForUsernames.length > 0) {
+            const listOfUsernamesForNewUserIds = responseData.data.getListOfUsernamesForUserIds;
+
+            for(let i=0; i<newUserIdsNeededForUsernames.length; i++) {
+              const newUserId = newUserIdsNeededForUsernames[i];
+              const newUsername = listOfUsernamesForNewUserIds[i];
+
+              if (newUsername !== null) {
+                usersAndTheirUsernames[newUserId] = newUsername;
+              }
+            }
+          }
+
+          if (newUserIdsNeededForVerificationStatuses.length > 0) {
+            const listOfVerificationStatusesForNewUserIds = responseData.data
+            .getListOfUserVerificationStatusesForUserIds;
+
+            for(let i=0; i<newUserIdsNeededForVerificationStatuses.length; i++) {
+              const newUserId = newUserIdsNeededForVerificationStatuses[i];
+              const newUserVerificationStatus = listOfVerificationStatusesForNewUserIds[i];
+
+              if (newUserVerificationStatus !== null) {
+                usersAndTheirVerificationStatuses[newUserId] = newUserVerificationStatus;
+              }
+            }
+          }
+        }
+      }
+      catch {
+        if (newUserIdsNeededForUsernames.length > 0) {
+          console.error(
+            `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+            users`
+          );
+        }
+
+        if (newUserIdsNeededForVerificationStatuses.length > 0) {
+          console.error(
+            `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+            fetched users`
+          );
+        }
+      }
+    }
+
+    let usersAndTheirProfilePhotos:any = {};
+    const newUserIdsNeededForProfilePhotos = [...setOfMainAuthorIds].filter(userId => {
+      if (!(userId in this.usersAndTheirRelevantInfo) || !('profilePhoto' in this.usersAndTheirRelevantInfo[userId])) {
+        return true;
+      }
+      return false;
+    });
+
+    if (newUserIdsNeededForProfilePhotos.length>0) {
+      try {
+        const response2 = await fetch(
+        `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${this.authUserId}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+              userIds: newUserIdsNeededForProfilePhotos
+          }),
+          credentials: 'include'
+        });
+        if(!response2.ok) {
+          console.error(
+            'The server had trouble fetching the profile-photos of all the newly fetched users'
+          );
+        }
+        else {
+          usersAndTheirProfilePhotos = await response2.json();
+        }
+      }
+      catch {
+        console.error(
+          'There was trouble connecting to the server to fetch the profile-photos of all the newly fetched users'
+        );
+      }
+    }
+
+    const newUsersAndTheirRelevantInfo = { ...this.usersAndTheirRelevantInfo };
+
+    for(let userId of setOfAllUserIds) {
+      if (!(userId in newUsersAndTheirRelevantInfo)) {
+        newUsersAndTheirRelevantInfo[userId] = {};
+      }
+
+      if (userId in usersAndTheirUsernames) {
+        newUsersAndTheirRelevantInfo[userId].username = usersAndTheirUsernames[userId];
+      }
+
+      if (userId in usersAndTheirVerificationStatuses) {
+        newUsersAndTheirRelevantInfo[userId].isVerified = usersAndTheirVerificationStatuses[userId];
+      }
+      
+      if (userId in usersAndTheirProfilePhotos) {
+        newUsersAndTheirRelevantInfo[userId].profilePhoto = usersAndTheirProfilePhotos[userId];
+      }
+    }
+
+    this.usersAndTheirRelevantInfo = { ...newUsersAndTheirRelevantInfo };
   }
 }

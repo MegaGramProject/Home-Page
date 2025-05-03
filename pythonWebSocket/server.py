@@ -88,94 +88,56 @@ async def on_connection(connection, path):
             
             data = json.loads(message)
 
-            if data['event'] == 'Message':
-                members = data['data']['members']
-                at_least_one_member_is_connected = False
+            members = data['data']['members']
 
-                for member in members:
-                    if member in users_and_their_connections:
-                        at_least_one_member_is_connected = True
-                        break
-                
-                if not at_least_one_member_is_connected:
-                    continue
+            if len(member) == 1:
+                continue
+            
+            at_least_one_member_is_connected = False
 
-                message_id = data['data']['messageId']
-                convo_id = data['data']['convoId']
-                convo_title = data['data']['convoTitle']
-                is_group_chat = data['data']['isGroupChat']
-                sender_id = data['data']['senderId']
-                message = data['data']['message']
+            for member in members:
+                if member in users_and_their_connections:
+                    at_least_one_member_is_connected = True
+                    break
+            
+            if not at_least_one_member_is_connected:
+                continue
 
-                sender_name = ''
+            message_id = data['data']['messageId']
+            convo_id = data['data']['convoId']
+            convo_title = data['data']['convoTitle']
+            is_group_chat = data['data']['isGroupChat']
+            sender_id = data['data']['senderId']
+            message = data['data']['message']
 
-                if sender_id in user_ids_and_their_usernames:
-                    sender_name = user_ids_and_their_usernames[sender_id]
-                else:
-                    sender_name = get_username_of_user(sender_id)
-                    if sender_name != 'user ' + sender_id:
-                        user_ids_and_their_usernames[sender_id] = sender_name
+            sender_name = ''
 
-                for member in members:
-                    for client in users_and_their_connections.get(member, []):
-                        await client.send(json.dumps(
-                            {
-                                'event': 'Message',
-                                'data': {
-                                    'messageId': message_id,
-                                    'convoId': convo_id,
-                                    'convoTitle': convo_title,
-                                    'isGroupChat': is_group_chat,
-                                    'senderId': sender_id,
-                                    'senderName': sender_name,
-                                    'message': message
-                                }
-                            }
-                        ))
+            if sender_id in user_ids_and_their_usernames:
+                sender_name = user_ids_and_their_usernames[sender_id]
             else:
-                members = data['data']['members']
-                at_least_one_member_is_connected = False
+                sender_name = get_username_of_user(sender_id)
+                if sender_name != 'user ' + sender_id:
+                    user_ids_and_their_usernames[sender_id] = sender_name
 
-                for member in members:
-                    if member in users_and_their_connections:
-                        at_least_one_member_is_connected = True
-                        break
-                
-                if not at_least_one_member_is_connected:
+            for member in members:
+                if member == sender_id:
                     continue
 
-                message_id = data['data']['messageId']
-                convo_id = data['data']['convoId']
-                convo_title = data['data']['convoTitle']
-                is_group_chat = data['data']['isGroupChat']
-                sender_id = data['data']['senderId']
-                message = data['data']['message']
-
-                sender_name = ''
-
-                if sender_id in user_ids_and_their_usernames:
-                    sender_name = user_ids_and_their_usernames[sender_id]
-                else:
-                    sender_name = get_username_of_user(sender_id)
-                    if sender_name != 'user ' + sender_id:
-                        user_ids_and_their_usernames[sender_id] = sender_name
-
-                for member in members:
-                    for client in users_and_their_connections.get(member, []):
-                        await client.send(json.dumps(
-                            {
-                                'event': 'MessageDelete',
-                                'data': {
-                                    'messageId': message_id,
-                                    'convoId': convo_id,
-                                    'convoTitle': convo_title,
-                                    'isGroupChat': is_group_chat,
-                                    'senderId': sender_id,
-                                    'senderName': sender_name,
-                                    'message': message
-                                }
+                for client in users_and_their_connections.get(member, []):
+                    await client.send(json.dumps(
+                        {
+                            'event': data['event'],
+                            'data': {
+                                'messageId': message_id,
+                                'convoId': convo_id,
+                                'convoTitle': convo_title,
+                                'isGroupChat': is_group_chat,
+                                'senderId': sender_id,
+                                'senderName': sender_name,
+                                'message': message
                             }
-                        ))
+                        }
+                    ))
     except websockets.ConnectionClosed:
         if hasattr(connection, 'user_id'):
             users_and_their_connections[user_id].remove(connection)

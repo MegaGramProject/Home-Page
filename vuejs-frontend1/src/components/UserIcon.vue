@@ -1,13 +1,8 @@
 <template>
-    <template v-if="username === 'Anonymous Guest'">
-        <div style="width: 8em; height: 10em">
-            <p style="font-size: 0.7em; text-align: start">
-                You are currently logged in as a guest. This means that you can only view posts/stories
-                of public accounts. You cannot interact with other users in any way without logging in to
-                an account of your own.
-            </p>
-        </div>
-    </template>
+    <p v-if="userId == -1" style="font-size: 0.75em; text-align: start; max-width: 10em; height: 10em;">
+        You are browsing as an <b>Anonymous Guest</b>. You can only view posts/stories of public accounts. You cannot interact
+        with other users without logging in.
+    </p>
   
     <template v-else>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center">
@@ -45,6 +40,8 @@
                 <div style="display: flex; justify-content: center; width: 100%; align-items: center;">
                     <p style="text-align: center; font-size: 0.8em; max-width: 7.5em; overflow-wrap: break-word">
                         {{ userId == authUserId ? 'You' : username }}
+
+                        <span v-if="isSponsored" style="color: gray;"> Sponsored</span>
                     </p>
 
                     <img v-if="userIsVerified" :src="verifiedBlueCheck" style="pointer-events: none; height: 1.5em; width: 1.5em;
@@ -71,6 +68,7 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
         userPfp: String,
 
         inStoriesSection: Boolean,
+        isSponsored: Boolean,
         
         userHasStories: Boolean,
         userHasUnseenStory: Boolean,

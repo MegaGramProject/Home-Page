@@ -1,13 +1,178 @@
 <template>
     <LeftSidebar
-        :profilePhoto="defaultPfp"
+        :profilePhoto="usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp"
         :displayPopup="displayLeftSidebarPopup"
         :authUserIsAnonymousGuest="authUserId == -1"
         :toggleDisplayPopup="toggleDisplayLeftSidebarPopup"
     />
 
+    <div style="margin-top: 2.3em; width: 82%; position: absolute; left: 18%; display: flex; gap: 2%;">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: start; width: 65%;">
+            <div style="display: flex; align-items: start; justify-content: center; gap: 1em; position: relative; width:
+            100%;">
+                <div style="height: 4.6em; width: 2em; position: relative;">
+                    <img v-if="currStoryLevel > 0" :src="nextArrow" class="iconToBeAdjustedForDarkMode"
+                    @click="changeStoryLevel('decrement')" style="height: 1.5em; width: 1.5em; object-fit: contain; cursor:
+                    pointer; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(180deg);"/>
+                </div>
+                
+                <UserIcon v-if="currStoryLevel == 0"
+                    :authUserId="authUserId"
+                    :userId="authUserId"
+                    :username="authUsername"
+                    :userPfp="usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp"
+                    :inStoriesSection="true"
+                    :isSponsored="false"
+                    :userHasStories="authUserId in usersAndTheirStories"
+                    :userHasUnseenStory="!(userIdsWhoseStoriesYouHaveFinished.has(authUserId))"
+                    :userIsVerified="usersAndTheirRelevantInfo[authUserId]?.isVerified ?? false"
+                    :showStoryViewer="showStoryViewer"
+                />
+
+                <template v-if="fetchingStoriesIsComplete && storiesSectionErrorMessage.length == 0">
+                    <UserIcon v-for="(userId, index) in orderedListOfUserIdsInStoriesSection.slice(
+                        currStoryLevel * 6, currStoryLevel * 6 + 6
+                    )"
+                        :key="userId"
+                        :authUserId="authUserId"
+                        :userId="userId"
+                        :username="orderedListOfUsernamesInStoriesSection[currStoryLevel * 6 + index]"
+                        :userPfp="usersAndTheirRelevantInfo[userId]?.profilePhoto ?? defaultPfp"
+                        :inStoriesSection="true"
+                        :isSponsored="orderedListOfSponsorshipStatusesInStoriesSection[currStoryLevel * 6 + index]"
+                        :userHasStories="true"
+                        :userHasUnseenStory="!(userIdsWhoseStoriesYouHaveFinished.has(userId))"
+                        :userIsVerified="usersAndTheirRelevantInfo[userId]?.isVerified ?? false"
+                        :showStoryViewer="showStoryViewer"
+                    />
+
+                    <div style="height: 4.6em; width: 2em; position: relative;">
+                        <img v-if="(currStoryLevel + 1) * 6 < orderedListOfUsernamesInStoriesSection.length" :src="nextArrow" 
+                        class="iconToBeAdjustedForDarkMode" @click="changeStoryLevel('increment')" style="height: 1.5em; width:
+                        1.5em; object-fit: contain; cursor: pointer; position: absolute; top: 50%; left: 50%; transform:
+                        translate(-50%, -50%);"/>
+                    </div>
+                </template>
+
+                <div v-else-if="fetchingStoriesIsComplete && storiesSectionErrorMessage.length>0" style="height: 4.6em;
+                width: 50%; position: relative; margin-left: 10%;">
+                    <p style="font-size: 0.9em; max-width: 100%; overflow-wrap: break-word; color: gray;
+                    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -80%);">
+                        {{ storiesSectionErrorMessage }}
+                    </p>
+                </div>
+
+                <div v-else style="height: 4.6em; width: 2em; position: relative; margin-left: 20%;">
+                    <img :src="loadingAnimation" style="height: 1.5em; width: 1.5em; object-fit: contain; pointer-events: none;
+                    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"/>
+                </div>
+            </div>
+
+            <br/>
+            <br/>
+
+            <template v-if="initialPostsFetchingIsComplete && initialPostsFetchingErrorMessage.length == 0">
+                <MediaPost v-for="postDetails in orderedListOfPosts"
+                    :key="postDetails.overallPostId"
+                    :authUserId="authUserId"
+                    :postDetails="postDetails"
+                    :mainPostAuthorInfo="usersAndTheirRelevantInfo[postDetails.authorIds[0]] ?? {}"
+                    :isFocused="focusedMediaPostId === postDetails.overallPostId"
+                    :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
+                    :updatePostDetails="updatePostDetails"
+                    :showThreeDotsPopup="showThreeDotsPopup"
+                    :showCommentsPopup="showCommentsPopup"
+                    :showSendPostPopup:="showSendPostPopup"
+                    :showLikersPopup="showLikersPopup"
+                    :showErrorPopup="showErrorPopup"
+                    :showStoryViewer="showStoryViewer"
+                    :focusOnThisMediaPost="updateFocusedMediaPost"
+                />
+            </template>
+
+            <div v-if="!isCurrentlyFetchingAdditionalPosts && additionalPostsFetchingErrorMessage.length > 0"
+            style="margin-top: 2.5em; display: flex; width: 100%; justify-content: center;">
+                <p style="max-width: 50%; overflow-wrap: break-word; color: gray; font-size: 0.9em;">
+                    {{ additionalPostsFetchingErrorMessage }}
+                </p>
+            </div>
+
+            <div v-else-if="isCurrentlyFetchingAdditionalPosts" style="margin-top: 2.5em; display: flex; width: 100%;
+            justify-content: center;">
+                <img :src="loadingAnimation" style="height: 1.5em; width: 1.5em; object-fit: contain; pointer-events: none;"/>
+            </div>
+        </div>
+
+
+        <div id="rightmostSection" style="display: flex; flex-direction: column; align-items: start; justify-content: start;
+        width: 22%; gap: 1em; position: relative;">
+            <UserBar v-if="authUserId !== -1"
+                :username="authUsername"
+                :userFullName="usersAndTheirRelevantInfo[authUserId]?.fullName ?? 'Could not get full-name'"
+                :userPfp="usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp"
+                :authUserId="authUserId"
+                :userId="authUserId"
+                :numFollowers="0"
+                :numFollowings="0"
+                :numPosts="0"
+                :userIsPrivate="usersAndTheirRelevantInfo[authUserId]?.isPrivate ?? false"
+                :userIsVerified="usersAndTheirRelevantInfo[authUserId]?.isVerified ?? false"
+                :showErrorPopup="showErrorPopup"
+            />
+
+            <div style="width: 100%; position: relative; margin-bottom: 2em;">
+                <b style="color: #787878; position: absolute; left: 0%; top: 0%;">Suggested for you</b>
+
+                <a href="http://34.111.89.101/user-suggestions" target="_blank" rel="noopener noreferrer"
+                style="font-size: 0.9em; position: absolute; right: 0%; top: 0%;">
+                    See all
+                </a>
+            </div>
+
+            <template v-if="fetchingSuggestedUsersIsComplete && suggestedUsersSectionErrorMessage.length == 0">
+                <UserBar v-for="(suggestedUserId, index) in orderedListOfSuggestedUserIds"
+                    :key="suggestedUserId"
+                    :username="orderedListOfSuggestedUsernames[index]"
+                    :userFullName="usersAndTheirRelevantInfo[suggestedUserId]?.fullName ?? 'Could not get full-name'"
+                    :userPfp="usersAndTheirRelevantInfo[suggestedUserId]?.profilePhoto ?? defaultPfp"
+                    :authUserId="authUserId"
+                    :userId="suggestedUserId"
+                    :numFollowers="usersAndTheirRelevantInfo[suggestedUserId]?.numFollowers ?? -1"
+                    :numFollowings="usersAndTheirRelevantInfo[suggestedUserId]?.numFollowings ?? -1"
+                    :numPosts="usersAndTheirRelevantInfo[suggestedUserId]?.numPosts ?? -1"
+                    :userIsPrivate="usersAndTheirRelevantInfo[suggestedUserId]?.isPrivate ?? false"
+                    :userIsVerified="usersAndTheirRelevantInfo[suggestedUserId]?.isVerified ?? false"
+                    :showErrorPopup="showErrorPopup"
+                />
+            </template>
+
+            <p v-else-if="fetchingSuggestedUsersIsComplete && suggestedUsersSectionErrorMessage.length > 0" style="color: gray;
+            width: 100%; overflow-wrap: break-word; margin-top: 2em; margin-bottom: 2em; font-size: 0.85em;">
+                {{ suggestedUsersSectionErrorMessage }}
+            </p>
+
+            <img v-else :src="loadingAnimation" style="height: 1.5em; width: 1.5em; object-fit: contain; pointer-events:
+            none; margin-top: 2em; margin-bottom: 2em; margin-left: 50%;"/>
+            
+            <br/>
+
+            <footer style="color: gray; fontSize: 0.8em; width: 100%;">
+                Megagram, a full-stack web-application that blends a bit of Instagram with a bit of Amazon, is a personal
+                project of Rishav Ray.
+            </footer>
+        </div>
+    </div>
+
+    <p v-if="initialPostsFetchingIsComplete && initialPostsFetchingErrorMessage.length > 0" style="position: absolute; top: 50%;
+    left: 50%; transform: translate(-50%, -50%); max-width: 35%; overflow-wrap: break-word; color: gray; font-size: 0.9em;">
+        {{ initialPostsFetchingErrorMessage }}
+    </p>
+
+    <img v-else-if="!initialPostsFetchingIsComplete" :src="loadingAnimation" style="position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); height: 1.5em; width: 1.5em; object-fit: contain; pointer-events: none;"/>
+
     <img v-if="displayLeftSidebarPopup || displayErrorPopup || displayThreeDotsPopup || displayAboutAccountPopup ||
-    displayLikersPopup || displaySendPostPopup || displayCommentsPopup || 2==2" @click="closeAllPopups" :src="blackScreen"
+    displayLikersPopup || displaySendPostPopup || displayCommentsPopup" @click="closeAllPopups" :src="blackScreen"
     style="position: fixed; top: 0%; left: 0%; width: 100%; height: 100%; opacity: 0.7; zIndex: 2;"/>
 
     <CommentsPopup v-if="displayCommentsPopup"
@@ -64,12 +229,12 @@
         :usersAndYourCurrSlideInTheirStories="usersAndYourCurrSlideInTheirStories"
         :vidStoriesAndTheirPreviewImages="vidStoriesAndTheirPreviewImages"
         :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
-        :usernamesWhoseStoriesYouHaveFinished="usernamesWhoseStoriesYouHaveFinished"
+        :userIdsWhoseStoriesYouHaveFinished="userIdsWhoseStoriesYouHaveFinished"
         :updateUsersAndTheirStories="updateUsersAndTheirStories"
         :updateUsersAndTheirStoryPreviews="updateUsersAndTheirStoryPreviews"
         :updateUsersAndYourCurrSlideInTheirStories="updateUsersAndYourCurrSlideInTheirStories"
         :updateVidStoriesAndTheirPreviewImages="updateVidStoriesAndTheirPreviewImages"
-        :addUsernameToSetOfUsersWhoseStoriesYouHaveFinished="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished"
+        :addUserIdToSetOfUsersWhoseStoriesYouHaveFinished="addUserIdToSetOfUsersWhoseStoriesYouHaveFinished"
         :closeStoryViewer="closeStoryViewer"
         :showErrorPopup="showErrorPopup"
     />
@@ -150,7 +315,7 @@
 
 
 <script setup>
-/* eslint-disable no-unused-vars */
+    /* eslint-disable no-unused-vars */
     import AboutAccountPopup from '@/components/Popups/AboutAccountPopup.vue';
 import CommentsPopup from '@/components/Popups/CommentsPopup.vue';
 import ErrorPopup from '@/components/Popups/ErrorPopup.vue';
@@ -159,19 +324,19 @@ import LikersPopup from '@/components/Popups/LikersPopup.vue';
 import SendPostPopup from '@/components/Popups/SendPostPopup.vue';
 import ThreeDotsPopup from '@/components/Popups/ThreeDotsPopup.vue';
 
-    import FooterSection from '@/components/FooterSection.vue';
-import LeftSidebar from '@/components/LeftSidebar.vue';
+    import LeftSidebar from '@/components/LeftSidebar.vue';
 import MediaPost from '@/components/MediaPost.vue';
 import StoryViewer from '@/components/StoryViewer.vue';
 import UserBar from '@/components/UserBar.vue';
 import UserIcon from '@/components/UserIcon.vue';
 import UserNotification from '@/components/UserNotification.vue';
-    FooterSection; MediaPost; UserBar; UserIcon;
 
     import blackScreen from '@/assets/images/blackScreen.png';
 import defaultGroupChatPfp from '@/assets/images/defaultGroupChatPfp.png';
 import defaultPfp from '@/assets/images/defaultPfp.png';
 import defaultVideoFrame from '@/assets/images/defaultVideoFrame.jpg';
+import loadingAnimation from '../assets/images/loadingAnimation.gif';
+import nextArrow from '../assets/images/nextArrow.png';
 
     import '../assets/styles.css';
 
@@ -179,7 +344,7 @@ import defaultVideoFrame from '@/assets/images/defaultVideoFrame.jpg';
 import { useRoute } from 'vue-router';
 
     import * as signalR from '@microsoft/signalr';
-import { io } from "socket.io-client";
+import { io } from 'socket.io-client';
 
 
     const route = useRoute();
@@ -225,7 +390,7 @@ import { io } from "socket.io-client";
     const orderedListOfSponsorshipStatusesInStoriesSection = ref([]);
     const fetchingStoriesIsComplete = ref(false);
     const storiesSectionErrorMessage = ref('');
-    const usernamesWhoseStoriesYouHaveFinished = ref(new Set());
+    const userIdsWhoseStoriesYouHaveFinished = ref(new Set());
     const usersAndTheirStories = ref({});
     const usersAndTheirStoryPreviews = ref({});
     const usersAndYourCurrSlideInTheirStories = ref({});
@@ -238,6 +403,15 @@ import { io } from "socket.io-client";
 
     const orderedListOfPosts = ref([]);
     const focusedMediaPostId = ref('');
+    const initialPostsFetchingIsComplete = ref(false);
+    const isCurrentlyFetchingAdditionalPosts = ref(false);
+    const initialPostsFetchingErrorMessage = ref('');
+    const additionalPostsFetchingErrorMessage = ref('');
+
+    const orderedListOfSuggestedUserIds = ref([]);
+    const orderedListOfSuggestedUsernames = ref([]);
+    const fetchingSuggestedUsersIsComplete = ref(false);
+    const suggestedUsersSectionErrorMessage = ref('');
 
     const orderedListOfNotifications = ref([]);
 
@@ -255,6 +429,8 @@ import { io } from "socket.io-client";
             if (numTimesRouteParamsWasWatched.value < 2) {
                 return;
             }
+
+            newRouteParams;
 
             if (typeof newRouteParams.username !== 'undefined' && localStorage.getItem('defaultUsername') !==
             newRouteParams.username) {
@@ -301,88 +477,22 @@ import { io } from "socket.io-client";
     });
 
 
-    async function authenticateUser(username, userId) {
-        if (userId == null) {
-            try {
-                const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        query: `query getUserIdOfUsername($username: String!) {
-                            getUserIdOfUsername(username: $username)
-                        }`,
-                        variables: {
-                            username: username
-                        }
-                    }),
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    authUsername.value = 'Anonymous Guest';
-
-                    throw new Error(
-                        `The laravelBackend1 server had trouble getting the user-id of username ${username}`
-                    );
-                }
-
-                let userId = await response.json();
-                userId = userId.data.getUserIdOfUsername;
-                
-                authUserId.value = userId;
-            }
-            catch {
-                authUsername.value = 'Anonymous Guest';
-
-                throw new Error(
-                    `There was trouble connecting to the laravelBackend1 server to get the user-id of username
-                    ${username}`
-                );
+    watch([fetchingStoriesIsComplete, fetchingSuggestedUsersIsComplete, initialPostsFetchingIsComplete],
+    ([newFetchingStoriesIsComplete, newFetchingSuggestedUsersIsComplete, newInitialPostsFetchingIsComplete]) =>
+        {
+            if (newFetchingStoriesIsComplete && newFetchingSuggestedUsersIsComplete && newInitialPostsFetchingIsComplete) {
+                fetchAllTheNecessaryUserInfo();
             }
         }
-        else {
-            authUserId.value = userId;
+    );
+
+
+    function fetchAdditionalPostsWhenUserScrollsToBottomOfPage() {
+        if (!isCurrentlyFetchingAdditionalPosts.value && window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight) {
+            isCurrentlyFetchingAdditionalPosts.value = true;
+            fetchPosts('additional');
         }
-
-        try {
-            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${userId}`, {
-                credentials: 'include'
-            });
-            if (!response1.ok) {
-                authUsername.value = 'Anonymous Guest';
-                authUserId.value = -1;
-
-                throw new Error(
-                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
-                    be logged in as user ${userId}`
-                );
-            }
-
-            authUsername.value = username;
-        }
-        catch {
-            authUsername.value = 'Anonymous Guest';
-            authUserId.value = -1;
-
-            throw new Error(
-                `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
-                credentials to be logged in as user ${userId}`
-            );
-        }
-    }
-
-
-    async function fetchStories() {
-
-    }
-
-
-    async function fetchSuggestedAccounts() {
-
-    }
-
-
-    async function fetchPosts(initialOrAdditionalText) {
-        initialOrAdditionalText;
     }
 
 
@@ -498,11 +608,6 @@ import { io } from "socket.io-client";
     }
 
 
-    function updateFocusedMediaPost(newFocusedMediaPostId) {
-        focusedMediaPostId.value = newFocusedMediaPostId;
-    }
-
-
     function toggleDisplayLeftSidebarPopup() {
         displayLeftSidebarPopup.value = !displayLeftSidebarPopup.value;
     }
@@ -609,13 +714,28 @@ import { io } from "socket.io-client";
     }
 
 
-    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUsername) {
-        usernamesWhoseStoriesYouHaveFinished.value = new Set(
+    function addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUserId) {
+        userIdsWhoseStoriesYouHaveFinished.value = new Set(
             [
-                ...usernamesWhoseStoriesYouHaveFinished.value,
-                newFinishedUsername
+                ...userIdsWhoseStoriesYouHaveFinished.value,
+                newFinishedUserId
             ]
         );
+    }
+
+
+    function changeStoryLevel(incrementOrDecrementText) {
+        if (incrementOrDecrementText === 'increment') {
+            currStoryLevel.value++;
+        }
+        else {
+            currStoryLevel.value--;
+        }
+    }
+
+
+    function updateFocusedMediaPost(newFocusedMediaPostId) {
+        focusedMediaPostId.value = newFocusedMediaPostId;
     }
 
 
@@ -1124,5 +1244,732 @@ import { io } from "socket.io-client";
             console.error(`There was trouble getting the preview-image of post ${overallPostId}, which is needed
             for at-least one of the notifications`);
         }
+    }
+
+
+    async function authenticateUser(username, userId) {
+        if (userId == null) {
+            try {
+                const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: `query getUserIdOfUsername($username: String!) {
+                            getUserIdOfUsername(username: $username)
+                        }`,
+                        variables: {
+                            username: username
+                        }
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    authUsername.value = 'Anonymous Guest';
+
+                    throw new Error(
+                        `The laravelBackend1 server had trouble getting the user-id of username ${username}`
+                    );
+                }
+
+                let userId = await response.json();
+                userId = userId.data.getUserIdOfUsername;
+                
+                authUserId.value = userId;
+            }
+            catch {
+                authUsername.value = 'Anonymous Guest';
+
+                throw new Error(
+                    `There was trouble connecting to the laravelBackend1 server to get the user-id of username
+                    ${username}`
+                );
+            }
+        }
+        else {
+            authUserId.value = userId;
+        }
+
+        try {
+            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${userId}`, {
+                credentials: 'include'
+            });
+            if (!response1.ok) {
+                authUsername.value = 'Anonymous Guest';
+                authUserId.value = -1;
+
+                throw new Error(
+                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
+                    be logged in as user ${userId}`
+                );
+            }
+
+            authUsername.value = username;
+        }
+        catch {
+            authUsername.value = 'Anonymous Guest';
+            authUserId.value = -1;
+
+            throw new Error(
+                `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
+                credentials to be logged in as user ${userId}`
+            );
+        }
+    }
+
+
+    async function fetchStories() {
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/getMyOwnStories
+            /${authUserId.value}`, {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                console.error('The springBootBackend2 server had trouble getting your stories, if any');
+            }
+            else {
+                const responseData = await response.json();
+
+                if (responseData.currSlide === 'finished') {
+                    usersAndYourCurrSlideInTheirStories.value[authUserId.value] = 0;
+                    userIdsWhoseStoriesYouHaveFinished.value = new Set([
+                        ...userIdsWhoseStoriesYouHaveFinished.value,
+                        authUserId.value
+                    ]);
+                }
+                else if (responseData.currSlide > -1) {
+                    usersAndYourCurrSlideInTheirStories.value[authUserId.value] = 0;
+                }
+
+                if (responseData.currSlide !== -1) {
+                    usersAndTheirStories.value[authUserId.value] = responseData.stories;
+                }
+            }
+        }
+        catch {
+            console.error('There was trouble connecting to the springBootBackend2 server to get your stories, if any');
+        }
+
+        try {
+            const response2 = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/
+            getOrderedListOfUsersForMyStoriesSection/${authUserId.value}`, {
+                credentials: 'include'
+            });
+            if (!response2.ok) {
+                storiesSectionErrorMessage.value = `The server had trouble getting the ordered list of users for your
+                stories-section.`;
+            }
+            else {
+                const response2Data = await response2.json();
+
+                orderedListOfUserIdsInStoriesSection.value = response2Data.orderedListOfUserIds;
+
+                const newOrderedListOfUsernamesInStoriesSection = [];
+                for(let storyAuthorId of response2Data.orderedListOfUserIds) {
+                    newOrderedListOfUsernamesInStoriesSection.push(`user ${storyAuthorId}`);
+                }
+                orderedListOfUsernamesInStoriesSection.value = newOrderedListOfUsernamesInStoriesSection;
+
+                orderedListOfSponsorshipStatusesInStoriesSection.value =
+                response2Data.orderedListOfSponsorshipStatuses
+            }
+        }
+        catch {
+            storiesSectionErrorMessage.value = `There was trouble connecting to the server to get the ordered list of users for
+            your stories-section.`;
+        }
+
+        fetchingStoriesIsComplete.value = true;
+    }
+
+
+    async function fetchSuggestedAccounts() {
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2
+            /getNumFollowersFollowingsAndPostsOfMyTopFiveUserSuggestions/${authUserId.value}`, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                suggestedUsersSectionErrorMessage.value = 'The server had trouble getting your top-5 user-suggestions';
+            }
+            else {
+                const responseData = await response.json();
+
+                orderedListOfSuggestedUserIds.value = responseData.userIdsOfTheTop5;
+
+                const newOrderedListOfSuggestedUsernames = [];
+                for(let topSuggestedUserId of responseData.userIdsOfTheTop5) {
+                    newOrderedListOfSuggestedUsernames.push(`user ${topSuggestedUserId}`);
+                }
+                orderedListOfSuggestedUsernames.value = newOrderedListOfSuggestedUsernames;
+
+                const { numFollowersFollowingsAndPostsOfTheTop5 } = responseData;
+
+                for(let suggestedUserId of responseData.userIdsOfTheTop5) {
+                    if (!(suggestedUserId in usersAndTheirRelevantInfo.value)) {
+                        usersAndTheirRelevantInfo.value[suggestedUserId] = {};
+                    }
+
+                    usersAndTheirRelevantInfo.value[suggestedUserId].numFollowers = numFollowersFollowingsAndPostsOfTheTop5[
+                        suggestedUserId
+                    ].numFollowers;
+
+                    usersAndTheirRelevantInfo.value[suggestedUserId].numFollowings = numFollowersFollowingsAndPostsOfTheTop5[
+                        suggestedUserId
+                    ].numFollowings;
+
+                    usersAndTheirRelevantInfo.value[suggestedUserId].numPosts = numFollowersFollowingsAndPostsOfTheTop5[
+                        suggestedUserId
+                    ].numPosts;
+                }
+            }
+        }
+        catch {
+            suggestedUsersSectionErrorMessage.value = `There was trouble connecting to the server to get your top-5 
+            user-suggestions.`;
+        }
+
+        fetchingSuggestedUsersIsComplete.value = true;
+    }
+
+
+    async function fetchPosts(initialOrAdditionalText) {
+        let isInitialFetch;
+
+        if (initialOrAdditionalText === 'initial') {
+            isInitialFetch = true;
+        } 
+        else {
+            isInitialFetch = false;
+        }
+
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/getBatchOfPostsForHomePageFeed
+            /${authUserId.value}`, {
+                credentials: 'include'
+            });
+            if (!response.ok) { 
+                if (isInitialFetch) {
+                    initialPostsFetchingErrorMessage.value = `The server had trouble getting the initial batch of posts for your
+                    home-page feed`;
+                }
+                else {
+                    additionalPostsFetchingErrorMessage.value = `The server had trouble getting an additional batch of posts
+                    for your home-page feed`;
+
+                    window.removeEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
+                }
+            }
+            else {
+                const batchOfPostsForHomePageFeed = await response.json();
+                
+                orderedListOfPosts.value = [
+                    ...orderedListOfPosts.value,
+                    ...batchOfPostsForHomePageFeed.map(postDetails => postDetails.authorUsernames = postDetails.authorIds.map(
+                    authorId => `user ${authorId}`))
+                ];
+
+                if (isInitialFetch) {
+                    window.addEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
+                }
+                else {
+                    fetchAllTheNecessaryUserInfoOfAdditionalPosts(batchOfPostsForHomePageFeed);
+                }
+            }
+        }
+        catch {
+            if (isInitialFetch) {
+                initialPostsFetchingErrorMessage.value = `There was trouble connecting to the server to get the intial batch of
+                posts for your home-page feed`;
+            }
+            else {
+                additionalPostsFetchingErrorMessage.value = `There was trouble connecting to the server to get an additional
+                batch of posts for your home-page feed`;
+
+                window.removeEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
+            }
+        }
+
+        if (isInitialFetch) {
+            initialPostsFetchingIsComplete.value = true;
+        }
+        else {
+            isCurrentlyFetchingAdditionalPosts.value = false;
+        }
+    }
+
+
+    async function fetchAllTheNecessaryUserInfo() {
+        const setOfStoryAuthorIds = new Set(orderedListOfUserIdsInStoriesSection.value);
+
+        const setOfSuggestedUserIds = new Set(orderedListOfSuggestedUserIds.value);
+
+        const setOfAuthorIds = new Set();
+        const setOfMainAuthorIds = new Set();
+        const setOfLikerIdsFollowedByAuthUser = new Set();
+
+        for(let postDetails of orderedListOfPosts.value) {
+            setOfMainAuthorIds.add(postDetails.authorIds[0]);
+
+            for(let authorId of postDetails.authorIds) {
+                setOfAuthorIds.add(authorId);
+            }
+
+            for(let likerIdFollowedByAuthUser of postDetails.likersFollowedByAuthUser) {
+                setOfLikerIdsFollowedByAuthUser.add(likerIdFollowedByAuthUser);
+            }
+        }
+
+        const setOfAllUserIds = new Set([
+            ...setOfStoryAuthorIds, ...setOfSuggestedUserIds, ...setOfAuthorIds, ...setOfMainAuthorIds,
+            ...setOfLikerIdsFollowedByAuthUser
+        ]);
+
+        let graphqlUserQueryStringHeaderInfo = {};
+        let graphqlUserQueryString = '';
+        let graphqlUserVariables = {};
+
+        let usersAndTheirUsernames = {};
+        const newUserIdsNeededForUsernames = [...setOfAllUserIds];
+
+        if (newUserIdsNeededForUsernames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForUsernames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForUsernames) `;
+            graphqlUserVariables.authUserId = authUserId.value;
+            graphqlUserVariables.newUserIdsNeededForUsernames = newUserIdsNeededForUsernames;
+        }
+
+        let usersAndTheirFullNames = {};
+        const newUserIdsNeededForFullNames = [...setOfSuggestedUserIds];
+
+        if (newUserIdsNeededForFullNames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForFullNames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getFullNamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForFullNames) `;
+            graphqlUserVariables.authUserId = authUserId.value;
+            graphqlUserVariables.newUserIdsNeededForFullNames = newUserIdsNeededForFullNames;
+        }
+
+        let usersAndTheirVerificationStatuses = {};
+        const newUserIdsNeededForVerificationStatuses = newUserIdsNeededForUsernames;
+
+        if (newUserIdsNeededForVerificationStatuses.length>0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+            $newUserIdsNeededForVerificationStatuses) `;
+            graphqlUserVariables.authUserId = authUserId.value;
+            graphqlUserVariables.newUserIdsNeededForVerificationStatuses = newUserIdsNeededForVerificationStatuses;
+        }
+
+        if (graphqlUserQueryString.length > 0) {
+            let graphqlUserQueryStringHeader = 'query (';
+            let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+            for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+                const key = graphqlUserQueryStringHeaderKeys[i];
+                const value = graphqlUserQueryStringHeaderInfo[key];
+
+                if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+                }
+                else {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}`;
+                }
+            }
+
+            graphqlUserQueryStringHeader+= '){ ';
+            graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
+            try {
+                const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: graphqlUserQueryString,
+                        variables: graphqlUserVariables
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the usernames of all the newly fetched users'
+                        );
+                    }
+
+                    if (newUserIdsNeededForFullNames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the full-names of all the newly fetched users'
+                        );
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        console.error(
+                            `The server had trouble fetching the verification-statuses of all the new fetched
+                            users`
+                        );
+                    }
+                }
+                else {
+                    const responseData = await response.json();
+
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        const listOfUsernamesForNewUserIds = responseData.data.getListOfUsernamesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForUsernames.length; i++) {
+                            const newUserId = newUserIdsNeededForUsernames[i];
+                            const newUsername = listOfUsernamesForNewUserIds[i];
+
+                            if (newUsername !== null) {
+                                usersAndTheirUsernames[newUserId] = newUsername;
+                            }
+                        }
+                    }
+                    
+                    if (newUserIdsNeededForFullNames.length > 0) {
+                        const listOfFullNamesForNewUserIds = responseData.data.getListOfFullNamesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForFullNames.length; i++) {
+                            const newUserId = newUserIdsNeededForFullNames[i];
+                            const newUserFullName = listOfFullNamesForNewUserIds[i];
+
+                            if (newUserFullName !== null) {
+                                usersAndTheirFullNames[newUserId] = newUserFullName;
+                            }
+                        }
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        const listOfVerificationStatusesForNewUserIds = responseData.data
+                        .getListOfUserVerificationStatusesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForVerificationStatuses.length; i++) {
+                            const newUserId = newUserIdsNeededForVerificationStatuses[i];
+                            const newUserVerificationStatus = listOfVerificationStatusesForNewUserIds[i];
+
+                            if (newUserVerificationStatus !== null) {
+                                usersAndTheirVerificationStatuses[newUserId] = newUserVerificationStatus;
+                            }
+                        }
+                    }
+                }
+            }
+            catch {
+                if (newUserIdsNeededForUsernames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+                        users`
+                    );
+                }
+
+                if (newUserIdsNeededForFullNames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the full-names of all the newly fetched
+                        users`
+                    ); 
+                }
+
+                if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+                        fetched users`
+                    );
+                }
+            }
+        }
+
+        let usersAndTheirProfilePhotos = {};
+        const newUserIdsNeededForProfilePhotos = [
+            ...new Set([
+                ...setOfStoryAuthorIds, ...setOfSuggestedUserIds, ...setOfMainAuthorIds
+            ])
+        ];
+
+        if (newUserIdsNeededForProfilePhotos.length>0) {
+            try {
+                const response2 = await fetch(
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${authUserId.value}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        userIds: newUserIdsNeededForProfilePhotos
+                    }),
+                    credentials: 'include'
+                });
+                if(!response2.ok) {
+                    console.error(
+                        'The server had trouble fetching the profile-photos of all the newly fetched users'
+                    );
+                }
+                else {
+                    usersAndTheirProfilePhotos = await response2.json();
+                }
+            }
+            catch {
+                console.error(
+                    'There was trouble connecting to the server to fetch the profile-photos of all the newly fetched users'
+                );
+            }
+        }
+
+        const newUsersAndTheirRelevantInfo = { ...usersAndTheirRelevantInfo.value };
+
+        for(let userId of setOfAllUserIds) {
+            if (!(userId in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[userId] = {};
+            }
+
+            if (userId in usersAndTheirUsernames) {
+                newUsersAndTheirRelevantInfo[userId].username = usersAndTheirUsernames[userId];
+            }
+
+            if (userId in usersAndTheirVerificationStatuses) {
+                newUsersAndTheirRelevantInfo[userId].isVerified = usersAndTheirVerificationStatuses[userId];
+            }
+            
+            if (userId in usersAndTheirFullNames) {
+                newUsersAndTheirRelevantInfo[userId].fullName = usersAndTheirFullNames[userId];
+            }
+
+            if (userId in usersAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[userId].profilePhoto = usersAndTheirProfilePhotos[userId];
+            }
+        }
+
+        const newOrderedListOfUsernamesInStoriesSection = [];
+        for(let userId of orderedListOfUserIdsInStoriesSection.value) {
+            newOrderedListOfUsernamesInStoriesSection.push(
+                newUsersAndTheirRelevantInfo[userId].username ?? `user ${userId}`
+            );
+        }
+        orderedListOfUsernamesInStoriesSection.value = newOrderedListOfUsernamesInStoriesSection;
+
+        const newOrderedListOfSuggestedUsernames = [];
+        for(let userId of orderedListOfSuggestedUsernames.value) {
+            newOrderedListOfSuggestedUsernames.push(
+                newUsersAndTheirRelevantInfo[userId].username ?? `user ${userId}`
+            );
+        }
+        orderedListOfSuggestedUsernames.value = newOrderedListOfSuggestedUsernames;
+
+        usersAndTheirRelevantInfo.value = { ...newUsersAndTheirRelevantInfo };
+    }
+
+
+    async function fetchAllTheNecessaryUserInfoOfAdditionalPosts(additionalPosts) {
+        const setOfAuthorIds = new Set();
+        const setOfMainAuthorIds = new Set();
+        const setOfLikerIdsFollowedByAuthUser = new Set();
+
+        for(let postDetails of additionalPosts) {
+            setOfMainAuthorIds.add(postDetails.authorIds[0]);
+
+            for(let authorId of postDetails.authorIds) {
+                setOfAuthorIds.add(authorId);
+            }
+
+            for(let likerIdFollowedByAuthUser of postDetails.likersFollowedByAuthUser) {
+                setOfLikerIdsFollowedByAuthUser.add(likerIdFollowedByAuthUser);
+            }
+        }
+
+        const setOfAllUserIds = new Set([...setOfAuthorIds, ...setOfMainAuthorIds, ...setOfLikerIdsFollowedByAuthUser]);
+
+        let graphqlUserQueryStringHeaderInfo = {};
+        let graphqlUserQueryString = '';
+        let graphqlUserVariables = {};
+
+        let usersAndTheirUsernames = {};
+        const newUserIdsNeededForUsernames = [...setOfAllUserIds].filter(userId => {
+            if (!(userId in usersAndTheirRelevantInfo.value) || !('username' in usersAndTheirRelevantInfo.value)) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newUserIdsNeededForUsernames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForUsernames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForUsernames) `;
+            graphqlUserVariables.authUserId = authUserId.value;
+            graphqlUserVariables.newUserIdsNeededForUsernames = newUserIdsNeededForUsernames;
+        }
+
+        let usersAndTheirVerificationStatuses = {};
+        const newUserIdsNeededForVerificationStatuses = [...setOfAllUserIds].filter(userId => {
+            if (!(userId in usersAndTheirRelevantInfo.value) || !('isVerified' in usersAndTheirRelevantInfo.value[userId])) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newUserIdsNeededForVerificationStatuses.length>0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+            $newUserIdsNeededForVerificationStatuses) `;
+            graphqlUserVariables.authUserId = authUserId.value;
+            graphqlUserVariables.newUserIdsNeededForVerificationStatuses = newUserIdsNeededForVerificationStatuses;
+        }
+
+        if (graphqlUserQueryString.length > 0) {
+            let graphqlUserQueryStringHeader = 'query (';
+            let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+            for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+                const key = graphqlUserQueryStringHeaderKeys[i];
+                const value = graphqlUserQueryStringHeaderInfo[key];
+
+                if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+                }
+                else {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}`;
+                }
+            }
+
+            graphqlUserQueryStringHeader+= '){ ';
+            graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
+            try {
+                const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: graphqlUserQueryString,
+                        variables: graphqlUserVariables
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the usernames of all the newly fetched users'
+                        );
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        console.error(
+                            `The server had trouble fetching the verification-statuses of all the new fetched
+                            users`
+                        );
+                    }
+                }
+                else {
+                    const responseData = await response.json();
+
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        const listOfUsernamesForNewUserIds = responseData.data.getListOfUsernamesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForUsernames.length; i++) {
+                            const newUserId = newUserIdsNeededForUsernames[i];
+                            const newUsername = listOfUsernamesForNewUserIds[i];
+
+                            if (newUsername !== null) {
+                                usersAndTheirUsernames[newUserId] = newUsername;
+                            }
+                        }
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        const listOfVerificationStatusesForNewUserIds = responseData.data
+                        .getListOfUserVerificationStatusesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForVerificationStatuses.length; i++) {
+                            const newUserId = newUserIdsNeededForVerificationStatuses[i];
+                            const newUserVerificationStatus = listOfVerificationStatusesForNewUserIds[i];
+
+                            if (newUserVerificationStatus !== null) {
+                                usersAndTheirVerificationStatuses[newUserId] = newUserVerificationStatus;
+                            }
+                        }
+                    }
+                }
+            }
+            catch {
+                if (newUserIdsNeededForUsernames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+                        users`
+                    );
+                }
+
+                if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+                        fetched users`
+                    );
+                }
+            }
+        }
+
+        let usersAndTheirProfilePhotos = {};
+        const newUserIdsNeededForProfilePhotos = [...setOfMainAuthorIds].filter(userId => {
+            if (!(userId in usersAndTheirRelevantInfo.value) || !('profilePhoto' in usersAndTheirRelevantInfo.value[userId])) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newUserIdsNeededForProfilePhotos.length>0) {
+            try {
+                const response2 = await fetch(
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${authUserId.value}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        userIds: newUserIdsNeededForProfilePhotos
+                    }),
+                    credentials: 'include'
+                });
+                if(!response2.ok) {
+                    console.error(
+                        'The server had trouble fetching the profile-photos of all the newly fetched users'
+                    );
+                }
+                else {
+                    usersAndTheirProfilePhotos = await response2.json();
+                }
+            }
+            catch {
+                console.error(
+                    'There was trouble connecting to the server to fetch the profile-photos of all the newly fetched users'
+                );
+            }
+        }
+
+        const newUsersAndTheirRelevantInfo = { ...usersAndTheirRelevantInfo.value };
+
+        for(let userId of setOfAllUserIds) {
+            if (!(userId in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[userId] = {};
+            }
+
+            if (userId in usersAndTheirUsernames) {
+                newUsersAndTheirRelevantInfo[userId].username = usersAndTheirUsernames[userId];
+            }
+
+            if (userId in usersAndTheirVerificationStatuses) {
+                newUsersAndTheirRelevantInfo[userId].isVerified = usersAndTheirVerificationStatuses[userId];
+            }
+            
+            if (userId in usersAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[userId].profilePhoto = usersAndTheirProfilePhotos[userId];
+            }
+        }
+
+        usersAndTheirRelevantInfo.value = { ...newUsersAndTheirRelevantInfo };
     }
 </script>

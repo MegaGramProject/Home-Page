@@ -1,7 +1,7 @@
-import Comment from '../../Comment';
-import FollowUser from '../../FollowUser';
-import PostDots from '../../PostDots';
-import UserIcon from '../../UserIcon';
+import Comment from '../Comment';
+import FollowUser from '../FollowUser';
+import PostDots from '../PostDots';
+import UserIcon from '../UserIcon';
 
 import blackSavedIcon from '../../assets/images/blackSavedIcon.png';
 import blankHeartIcon from '../../assets/images/blankHeartIcon.png';
@@ -23,6 +23,7 @@ import thinGrayXIcon from '../../assets/images/thinGrayXIcon.png';
 import thinWhiteXIcon from '../../assets/images/thinWhiteXIcon.png';
 import threeHorizontalDots from '../../assets/images/threeHorizontalDots.png';
 import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
+import defaultVideoFrame from '../../assets/images/defaultVideoFrame.jpg';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -349,12 +350,11 @@ showStoryViewer, updatePostDetails}) {
                 newSlideToVidTimeToFrameMappings[slide][timeInSeconds] = frameImage;
                 setSlideToVidTimeToFrameMappings(newSlideToVidTimeToFrameMappings);
 
-                resolve(imageDataURL);
+                resolve(frameImage);
             });
 
 
-            video.onerror = (e) => {
-                e;
+            video.onerror = () => {
                 reject(new Error('Error loading video'));
             };
         });
@@ -1369,6 +1369,7 @@ showStoryViewer, updatePostDetails}) {
                                 username={postDetails.authorUsernames[0]}
                                 userPfp={mainPostAuthorInfo.profilePhoto ?? defaultPfp}
                                 inStoriesSection={false}
+                                isSponsored={false}
                                 userHasStories={mainPostAuthorInfo.hasStories ?? false}
                                 userHasUnseenStory={mainPostAuthorInfo.hasUnseenStory ?? false}
                                 userIsVerified={mainPostAuthorInfo.isVerified ?? false}

@@ -1,4 +1,4 @@
-import FollowUser from '../../FollowUser';
+import FollowUser from '../FollowUser';
 
 import defaultPfp from '../../assets/images/defaultPfp.png';
 import loadingAnimation from '../../assets/images/loadingAnimation.gif';

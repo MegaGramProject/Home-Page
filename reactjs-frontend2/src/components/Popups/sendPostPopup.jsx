@@ -1,4 +1,4 @@
-import SelectUserOrGroupChat from '../../SelectUserOrGroupChat';
+import SelectUserOrGroupChat from '../SelectUserOrGroupChat';
 
 import defaultGroupChatPfp from '../../assets/images/defaultGroupChatPfp.png';
 import defaultPfp from '../../assets/images/defaultPfp.png';

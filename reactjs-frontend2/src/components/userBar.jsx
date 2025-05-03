@@ -82,68 +82,62 @@ userIsPrivate, userIsVerified, showErrorPopup}) {
 
 
     return (
-        <>
-            <div style={{display:'flex', width:'20em', alignItems:'start', position:'relative',
-            marginBottom: '-1em'}} onMouseEnter={setDisplayAccountPreviewToTrue}
-            onMouseLeave={setDisplayAccountPreviewToFalse}>
-                <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
-                    <img src={userPfp} style={{height:'2.5em', width:'2.5em', objectFit:'contain', 
-                    cursor:'pointer'}}/>   
-                </a>
+        <div style={{display:'flex', width:'100%', alignItems:'start', position:'relative'}}
+        onMouseEnter={setDisplayAccountPreviewToTrue} onMouseLeave={setDisplayAccountPreviewToFalse}>
+            <a href={`http://34.111.89.101/profile/${username}`} target="_blank" rel="noopener noreferrer">
+                <img src={userPfp} style={{height:'2.5em', width:'2.5em', objectFit:'contain', 
+                cursor:'pointer'}}/>   
+            </a>
 
-                <div style={{display:'flex', flexDirection:'column', alignItems: 'start', marginLeft:'0.7em'}}>
-                    <div style={{display: 'flex', alignItems: 'center'}}>
-                        <a href={`http://34.111.89.101/profile/${username}`} onMouseEnter={setDisplayAccountPreviewToTrue}
-                        onMouseLeave={setDisplayAccountPreviewToFalse} style={{fontSize:'0.85em', cursor:'pointer',
-                        maxWidth: '8em', overflowWrap: 'break-word', textAlign: 'start', fontWeight: 'bold'}}
-                        target="_blank" rel="noopener noreferrer">
-                            {username}
-                        </a>
+            <div style={{display:'flex', flexDirection:'column', alignItems: 'start', marginLeft:'0.7em'}}>
+                <div style={{display: 'flex', alignItems: 'center'}}>
+                    <a href={`http://34.111.89.101/profile/${username}`} onMouseEnter={setDisplayAccountPreviewToTrue}
+                    onMouseLeave={setDisplayAccountPreviewToFalse} style={{fontSize:'0.85em', cursor:'pointer',
+                    maxWidth: '8em', overflowWrap: 'break-word', textAlign: 'start', fontWeight: 'bold'}}
+                    target="_blank" rel="noopener noreferrer">
+                        {username}
+                    </a>
 
-                        {userIsVerified &&
-                            (
-                                <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
-                                width: '1.5em', objectFit: 'contain'}}/>
-                            )
-                        }
-                    </div>
-
-                    <p style={{fontSize:'0.7em', marginTop:'0.1em', color:'#787878',
-                    maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}}>
-                        { userFullName === '?' ? 'Could not get full name' : userFullName }
-                    </p>
+                    {userIsVerified &&
+                        (
+                            <img src={verifiedBlueCheck} style={{pointerEvents: 'none', height: '1.5em',
+                            width: '1.5em', objectFit: 'contain'}}/>
+                        )
+                    }
                 </div>
 
-                <p onClick={userId == authUserId ? takeUserToLogin : toggleFollowUser}
-                style={{color: toggleFollowText==="Follow" ? '#348feb' : 'gray', cursor:'pointer',
-                fontSize:'0.85em', fontWeight:'bold', position:'absolute', left:'76%', top: '0%'}}> 
-                    { userId == authUserId ? 'Switch' : toggleFollowText }
+                <p style={{fontSize:'0.7em', marginTop:'0.1em', color:'#787878',
+                maxWidth: '10em', overflowWrap: 'break-word', textAlign: 'start'}}>
+                    { userFullName }
                 </p>
-                
-                {(userId != authUserId && displayAccountPreview) && 
-                    <div style={{position:'absolute', top:'36%', left: '-2%'}}>
-                        <AccountPreview
-                            username={username}
-                            userPfp={userPfp}
-                            userFullName={userFullName}
-                            toggleFollowText={toggleFollowText}
-                            authUserId={authUserId}
-                            userId={userId}
-                            numPosts={numPosts}
-                            numFollowers={numFollowers}
-                            numFollowings={numFollowings}
-                            userIsPrivate={userIsPrivate}
-                            userIsVerified={userIsVerified}
-                            updateFollowText={updateFollowTextFromAccountPreview}
-                            showErrorPopup={showErrorPopup}
-                        />
-                    </div>
-                }
             </div>
 
-            <br/>
-            <br/>
-        </>
+            <p onClick={userId == authUserId ? takeUserToLogin : toggleFollowUser}
+            style={{color: toggleFollowText==="Follow" ? '#348feb' : 'gray', cursor:'pointer',
+            fontSize:'0.85em', fontWeight:'bold', position:'absolute', right:'0%', top: '0%'}}> 
+                { userId == authUserId ? 'Switch' : toggleFollowText }
+            </p>
+            
+            {(userId != authUserId && displayAccountPreview) && 
+                <div style={{position:'absolute', top:'36%', left: '-2%'}}>
+                    <AccountPreview
+                        username={username}
+                        userPfp={userPfp}
+                        userFullName={userFullName}
+                        toggleFollowText={toggleFollowText}
+                        authUserId={authUserId}
+                        userId={userId}
+                        numPosts={numPosts}
+                        numFollowers={numFollowers}
+                        numFollowings={numFollowings}
+                        userIsPrivate={userIsPrivate}
+                        userIsVerified={userIsVerified}
+                        updateFollowText={updateFollowTextFromAccountPreview}
+                        showErrorPopup={showErrorPopup}
+                    />
+                </div>
+            }
+        </div>
     );
 }
 

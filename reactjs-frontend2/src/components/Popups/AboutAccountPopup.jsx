@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
-import UserIcon from '../userIcon';
+import UserIcon from '../UserIcon';
 
-import accountBasedInIcon from '../../assets/images/accountBasedInText.png';
-import dateJoinedIcon from '../../assets/images/dateJoinedText.png';
+import accountBasedInIcon from '../../assets/images/accountBasedIn.png';
+import dateJoinedIcon from '../../assets/images/dateJoined.png';
 import verifiedBlueCheck from '../../assets/images/verifiedBlueCheck.png';
 
 
@@ -112,6 +112,7 @@ addRelevantInfoToUser, closePopup, showStoryViewer, usersAndTheirRelevantInfo}) 
                 username={username}
                 authUser={authUser}
                 inStoriesSection={false}
+                isSponsored={false}
                 userHasStories={userHasStories}
                 userHasUnseenStory={userHasUnseenStory}
                 userPfp={userPfp}

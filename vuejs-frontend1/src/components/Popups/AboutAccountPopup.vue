@@ -16,6 +16,7 @@
             :username="username"
             :authUsername="authUsername"
             :inStoriesSection="false"
+            :isSponsored="false"
             :hasStories="userHasStories"
             :hasUnseenStory="userHasUnseenStory"
             :profilePhoto="userPfp"

@@ -421,12 +421,11 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                 newSlideToVidTimeToFrameMappings[slide][timeInSeconds] = frameImage;
                 setSlideToVidTimeToFrameMappings(newSlideToVidTimeToFrameMappings);
 
-                resolve(imageDataURL);
+                resolve(frameImage);
             });
 
 
-            video.onerror = (e) => {
-                e;
+            video.onerror = () => {
                 reject(new Error('Error loading video'));
             };
         });
@@ -701,7 +700,8 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
 
 
     return (
-        <div style={{display: 'flex', flexDirection: 'column', width: '61%', alignItems: 'start', padding: '1em 1em'}}>
+        <div style={{display: 'flex', flexDirection: 'column', width: '61%', alignItems: 'start', padding: '1em 1em',
+        marginBottom: '2em'}}>
             <div style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '1em'}}>
                     <UserIcon
@@ -710,6 +710,7 @@ showThreeDotsPopup, showCommentsPopup, showSendPostPopup, showLikersPopup, showE
                         username={postDetails.authorUsernames[0]}
                         userPfp={mainPostAuthorInfo.profilePhoto ?? defaultPfp}
                         inStoriesSection={false}
+                        isSponsored={false}
                         userHasStories={mainPostAuthorInfo.hasStories ?? false}
                         userHasUnseenStory={mainPostAuthorInfo.hasUnseenStory ?? false}
                         userIsVerified={mainPostAuthorInfo.isVerified ?? false}

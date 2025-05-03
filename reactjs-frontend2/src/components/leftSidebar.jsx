@@ -12,14 +12,15 @@ function LeftSidebar({profilePhoto, displayPopup, authUserIsAnonymousGuest, togg
 
     
     return (
-        <div id="leftSidebar" style={{position: 'fixed', height: '100%', top: '0%', left: '0%', width: '14.5em'}}>
-            <div style={{width:'100%', height:'100%', borderStyle:'solid',
-            borderColor:'lightgray',  borderWidth: '0em 0.01em 0em 0em', position: 'relative',
-            paddingTop: '1.5em'}}>
-                <h1 className="loseOpacityWhenActive" style={{fontFamily:'Billabong', fontSize:'1.9em', marginLeft:'-3em',
-                fontWeight: '100'}}>
-                    <span style={{cursor:"pointer"}}>Megagram</span>
-                </h1>
+        <div id="leftSidebar" style={{position: 'fixed', height: '100%', top: '0%', left: '0%', width: '14%'}}>
+            <div style={{width:'100%', height:'100%', borderStyle:'solid', borderColor:'lightgray',  borderWidth:
+            '0em 0.01em 0em 0em', position: 'relative'}}>
+                <div style={{display: 'flex', width: '90%', marginLeft: '1em'}}>
+                    <p className="loseOpacityWhenActive" style={{fontFamily: 'Billabong', fontSize: '1.9em', fontWeight: '100',
+                    cursor: 'pointer', marginLeft: '0.2em'}}>
+                        Megagram
+                    </p>
+                </div>
 
                 <div className="sidebarElement">
                     <img src={homeIcon} className="iconToBeAdjustedForDarkMode" style={{height:'2.3em', width:'2.3em',

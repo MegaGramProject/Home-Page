@@ -1,5 +1,5 @@
 <template>
-    <div style="display: flex; flex-direction: column; width: 61%; align-items: start; padding: 1em 1em;">
+    <div style="display: flex; flex-direction: column; width: 61%; align-items: start; padding: 1em 1em; margin-bottom: 2em;">
         <div style="width: 100%; display: flex; align-items: center; justify-content: space-between;">
             <div style="display: flex; align-items: center; gap: 1em;">
                 <UserIcon
@@ -8,6 +8,7 @@
                     :username="postDetails.authorUsernames[0]"
                     :userPfp="mainPostAuthorInfo.profilePhoto ?? defaultPfp"
                     :inStoriesSection="false"
+                    :isSponsored="false"
                     :userHasStories="mainPostAuthorInfo.hasStories ?? false"
                     :userHasUnseenStory="mainPostAuthorInfo.hasUnseenStory ?? false"
                     :userIsVerified="mainPostAuthorInfo.isVerified ?? false"

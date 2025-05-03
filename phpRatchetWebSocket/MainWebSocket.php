@@ -154,32 +154,6 @@ class MainWebSocket implements MessageComponentInterface {
 
         switch ($data['event']) {
             case 'Following':
-                $followerId = $data['data']['followerId'];
-                $followedId = $data['data']['followedId'];
-
-                $followerName = '';
-
-                if (array_key_exists($followerId, $this->userIdsAndTheirUsernames)) {
-                    $followerName = $this->userIdsAndTheirUsernames[$followerId];
-                }
-                else {
-                    $followerName = $this->userInfoFetchingService->getUsernameOfUser($followerId);
-                    
-                    if ($followerName !== "user $followerId") {
-                        $this->userIdsAndTheirUsernames[$followerId] = $followerName;
-                    }
-                }
-
-                foreach($this->usersAndTheirConnections[$followedId] as $_ => $client) {
-                    $client->send(json_encode([
-                        'event' => 'Following',
-                        'data' => [
-                            'followerId' => $followerId,
-                            'followerName' => $followerName,
-                        ]
-                    ]));
-                }
-                
             case 'Unfollowing':
                 $followerId = $data['data']['followerId'];
                 $followedId = $data['data']['followedId'];
@@ -199,41 +173,14 @@ class MainWebSocket implements MessageComponentInterface {
 
                 foreach($this->usersAndTheirConnections[$followedId] as $_ => $client) {
                     $client->send(json_encode([
-                        'event' => 'Unfollowing',
+                        'event' => $data['event'],
                         'data' => [
                             'followerId' => $followerId,
                             'followerName' => $followerName,
                         ]
                     ]));
                 }
-
             case 'FollowRequest':
-                $requesterId = $data['data']['requesterId'];
-                $requestedId = $data['data']['requestedId'];
-
-                $requesterName = '';
-
-                if (array_key_exists($requesterId, $this->userIdsAndTheirUsernames)) {
-                    $requesterName = $this->userIdsAndTheirUsernames[$requesterId];
-                }
-                else {
-                    $requesterName = $this->userInfoFetchingService->getUsernameOfUser($requesterId);
-                    
-                    if ($requesterName !== "user $requesterId") {
-                        $this->userIdsAndTheirUsernames[$requesterId] = $requesterName;
-                    }
-                }
-
-                foreach($this->usersAndTheirConnections[$requestedId] as $_ => $client) {
-                    $client->send(json_encode([
-                        'event' => 'FollowRequest',
-                        'data' => [
-                            'requesterId' => $requesterId,
-                            'requesterName' => $requesterName,
-                        ]
-                    ]));
-                }
-
             case 'FollowRequestCancellation':
                 $requesterId = $data['data']['requesterId'];
                 $requestedId = $data['data']['requestedId'];
@@ -253,7 +200,7 @@ class MainWebSocket implements MessageComponentInterface {
 
                 foreach($this->usersAndTheirConnections[$requestedId] as $_ => $client) {
                     $client->send(json_encode([
-                        'event' => 'FollowRequestCancellation',
+                        'event' => $data['event'],
                         'data' => [
                             'requesterId' => $requesterId,
                             'requesterName' => $requesterName,

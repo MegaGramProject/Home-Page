@@ -16,6 +16,8 @@ export class UserIcon {
     @Input() userPfp!:string|null;
 
     @Input() inStoriesSection!:boolean;
+    @Input() isSponsored!:boolean;
+
     @Input() userHasStories!:boolean;
     @Input() userHasUnseenStory!:boolean;
     @Input() userIsVerified!:boolean;

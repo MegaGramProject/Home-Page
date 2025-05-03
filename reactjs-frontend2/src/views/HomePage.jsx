@@ -6,7 +6,6 @@ import LikersPopup from '../components/Popups/LikersPopup';
 import SendPostPopup from '../components/Popups/SendPostPopup';
 import ThreeDotsPopup from '../components/Popups/ThreeDotsPopup';
 
-import Footer from '../components/Footer';
 import LeftSidebar from '../components/LeftSidebar';
 import MediaPost from '../components/MediaPost';
 import StoryViewer from '../components/StoryViewer';
@@ -14,11 +13,12 @@ import UserBar from '../components/UserBar';
 import UserIcon from '../components/UserIcon';
 import UserNotification from '../components/UserNotification';
 
-import backArrow from "../assets/images/backArrow.png";
-import blackScreen from "../assets/images/blackScreen.png";
+import blackScreen from '../assets/images/blackScreen.png';
+import defaultGroupChatPfp from '../assets/images/defaultGroupChatPfp.png';
 import defaultPfp from '../assets/images/defaultPfp.png';
+import defaultVideoFrame from '../assets/images/defaultVideoFrame.jpg';
 import loadingAnimation from '../assets/images/loadingAnimation.gif';
-import rightArrow from "../assets/images/nextArrow.png";
+import nextArrow from '../assets/images/nextArrow.png';
 
 import '../assets/styles.css';
 
@@ -33,6 +33,8 @@ function HomePage({urlParams}) {
     const [authUserId, setAuthUserId] = useState(-1);
 
     const [originalURL, setOriginalURL] = useState('');
+
+    const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
 
     const [displayErrorPopup, setDisplayErrorPopup] = useState(false);
     const [errorPopupMessage, setErrorPopupMessage] = useState('');
@@ -58,7 +60,7 @@ function HomePage({urlParams}) {
     const [orderedListOfSponsorshipStatusesInStoriesSection, setOrderedListOfSponsorshipStatusesInStoriesSection] = useState([]);
     const [fetchingStoriesIsComplete, setFetchingStoriesIsComplete] = useState(false);
     const [storiesSectionErrorMessage, setStoriesSectionErrorMessage] = useState('');
-    const [usernamesWhoseStoriesYouHaveFinished, setUsernamesWhoseStoriesYouHaveFinished] = useState(new Set());
+    const [userIdsWhoseStoriesYouHaveFinished, setUserIdsWhoseStoriesYouHaveFinished] = useState(new Set());
     const [usersAndTheirStories, setUsersAndTheirStories] = useState({});
     const [usersAndTheirStoryPreviews, setUsersAndTheirStoryPreviews] = useState({});
     const [usersAndYourCurrSlideInTheirStories, setUsersAndYourCurrSlideInTheirStories] = useState({});
@@ -70,6 +72,15 @@ function HomePage({urlParams}) {
 
     const [orderedListOfPosts, setOrderedListOfPosts] = useState([]);
     const [focusedMediaPostId, setFocusedMediaPostId] = useState('');
+    const [initialPostsFetchingIsComplete, setInitialPostsFetchingIsComplete] = useState(false);
+    const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
+    const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
+    const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
+
+    const [orderedListOfSuggestedUserIds, setOrderedListOfSuggestedUserIds] = useState([]);
+    const [orderedListOfSuggestedUsernames, setOrderedListOfSuggestedUsernames] = useState([]);
+    const [fetchingSuggestedUsersIsComplete, setFetchingSuggestedUsersIsComplete] = useState(false);
+    const [suggestedUsersSectionErrorMessage, setSuggestedUsersSectionErrorMessage] = useState('');
 
     const [usersAndTheirRelevantInfo, setUsersAndTheirRelevantInfo] = useState({});
     const [postsAndTheirPreviewImgs, setPostsAndTheirPreviewImgs] = useState({});
@@ -81,22 +92,12 @@ function HomePage({urlParams}) {
 
     const [displaySendPostPopup, setDisplaySendPostPopup] = useState(false);
     const [sendPostPopupOverallPostId, setSendPostPopupOverallPostId] = useState('');
-    
-    const [displayLeftSidebarPopup, setDisplayLeftSidebarPopup] = useState(false);
-
-    const [fetchingSuggestedAccountsIsComplete, setFetchingSuggestedAccountsIsComplete] = useState(false);
-    const [fetchingInitialPostsIsComplete, setFetchingInitialPostsIsComplete] = useState(false);
-    const [orderedListOfUsernamesOfSuggestedAccounts, setOrderedListOfUsernamesOfSuggestedAccounts] = useState([]);
-    const [suggestedAccountsSectionErrorMessage, setSuggestedAccountsSectionErrorMessage] = useState('');
-    const [initialPostsFetchingErrorMessage, setInitialPostsFetchingErrorMessage] = useState('');
-    const [isCurrentlyFetchingAdditionalPosts, setIsCurrentlyFetchingAdditionalPosts] = useState(false);
-    const [additionalPostsFetchingErrorMessage, setAdditionalPostsFetchingErrorMessage] = useState('');
 
     const [orderedListOfNotifications, setOrderedListOfNotifications] = useState([]);
 
 
     useEffect(() => {
-        document.title = "Megagram";
+        document.title = 'Megagram';
         setOriginalURL(window.location.href);
         
         if (urlParams) {
@@ -152,10 +153,10 @@ function HomePage({urlParams}) {
 
 
     useEffect(() => {
-        if (fetchingStoriesIsComplete && fetchingSuggestedAccountsIsComplete && fetchingInitialPostsIsComplete) {
+        if (fetchingStoriesIsComplete && fetchingSuggestedUsersIsComplete && initialPostsFetchingIsComplete) {
             fetchAllTheNecessaryUserInfo();
         }
-    }, [fetchingStoriesIsComplete, fetchingSuggestedAccountsIsComplete, fetchingInitialPostsIsComplete]);
+    }, [fetchingStoriesIsComplete, fetchingSuggestedUsersIsComplete, initialPostsFetchingIsComplete]);
        
 
     function showThreeDotsPopup(newThreeDotsPopupPostDetails) {
@@ -212,736 +213,9 @@ function HomePage({urlParams}) {
     }
 
 
-    async function authenticateUser(username, userId) {
-        if (userId == null) {
-            try {
-                const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        query: `query getUserIdOfUsername($username: String!) {
-                            getUserIdOfUsername(username: $username)
-                        }`,
-                        variables: {
-                            username: username
-                        }
-                    }),
-                    credentials: 'include'
-                });
-                if (!response.ok) {
-                    setAuthUsername('Anonymous Guest');
-
-                    throw new Error(
-                        `The laravelBackend1 server had trouble getting the user-id of username ${username}`
-                    );
-                }
-
-                let userId = await response.json();
-                userId = userId.data.getUserIdOfUsername;
-                
-                setAuthUserId(userId);
-            }
-            catch {
-                setAuthUsername('Anonymous Guest');
-
-                throw new Error(
-                    `There was trouble connecting to the laravelBackend1 server to get the user-id of username
-                    ${username}`
-                );
-            }
-        }
-        else {
-            setAuthUserId(userId);
-        }
-
-        try {
-            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${userId}`, {
-                credentials: 'include'
-            });
-            if (!response1.ok) {
-                setAuthUsername('Anonymous Guest');
-                setAuthUserId(-1);
-
-                throw new Error(
-                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
-                    be logged in as user ${userId}`
-                );
-            }
-
-            setAuthUsername(username);
-        }
-        catch {
-            setAuthUsername('Anonymous Guest');
-            setAuthUserId(-1);
-
-            throw new Error(
-                `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
-                credentials to be logged in as user ${userId}`
-            );
-        }
-    }
-
-
-    async function fetchStories() {
-        if (authUsername !== 'Anonymous Guest') {
-            try {
-                const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getOwnUnexpiredStories/${authUsername}`, {
-                    credentials: 'include'
-                });
-                if(!response.ok) {
-                    console.error('The server could not find an unexpired story of yours.');
-                }
-                else {
-                    const ownUnexpiredStoryData = await response.json();
-                    const newUsersAndTheirStories = {};
-                    const newUsersAndYourCurrSlideInTheirStories = {};
-                    
-                    newUsersAndTheirStories[authUsername] = ownUnexpiredStoryData.stories;
-                    
-                    if (ownUnexpiredStoryData.currSlide==='finished') {
-                        newUsersAndYourCurrSlideInTheirStories[authUsername] = 0;
-                        setUsernamesWhoseStoriesYouHaveFinished(new Set([authUsername]));
-                    }
-                    else {
-                        newUsersAndYourCurrSlideInTheirStories[authUsername] = ownUnexpiredStoryData.currSlide;
-                    }
-                    setUsersAndTheirStories(newUsersAndTheirStories);
-                    setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
-                }
-            }
-            catch (error) {
-                console.error('There was trouble connecting to the server to find an unexpired story of yours');
-            }
-        }
-
-        try {
-            const response1 = await fetch(
-            `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getOrderedListOfUsernamesInStoriesSection/
-            ${authUsername}`, {
-                credentials: 'include'
-            });
-            if(!response1.ok) {
-                setStoriesSectionErrorMessage('The server could not retrieve the stories for this section.');
-            }
-            else {
-                const newOrderedListOfUsernamesInStoriesSection = await response1.json();
-                setOrderedListOfUsernamesInStoriesSection(newOrderedListOfUsernamesInStoriesSection);
-            }
-        }
-        catch (error) {
-            setStoriesSectionErrorMessage(
-                'There was trouble connecting to the server to retrieve the stories for this section.'
-            );
-        }
-        finally {
-            setFetchingStoriesIsComplete(true);
-        }
-    }
-
-
-    async function fetchSuggestedAccounts() {
-        try {
-            const response = await fetch(
-                `http://34.111.89.101/api/Home-Page/djangoBackend2/getSuggestedAccountsForUser/${authUsername}`, {
-                credentials: 'include'
-            });
-            if(!response.ok) {
-                setSuggestedAccountsSectionErrorMessage(
-                    'The server could not retrieve your suggested accounts for this section.'
-                );
-            }
-            else {
-                const newOrderedListOfSuggestedAccounts = await response.json();
-                setOrderedListOfUsernamesOfSuggestedAccounts(newOrderedListOfSuggestedAccounts);
-            }
-        }
-        catch (error) {
-            setSuggestedAccountsSectionErrorMessage(
-                'There was trouble connecting to the server to retrieve your suggested accounts for this section.'
-            );
-        }
-        finally {
-            setFetchingSuggestedAccountsIsComplete(true);
-        }
-
-    }
-
-    
-    async function fetchPosts(initialOrAdditionalText) {
-        const isInitialFetch = initialOrAdditionalText==='initial';
-        let fetchError = false;
-        let listOfNewPostsForFeed = [];
-
-        try {
-            const response = await fetch(
-            `http://34.111.89.101/api/Home-Page/djangoBackend2/getBatchOfPostsForUserFeed/${authUsername}`, {
-                credentials: 'include'
-            });
-            if(!response.ok) {
-                if(isInitialFetch) {
-                    setInitialPostsFetchingErrorMessage(
-                        'The server could not retrieve the initial posts of this section.'
-                    );
-                }
-                else {
-                    setAdditionalPostsFetchingErrorMessage(
-                        'The server could not retrieve the additional posts of this section.'
-                    );
-                }
-                fetchError = true;
-            }
-            else {
-                listOfNewPostsForFeed = await response.json();
-                const newOrderedListOfPosts = [...orderedListOfPosts, ...listOfNewPostsForFeed];
-                setOrderedListOfPosts(newOrderedListOfPosts);
-            }
-        }
-        catch (error) {
-            if(isInitialFetch) {
-                setInitialPostsFetchingErrorMessage(
-                    'There was trouble connecting to the server to retrieve the initial posts of this section.'
-                );
-            }
-            else {
-                setAdditionalPostsFetchingErrorMessage(
-                    'There was trouble connecting to the server to retrieve the additional posts of this section.'
-                );
-            }
-            fetchError = true;
-        }
-        finally {
-            if(isInitialFetch) {
-                setFetchingInitialPostsIsComplete(true);
-                if (!fetchError) {
-                    setTimeout(() => {
-                        window.addEventListener("scroll", fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
-                    }, 1500);
-                }
-            }
-            else {
-                setIsCurrentlyFetchingAdditionalPosts(false);
-                if (!fetchError) {
-                    fetchAllTheNecessaryUserInfoForAdditionalUserPosts(listOfNewPostsForFeed);
-                }
-            }
-        }
-    }
-
-
-    async function fetchAllTheNecessaryUserInfo() {
-        let usernamesOfAllPostAuthors = [];
-        const usernamesOfAllMainPostAuthors = [];
-        let usernamesOfLikersFollowedByAuthUser = [];
-        const usernamesTaggedInVidSlides = [];
-        for(let postDetails of orderedListOfPosts) {
-            usernamesOfAllPostAuthors+= postDetails.authors;
-            usernamesOfAllMainPostAuthors.push(postDetails.authors[0]);
-            usernamesOfLikersFollowedByAuthUser+= postDetails.likersFollowedByAuthUser;
-            for(let slide of postDetails.slides) {
-                if(slide.type==='Video') {
-                    for(let taggedAccountInfo of slide.taggedAccounts) {
-                        usernamesTaggedInVidSlides.push(taggedAccountInfo[0]);
-                    }
-                }
-            }
-        }
-
-        let usersAndTheirProfilePhotos = {};
-        let usernamesNeededForProfilePhotos = [
-            ...orderedListOfUsernamesInStoriesSection,
-            ...orderedListOfUsernamesOfSuggestedAccounts,
-            ...usernamesOfAllMainPostAuthors,
-            ...usernamesTaggedInVidSlides
-        ];
-        if (authUsername !== 'Anonymous Guest') {
-            usernamesNeededForProfilePhotos.push(authUsername);
-        }
-        const uniqueListOfUsernamesNeededForProfilePhotos = [...new Set(usernamesNeededForProfilePhotos)];
-        if (uniqueListOfUsernamesNeededForProfilePhotos.length > 0) {
-            try {
-                const response = await fetch(
-                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotosOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfUsernamesNeededForProfilePhotos
-                    })
-                });
-                if(!response.ok) {
-                    console.error("The server had trouble fetching all the necessary profile-photos");
-                    for(let username in uniqueListOfUsernamesNeededForProfilePhotos) {
-                        usersAndTheirProfilePhotos[username] = defaultPfp;
-                    }
-                }
-                else {
-                    usersAndTheirProfilePhotos = await response.json();
-                }
-            }
-            catch (error) {
-                console.error("There was trouble connecting to the server to fetch all the necessary profile-photos");
-                for(let username in uniqueListOfUsernamesNeededForProfilePhotos) {
-                    usersAndTheirProfilePhotos[username] = defaultPfp;
-                }
-            }
-        }
-        
-        let usersAndTheirIsVerifiedStatuses = {};
-        const usernamesNeededForIsVerifiedStatuses = [
-            ...orderedListOfUsernamesInStoriesSection,
-            ...orderedListOfUsernamesOfSuggestedAccounts,
-            ...usernamesOfAllPostAuthors,
-            ...usernamesTaggedInVidSlides,
-            ...usernamesOfLikersFollowedByAuthUser
-        ];
-        if (authUsername !== 'Anonymous Guest') {
-            usernamesNeededForIsVerifiedStatuses.push(authUsername);
-        }
-        const uniqueListOfUsernamesRequiredForIsVerifiedStatuses = [... new Set(usernamesNeededForIsVerifiedStatuses)];
-        if (uniqueListOfUsernamesRequiredForIsVerifiedStatuses.length > 0) {
-            try {
-                const response1 = await fetch(
-                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsVerifiedStatusesOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfUsernamesRequiredForIsVerifiedStatuses
-                    })
-                });
-                if(!response1.ok) {
-                    console.error("The server had trouble fetching all the necessary isVerified statuses");
-                    for(let username in uniqueListOfUsernamesRequiredForIsVerifiedStatuses) {
-                        usersAndTheirIsVerifiedStatuses[username] = false;
-                    }
-                }
-                else {
-                    usersAndTheirIsVerifiedStatuses = await response1.json();
-                }
-            }
-            catch (error) {
-                console.error(
-                    "There was trouble connecting to the server to fetch all the necessary isVerified statuses"
-                );
-                for(let username in uniqueListOfUsernamesRequiredForIsVerifiedStatuses) {
-                    usersAndTheirIsVerifiedStatuses[username] = false;
-                }
-            }
-        }
-
-        let usersAndTheirFullNames = {};
-        const usernamesNeededForFullNames = [
-            ...orderedListOfUsernamesOfSuggestedAccounts,
-            ...usernamesTaggedInVidSlides
-        ];
-        if (authUsername !== 'Anonymous Guest') {
-            usernamesNeededForFullNames.push(authUsername);
-        }
-        const uniqueListOfUsernamesNeededForFullNames = [...new Set(usernamesNeededForFullNames)];
-        if (uniqueListOfUsernamesNeededForFullNames.length > 0) {
-            try {
-                const response2 = await fetch(
-                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getFullNamesOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfUsernamesNeededForFullNames
-                    })
-                });
-                if(!response2.ok) {
-                    console.error("The server had trouble fetching all the necessary fullNames");
-                    for(let username in uniqueListOfUsernamesNeededForFullNames) {
-                        usersAndTheirFullNames[username] = '?';
-                    }
-                }
-                else {
-                    usersAndTheirFullNames = await response2.json();
-                }
-            }
-            catch(error) {
-                console.error(
-                    "There was trouble connecting to the server to fetch all the necessary fullNames"
-                );
-                for(let username in uniqueListOfUsernamesNeededForFullNames) {
-                    usersAndTheirFullNames[username] = '?';
-                }
-            }
-        }
-
-        let usersAndTheirIsPrivateStatuses = {};
-        if (orderedListOfUsernamesOfSuggestedAccounts.length > 0) {
-            try {
-                const response3 = await fetch(
-                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsPrivateStatusesOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: orderedListOfUsernamesOfSuggestedAccounts
-                    })
-                });
-                if(!response3.ok) {
-                    console.error("The server had trouble fetching all the necessary isPrivate statuses");
-                    for(let username in orderedListOfUsernamesOfSuggestedAccounts) {
-                        usersAndTheirIsPrivateStatuses[username] = '?';
-                    }
-                }
-                else {
-                    usersAndTheirIsPrivateStatuses = await response3.json();
-                }
-            }
-            catch(error) {
-                console.error(
-                    "There was trouble connecting to the server to fetch all the necessary isPrivate statuses"
-                );
-                for(let username in orderedListOfUsernamesOfSuggestedAccounts) {
-                    usersAndTheirIsPrivateStatuses[username] = '?';
-                }
-            }
-        }
-
-
-        let usersAndTheirNumPostsFollowersAndFollowings = {};
-        if (orderedListOfUsernamesOfSuggestedAccounts.length > 0) {
-            try {
-                const response4 = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/
-                getNumPostsFollowersAndFollowingsOfMultipleUsers`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: orderedListOfUsernamesOfSuggestedAccounts
-                    })
-                });
-                if(!response4.ok) {
-                    console.error(
-                        `The server had trouble fetching all the necessary
-                        numPosts/numFollowers/numFollowings combos.`
-                    );
-                    for(let username in orderedListOfUsernamesOfSuggestedAccounts) {
-                        usersAndTheirNumPostsFollowersAndFollowings[username] = {
-                            numPosts: '?',
-                            numFollowers: '?',
-                            numFollowings: '?'
-                        };
-                    }
-                }
-                else {
-                    usersAndTheirNumPostsFollowersAndFollowings = await response4.json();
-                }
-            }
-            catch(error) {
-                console.error(
-                    `There was trouble connecting to the server to fetch all the necessary
-                    numPosts/numFollowers/numFollowings combos.`
-                );
-                for(let username in orderedListOfUsernamesOfSuggestedAccounts) {
-                    usersAndTheirNumPostsFollowersAndFollowings[username] = {
-                        numPosts: '?',
-                        numFollowers: '?',
-                        numFollowings: '?'
-                    };
-                }
-            }
-        }
-
-        let usersAndTheirHasStoriesAndUnseenStoryStatuses = {};
-        const uniqueListOfUsernamesNeededForHasStoriesAndUnseenStoryStatuses = [
-            ...new Set(
-                [
-                    ...usernamesOfAllMainPostAuthors
-                ]
-            )
-        ]; 
-        if (uniqueListOfUsernamesNeededForHasStoriesAndUnseenStoryStatuses.length > 0) {
-            try {
-                const response5 = await fetch(
-                `http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/
-                getHasStoriesAndUnseenStoryStatusesOfMultipleUsers`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfUsernamesNeededForHasStoriesAndUnseenStoryStatuses
-                    }),
-                    credentials: 'include'
-                });
-                if(!response5.ok) {
-                    console.error(
-                        `The server had trouble fetching all the necessary
-                        'hasStoriesAndUnseenStoryStatuses'.`
-                    );
-                    for(let username in uniqueListOfUsernamesNeededForHasStoriesAndUnseenStoryStatuses) {
-                        usersAndTheirHasStoriesAndUnseenStoryStatuses[username] = {
-                            hasStories: false,
-                            hasUnseenStory: false
-                        };
-                    }
-                }
-                else {
-                    usersAndTheirHasStoriesAndUnseenStoryStatuses = await response5.json();
-                }
-            }
-            catch(error) {
-                console.error(
-                    `There was trouble connecting to the server to fetch all the necessary
-                    'hasStoriesAndUnseenStoryStatuses'.`
-                );
-                for(let username in uniqueListOfUsernamesNeededForHasStoriesAndUnseenStoryStatuses) {
-                    usersAndTheirHasStoriesAndUnseenStoryStatuses[username] = {
-                        hasStories: false,
-                        hasUnseenStory: false
-                    };
-                }
-            }
-        }
-
-        const newUsersAndTheirRelevantInfo = {};
-        const uniqueSetOfAllUsernames = new Set(
-            [
-                ...orderedListOfUsernamesInStoriesSection,
-                ...orderedListOfUsernamesOfSuggestedAccounts,
-                ...usernamesOfAllPostAuthors,
-                ...usernamesTaggedInVidSlides,
-                ...usernamesOfLikersFollowedByAuthUser
-            ]
-        );
-        if (authUsername !== 'Anonymous Guest') {
-            uniqueSetOfAllUsernames.add(authUsername);
-        }
-        else {
-            newUsersAndTheirRelevantInfo['Anonymous Guest'] = {
-                profilePhoto: defaultPfp,
-                isVerified: false,
-                fullName: '' 
-            }
-        }
-
-        for(let username of uniqueSetOfAllUsernames) {
-            newUsersAndTheirRelevantInfo[username] = {};
-            if (username in usersAndTheirProfilePhotos) {
-                newUsersAndTheirRelevantInfo[username].profilePhoto = usersAndTheirProfilePhotos[username];
-            }
-            if (username in usersAndTheirIsVerifiedStatuses) {
-                newUsersAndTheirRelevantInfo[username].isVerified = usersAndTheirIsVerifiedStatuses[username];
-            }
-            if (username in usersAndTheirFullNames) {
-                newUsersAndTheirRelevantInfo[username].fullName = usersAndTheirFullNames[username];
-            }
-            if (username in usersAndTheirIsPrivateStatuses) {
-                newUsersAndTheirRelevantInfo[username].isPrivate = usersAndTheirIsPrivateStatuses[username];
-            }
-            if (username in usersAndTheirNumPostsFollowersAndFollowings) {
-                newUsersAndTheirRelevantInfo[username].numPosts =
-                usersAndTheirNumPostsFollowersAndFollowings[username].numPosts;
-
-                newUsersAndTheirRelevantInfo[username].numFollowers =
-                usersAndTheirNumPostsFollowersAndFollowings[username].numFollowers;
-
-                newUsersAndTheirRelevantInfo[username].numFollowings =
-                usersAndTheirNumPostsFollowersAndFollowings[username].numFollowings;
-            }
-            if (username in usersAndTheirHasStoriesAndUnseenStoryStatuses) {
-                newUsersAndTheirRelevantInfo[username].hasStories =
-                usersAndTheirHasStoriesAndUnseenStoryStatuses[username].hasStories;
-
-                newUsersAndTheirRelevantInfo[username].hasUnseenStory =
-                usersAndTheirHasStoriesAndUnseenStoryStatuses[username].hasUnseenStory;
-            }
-        }
-        setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
-    }
-
-
-    async function fetchAllTheNecessaryUserInfoForAdditionalUserPosts(listOfNewPostsForFeed) {
-        const usernamesOfNewPostAuthors = [];
-        const usernamesOfNewMainPostAuthors = [];
-        const usernamesOfLikersFollowedByAuthUser = [];
-        const usernamesTaggedInVidSlides = [];
-        for(let postDetails of listOfNewPostsForFeed) {
-            usernamesOfNewPostAuthors+= postDetails.authors;
-            usernamesOfNewMainPostAuthors.push(postDetails.authors[0]);
-            usernamesOfLikersFollowedByAuthUser+= postDetails.likersFollowedByAuthUser;
-            for(let slide of postDetails.slides) {
-                if(slide.type==='Video') {
-                    for(let taggedAccountInfo of slide.taggedAccounts) {
-                        usernamesTaggedInVidSlides.push(taggedAccountInfo[0]);
-                    }
-                }
-            }
-        }
-
-        let usersAndTheirProfilePhotos = {};
-        const uniqueListOfNewUsernamesNeededForProfilePhotos = [
-            ...new Set(
-                [
-                    ...(usernamesOfNewMainPostAuthors.filter(username=> {
-                        if (!(username in usersAndTheirRelevantInfo) || !('profilePhoto' in
-                        usersAndTheirRelevantInfo[username])) {
-                            return username;
-                        }
-                    })),
-
-                    ...(usernamesTaggedInVidSlides.filter(username=> {
-                        if (!(username in usersAndTheirRelevantInfo) || !('profilePhoto' in
-                        usersAndTheirRelevantInfo[username])) {
-                            return username;
-                        }
-                    }))
-                ]
-            )
-        ];
-        if(uniqueListOfNewUsernamesNeededForProfilePhotos.length>0) {
-            try {
-                const response = await fetch(
-                'http://34.111.89.101/api/Home-Page/aspNetCoreBackend1/getProfilePhotosOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfNewUsernamesNeededForProfilePhotos
-                    })
-                });
-                if(!response.ok) {
-                    console.error("The server had trouble fetching all the necessary profile-photos");
-                    for(let username in uniqueListOfNewUsernamesNeededForProfilePhotos) {
-                        usersAndTheirProfilePhotos[username] = defaultPfp;
-                    }
-                }
-                else {
-                    usersAndTheirProfilePhotos = await response.json();
-                }
-            }
-            catch (error) {
-                console.error("There was trouble connecting to the server to fetch all the necessary profile-photos");
-                for(let username in uniqueListOfNewUsernamesNeededForProfilePhotos) {
-                    usersAndTheirProfilePhotos[username] = defaultPfp;
-                }
-            }
-        }
-
-        let usersAndTheirIsVerifiedStatuses = {};
-        const uniqueListOfNewUsernamesNeededForIsVerifiedStatuses = [
-            ...new Set(
-                [
-                    ...(usernamesOfNewPostAuthors.filter(username=> {
-                        if (!(username in usersAndTheirRelevantInfo) || !('isVerified' in
-                        usersAndTheirRelevantInfo[username])) {
-                            return username;
-                        }
-                    })),
-
-                    ...(usernamesOfLikersFollowedByAuthUser.filter(username=> {
-                        if (!(username in usersAndTheirRelevantInfo) || !('isVerified' in
-                        usersAndTheirRelevantInfo[username])) {
-                            return username;
-                        }
-                    })),
-
-                    ...(usernamesTaggedInVidSlides.filter(username=> {
-                        if (!(username in usersAndTheirRelevantInfo) || !('isVerified' in
-                        usersAndTheirRelevantInfo[username])) {
-                            return username;
-                        }
-                    })),
-                ]
-            )
-        ];
-        if(uniqueListOfNewUsernamesNeededForIsVerifiedStatuses.length>0) {
-            try {
-                const response1 = await fetch(
-                'http://34.111.89.101/api/Home-Page/expressJSBackend1/getIsVerifiedStatusesOfMultipleUsers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        usernames: uniqueListOfNewUsernamesNeededForIsVerifiedStatuses
-                    })
-                });
-                if(!response1.ok) {
-                    console.error("The server had trouble fetching all the necessary isVerified statuses");
-                    for(let username in uniqueListOfNewUsernamesNeededForIsVerifiedStatuses) {
-                        usersAndTheirIsVerifiedStatuses[username] = false;
-                    }
-                }
-                else {
-                    usersAndTheirIsVerifiedStatuses = await response1.json();
-                }
-            }
-            catch (error) {
-                console.error(
-                    "There was trouble connecting to the server to fetch all the necessary isVerified statuses"
-                );
-                for(let username in uniqueListOfNewUsernamesNeededForIsVerifiedStatuses) {
-                    usersAndTheirIsVerifiedStatuses[username] = false;
-                }
-            }
-        }
-
-        let usersAndTheirFullNames = {};
-        const uniqueListOfNewUsernamesNeededForFullNames = [
-            ...new Set(
-                [
-                    ...(usernamesTaggedInVidSlides.filter(username=> {
-                        if (!(username in usersAndTheirRelevantInfo) || !('fullName' in
-                        usersAndTheirRelevantInfo[username])) {
-                            return username;
-                        }
-                    })),
-                ]
-            )
-        ];
-        try {
-            const response2 = await fetch(
-            'http://34.111.89.101/api/Home-Page/expressJSBackend1/getFullNamesOfMultipleUsers', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    usernames: uniqueListOfNewUsernamesNeededForFullNames
-                })
-            });
-            if(!response2.ok) {
-                console.error("The server had trouble fetching all the necessary fullNames");
-                for(let username in uniqueListOfNewUsernamesNeededForFullNames) {
-                    usersAndTheirFullNames[username] = '?';
-                }
-            }
-            else {
-                usersAndTheirFullNames = await response2.json();
-            }
-        }
-        catch(error) {
-            console.error(
-                "There was trouble connecting to the server to fetch all the necessary fullNames"
-            );
-            for(let username in uniqueListOfNewUsernamesNeededForFullNames) {
-                usersAndTheirFullNames[username] = '?';
-            }
-        }
-
-        const uniqueListOfAllNewUsernames = [
-                ...new Set(
-                [
-                    ...usernamesOfNewPostAuthors,
-                    ...usernamesOfLikersFollowedByAuthUser,
-                    ...usernamesTaggedInVidSlides
-                ]
-            )
-        ];
-        const newUsersAndTheirRelevantInfo = {...usersAndTheirRelevantInfo};
-        for(let username of uniqueListOfAllNewUsernames) {
-            if(!(username in newUsersAndTheirRelevantInfo)) {
-                newUsersAndTheirRelevantInfo[username] = {};
-            }
-            if (username in usersAndTheirProfilePhotos) {
-                newUsersAndTheirRelevantInfo[username].profilePhoto = usersAndTheirProfilePhotos[username];
-            }
-            if (username in usersAndTheirIsVerifiedStatuses) {
-                newUsersAndTheirRelevantInfo[username].isVerified = usersAndTheirIsVerifiedStatuses[username];
-            }
-        }
-        setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
-    }
-
-
     function fetchAdditionalPostsWhenUserScrollsToBottomOfPage() {
-        if (additionalPostsFetchingErrorMessage.length==0 && !isCurrentlyFetchingAdditionalPosts &&
-        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight) {
+        if (!isCurrentlyFetchingAdditionalPosts && window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight) {
             setIsCurrentlyFetchingAdditionalPosts(true);
             fetchPosts('additional');
         }
@@ -959,13 +233,13 @@ function HomePage({urlParams}) {
     }
 
 
-    function incrementStoryLevel() {
-        setCurrStoryLevel(currStoryLevel+1);
-    }
-
-
-    function decrementStoryLevel() {
-        setCurrStoryLevel(currStoryLevel-1);
+    function changeStoryLevel(incrementOrDecrementText) {
+        if (incrementOrDecrementText === 'increment') {
+            setCurrStoryLevel(currStoryLevel+1);
+        }
+        else {
+            setCurrStoryLevel(currStoryLevel-1);
+        }
     }
 
 
@@ -1123,11 +397,11 @@ function HomePage({urlParams}) {
     }
 
 
-    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUsername) {
-        setUsernamesWhoseStoriesYouHaveFinished(new Set(
+    function addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(newFinishedUserId) {
+        setUserIdsWhoseStoriesYouHaveFinished(new Set(
             [
-                ...usernamesWhoseStoriesYouHaveFinished,
-                newFinishedUsername
+                ...userIdsWhoseStoriesYouHaveFinished,
+                newFinishedUserId
             ]
         ));
     }
@@ -1704,465 +978,1151 @@ function HomePage({urlParams}) {
     }
 
 
+    async function authenticateUser(username, userId) {
+        if (userId == null) {
+            try {
+                const response = await fetch('http://34.111.89.101/api/Home-Page/laravelBackend1/graphql', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: `query getUserIdOfUsername($username: String!) {
+                            getUserIdOfUsername(username: $username)
+                        }`,
+                        variables: {
+                            username: username
+                        }
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    setAuthUsername('Anonymous Guest');
+
+                    throw new Error(
+                        `The laravelBackend1 server had trouble getting the user-id of username ${username}`
+                    );
+                }
+
+                let userId = await response.json();
+                userId = userId.data.getUserIdOfUsername;
+                
+                setAuthUserId(userId);
+            }
+            catch {
+                setAuthUsername('Anonymous Guest');
+
+                throw new Error(
+                    `There was trouble connecting to the laravelBackend1 server to get the user-id of username
+                    ${username}`
+                );
+            }
+        }
+        else {
+            setAuthUserId(userId);
+        }
+
+        try {
+            const response1 = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/authenticateUser/${userId}`, {
+                credentials: 'include'
+            });
+            if (!response1.ok) {
+                setAuthUsername('Anonymous Guest');
+                setAuthUserId(-1);
+
+                throw new Error(
+                    `The expressJSBackend1 server had trouble verifying you as having the proper credentials to
+                    be logged in as user ${userId}`
+                );
+            }
+
+            setAuthUsername(username);
+        }
+        catch {
+            setAuthUsername('Anonymous Guest');
+            setAuthUserId(-1);
+
+            throw new Error(
+                `There was trouble connecting to the expressJSBackend1 server to verify you as having the proper
+                credentials to be logged in as user ${userId}`
+            );
+        }
+    }
+
+
+    async function fetchStories() {
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/getMyOwnStories
+            /${authUserId}`, {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                console.error('The springBootBackend2 server had trouble getting your stories, if any');
+            }
+            else {
+                const responseData = await response.json();
+
+                const newUsersAndYourCurrSlideInTheirStories = {};
+
+                if (responseData.currSlide === 'finished') {
+                    newUsersAndYourCurrSlideInTheirStories[authUserId] = 0;
+                    setUserIdsWhoseStoriesYouHaveFinished(new Set([
+                        ...userIdsWhoseStoriesYouHaveFinished,
+                        authUserId
+                    ]));
+                }
+                else if (responseData.currSlide > -1) {
+                    newUsersAndYourCurrSlideInTheirStories[authUserId] = 0;
+                }
+
+                setUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
+
+                if (responseData.currSlide !== -1) {
+                    const newUsersAndTheirStories = {};
+                    newUsersAndTheirStories[authUserId] = responseData.stories;
+                    setUsersAndTheirStories(newUsersAndTheirStories);
+                }
+            }
+        }
+        catch {
+            console.error('There was trouble connecting to the springBootBackend2 server to get your stories, if any');
+        }
+
+        try {
+            const response2 = await fetch(`http://34.111.89.101/api/Home-Page/springBootBackend2/
+            getOrderedListOfUsersForMyStoriesSection/${authUserId}`, {
+                credentials: 'include'
+            });
+            if (!response2.ok) {
+                setStoriesSectionErrorMessage(
+                    'The server had trouble getting the ordered list of users for your stories-section.'
+                );
+            }
+            else {
+                const response2Data = await response2.json();
+
+                setOrderedListOfUserIdsInStoriesSection(response2Data.orderedListOfUserIds);
+
+                const newOrderedListOfUsernamesInStoriesSection = [];
+                for(let storyAuthorId of response2Data.orderedListOfUserIds) {
+                    newOrderedListOfUsernamesInStoriesSection.push(`user ${storyAuthorId}`);
+                }
+                setOrderedListOfUsernamesInStoriesSection(newOrderedListOfUsernamesInStoriesSection);
+
+                setOrderedListOfSponsorshipStatusesInStoriesSection(response2Data.orderedListOfSponsorshipStatuses);
+            }
+        }
+        catch {
+            setStoriesSectionErrorMessage(
+                'There was trouble connecting to the server to get the ordered list of users for your stories-section.'
+            );
+        }
+
+        setFetchingStoriesIsComplete(true);
+    }
+
+
+    async function fetchSuggestedAccounts() {
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/djangoBackend2
+            /getNumFollowersFollowingsAndPostsOfMyTopFiveUserSuggestions/${authUserId}`, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                setSuggestedUsersSectionErrorMessage('The server had trouble getting your top-5 user-suggestions');
+            }
+            else {
+                const responseData = await response.json();
+
+                setOrderedListOfSuggestedUserIds(responseData.userIdsOfTheTop5);
+
+                const newOrderedListOfSuggestedUsernames = [];
+                for(let topSuggestedUserId of responseData.userIdsOfTheTop5) {
+                    newOrderedListOfSuggestedUsernames.push(`user ${topSuggestedUserId}`);
+                }
+                setOrderedListOfSuggestedUsernames(newOrderedListOfSuggestedUsernames);
+
+                const { numFollowersFollowingsAndPostsOfTheTop5 } = responseData;
+
+                const newUsersAndTheirRelevantInfo = {};
+
+                for(let suggestedUserId of responseData.userIdsOfTheTop5) {
+                    if (!(suggestedUserId in newUsersAndTheirRelevantInfo)) {
+                        newUsersAndTheirRelevantInfo[suggestedUserId] = {};
+                    }
+
+                    newUsersAndTheirRelevantInfo[suggestedUserId].numFollowers = numFollowersFollowingsAndPostsOfTheTop5[
+                        suggestedUserId
+                    ].numFollowers;
+
+                    newUsersAndTheirRelevantInfo[suggestedUserId].numFollowings = numFollowersFollowingsAndPostsOfTheTop5[
+                        suggestedUserId
+                    ].numFollowings;
+
+                    newUsersAndTheirRelevantInfo[suggestedUserId].numPosts = numFollowersFollowingsAndPostsOfTheTop5[
+                        suggestedUserId
+                    ].numPosts;
+                }
+
+                setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+            }
+        }
+        catch {
+            setSuggestedUsersSectionErrorMessage(
+                'There was trouble connecting to the server to get your top-5 user-suggestions.'
+            );
+        }
+
+        setFetchingSuggestedUsersIsComplete(true);
+    }
+
+    
+    async function fetchPosts(initialOrAdditionalText) {
+        let isInitialFetch;
+
+        if (initialOrAdditionalText === 'initial') {
+            isInitialFetch = true;
+        } 
+        else {
+            isInitialFetch = false;
+        }
+
+        try {
+            const response = await fetch(`http://34.111.89.101/api/Home-Page/expressJSBackend1/getBatchOfPostsForHomePageFeed
+            /${authUserId}`, {
+                credentials: 'include'
+            });
+            if (!response.ok) { 
+                if (isInitialFetch) {
+                    setInitialPostsFetchingErrorMessage(
+                        'The server had trouble getting the initial batch of posts for your home-page feed'
+                    );
+                }
+                else {
+                    setAdditionalPostsFetchingErrorMessage(
+                        'The server had trouble getting an additional batch of posts for your home-page feed'
+                    );
+
+                    window.removeEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
+                }
+            }
+            else {
+                const batchOfPostsForHomePageFeed = await response.json();
+                
+                setOrderedListOfPosts([
+                    ...orderedListOfPosts,
+                    ...batchOfPostsForHomePageFeed.map(postDetails => postDetails.authorUsernames = postDetails.authorIds.map(
+                    authorId => `user ${authorId}`))
+                ]);
+
+                if (isInitialFetch) {
+                    window.addEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
+                }
+                else {
+                    fetchAllTheNecessaryUserInfoOfAdditionalPosts(batchOfPostsForHomePageFeed);
+                }
+            }
+        }
+        catch {
+            if (isInitialFetch) {
+                setInitialPostsFetchingErrorMessage(
+                    'There was trouble connecting to the server to get the intial batch of posts for your home-page feed'
+                );
+            }
+            else {
+                setAdditionalPostsFetchingErrorMessage(
+                    'There was trouble connecting to the server to get an additional batch of posts for your home-page feed'
+                );
+
+                window.removeEventListener('scroll', fetchAdditionalPostsWhenUserScrollsToBottomOfPage);
+            }
+        }
+
+        if (isInitialFetch) {
+            setInitialPostsFetchingIsComplete(true);
+        }
+        else {
+            setIsCurrentlyFetchingAdditionalPosts(false);
+        }
+    }
+
+
+    async function fetchAllTheNecessaryUserInfo() {
+        const setOfStoryAuthorIds = new Set(orderedListOfUserIdsInStoriesSection);
+
+        const setOfSuggestedUserIds = new Set(orderedListOfSuggestedUserIds);
+
+        const setOfAuthorIds = new Set();
+        const setOfMainAuthorIds = new Set();
+        const setOfLikerIdsFollowedByAuthUser = new Set();
+
+        for(let postDetails of orderedListOfPosts) {
+            setOfMainAuthorIds.add(postDetails.authorIds[0]);
+
+            for(let authorId of postDetails.authorIds) {
+                setOfAuthorIds.add(authorId);
+            }
+
+            for(let likerIdFollowedByAuthUser of postDetails.likersFollowedByAuthUser) {
+                setOfLikerIdsFollowedByAuthUser.add(likerIdFollowedByAuthUser);
+            }
+        }
+
+        const setOfAllUserIds = new Set([
+            ...setOfStoryAuthorIds, ...setOfSuggestedUserIds, ...setOfAuthorIds, ...setOfMainAuthorIds,
+            ...setOfLikerIdsFollowedByAuthUser
+        ]);
+
+        let graphqlUserQueryStringHeaderInfo = {};
+        let graphqlUserQueryString = '';
+        let graphqlUserVariables = {};
+
+        let usersAndTheirUsernames = {};
+        const newUserIdsNeededForUsernames = [...setOfAllUserIds];
+
+        if (newUserIdsNeededForUsernames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForUsernames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForUsernames) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newUserIdsNeededForUsernames = newUserIdsNeededForUsernames;
+        }
+
+        let usersAndTheirFullNames = {};
+        const newUserIdsNeededForFullNames = [...setOfSuggestedUserIds];
+
+        if (newUserIdsNeededForFullNames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForFullNames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getFullNamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForFullNames) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newUserIdsNeededForFullNames = newUserIdsNeededForFullNames;
+        }
+
+        let usersAndTheirVerificationStatuses = {};
+        const newUserIdsNeededForVerificationStatuses = newUserIdsNeededForUsernames;
+
+        if (newUserIdsNeededForVerificationStatuses.length>0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+            $newUserIdsNeededForVerificationStatuses) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newUserIdsNeededForVerificationStatuses = newUserIdsNeededForVerificationStatuses;
+        }
+
+        if (graphqlUserQueryString.length > 0) {
+            let graphqlUserQueryStringHeader = 'query (';
+            let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+            for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+                const key = graphqlUserQueryStringHeaderKeys[i];
+                const value = graphqlUserQueryStringHeaderInfo[key];
+
+                if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+                }
+                else {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}`;
+                }
+            }
+
+            graphqlUserQueryStringHeader+= '){ ';
+            graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
+            try {
+                const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: graphqlUserQueryString,
+                        variables: graphqlUserVariables
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the usernames of all the newly fetched users'
+                        );
+                    }
+
+                    if (newUserIdsNeededForFullNames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the full-names of all the newly fetched users'
+                        );
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        console.error(
+                            `The server had trouble fetching the verification-statuses of all the new fetched
+                            users`
+                        );
+                    }
+                }
+                else {
+                    const responseData = await response.json();
+
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        const listOfUsernamesForNewUserIds = responseData.data.getListOfUsernamesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForUsernames.length; i++) {
+                            const newUserId = newUserIdsNeededForUsernames[i];
+                            const newUsername = listOfUsernamesForNewUserIds[i];
+
+                            if (newUsername !== null) {
+                                usersAndTheirUsernames[newUserId] = newUsername;
+                            }
+                        }
+                    }
+                    
+                    if (newUserIdsNeededForFullNames.length > 0) {
+                        const listOfFullNamesForNewUserIds = responseData.data.getListOfFullNamesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForFullNames.length; i++) {
+                            const newUserId = newUserIdsNeededForFullNames[i];
+                            const newUserFullName = listOfFullNamesForNewUserIds[i];
+
+                            if (newUserFullName !== null) {
+                                usersAndTheirFullNames[newUserId] = newUserFullName;
+                            }
+                        }
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        const listOfVerificationStatusesForNewUserIds = responseData.data
+                        .getListOfUserVerificationStatusesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForVerificationStatuses.length; i++) {
+                            const newUserId = newUserIdsNeededForVerificationStatuses[i];
+                            const newUserVerificationStatus = listOfVerificationStatusesForNewUserIds[i];
+
+                            if (newUserVerificationStatus !== null) {
+                                usersAndTheirVerificationStatuses[newUserId] = newUserVerificationStatus;
+                            }
+                        }
+                    }
+                }
+            }
+            catch {
+                if (newUserIdsNeededForUsernames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+                        users`
+                    );
+                }
+
+                if (newUserIdsNeededForFullNames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the full-names of all the newly fetched
+                        users`
+                    ); 
+                }
+
+                if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+                        fetched users`
+                    );
+                }
+            }
+        }
+
+        let usersAndTheirProfilePhotos = {};
+        const newUserIdsNeededForProfilePhotos = [
+            ...new Set([
+                ...setOfStoryAuthorIds, ...setOfSuggestedUserIds, ...setOfMainAuthorIds
+            ])
+        ];
+
+        if (newUserIdsNeededForProfilePhotos.length>0) {
+            try {
+                const response2 = await fetch(
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${authUserId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        userIds: newUserIdsNeededForProfilePhotos
+                    }),
+                    credentials: 'include'
+                });
+                if(!response2.ok) {
+                    console.error(
+                        'The server had trouble fetching the profile-photos of all the newly fetched users'
+                    );
+                }
+                else {
+                    usersAndTheirProfilePhotos = await response2.json();
+                }
+            }
+            catch {
+                console.error(
+                    'There was trouble connecting to the server to fetch the profile-photos of all the newly fetched users'
+                );
+            }
+        }
+
+        const newUsersAndTheirRelevantInfo = { ...usersAndTheirRelevantInfo };
+
+        for(let userId of setOfAllUserIds) {
+            if (!(userId in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[userId] = {};
+            }
+
+            if (userId in usersAndTheirUsernames) {
+                newUsersAndTheirRelevantInfo[userId].username = usersAndTheirUsernames[userId];
+            }
+
+            if (userId in usersAndTheirVerificationStatuses) {
+                newUsersAndTheirRelevantInfo[userId].isVerified = usersAndTheirVerificationStatuses[userId];
+            }
+            
+            if (userId in usersAndTheirFullNames) {
+                newUsersAndTheirRelevantInfo[userId].fullName = usersAndTheirFullNames[userId];
+            }
+
+            if (userId in usersAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[userId].profilePhoto = usersAndTheirProfilePhotos[userId];
+            }
+        }
+
+        const newOrderedListOfUsernamesInStoriesSection = [];
+        for(let userId of orderedListOfUserIdsInStoriesSection) {
+            newOrderedListOfUsernamesInStoriesSection.push(
+                newUsersAndTheirRelevantInfo[userId].username ?? `user ${userId}`
+            );
+        }
+        setOrderedListOfUsernamesInStoriesSection(newOrderedListOfUsernamesInStoriesSection);
+
+        const newOrderedListOfSuggestedUsernames = [];
+        for(let userId of orderedListOfSuggestedUsernames) {
+            newOrderedListOfSuggestedUsernames.push(
+                newUsersAndTheirRelevantInfo[userId].username ?? `user ${userId}`
+            );
+        }
+        setOrderedListOfSuggestedUsernames(newOrderedListOfSuggestedUsernames);
+
+        setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+    }
+
+
+    async function fetchAllTheNecessaryUserInfoOfAdditionalPosts(additionalPosts) {
+        const setOfAuthorIds = new Set();
+        const setOfMainAuthorIds = new Set();
+        const setOfLikerIdsFollowedByAuthUser = new Set();
+
+        for(let postDetails of additionalPosts) {
+            setOfMainAuthorIds.add(postDetails.authorIds[0]);
+
+            for(let authorId of postDetails.authorIds) {
+                setOfAuthorIds.add(authorId);
+            }
+
+            for(let likerIdFollowedByAuthUser of postDetails.likersFollowedByAuthUser) {
+                setOfLikerIdsFollowedByAuthUser.add(likerIdFollowedByAuthUser);
+            }
+        }
+
+        const setOfAllUserIds = new Set([...setOfAuthorIds, ...setOfMainAuthorIds, ...setOfLikerIdsFollowedByAuthUser]);
+
+        let graphqlUserQueryStringHeaderInfo = {};
+        let graphqlUserQueryString = '';
+        let graphqlUserVariables = {};
+
+        let usersAndTheirUsernames = {};
+        const newUserIdsNeededForUsernames = [...setOfAllUserIds].filter(userId => {
+            if (!(userId in usersAndTheirRelevantInfo) || !('username' in usersAndTheirRelevantInfo)) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newUserIdsNeededForUsernames.length > 0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForUsernames'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getUsernamesForListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds: $newUserIdsNeededForUsernames) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newUserIdsNeededForUsernames = newUserIdsNeededForUsernames;
+        }
+
+        let usersAndTheirVerificationStatuses = {};
+        const newUserIdsNeededForVerificationStatuses = [...setOfAllUserIds].filter(userId => {
+            if (!(userId in usersAndTheirRelevantInfo) || !('isVerified' in usersAndTheirRelevantInfo[userId])) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newUserIdsNeededForVerificationStatuses.length>0) {
+            graphqlUserQueryStringHeaderInfo['$authUserId'] = 'Int!';
+            graphqlUserQueryStringHeaderInfo['$newUserIdsNeededForVerificationStatuses'] = '[Int!]!';
+
+            graphqlUserQueryString +=
+            `getVerificationStatusesOfListOfUserIdsAsAuthUser(authUserId: $authUserId, userIds:
+            $newUserIdsNeededForVerificationStatuses) `;
+            graphqlUserVariables.authUserId = authUserId;
+            graphqlUserVariables.newUserIdsNeededForVerificationStatuses = newUserIdsNeededForVerificationStatuses;
+        }
+
+        if (graphqlUserQueryString.length > 0) {
+            let graphqlUserQueryStringHeader = 'query (';
+            let graphqlUserQueryStringHeaderKeys = Object.keys(graphqlUserQueryStringHeaderInfo);
+
+            for(let i=0; i<graphqlUserQueryStringHeaderKeys.length; i++) {
+                const key = graphqlUserQueryStringHeaderKeys[i];
+                const value = graphqlUserQueryStringHeaderInfo[key];
+
+                if (i < graphqlUserQueryStringHeaderKeys.length-1) {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}, `;
+                }
+                else {
+                    graphqlUserQueryStringHeader+= `${key}: ${value}`;
+                }
+            }
+
+            graphqlUserQueryStringHeader+= '){ ';
+            graphqlUserQueryString = graphqlUserQueryStringHeader + graphqlUserQueryString + '}';
+
+            try {
+                const response = await fetch(`http://34.111.89.101/api/Home-Page/laravelBackend1/graphql`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: graphqlUserQueryString,
+                        variables: graphqlUserVariables
+                    }),
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        console.error(
+                            'The server had trouble fetching the usernames of all the newly fetched users'
+                        );
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        console.error(
+                            `The server had trouble fetching the verification-statuses of all the new fetched
+                            users`
+                        );
+                    }
+                }
+                else {
+                    const responseData = await response.json();
+
+                    if (newUserIdsNeededForUsernames.length > 0) {
+                        const listOfUsernamesForNewUserIds = responseData.data.getListOfUsernamesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForUsernames.length; i++) {
+                            const newUserId = newUserIdsNeededForUsernames[i];
+                            const newUsername = listOfUsernamesForNewUserIds[i];
+
+                            if (newUsername !== null) {
+                                usersAndTheirUsernames[newUserId] = newUsername;
+                            }
+                        }
+                    }
+
+                    if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                        const listOfVerificationStatusesForNewUserIds = responseData.data
+                        .getListOfUserVerificationStatusesForUserIds;
+
+                        for(let i=0; i<newUserIdsNeededForVerificationStatuses.length; i++) {
+                            const newUserId = newUserIdsNeededForVerificationStatuses[i];
+                            const newUserVerificationStatus = listOfVerificationStatusesForNewUserIds[i];
+
+                            if (newUserVerificationStatus !== null) {
+                                usersAndTheirVerificationStatuses[newUserId] = newUserVerificationStatus;
+                            }
+                        }
+                    }
+                }
+            }
+            catch {
+                if (newUserIdsNeededForUsernames.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the usernames of all the newly fetched
+                        users`
+                    );
+                }
+
+                if (newUserIdsNeededForVerificationStatuses.length > 0) {
+                    console.error(
+                        `There was trouble connecting to the server to fetch the verification-statuses of all the newly
+                        fetched users`
+                    );
+                }
+            }
+        }
+
+        let usersAndTheirProfilePhotos = {};
+        const newUserIdsNeededForProfilePhotos = [...setOfMainAuthorIds].filter(userId => {
+            if (!(userId in usersAndTheirRelevantInfo) || !('profilePhoto' in usersAndTheirRelevantInfo[userId])) {
+                return true;
+            }
+            return false;
+        });
+
+        if (newUserIdsNeededForProfilePhotos.length>0) {
+            try {
+                const response2 = await fetch(
+                `http://34.111.89.101/api/Home-Page/laravelBackend1/getProfilePhotosOfMultipleUsers/${authUserId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        userIds: newUserIdsNeededForProfilePhotos
+                    }),
+                    credentials: 'include'
+                });
+                if(!response2.ok) {
+                    console.error(
+                        'The server had trouble fetching the profile-photos of all the newly fetched users'
+                    );
+                }
+                else {
+                    usersAndTheirProfilePhotos = await response2.json();
+                }
+            }
+            catch {
+                console.error(
+                    'There was trouble connecting to the server to fetch the profile-photos of all the newly fetched users'
+                );
+            }
+        }
+
+        const newUsersAndTheirRelevantInfo = { ...usersAndTheirRelevantInfo };
+
+        for(let userId of setOfAllUserIds) {
+            if (!(userId in newUsersAndTheirRelevantInfo)) {
+                newUsersAndTheirRelevantInfo[userId] = {};
+            }
+
+            if (userId in usersAndTheirUsernames) {
+                newUsersAndTheirRelevantInfo[userId].username = usersAndTheirUsernames[userId];
+            }
+
+            if (userId in usersAndTheirVerificationStatuses) {
+                newUsersAndTheirRelevantInfo[userId].isVerified = usersAndTheirVerificationStatuses[userId];
+            }
+            
+            if (userId in usersAndTheirProfilePhotos) {
+                newUsersAndTheirRelevantInfo[userId].profilePhoto = usersAndTheirProfilePhotos[userId];
+            }
+        }
+
+        setUsersAndTheirRelevantInfo(newUsersAndTheirRelevantInfo);
+    }
+
+
     return (
         <>
-            {authUsername.length > 0 &&
-                <>
-                    <LeftSidebar 
-                        profilePhoto={
-                            (authUsername in usersAndTheirRelevantInfo && 'profilePhoto' in usersAndTheirRelevantInfo[authUsername]) ?
-                            usersAndTheirRelevantInfo[authUsername].profilePhoto : defaultPfp
-                        }
-                        displayPopup={displayLeftSidebarPopup}
-                        authUserIsAnonymousGuest={authUserId == -1}
-                        toggleDisplayPopup={toggleDisplayLeftSidebarPopup}
-                    />
+            <LeftSidebar 
+                profilePhoto={usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp}
+                displayPopup={displayLeftSidebarPopup}
+                authUserIsAnonymousGuest={authUserId == -1}
+                toggleDisplayPopup={toggleDisplayLeftSidebarPopup}
+            />
 
-                    <div style={{marginTop:'2.3em', width:'50em', position: 'absolute', left: '24%'}}>
-                        <div style={{display:'flex', justifyContent:'start', alignItems:'center', gap:'1em',
-                        position: 'relative'}}>
-                            {currStoryLevel > 0 &&
-                                (
-                                    <img className="leftArrow" onClick={decrementStoryLevel} src={backArrow}
-                                    style={{height:'1em', width:'1em', objectFit:'contain', cursor:'pointer'}}/>
-                                )
-                            }
-                            
-                            {(fetchingStoriesIsComplete && currStoryLevel == 0) &&
-                                (
+            <div style={{ marginTop: '2.3em', width: '82%', position: 'absolute', left: '18%', display: 'flex', gap: '2%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'start', width:
+                '65%'}}>
+                    <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'center', gap: '1em', position:
+                    'relative', width: '100%' }}>
+                        <div style={{ height: '4.6em', width: '2em', position: 'relative' }}>
+                            {currStoryLevel > 0 && (
+                                <img src={nextArrow} className="iconToBeAdjustedForDarkMode"
+                                    onClick={() => changeStoryLevel('decrement')}
+                                    style={{
+                                        height: '1.5em', width: '1.5em', objectFit: 'contain', cursor: 'pointer', position:
+                                        'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(180deg)'
+                                    }} />
+                            )}
+                        </div>
+
+                        {currStoryLevel === 0 && (
+                            <UserIcon
+                                authUserId={authUserId}
+                                userId={authUserId}
+                                username={authUsername}
+                                userPfp={usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp}
+                                inStoriesSection={true}
+                                isSponsored={false}
+                                userHasStories={authUserId in usersAndTheirStories}
+                                userHasUnseenStory={!userIdsWhoseStoriesYouHaveFinished.has(authUserId)}
+                                userIsVerified={usersAndTheirRelevantInfo[authUserId]?.isVerified ?? false}
+                                showStoryViewer={showStoryViewer}
+                            />
+                        )}
+
+                        {fetchingStoriesIsComplete && storiesSectionErrorMessage.length === 0 ? (
+                            <>
+                                {orderedListOfUserIdsInStoriesSection.slice(currStoryLevel * 6, currStoryLevel * 6 + 6).map(
+                                    (userId, index) => (
                                     <UserIcon
-                                        username={authUsername}
-                                        authUsername={authUsername}
+                                        key={userId}
+                                        authUserId={authUserId}
+                                        userId={userId}
+                                        username={orderedListOfUsernamesInStoriesSection[currStoryLevel * 6 + index]}
+                                        userPfp={usersAndTheirRelevantInfo[userId]?.profilePhoto ?? defaultPfp}
                                         inStoriesSection={true}
-                                        userHasStories={
-                                            (authUsername in usersAndTheirStories)
-                                        }
-                                        userHasUnseenStory={
-                                            !(usernamesWhoseStoriesYouHaveFinished.has(authUsername))
-                                        } 
-                                        userPfp={
-                                            (authUsername in usersAndTheirRelevantInfo) ?
-                                            usersAndTheirRelevantInfo[authUsername].profilePhoto : defaultPfp
-                                        }
-                                        userIsVerified={
-                                            (authUsername in usersAndTheirRelevantInfo) ?
-                                            usersAndTheirRelevantInfo[authUsername].isVerified : false
-                                        }
+                                        isSponsored={orderedListOfSponsorshipStatusesInStoriesSection[
+                                            currStoryLevel * 6 + index
+                                        ]}
+                                        userHasStories={true}
+                                        userHasUnseenStory={!userIdsWhoseStoriesYouHaveFinished.has(userId)}
+                                        userIsVerified={usersAndTheirRelevantInfo[userId]?.isVerified ?? false}
                                         showStoryViewer={showStoryViewer}
                                     />
-                                )
-                            }
-
-                            {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length==0) &&
-                                (
-                                orderedListOfUsernamesInStoriesSection
-                                    .filter(username => username!==authUsername)
-                                    .slice(
-                                        currStoryLevel * 6,
-                                        currStoryLevel * 6 + 6
-                                    )
-                                    .map((username) => (
-                                        <UserIcon
-                                            key={username}
-                                            username={username} 
-                                            inStoriesSection={true}
-                                            userHasStories={true}
-                                            userHasUnseenStory={
-                                                !(usernamesWhoseStoriesYouHaveFinished.has(username))
-                                            } 
-                                            userPfp={
-                                                (username in usersAndTheirRelevantInfo) ?
-                                                usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
-                                            }
-                                            userIsVerified={
-                                                (username in usersAndTheirRelevantInfo) ?
-                                                usersAndTheirRelevantInfo[username].isVerified : false
-                                            }
-                                            showStoryViewer={showStoryViewer}
-                                        />
-                                    ))
-                                )
-                            }
-
-                            {(fetchingStoriesIsComplete && storiesSectionErrorMessage.length>0) &&
-                                (
-                                    <p style={{marginLeft: '2em', width: '85%', color: 'gray',
-                                    fontSize: '0.88em'}}>
-                                        {storiesSectionErrorMessage}
-                                    </p>
-                                )
-                            }
-
-                            {!fetchingStoriesIsComplete &&
-                                (
-                                    <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
-                                    left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
-                                    objectFit: 'contain', pointerEvents: 'none'}}/>
-                                )
-                            }
-
-                            {(currStoryLevel*6 + 5 < orderedListOfUsernamesInStoriesSection.length) &&
-                                (
-                                    <img className="rightArrow" onClick={incrementStoryLevel} src={rightArrow}
-                                    style={{height:'1.5em', width:'1.5em', objectFit:'contain', cursor:'pointer'}}/>
-                                )
-                            }
-
-                        </div>
-                    
-                        <div style={{display:'flex', flexDirection:'column', justifyContent:'center',
-                        alignItems:'center', marginTop: '2em', gap:'3em', position: 'relative'}}>
-                            {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length==0) &&
-                                (
-                                    orderedListOfPosts
-                                    .map((postDetails) => (
-                                        <MediaPost
-                                            key={postDetails.overallPostId}
-                                            postDetails={postDetails}
-                                            authUsername={authUsername}
-                                            mainPostAuthorInfo={
-                                                (postDetails.authors[0] in usersAndTheirRelevantInfo) ?
-                                                usersAndTheirRelevantInfo[postDetails.authors[0]] :
-                                                {}
-                                            }
-                                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                            notifyParentToShowThreeDotsPopup={showThreeDotsPopup}
-                                            notifyParentToShowCommentsPopup={showCommentsPopup}
-                                            notifyParentToShowSendPostPopup={showSendPostPopup}
-                                            notifyParentToShowLikersPopup={showLikersPopup}
-                                            notifyParentToShowErrorPopup={showErrorPopup}
-                                            notifyParentToUpdatePostDetails={updatePostDetails}
-                                        />
-                                    ))
-                                )
-                            }
-
-                            {(fetchingInitialPostsIsComplete && initialPostsFetchingErrorMessage.length>0) &&
-                                (
-                                    <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
-                                    marginTop: '7em'}}>
-                                        {initialPostsFetchingErrorMessage}
-                                    </p>
-                                )
-                            }
-
-                            {(!isCurrentlyFetchingAdditionalPosts &&
-                            additionalPostsFetchingErrorMessage.length>0) &&
-                                (
-                                    <p style={{width: '85%', color: 'gray', fontSize: '0.88em',
-                                    marginTop: '3.75em'}}>
-                                        {additionalPostsFetchingErrorMessage}
-                                    </p>
-                                )
-                            } 
-
-                            {isCurrentlyFetchingAdditionalPosts &&
-                                (
-                                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                    objectFit: 'contain', pointerEvents: 'none', marginTop: '3.75em'}}/>
-                                )
-                            }
-                        </div>
-                        
-                        {!fetchingInitialPostsIsComplete &&
-                            (
-                                <img src={loadingAnimation} style={{position: 'absolute', top: '50%',
-                                left: '50%', transform: 'translate(-50%, -50%)', height: '2em', width: '2em',
-                                objectFit: 'contain', pointerEvents: 'none'}}/>
-                            )
-                        }
+                                ))}
+                                <div style={{ height: '4.6em', width: '2em', position: 'relative' }}>
+                                    {(currStoryLevel + 1) * 6 < orderedListOfUsernamesInStoriesSection.length && (
+                                        <img src={nextArrow} className="iconToBeAdjustedForDarkMode"
+                                            onClick={() => changeStoryLevel('increment')}
+                                            style={{
+                                                height: '1.5em', width: '1.5em', objectFit: 'contain', cursor: 'pointer',
+                                                position: 'absolute', top: '50%', left: '50%',
+                                                transform: 'translate(-50%, -50%)'
+                                            }} />
+                                    )}
+                                </div>
+                            </>
+                        ) : fetchingStoriesIsComplete && storiesSectionErrorMessage.length > 0 ? (
+                            <div style={{ height: '4.6em', width: '50%', position: 'relative', marginLeft: '10%' }}>
+                                <p style={{
+                                    fontSize: '0.9em', maxWidth: '100%', overflowWrap: 'break-word', color: 'gray',
+                                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -80%)'
+                                }}>
+                                    {storiesSectionErrorMessage}
+                                </p>
+                            </div>
+                        ) : (
+                            <div style={{ height: '4.6em', width: '2em', position: 'relative', marginLeft: '20%' }}>
+                                <img src={loadingAnimation} style={{
+                                    height: '1.5em', width: '1.5em', objectFit: 'contain', pointerEvents: 'none',
+                                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'
+                                }} />
+                            </div>
+                        )}
                     </div>
-                    
-                    <div id="rightmostSection" style={{display:'flex', flexDirection:'column', alignItems: 'start',
-                    position: 'absolute', right:'0%', marginTop:'4em', width: '25em'}}>
+
+                    <br />
+                    <br />
+
+                    {(initialPostsFetchingIsComplete && initialPostsFetchingErrorMessage.length == 0) &&
+                        (
+                            orderedListOfPosts.map(postDetails =>(
+                                <MediaPost
+                                    key={postDetails.overallPostId}
+                                    authUserId={authUserId}
+                                    postDetails={postDetails}
+                                    mainPostAuthorInfo={usersAndTheirRelevantInfo[postDetails.authorIds[0]] ?? {}}
+                                    isFocused={focusedMediaPostId === postDetails.overallPostId}
+                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                                    updatePostDetails={updatePostDetails}
+                                    showThreeDotsPopup={showThreeDotsPopup}
+                                    showCommentsPopup={showCommentsPopup}
+                                    showSendPostPopup={showSendPostPopup}
+                                    showLikersPopup={showLikersPopup}
+                                    showErrorPopup={showErrorPopup}
+                                    showStoryViewer={showStoryViewer}
+                                    focusOnThisMediaPost={updateFocusedMediaPost}
+                            />))
+                        )
+                    }
+
+                    {(!isCurrentlyFetchingAdditionalPosts && additionalPostsFetchingErrorMessage.length > 0) &&
+                        (
+                            <div style={{marginTop: '2.5em', display: 'flex', width: '100', justifyContent: 'center'}}>
+                                <p style={{maxWidth: '50%', overflowWrap: 'break-word', color: 'gray', fontSize: '0.9em'}}>
+                                    { additionalPostsFetchingErrorMessage }
+                                </p>
+                            </div>
+                        )
+                    }
+
+
+                    {isCurrentlyFetchingAdditionalPosts &&
+                        (
+                            <div style={{marginTop: '2.5em', display: 'flex', width: '100%', justifyContent: 'center'}}>
+                                <img src={loadingAnimation} style={{height: '1.5em', width: '1.5em', objectFit: 'contain',
+                                pointerEvents: 'none'}}/>
+                            </div>
+                        )
+                    }
+                </div>
+
+                <div id="rightmostSection" style={{ display: 'flex', flexDirection: 'column', alignItems: 'start',
+                justifyContent: 'start', width: '22%', gap: '1em', position: 'relative' }}>
+                    {authUserId !== -1 && (
                         <UserBar
                             username={authUsername}
-                            authUsername={authUsername}
-                            isPrivate={'?'}
-                            numFollowers={'?'}
-                            numFollowing={'?'} 
-                            numPosts={'?'}
-                            fullName={
-                                (authUsername in usersAndTheirRelevantInfo) ?
-                                usersAndTheirRelevantInfo[authUsername].fullName : '?'
-                            }
-                            profilePhoto={
-                                (authUsername in usersAndTheirRelevantInfo) ?
-                                usersAndTheirRelevantInfo[authUsername].profilePhoto : defaultPfp
-                            }
-                            isVerified={
-                                (authUsername in usersAndTheirRelevantInfo) ?
-                                usersAndTheirRelevantInfo[authUsername].isVerified : false
-                            }
-                            notifyParentToShowErrorPopup={showErrorPopup}
+                            userFullName={usersAndTheirRelevantInfo[authUserId]?.fullName ?? 'Could not get full-name'}
+                            userPfp={usersAndTheirRelevantInfo[authUserId]?.profilePhoto ?? defaultPfp}
+                            authUserId={authUserId}
+                            userId={authUserId}
+                            numFollowers={0}
+                            numFollowings={0}
+                            numPosts={0}
+                            userIsPrivate={usersAndTheirRelevantInfo[authUserId]?.isPrivate ?? false}
+                            userIsVerified={usersAndTheirRelevantInfo[authUserId]?.isVerified ?? false}
+                            showErrorPopup={showErrorPopup}
                         />
-                    
+                    )}
 
-                        <b style={{color:'gray', fontSize:'0.9em', marginBottom: '-1.5em'}}>
-                            Suggested for you
-                        </b>
-                        
-                        <br/>
-                        <br/>
-                        <br/>
-
-                        {(fetchingSuggestedAccountsIsComplete && suggestedAccountsSectionErrorMessage.length==0) &&
-                            (
-                                orderedListOfUsernamesOfSuggestedAccounts
-                                .map((username) => (
-                                    <UserBar
-                                        key={username}
-                                        username={username}
-                                        authUsername={authUsername}
-                                        isPrivate={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'isPrivate' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].isPrivate : '?'
-                                        }
-                                        numFollowers={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'numFollowers' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].numFollowers : '?'
-                                        }
-                                        numFollowing={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'numFollowing' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].numFollowing : '?'
-                                        }
-                                        numPosts={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'numPosts' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].numPosts : '?'
-                                        }
-                                        fullName={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'fullName' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].fullName : '?'
-                                        }
-                                        profilePhoto={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'profilePhoto' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].profilePhoto : defaultPfp
-                                        }
-                                        isVerified={
-                                            (username in usersAndTheirRelevantInfo &&
-                                            'isVerified' in usersAndTheirRelevantInfo[username]) ?
-                                            usersAndTheirRelevantInfo[username].isVerified : false
-                                        }
-                                        notifyParentToShowErrorPopup={showErrorPopup}
-                                    />
-                                ))
-                            )
-                        }
-
-                        {(fetchingSuggestedAccountsIsComplete && suggestedAccountsSectionErrorMessage.length>0) &&
-                            (
-                                <p style={{width: '85%', color: 'gray', fontSize: '0.88em'}}>
-                                    {suggestedAccountsSectionErrorMessage}
-                                </p>
-                            )
-                        }
-
-                        {!fetchingSuggestedAccountsIsComplete &&
-                            (
-                                <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center',
-                                width: '75%'}}>
-                                    <img src={loadingAnimation} style={{height: '2em', width: '2em',
-                                    objectFit: 'contain', pointerEvents: 'none'}}/>
-                                </div>
-                            )
-                        }
-
-                        <br/>
-
-                        <Footer/>
+                    <div style={{ width: '100%', position: 'relative', marginBottom: '2em' }}>
+                        <b style={{ color: '#787878', position: 'absolute', left: '0%', top: '0%' }}>Suggested for you</b>
+                        <a href="http://34.111.89.101/user-suggestions" target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: '0.9em', position: 'absolute', right: '0%', top: '0%' }}>
+                            See all
+                        </a>
                     </div>
 
-                    {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup ||  displayLikersPopup ||
-                    displayAboutAccountPopup || displayLeftSidebarPopup || displayErrorPopup)
-                    &&  (
-                            <img onClick={closeAllPopups} src={blackScreen} style={{position: 'fixed', 
-                            top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7', 
-                            zIndex: '2'}}/>
-                        )
-                    }
-
-                    {displayCommentsPopup &&
-                        (
-                            <CommentsPopup
+                    {fetchingSuggestedUsersIsComplete && suggestedUsersSectionErrorMessage.length === 0 ? (
+                        orderedListOfSuggestedUserIds.map((suggestedUserId, index) => (
+                            <UserBar
+                                key={suggestedUserId}
+                                username={orderedListOfSuggestedUsernames[index]}
+                                userFullName={usersAndTheirRelevantInfo[suggestedUserId]?.fullName ?? 'Could not get full-name'}
+                                userPfp={usersAndTheirRelevantInfo[suggestedUserId]?.profilePhoto ?? defaultPfp}
                                 authUserId={authUserId}
-                                authUsername={authUsername}
-                                postDetails={commentsPopupPostDetails}
-                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                mainPostAuthorInfo={
-                                    usersAndTheirRelevantInfo[commentsPopupPostDetails.authorIds[0]] ?? {}
-                                }
-                                currSlide={commentsPopupCurrSlide}
-                                zIndex={
-                                    (displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup ||
-                                    displayAboutAccountPopup || displayErrorPopup || displayStoryViewer) ? 
-                                    '1' : '2'
-                                }
-                                closePopup={closeCommentsPopup}
-                                showErrorPopup={showErrorPopup}
-                                showThreeDotsPopup={showThreeDotsPopup}
-                                showSendPostPopup={showSendPostPopup}
-                                showLikersPopup={showLikersPopup}
-                                showStoryViewer={showStoryViewer}
-                                updatePostDetails={updatePostDetails}
-                            />
-                        )
-                    }
-
-                    {displayAboutAccountPopup &&
-                        (
-                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayStoryViewer ? '1' : '2'}}>
-                                <AboutAccountPopup
-                                    authUserId={authUserId}
-                                    userId={aboutAccountUserId}
-                                    username={aboutAccountUsername}
-                                    authUsername={authUsername}
-                                    userPfp={aboutAccountUserProfilePhoto}
-                                    userIsVerified={aboutAccountUserIsVerified}
-                                    userHasStories={aboutAccountUserHasStories}
-                                    userHasUnseenStory={aboutAccountUserHasUnseenStory}
-                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                    addRelevantInfoToUser={addRelevantInfoToUser}
-                                    closePopup={closeAboutAccountPopup}
-                                    showStoryViewer={showStoryViewer}
-                                />
-                            </div>
-                        )
-                    }
-
-                    {displayStoryViewer &&
-                        (
-                            <StoryViewer
-                                authUserId={authUserId}
-                                authUsername={authUsername}
-                                storyAuthorUsername={storyViewerMainUsername}
-                                storyAuthorId={storyViewerMainUserId}
-                                zIndex={displayErrorPopup ? '1' : '2'}
-                                orderedListOfUserIdsInStoriesSection={orderedListOfUserIdsInStoriesSection}
-                                orderedListOfUsernamesInStoriesSection={orderedListOfUsernamesInStoriesSection}
-                                orderedListOfSponsorshipStatusesInStoriesSection={
-                                    orderedListOfSponsorshipStatusesInStoriesSection
-                                }
-                                isFromStoriesSection={storyViewerIsFromStoriesSection}
-                                usersAndTheirStories={usersAndTheirStories}
-                                usersAndTheirStoryPreviews={usersAndTheirStoryPreviews}
-                                usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
-                                usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                vidStoriesAndTheirPreviewImages={vidStoriesAndTheirPreviewImages}
-                                usernamesWhoseStoriesYouHaveFinished={usernamesWhoseStoriesYouHaveFinished}
-                                updateUsersAndTheirStories={updateUsersAndTheirStories}
-                                updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
-                                updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
-                                updateVidStoriesAndTheirPreviewImages={updateVidStoriesAndTheirPreviewImages}
-                                addUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
-                                    addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
-                                }
-                                closeStoryViewer={closeStoryViewer}
+                                userId={suggestedUserId}
+                                numFollowers={usersAndTheirRelevantInfo[suggestedUserId]?.numFollowers ?? -1}
+                                numFollowings={usersAndTheirRelevantInfo[suggestedUserId]?.numFollowings ?? -1}
+                                numPosts={usersAndTheirRelevantInfo[suggestedUserId]?.numPosts ?? -1}
+                                userIsPrivate={usersAndTheirRelevantInfo[suggestedUserId]?.isPrivate ?? false}
+                                userIsVerified={usersAndTheirRelevantInfo[suggestedUserId]?.isVerified ?? false}
                                 showErrorPopup={showErrorPopup}
                             />
-                        )
-                    }
+                        ))
+                    ) : fetchingSuggestedUsersIsComplete && suggestedUsersSectionErrorMessage.length > 0 ? (
+                        <p style={{
+                            color: 'gray', width: '100%', overflowWrap: 'break-word',
+                            marginTop: '2em', marginBottom: '2em', fontSize: '0.85em'
+                        }}>
+                            {suggestedUsersSectionErrorMessage}
+                        </p>
+                    ) : (
+                        <img src={loadingAnimation} style={{
+                            height: '1.5em', width: '1.5em', objectFit: 'contain', pointerEvents: 'none',
+                            marginTop: '2em', marginBottom: '2em', marginLeft: '50%'
+                        }} />
+                    )}
 
-                    {displayLeftSidebarPopup &&
-                        (
-                            <div style={{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ? '1'
-                            : '2'}}>
-                                <LeftSidebarPopup
-                                    authUserId={authUserId}
-                                    originalURL={originalURL}
-                                    notifyParentToShowErrorPopup={showErrorPopup}
-                                />
-                            </div>
-                        )
-                    }
+                    <br />
 
-                    {displayThreeDotsPopup &&
-                        (
-                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayErrorPopup ? '1': '2'}}>
-                                <ThreeDotsPopup
-                                    authUserId={authUserId}
-                                    postDetails={threeDotsPopupPostDetails} 
-                                    hidePost={hidePost}
-                                    showErrorPopup={showErrorPopup}
-                                    closePopup={closeThreeDotsPopup}
-                                    showAboutAccountPopup={showAboutAccountPopup}
-                                />
-                            </div>
-                        )
-                    }
+                    <footer style={{ color: 'gray', fontSize: '0.8em', width: '100%' }}>
+                        Megagram, a full-stack web-application that blends a bit of Instagram with a bit of Amazon, is a
+                        personal project of Rishav Ray.
+                    </footer>
+                </div>
+            </div>
 
-                    {displaySendPostPopup &&
-                        (
-                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayErrorPopup ? '1': '2'}}>
-                                <SendPostPopup
-                                    authUserId={authUserId}
-                                    overallPostId={sendPostPopupOverallPostId}
-                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                    cachedMessageSendingSuggestions={cachedMessageSendingSuggestions}
-                                    updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                    updateCachedMessageSendingSuggestions={updateCachedMessageSendingSuggestions}
-                                    showErrorPopup={showErrorPopup}
-                                    closePopup={closeSendPostPopup}
-                                />
-                            </div>
-                        )
-                    }
+            {(initialPostsFetchingIsComplete && initialPostsFetchingErrorMessage.length > 0) &&
+                (
+                    <p style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', maxWidth:
+                    '35%', overflowWrap: 'break-word', color: 'gray', fontSize: '0.9em'}}>
+                        { initialPostsFetchingErrorMessage }
+                    </p>
+                )
+            }
 
-                    {displayLikersPopup &&
-                        (
-                            <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: displayErrorPopup ? '1': '2'}}>
-                                <LikersPopup
-                                    idOfPostOrComment={likersPopupIdOfPostOrComment}
-                                    authUserId={authUserId}
-                                    usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                                    closePopup={closeLikersPopup}
-                                    showErrorPopup={showErrorPopup}
-                                    updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
-                                />
-                            </div>
-                        )
-                    }
+            {!initialPostsFetchingIsComplete &&
+                (
+                    <img src={loadingAnimation} style={{position: 'absolute', top: '50%', left: '50%', transform:
+                    'translate(-50%, -50%)', height: '1.5em', width: '1.5em', objectFit: 'contain', pointerEvents: 'none'}}/>
+                )
+            }
 
-                    {displayErrorPopup &&
+            {(displayThreeDotsPopup || displayCommentsPopup ||  displaySendPostPopup ||  displayLikersPopup ||
+            displayAboutAccountPopup || displayLeftSidebarPopup || displayErrorPopup)
+            &&  (
+                    <img onClick={closeAllPopups} src={blackScreen} style={{position: 'fixed', 
+                    top: '0%', left: '0%', width: '100%', height: '100%', opacity: '0.7', 
+                    zIndex: '2'}}/>
+                )
+            }
+
+            {displayCommentsPopup &&
+                (
+                    <CommentsPopup
+                        authUserId={authUserId}
+                        authUsername={authUsername}
+                        postDetails={commentsPopupPostDetails}
+                        usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                        updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
+                        mainPostAuthorInfo={
+                            usersAndTheirRelevantInfo[commentsPopupPostDetails.authorIds[0]] ?? {}
+                        }
+                        currSlide={commentsPopupCurrSlide}
+                        zIndex={
+                            (displayThreeDotsPopup ||  displaySendPostPopup || displayLikersPopup ||
+                            displayAboutAccountPopup || displayErrorPopup || displayStoryViewer) ? 
+                            '1' : '2'
+                        }
+                        closePopup={closeCommentsPopup}
+                        showErrorPopup={showErrorPopup}
+                        showThreeDotsPopup={showThreeDotsPopup}
+                        showSendPostPopup={showSendPostPopup}
+                        showLikersPopup={showLikersPopup}
+                        showStoryViewer={showStoryViewer}
+                        updatePostDetails={updatePostDetails}
+                    />
+                )
+            }
+
+            {displayAboutAccountPopup &&
+                (
+                    <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    zIndex: displayStoryViewer ? '1' : '2'}}>
+                        <AboutAccountPopup
+                            authUserId={authUserId}
+                            userId={aboutAccountUserId}
+                            username={aboutAccountUsername}
+                            authUsername={authUsername}
+                            userPfp={aboutAccountUserProfilePhoto}
+                            userIsVerified={aboutAccountUserIsVerified}
+                            userHasStories={aboutAccountUserHasStories}
+                            userHasUnseenStory={aboutAccountUserHasUnseenStory}
+                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                            addRelevantInfoToUser={addRelevantInfoToUser}
+                            closePopup={closeAboutAccountPopup}
+                            showStoryViewer={showStoryViewer}
+                        />
+                    </div>
+                )
+            }
+
+            {displayStoryViewer &&
+                (
+                    <StoryViewer
+                        authUserId={authUserId}
+                        authUsername={authUsername}
+                        storyAuthorUsername={storyViewerMainUsername}
+                        storyAuthorId={storyViewerMainUserId}
+                        zIndex={displayErrorPopup ? '1' : '2'}
+                        orderedListOfUserIdsInStoriesSection={orderedListOfUserIdsInStoriesSection}
+                        orderedListOfUsernamesInStoriesSection={orderedListOfUsernamesInStoriesSection}
+                        orderedListOfSponsorshipStatusesInStoriesSection={
+                            orderedListOfSponsorshipStatusesInStoriesSection
+                        }
+                        isFromStoriesSection={storyViewerIsFromStoriesSection}
+                        usersAndTheirStories={usersAndTheirStories}
+                        usersAndTheirStoryPreviews={usersAndTheirStoryPreviews}
+                        usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
+                        usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                        vidStoriesAndTheirPreviewImages={vidStoriesAndTheirPreviewImages}
+                        userIdsWhoseStoriesYouHaveFinished={userIdsWhoseStoriesYouHaveFinished}
+                        updateUsersAndTheirStories={updateUsersAndTheirStories}
+                        updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
+                        updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
+                        updateVidStoriesAndTheirPreviewImages={updateVidStoriesAndTheirPreviewImages}
+                        addUserIdToSetOfUsersWhoseStoriesYouHaveFinished={
+                            addUserIdToSetOfUsersWhoseStoriesYouHaveFinished
+                        }
+                        closeStoryViewer={closeStoryViewer}
+                        showErrorPopup={showErrorPopup}
+                    />
+                )
+            }
+
+            {displayLeftSidebarPopup &&
+                (
+                    <div style={{position: 'fixed', bottom: '10%', left: '1%', zIndex: displayErrorPopup ? '1'
+                    : '2'}}>
+                        <LeftSidebarPopup
+                            authUserId={authUserId}
+                            originalURL={originalURL}
+                            notifyParentToShowErrorPopup={showErrorPopup}
+                        />
+                    </div>
+                )
+            }
+
+            {displayThreeDotsPopup &&
+                (
+                    <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    zIndex: displayErrorPopup ? '1': '2'}}>
+                        <ThreeDotsPopup
+                            authUserId={authUserId}
+                            postDetails={threeDotsPopupPostDetails} 
+                            hidePost={hidePost}
+                            showErrorPopup={showErrorPopup}
+                            closePopup={closeThreeDotsPopup}
+                            showAboutAccountPopup={showAboutAccountPopup}
+                        />
+                    </div>
+                )
+            }
+
+            {displaySendPostPopup &&
+                (
+                    <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    zIndex: displayErrorPopup ? '1': '2'}}>
+                        <SendPostPopup
+                            authUserId={authUserId}
+                            overallPostId={sendPostPopupOverallPostId}
+                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                            cachedMessageSendingSuggestions={cachedMessageSendingSuggestions}
+                            updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
+                            updateCachedMessageSendingSuggestions={updateCachedMessageSendingSuggestions}
+                            showErrorPopup={showErrorPopup}
+                            closePopup={closeSendPostPopup}
+                        />
+                    </div>
+                )
+            }
+
+            {displayLikersPopup &&
+                (
+                    <div style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                    zIndex: displayErrorPopup ? '1': '2'}}>
+                        <LikersPopup
+                            idOfPostOrComment={likersPopupIdOfPostOrComment}
+                            authUserId={authUserId}
+                            usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
+                            closePopup={closeLikersPopup}
+                            showErrorPopup={showErrorPopup}
+                            updateUsersAndTheirRelevantInfo={updateUsersAndTheirRelevantInfo}
+                        />
+                    </div>
+                )
+            }
+
+            {displayErrorPopup &&
+                (
+                    <div style={{position: 'fixed', top: '50%', left: '50%',
+                    transform: 'translate(-50%, -50%)', zIndex: '2'}}>
+                        <ErrorPopup
+                            errorMessage={errorPopupMessage}
+                            closePopup={closeErrorPopup}
+                        />
+                    </div>
+                )
+            }
+            
+            {orderedListOfNotifications.length > 0 &&
+                (
+                    orderedListOfNotifications.slice(0,1).map(notification =>
                         (
-                            <div style={{position: 'fixed', top: '50%', left: '50%',
-                            transform: 'translate(-50%, -50%)', zIndex: '2'}}>
-                                <ErrorPopup
-                                    errorMessage={errorPopupMessage}
-                                    closePopup={closeErrorPopup}
-                                />
-                            </div>
+                            <UserNotification
+                                key={notification.description}
+                                leftImage={notification.leftImage}
+                                rightImage={notification.rightImage}
+                                description={notification.description}
+                                leftImageLink={notification.leftImageLink}
+                                entireNotificationLink={notification.entireNotificationLink}
+                                deleteThis={deleteNotification}
+                            />
                         )
-                    }
-                    
-                    {orderedListOfNotifications.length > 0 &&
-                        (
-                            orderedListOfNotifications.slice(0,1).map(notification =>
-                                (
-                                    <UserNotification
-                                        key={notification.description}
-                                        leftImage={notification.leftImage}
-                                        rightImage={notification.rightImage}
-                                        description={notification.description}
-                                        leftImageLink={notification.leftImageLink}
-                                        entireNotificationLink={notification.entireNotificationLink}
-                                        deleteThis={deleteNotification}
-                                    />
-                                )
-                            )
-                        )
-                    }
-                </>
+                    )
+                )
             }
         </>
     );

@@ -21,7 +21,7 @@
     
                 <p :style="{fontSize:'0.8em', color:'#787878', maxWidth: '12em', overflowWrap:'break-word', textAlign:
                 'start'}">
-                    {{ userFullName === '?' ? 'Could not get full name' : userFullName }}
+                    {{ userFullName }}
                 </p>
             </div>
         </div>
@@ -107,7 +107,7 @@ import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
 
     function formatNumber(number) {
-        if(number==='?') {
+        if(number == -1) {
             return '?';
         }
         else if (number < 10000) {

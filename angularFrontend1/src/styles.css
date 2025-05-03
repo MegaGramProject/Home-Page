@@ -41,14 +41,6 @@ body {
         filter: brightness(5) contrast(0) !important;
     }
 
-    .leftArrow {
-        filter: brightness(5) contrast(0) !important;
-    }
-
-    .rightArrow {
-        filter: brightness(5) contrast(0) !important;
-    }
-
     .textArea {
         background-color: #232424 !important;
         color: white !important;
@@ -156,7 +148,7 @@ a {
     display: none !important;
 }
 
-@media (max-width: 95em) {
+@media (max-width: 75em) {
     #rightmostSection {
         display: none !important;
     }

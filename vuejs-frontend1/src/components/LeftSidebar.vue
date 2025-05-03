@@ -1,10 +1,13 @@
 <template>
-    <div id="leftSidebar" style="position: fixed; height: 100%; top: 0%; left: 0%; width: 14.5em;">
+    <div id="leftSidebar" style="position: fixed; height: 100%; top: 0%; left: 0%; width: 14%;">
         <div style="width: 100%; height: 100%; border-style: solid; border-color: lightgray; border-width: 0em 0.01em 0em 0em;
-        position: relative; padding-top: 1.5em;">
-            <h1 class="headerMegagram" style="font-family: Billabong; font-size: 1.9em; margin-left: -3em; font-weight: 100;">
-                <span style="cursor: pointer;">Megagram</span>
-            </h1>
+        position: relative;">
+            <div style="display: flex; width: 90%; margin-left: 1em;">
+                <p class="loseOpacityWhenActive" style="font-family: Billabong; font-size: 1.9em; font-weight: 100; cursor:
+                pointer; margin-left: 0.2em;">
+                    Megagram
+                </p>
+            </div>
     
             <div class="sidebarElement">
                 <img :src="homeIcon" class="iconToBeAdjustedForDarkMode" style="height: 2.3em; width: 2.3em; pointer-events: none;
@@ -31,7 +34,7 @@
             </a>
     
             <a href="http://34.111.89.101/ai-chat" class="sidebarElement" target="_blank" rel="noopener noreferrer">
-                <img :src="aiIcon" class="iconToBeAdjustedForDarkMode" style="height: 1.9em; width: 1.9em; pointer-events: none
+                <img :src="aiIcon" class="iconToBeAdjustedForDarkMode" style="height: 1.9em; width: 1.9em; pointer-events: none;
                 object-fit: contain; margin-left: 0.2em;"/>
                 <p style="font-size: 1em; margin-left: 0.7em;">AI Chat</p>
             </a>

@@ -1,7 +1,7 @@
 import bluePlusIcon from "../assets/images/bluePlusIcon.png";
 import verifiedBlueCheck from '../assets/images/verifiedBlueCheck.png';
 
-function UserIcon({authUserId, userId, username, inStoriesSection, userHasStories, userHasUnseenStory, userPfp,
+function UserIcon({authUserId, userId, username, inStoriesSection, isSponsored, userHasStories, userHasUnseenStory, userPfp,
 userIsVerified, showStoryViewer}) {
     function onClickingProfilePhoto() {
       if (userHasStories) {
@@ -14,19 +14,16 @@ userIsVerified, showStoryViewer}) {
 
     return (
         <>
-            {username === 'Anonymous Guest' && 
+            {userId == -1 && 
                 (
-                    <div style={{width: '8em', height: '10em'}}>
-                        <p style={{fontSize: '0.7em', textAlign: 'start'}}>
-                            You are currently logged in as a guest. This means that you can only view posts/stories
-                            of public accounts. You cannot interact with other users in any way without logging in to
-                            an account of your own.
-                        </p>
-                    </div>
+                    <p style={{fontSize: '0.75em', textAlign: 'start', maxWidth: '10em', height: '10em'}}>
+                        You are browsing as an <b>Anonymous Guest</b>. You can only view posts/stories of public accounts. You 
+                        cannot interact with other users without logging in.
+                    </p>
                 )
             }
 
-            {username !== 'Anonymous Guest' &&
+            {userId !== -1 &&
                 (
                     <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
                         {userHasStories &&
@@ -79,7 +76,13 @@ userIsVerified, showStoryViewer}) {
                                 <div style={{display: 'flex', justifyContent: 'center', width: '100%', alignItems: 'center'}}>
                                     <p style={{textAlign:'center', fontSize:'0.8em', maxWidth: '7.5em',
                                     overflowWrap: 'break-word'}}>
-                                        {(userId == authUserId) ? 'You' : username}
+                                        { userId == authUserId ? 'You' : username }
+
+                                        {isSponsored &&
+                                            (
+                                                <span style={{color: 'gray'}}> Sponsored</span>
+                                            )
+                                        }
                                     </p>
 
                                     {userIsVerified &&

@@ -183,7 +183,7 @@ function StoryViewerPage({urlParams}) {
 
 
     function updateUsersAndTheirStoryPreviews(newUsersAndTheirStoryPreviews) {
-        newUsersAndTheirStoryPreviews; //do nothing
+        //do nothing
     }
 
 
@@ -197,8 +197,8 @@ function StoryViewerPage({urlParams}) {
     }
 
 
-    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername) {
-        newUsername; //do nothing
+    function addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(newUserId) {
+        //do nothing
     }
 
 
@@ -505,13 +505,13 @@ function StoryViewerPage({urlParams}) {
                         usersAndYourCurrSlideInTheirStories={usersAndYourCurrSlideInTheirStories}
                         vidStoriesAndTheirPreviewImages={{}}
                         usersAndTheirRelevantInfo={usersAndTheirRelevantInfo}
-                        usernamesWhoseStoriesYouHaveFinished={new Set()}
+                        userIdsWhoseStoriesYouHaveFinished={new Set()}
                         updateUsersAndTheirStories={updateUsersAndTheirStories}
                         updateUsersAndTheirStoryPreviews={updateUsersAndTheirStoryPreviews}
                         updateUsersAndYourCurrSlideInTheirStories={updateUsersAndYourCurrSlideInTheirStories}
                         updateVidStoriesAndTheirPreviewImages={updateVidStoriesAndTheirPreviewImages}
-                        addUsernameToSetOfUsersWhoseStoriesYouHaveFinished={
-                            addUsernameToSetOfUsersWhoseStoriesYouHaveFinished
+                        addUserIdToSetOfUsersWhoseStoriesYouHaveFinished={
+                            addUserIdToSetOfUsersWhoseStoriesYouHaveFinished
                         }
                         closeStoryViewer={closeStoryViewer}
                         showErrorPopup={showErrorPopup}

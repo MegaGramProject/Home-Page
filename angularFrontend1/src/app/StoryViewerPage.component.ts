@@ -33,7 +33,7 @@ export class StoryViewerPage {
   storyFetchingError:boolean = false;
   storyFetchingIsComplete:boolean = false;
 
-  usernamesWhoseStoriesYouHaveFinished:Set<string> = new Set<string>();
+  userIdsWhoseStoriesYouHaveFinished:Set<number> = new Set<number>();
 
   usersAndTheirRelevantInfo:any = {};
   usersAndTheirStories:any = {};
@@ -208,8 +208,8 @@ export class StoryViewerPage {
   }
 
 
-  addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername:string) {
-    newUsername; //do nothing
+  addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(newUserId:number) {
+    newUserId; //do nothing
   }
 
 

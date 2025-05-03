@@ -13,7 +13,6 @@
         :storyAuthorId="storyAuthorId"
         :zIndex="''"
         :orderedListOfUserIdsInStoriesSection="[]"
-        :orderedListOfUsernamesInStoriesSection="[]"
         :orderedListOfSponsorshipStatusesInStoriesSection="[]"
         :isFromStoriesSection="false"
         :usersAndTheirStories="usersAndTheirStories"
@@ -21,12 +20,12 @@
         :usersAndYourCurrSlideInTheirStories="usersAndYourCurrSlideInTheirStories"
         :vidStoriesAndTheirPreviewImages="vidStoriesAndTheirPreviewImages"
         :usersAndTheirRelevantInfo="usersAndTheirRelevantInfo"
-        :usernamesWhoseStoriesYouHaveFinished="new Set()"
+        :userIdsWhoseStoriesYouHaveFinished="new Set()"
         :updateUsersAndTheirStories="updateUsersAndTheirStories"
         :updateUsersAndTheirStoryPreviews="updateUsersAndTheirStoryPreviews"
         :updateUsersAndYourCurrSlideInTheirStories="updateUsersAndYourCurrSlideInTheirStories"
         :updateVidStoriesAndTheirPreviewImages="updateVidStoriesAndTheirPreviewImages"
-        :addUsernameToSetOfUsersWhoseStoriesYouHaveFinished="addUsernameToSetOfUsersWhoseStoriesYouHaveFinished"
+        :addUserIdToSetOfUsersWhoseStoriesYouHaveFinished="addUserIdToSetOfUsersWhoseStoriesYouHaveFinished"
         :closeStoryViewer="closeStoryViewer"
         :showErrorPopup="showErrorPopup"
     />
@@ -259,8 +258,8 @@ import { useRoute } from 'vue-router';
     }
     
 
-    function addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(newUsername) {
-        newUsername; //do nothing
+    function addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(newUserId) {
+        newUserId; //do nothing
     }
 
 

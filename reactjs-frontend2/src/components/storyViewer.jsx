@@ -17,9 +17,9 @@ import { useEffect, useRef, useState } from 'react';
 function StoryViewer({authUserId, authUsername, authUsernameWasProvidedInRoute, storyAuthorUsername, storyAuthorId, zIndex,
 orderedListOfUserIdsInStoriesSection, orderedListOfUsernamesInStoriesSection, orderedListOfSponsorshipStatusesInStoriesSection,
 isFromStoriesSection, usersAndTheirStories, usersAndTheirStoryPreviews, usersAndYourCurrSlideInTheirStories,
-vidStoriesAndTheirPreviewImages, usersAndTheirRelevantInfo, usernamesWhoseStoriesYouHaveFinished,
+vidStoriesAndTheirPreviewImages, usersAndTheirRelevantInfo, userIdsWhoseStoriesYouHaveFinished,
 updateUsersAndTheirStories, updateUsersAndTheirStoryPreviews, updateUsersAndYourCurrSlideInTheirStories,
-updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHaveFinished, closeStoryViewer, showErrorPopup}) {
+updateVidStoriesAndTheirPreviewImages, addUserIdToSetOfUsersWhoseStoriesYouHaveFinished, closeStoryViewer, showErrorPopup}) {
     const [currStoryAuthorUsername, setCurrStoryAuthorUsername] = useState('');
     const [currStoryAuthorId, setCurrStoryAuthorId] = useState(-1);
 
@@ -130,8 +130,8 @@ updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHav
             newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
             updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
 
-            if (!(usernamesWhoseStoriesYouHaveFinished.has(currStoryAuthorUsernameValue))) {
-                addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
+            if (!(userIdsWhoseStoriesYouHaveFinished.has(currStoryAuthorIdValue))) {
+                addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorIdValue);
             }
 
             if (isFromStoriesSection && currIndexInStoriesSectionValue + 1 < orderedListOfUsernamesInStoriesSection.length) {
@@ -356,8 +356,7 @@ updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHav
             });
 
 
-            video.onerror = (e) => {
-                e;
+            video.onerror = () => {
                 reject(new Error('Error loading video'));
             };
         });
@@ -611,7 +610,6 @@ updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHav
             }
         }
 
-        const currStoryAuthorIdValue = currStoryAuthorId;
         const currStoryAuthorUsernameValue = currStoryAuthorUsername;
         const authUserIdValue = authUserId;
 
@@ -652,7 +650,7 @@ updateVidStoriesAndTheirPreviewImages, addUsernameToSetOfUsersWhoseStoriesYouHav
 
                         newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
 
-                        addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
+                        addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorIdValue);
 
                         handleChangeInStory(userStoryData.stories, 0);
                     }

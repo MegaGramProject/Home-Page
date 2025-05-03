@@ -31,13 +31,13 @@ export class StoryViewer {
   @Input() vidStoriesAndTheirPreviewImages!:any;
   @Input() usersAndTheirRelevantInfo!:any;
 
-  @Input() usernamesWhoseStoriesYouHaveFinished!:Set<string>;
+  @Input() userIdsWhoseStoriesYouHaveFinished!:Set<number>;
 
   @Output() updateUsersAndTheirStories:EventEmitter<any> = new EventEmitter<any>();
   @Output() updateUsersAndTheirStoryPreviews:EventEmitter<any> = new EventEmitter<any>();
   @Output() updateUsersAndYourCurrSlideInTheirStories:EventEmitter<any> = new EventEmitter<any>();
   @Output() updateVidStoriesAndTheirPreviewImages:EventEmitter<any> = new EventEmitter<any>();
-  @Output() addUsernameToSetOfUsersWhoseStoriesYouHaveFinished:EventEmitter<string> = new EventEmitter<string>();
+  @Output() addUserIdToSetOfUsersWhoseStoriesYouHaveFinished:EventEmitter<number> = new EventEmitter<number>();
   @Output() closeStoryViewer:EventEmitter<any> = new EventEmitter<any>();
   @Output() showErrorPopup:EventEmitter<string> = new EventEmitter<string>();
 
@@ -164,8 +164,8 @@ export class StoryViewer {
       newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
       this.updateUsersAndYourCurrSlideInTheirStories.emit(newUsersAndYourCurrSlideInTheirStories);
 
-      if (!(this.usernamesWhoseStoriesYouHaveFinished.has(currStoryAuthorUsernameValue))) {
-        this.addUsernameToSetOfUsersWhoseStoriesYouHaveFinished.emit(currStoryAuthorUsernameValue);
+      if (!(this.userIdsWhoseStoriesYouHaveFinished.has(currStoryAuthorIdValue))) {
+        this.addUserIdToSetOfUsersWhoseStoriesYouHaveFinished.emit(currStoryAuthorIdValue);
       }
 
       if (this.isFromStoriesSection && currIndexInStoriesSectionValue + 1 < this.orderedListOfUsernamesInStoriesSection.length) {
@@ -691,7 +691,7 @@ export class StoryViewer {
 
             newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
 
-            this.addUsernameToSetOfUsersWhoseStoriesYouHaveFinished.emit(currStoryAuthorUsernameValue);
+            this.addUserIdToSetOfUsersWhoseStoriesYouHaveFinished.emit(currStoryAuthorIdValue);
 
             this.handleChangeInStory();
           }

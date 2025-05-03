@@ -1,12 +1,7 @@
-<ng-container *ngIf="username === 'Anonymous Guest'; else loggedIn">
-    <div style="width: 8em; height: 10em">
-        <p style="font-size: 0.7em; text-align: start">
-        You are currently logged in as a guest. This means that you can only view posts/stories
-        of public accounts. You cannot interact with other users in any way without logging in to
-        an account of your own.
-        </p>
-    </div>
-</ng-container>
+<p *ngIf="userId == -1; else loggedIn" style="font-size: 0.75em; text-align: start; max-width: 10em; height: 10em;">
+    You are browsing as an <b>Anonymous Guest</b>. You can only view posts/stories of public accounts. You cannot interact
+    with other users without logging in.
+</p>
   
 <ng-template #loggedIn>
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center">
@@ -43,6 +38,8 @@
         <div *ngIf="inStoriesSection" style="display: flex; justify-content: center; width: 100%; align-items: center;">
             <p style="text-align: center; font-size: 0.8em; max-width: 7.5em; overflow-wrap: break-word">
                 {{ userId === authUserId ? 'You' : username }}
+
+                <span *ngIf="isSponsored" style="color: gray;"> Sponsored</span>
             </p>
 
             <img *ngIf="userIsVerified" [src]="'images/verifiedBlueCheck.png'" style="pointer-events: none; height: 1.5em; width:

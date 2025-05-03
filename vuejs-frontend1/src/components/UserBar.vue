@@ -1,8 +1,8 @@
 <template>
-    <div style="display: flex; width: 20em; align-items: start; position: relative; margin-bottom: -1em"
+    <div style="display: flex; width: 100%; align-items: start; position: relative;"
     @mouseenter="setDisplayAccountPreviewToTrue" @mouseleave="setDisplayAccountPreviewToFalse">
         <a :href="`http://34.111.89.101/profile/${username}`" target="_blank" rel="noopener noreferrer">
-        <img :src="userPfp" style="height: 2.5em; width: 2.5em; object-fit: contain; cursor: pointer" />
+            <img :src="userPfp" style="height: 2.5em; width: 2.5em; object-fit: contain; cursor: pointer" />
         </a>
   
         <div style="display: flex; flex-direction: column; align-items: start; margin-left: 0.7em">
@@ -20,13 +20,13 @@
 
             <p style="font-size: 0.7em; margin-top: 0.1em; color: #787878; max-width: 10em; overflow-wrap: break-word;
             text-align: start">
-                {{ userFullName === '?' ? 'Could not get full name' : userFullName }}
+                {{ userFullName }}
             </p>
         </div>
   
         <p @click="userId == authUserId ? takeUserToLogin() : toggleFollowUser()"
         :style="{ color: toggleFollowText === 'Follow' ? '#348feb' : 'gray', cursor: 'pointer', fontSize: '0.85em',
-        fontWeight: 'bold', position: 'absolute', left: '76%', top: '0%' }">
+        fontWeight: 'bold', position: 'absolute', right: '0%', top: '0%' }">
             {{ userId == authUserId ? 'Switch' : toggleFollowText }}
         </p>
   
@@ -36,24 +36,18 @@
                 :userPfp="userPfp"
                 :userFullName="userFullName"
                 :toggleFollowText="toggleFollowText"
-
                 :authUserId="authUserId"
                 :userId="userId"
                 :numPosts="numPosts"
                 :numFollowers="numFollowers"
                 :numFollowings="numFollowings"
-
                 :userIsPrivate="userIsPrivate"
                 :userIsVerified="userIsVerified"
-
                 :updateFollowText="updateFollowTextFromAccountPreview"
                 :showErrorPopup="showErrorPopup"
             />
         </div>
     </div>
-  
-    <br />
-    <br />
 </template>
 
 

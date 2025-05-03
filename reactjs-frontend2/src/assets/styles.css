@@ -1,6 +1,6 @@
 @font-face {
     font-family: Billabong;
-    src: url('assets/fonts/billabong_regular.otf');
+    src: url('./fonts/billabong_regular.otf');
     font-weight: normal;
     font-style: normal;
 }
@@ -38,14 +38,6 @@ body {
     }
 
     .iconToBeAdjustedForDarkMode {
-        filter: brightness(5) contrast(0) !important;
-    }
-
-    .leftArrow {
-        filter: brightness(5) contrast(0) !important;
-    }
-
-    .rightArrow {
         filter: brightness(5) contrast(0) !important;
     }
 
@@ -156,7 +148,7 @@ a {
     display: none !important;
 }
 
-@media (max-width: 95em) {
+@media (max-width: 75em) {
     #rightmostSection {
         display: none !important;
     }

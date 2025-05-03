@@ -29,7 +29,7 @@ export class AccountPreview {
 
 
   formatNumber(number:any) {
-    if(number==='?') {
+    if(number == '-1') {
       return '?';
     }
     else if (number < 10000) {

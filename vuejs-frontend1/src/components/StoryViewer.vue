@@ -321,13 +321,13 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
         vidStoriesAndTheirPreviewImages: Object,
         usersAndTheirRelevantInfo: Object,
 
-        usernamesWhoseStoriesYouHaveFinished: Object,
+        userIdsWhoseStoriesYouHaveFinished: Object,
 
         updateUsersAndTheirStories: Function,
         updateUsersAndTheirStoryPreviews: Function,
         updateUsersAndYourCurrSlideInTheirStories: Function,
         updateVidStoriesAndTheirPreviewImages: Function,
-        addUsernameToSetOfUsersWhoseStoriesYouHaveFinished: Function,
+        addUserIdToSetOfUsersWhoseStoriesYouHaveFinished: Function,
         closeStoryViewer: Function,
         showErrorPopup: Function
     });      
@@ -438,8 +438,8 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
             newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
             props.updateUsersAndYourCurrSlideInTheirStories(newUsersAndYourCurrSlideInTheirStories);
 
-            if (!(props.usernamesWhoseStoriesYouHaveFinished.has(currStoryAuthorUsernameValue))) {
-                props.addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
+            if (!(props.userIdsWhoseStoriesYouHaveFinished.has(currStoryAuthorIdValue))) {
+                props.addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorIdValue);
             }
 
             if (props.isFromStoriesSection && currIndexInStoriesSectionValue + 1 < props.orderedListOfUsernamesInStoriesSection.length) {
@@ -965,7 +965,7 @@ import whiteTrashIcon from '../assets/images/whiteTrashIcon.png';
 
                         newUsersAndYourCurrSlideInTheirStories[currStoryAuthorIdValue] = 0;
 
-                        props.addUsernameToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorUsernameValue);
+                        props.addUserIdToSetOfUsersWhoseStoriesYouHaveFinished(currStoryAuthorIdValue);
 
                         handleChangeInStory();
                     }

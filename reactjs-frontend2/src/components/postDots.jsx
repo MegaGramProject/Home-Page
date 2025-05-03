@@ -1,5 +1,5 @@
 import grayDot from '../assets/images/grayDot.png';
-import solidWhiteDot from '../assets/images/solidWhiteDot.png';
+import solidWhiteDot from '../assets/images/solidWhiteDot.webp';
 
 
 function PostDots({numSlides, currSlide, currSlideIsImage}) {

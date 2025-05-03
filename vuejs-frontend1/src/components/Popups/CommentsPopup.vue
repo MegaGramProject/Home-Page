@@ -149,6 +149,7 @@
                         :username="postDetails.authorUsernames[0]"
                         :userPfp="mainPostAuthorInfo.profilePhoto ?? defaultPfp"
                         :inStoriesSection="false"
+                        :isSponsored="false"
                         :userHasStories="mainPostAuthorInfo.hasStories ?? false"
                         :userHasUnseenStory="mainPostAuthorInfo.hasUnseenStory ?? false"
                         :userIsVerified="mainPostAuthorInfo.isVerified ?? false"

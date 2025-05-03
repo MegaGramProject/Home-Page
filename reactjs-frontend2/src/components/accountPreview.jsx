@@ -7,7 +7,7 @@ numPosts, numFollowers, numFollowings, userIsPrivate, userIsVerified, updateFoll
 
 
     function formatNumber(number) {
-        if(number==='?') {
+        if(number == -1) {
             return '?';
         }
         else if (number < 10000) {

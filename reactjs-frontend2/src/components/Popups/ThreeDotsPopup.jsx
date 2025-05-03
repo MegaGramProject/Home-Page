@@ -16,8 +16,7 @@ function ThreeDotsPopup({authUserId, postDetails, hidePost, showAboutAccountPopu
                 setCopyLinkText('Copy link');
             }, 550);
         })
-        .catch(_ => {
-            _;
+        .catch(() => {
             setCopyLinkText('Failed to copy');
             setTimeout(() => {
                 setCopyLinkText('Copy link');
