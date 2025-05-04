@@ -74,7 +74,7 @@ async def on_connection(connection, path):
         connection.user_id = user_id
     
     if backend_id_is_provided:
-        accepted_backend_ids = ['djangoBackend2']
+        accepted_backend_ids = ['springBootBackend2']
         if backend_id not in accepted_backend_ids:
             await connection.close(code=4400, reason='The provided backend-id was invalid')
             return
