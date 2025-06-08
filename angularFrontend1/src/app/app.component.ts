@@ -9,5 +9,5 @@ import { RouterOutlet } from '@angular/router';
   templateUrl: './app.component.html'
 })
 export class App {
-  title = 'angularFrontend1';
+  title:string = 'angularFrontend1';
 }

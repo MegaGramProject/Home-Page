@@ -1,33 +1,27 @@
 # Home-Page
-  This GitHub repository contains code that powers both the <b>frontend & backend</b> of the <b>almighty home-page</b> of Megagram. This is the page that the user lands on <b>when they login</b>, and includes a feed of <b>stories, posts, and suggested-accounts</b>, as well as a bunch of <b>links to all that Megagram has to offer</b>. Megagram is a blend of some of the features of <b>Instagram and Amazon</b>, combined into a single website. It was created by me, <b>Rishav Ray</b>, as a personal project to <b>acquire and then showcase</b> my skills. To <b>allocate my time efficiently</b>, I focused on <b>three key repositories</b> of Megagram —<b>Login/Register, Reset Password, and Home Page</b>— which when combined effectively fulfills my purpose of this entire endeavor. I also focused on the <b>PortfolioPresentation</b> repo, a complex frontend that acts as a <b>website about me for job-recruiters and employers to view</b>.
+  This GitHub repository contains code that powers both the <b>frontend & backend</b> of the <b>almighty home-page</b> of Megagram. This is the page that the user lands on <b>when they login</b>, and includes a feed of <b>stories, posts, and suggested-accounts</b> for users to <b>view and interact with</b>, as well as a bunch of <b>links to all that Megagram has to offer</b>. Megagram is a blend of some of the features of <b>Instagram and Amazon</b>, combined into a single website. It was created by me, <b>Rishav Ray</b>, as a personal project to <b>acquire and then showcase</b> my skills. To <b>allocate my time efficiently</b>, I focused on <b>three of the nine key repositories</b> of Megagram —<b>Login/Register, Reset Password, and Home Page</b>— which when combined <b>fulfills</b> my <b>purpose</b> of the <b>entire endeavor</b>. I also focused on the <a href="https://github.com/rishavry/WorksPresentation" style="font-weight: bold;" target="_blank" rel="noopener noreferrer">WorksPresentation Github repository</a> of mine(which has a <b>wiki with important info</b>), containing a complex frontend that acts as a <b>website about me for job-recruiters and employers to view</b>!
 
-  Because a major portion of the project depends on <b>the cloud</b>, in order to <b>save costs</b> on that, I <b>only activate</b> my frontend, backend and data/cloud-services for about 1-2 days max upon request, assuming that there aren't too many cloud-services also running at the time(<b>my contact-info is presented in the bottom-section</b>). <b>Once they're activated</b>, you should know that the frontend-urls either begin with https://megagram.com/, https://megagram.com/vuejs-frontend1/ or https://megagram.com/angularFrontend1/; the backend-urls all start with https://megagram.com/Home-Page/api/.
-
-  If you so choose, you can use the <b>username 'testuser'</b> and the <b>password 'IamTESTINGMegagram1!!'</b> to login to Megagram as an actual user(although, unlike actual users, <b>you won't be able to edit the username or password</b> of this account).
-
-  Welcome aboard!
-
+  <b>Welcome</b> aboard!
 
 ## Table of Contents
-  0. [Disclaimer](#disclaimer)
+  0. [Important Disclaimer](#important-disclaimer-because-honesty-is-the-best-policy)
   1. [Key Points on Frontend](#key-points-on-frontend)
   2. [Key Points on Backend](#key-points-on-backend)
   3. [Key Points on WebSocket](#key-points-on-websocket)
-  4. [Key Points on Data](#key-points-on-data)
-  5. [Key Points on Cloud](#key-points-on-cloud)
-  6. [Video of Frontend](#video-of-frontend)
-  7. [Running the Frontend, Backend, & WebSocket](#running-the-frontend-backend-and-websocket)
-  8. [Finale(My Contact Info is Here)](#finale)
+  4. [Finale(My Contact Info is Here)](#finale)
 
+## Important Disclaimer because Honesty is the Best Policy
 
-## Disclaimer
-  <b>Full-disclosure!</b> This entire undertaking is <b>solely a personal project</b> I used to learn the <b>necessary skills</b> for my desired career-path. I was not paid by a company, nor is this project a startup. Hence, for the sake of <b>doing more with less and not wasting time with needless repetition</b>, a few parts(like <b>less than 5%</b>) of the process have been omitted(i.e have been replaced by <b>placeholder logic/code or not even implemented at all</b>). 
+During the first iteration of Project Megagram, I worked on all nine repositories. In the second iteration, I narrowed my focus to three of them, including this Home-Page repository. In the third and final iteration, I continued concentrating on these three repositories. However, I chose not to fully revise and polish all the frontend and backend files across them, as the work(which I was not paid at all for) felt repetitive and offered limited new learning and 'showing-skills-to-future-employer' opportunities. Furthermore, all the cloud-services that my project so heavily relies on were out of my budget.
 
+To combat the issues above, I used the final iteration to create detailed wiki pages in my <a href="https://github.com/rishavry/WorksPresentation" style="font-weight: bold;" target="_blank" rel="noopener noreferrer">WorksPresentation Github repository</a>. These documents outline how I would approach various aspects of frontend, backend, cloud architecture, and more, if I were tasked with building them under real-world conditions.
+
+As a result, the current state of the content in this repository(including the rest of the README below) may not fully reflect industry-grade optimization or deployment readiness. Rather, it represents earlier work, with my more refined thought process and technical strategies documented in the associated wiki pages.
 
 ## Key Points on Frontend
   * There are <b>three frontend directories</b> for the Home-Page, one powered by <b>ReactJS(reactjs-frontend2)</b>, one by <b>VueJS(vuejs-frontend1)</b>, and one by <b>Angular-TypeScript(angularFrontend1)</b>. Each of them essentially render the same website with the same logic and <b>only differ by their syntax</b>.
 
-  * There are <b>2 endpoints</b>: / and /stories/{authorUsernameOrIdOfStory}. Both endpoints start with either https://megagram.com/, https://megagram.com/vuejs-frontend1/, or https://megagram.com/angularFrontend1/. 
+  * There are <b>2 endpoints</b>: / and /stories/{authorUsernameOrIdOfStory}. Both endpoints start with either https://project-megagram.com/, https://project-megagram.com/vuejs-frontend1/, or https://project-megagram.com/angularFrontend1/. 
 
   * When the user visits the <b>/ page</b>, they get access to a <b>Left-Sidebar</b> with links to all the links of Megagram,
   as well as the <b>feed of stories, suggested-accounts, and posts</b> for the user. The <b>feeds are based on a variety of factors</b>, including number of followers followers, amount-of-engagement from the user, the accounts the user follows, etc. The user can even be logged out and <b>browse the feed as an Anonymous guest</b>.
@@ -64,7 +58,6 @@
   * Each of the frontend pages work for both <b>dark-mode and light-mode of the system</b>, and have been <b>successfully tested</b> across the <b>top 5 most popular browsers</b> and across the <b>numerous different screen-sizes</b> provided by Google-Chrome Dev-Tools.
 
   * Whenever the user tries to access an endpoint in the frontend that <b>does not exist</b>, they will come across a <b>'Page-Not-Found'</b> page that is very well styled. It was created by an <b>experienced Graphics designer</b> and the styling is <b>very exquisite and complex</b>, but I was able to <b>alter</b> the HTML/JS/CSS just a bit so that it <b>fits the 'Megagram-brand'</b>.
-
 
 ## Key Points on Backend
   * There are <b>five backend directories</b> for the Home-Page, one powered by <b>C# Asp NET Core(aspNetCoreBackend1)</b>, one by <b>Python Django(djangoBackend2)</b>, one by <b>NodeJS Express (expressJSBackend1)</b>, one by <b>PHP Laravel (laravelBackend1)</b>, and one by <b>Java Spring-Boot(springBootBackend2)</b>. Each of them <b>serve different purposes</b> and work with data of different kinds. They all connect with <b>databases/cloud in one way or another</b>, and some of them connect to WebSockets for the sake of <b>quick and seamless data-update tracking</b>.
@@ -147,7 +140,6 @@
 
   And the info for the remaining backends will be added in the Iteration III as I work on them!
 
-
 ## Key Points on WebSocket
   * There are <b>four WebSocket directories</b> in this repository: <b>cSharpSignalRWebSocket(C# SignalR)</b>, <b>nodeJSWebSocketDotIO(NodeJS Socket.IO)</b>, <b>phpRatchetWebSocket(PHP Ratchet)</b>, & <b>pythonWebSocket(Python WebSocket)</b>.
 
@@ -158,55 +150,6 @@
   * The <b>phpRatchetWebSocket</b> WebSocket is responsible for providing <b>updates on follow-requests or followings</b> received by connected clients who have <b>authenticated themselves</b>. The updates are given to the WebSocket by the <b>djangoBackend2 backend-server</b>.
 
   * The <b>pythonWebSocket</b> WebSocket is responsible for providing <b>updates on messages</b> in conversations of connected clients who have <b>authenticated themselves</b>. The updates are given to the WebSocket by the <b>springBootBackend2 backend-server</b>.
-
-
-## Key Points on Data
-  * There is a <b>total of 22 diverse tables/collections/data-sources</b> used in the Home-Page.
-
-  * Here are all the <b>MySQL tables from AWS Relational Database Service</b>:
-    1. (Table-Name): int field1, string field2, ...
-
-    And the info for the remaining data-souces will be added in the Iteration III as I work on them!
-
-  * There was also <b>AWS-Redis-Cloud, which was used for caching the following pieces of data</b>:
-    1. Example1
-    2. Example2
-
-
-## Key Points on Cloud
-  * In this Home-Page, <b>the big-3 Cloud-services were used extensively</b> for a wide variety of purposes. In case you weren't aware, the big-3 cloud-services are <b>Amazon Web Services (AWS)</b>, <b>Microsoft Azure</b>, and <b>Google Cloud Platform (GCP)</b>. The purposes that they fulfilled include: providing scalable databases/caching/file-storage, encrypting data-encryption-keys, hosting the frontend servers and backend-servers with VMs and Kubernetes Clusters, Content-Delivery-Networks for caching and delivering files, etc.
-
-  * <b>AWS was used for the following</b>:
-    1. Example1
-    2. Example2
-  
-  * <b>Azure was used for the following</b>:
-    1. Example1
-    2. Example2
-
-  * <b>GCP was used for the following</b>:
-    1. Example1
-    2. Example2
-
-
-## Video of Frontend
-  <video src="./README_imgs_&_vids/videoOfFrontend.mp4" controls></video>
-
-
-## Running the Frontend Backend and WebSocket
-  <b>Because Code Reproducibility is Very Important!</b>
-
-  If you would like to run a <b>development-server/production-server of the frontend</b> on your own computer/VM/container/etc, follow these steps:
-
-  `0.` Run the following terminal-command:
-  ```bash 
-  git clone https://github.com/MegaGramProject/Home-Page.git
-  ```
-
-  `1.` Run the following terminal-command:
-  ```bash 
-  cd Home-Page/reactjs-frontend2
-  ```
 
 ## Finale
   Thank you for sticking around till the end! Hope you found what you were looking for. Whether you did or not, feel free to reach out to me using any of the following methods:
