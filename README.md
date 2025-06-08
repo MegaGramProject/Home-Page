@@ -136,9 +136,7 @@ As a result, the current state of the content in this repository(including the r
       9. GetBatchOfFollowersOfUser(int authUserId, int userId, int[]? followerIdsToExclude)
       10. GetBatchOfFollowersOfUser(int authUserId, int userId, int[]? followerIdsToExclude)
       
-      And the remaining UserFollowingQuery resolvers and FollowRequestQuery resolvers (fill them out in iteration III as you work on them)
-
-  And the info for the remaining backends will be added in the Iteration III as I work on them!
+  * There are 3 more big ones that aren't covered in this README
 
 ## Key Points on WebSocket
   * There are <b>four WebSocket directories</b> in this repository: <b>cSharpSignalRWebSocket(C# SignalR)</b>, <b>nodeJSWebSocketDotIO(NodeJS Socket.IO)</b>, <b>phpRatchetWebSocket(PHP Ratchet)</b>, & <b>pythonWebSocket(Python WebSocket)</b>.
